@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Custom Orders - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a;
+            --old-gold: #8e24aa; --whatsapp: #25D366; --merchant-orange: #f57f17;
+            --receive-green: #2e7d32; --bill-blue: #1976d2;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); color: #333; padding-top: 60px; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; outline: none; }
+        a { text-decoration: none; color: inherit; }
+
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 1000; border-bottom: 2px solid var(--accent-gold); box-shadow: 0 2px 10px rgba(0,0,0,0.5); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-btn { background: transparent; border: 1px solid #333; width: 40px; height: 40px; border-radius: 4px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2999; backdrop-filter: blur(2px); }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+
+        .app-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid var(--accent-gold); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: #333; }
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase;}
+
+        .controls-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .search-box { flex: 1; padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; min-width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none;}
+        .search-box:focus { border-color: var(--accent-gold); }
+        
+        .tabs { display: flex; background: #e0e0e0; border-radius: 10px; padding: 4px; gap: 5px; flex-wrap: wrap;}
+        .tab { flex: 1; min-width: 100px; text-align: center; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
+        .tab.active { background: white; color: var(--active-red); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 15px; }
+        .order-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--bill-blue); transition: transform 0.2s; position: relative; display: flex; flex-direction: column;}
+        .order-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+        
+        .order-card.ready { border-top-color: var(--receive-green); opacity: 0.95; }
+        .order-card.billed { border-top-color: #333; opacity: 0.8; background:#fafafa;}
+        .order-card.cancelled { border-top-color: #888; opacity: 0.6; }
+        .order-card.overdue { border-top-color: #d32f2f; }
+        
+        .o-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .o-cust { font-weight: 700; font-size: 1.15rem; color: #222; }
+        .o-desc { font-size: 0.95rem; color: #444; font-weight: 500; margin-bottom: 10px; line-height: 1.4; display:flex; align-items:center; gap:8px;}
+        
+        .o-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f9f9f9; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; }
+        .o-meta div { display: flex; flex-direction: column; }
+        .o-meta span { color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight:600;}
+        .o-meta strong { color: #333; }
+
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .b-pending { background: #e3f2fd; color: #1565c0; }
+        .b-assigned { background: #fffde7; color: #f57f17; border: 1px solid #ffe082;}
+        .b-completed { background: #e8f5e9; color: #2e7d32; }
+        .b-billed { background: #e0e0e0; color: #333; }
+        .b-cancelled { background: #eeeeee; color: #757575; }
+        .b-overdue { background: #ffebee; color: #c62828; animation: pulse 2s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        .o-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #eee; padding-top: 15px; }
+        .btn-view { padding: 8px 15px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s;}
+        .btn-view:hover { background: #000; }
+
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 95%; max-width: 650px; border-radius: 16px; padding: 25px; max-height: 95vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666; z-index: 10;}
+
+        .form-section { background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-bottom: 15px; position: relative;}
+        .form-section-title { font-size: 0.8rem; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group { margin-bottom: 12px; position: relative; }
+        label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 4px; font-weight: 600; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit; background: #fafafa; transition: 0.2s;}
+        input:focus, select:focus, textarea:focus { border-color: var(--active-red); background: white; outline: none;}
+        input[readonly] { background: #eee; color: #333; font-weight: 600; border-color: #ccc; }
+
+        .input-group { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+        .input-group input { border: none; flex: 1; border-radius: 0; }
+        .input-group select { width: 100px; border: none; border-left: 1px solid #ddd; background: #eee; font-weight: 600; }
+
+        .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        .search-item:hover { background: #fff5f5; color: var(--active-red); }
+
+        .btn-primary { width: 100%; padding: 12px; background: var(--active-red); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;}
+        .btn-outline { background: transparent; border: 1px solid #ccc; color: #555; }
+        .btn-outline:hover { background: #f0f0f0; }
+
+        .summary-highlight { background: #1a1a1a; color: #fff; padding: 15px; border-radius: 8px; margin-top: 10px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);}
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; align-items: center;}
+        .summary-val { font-weight: 700; color: #fff; }
+
+        .tracker { display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; padding: 0 10px;}
+        .tracker::before { content: ''; position: absolute; top: 15px; left: 10%; width: 80%; height: 3px; background: #eee; z-index: 1; }
+        .tracker-step { position: relative; z-index: 2; text-align: center; flex: 1; }
+        .tracker-icon { width: 32px; height: 32px; border-radius: 50%; background: #eee; color: #999; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px; font-size: 0.85rem; font-weight: bold; border: 3px solid white; transition: 0.3s; }
+        .tracker-text { font-size: 0.7rem; color: #888; font-weight: 600; text-transform: uppercase; }
+        
+        .tracker-step.active .tracker-icon { background: var(--active-red); color: white; box-shadow: 0 0 0 4px rgba(211, 47, 47, 0.2); }
+        .tracker-step.active .tracker-text { color: var(--active-red); font-weight: 700;}
+        .tracker-step.done .tracker-icon { background: var(--receive-green); color: white; }
+        .tracker-step.done .tracker-text { color: var(--receive-green); }
+
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s, bottom 0.3s; font-weight: 500; }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: var(--receive-green); }
+        #toast.error { background-color: var(--active-red); }
+
+        #invoice-area, #challan-area { display: none; background: white; padding: 30px; font-family: 'Times New Roman', serif; color: #000; }
+        @media print { 
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .fab, #toast { display: none !important; } 
+            body { background: white; padding: 0; }
+            #invoice-area, #challan-area { display: block !important; } 
+            .inv-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+            .inv-table th, .inv-table td { border: 1px solid #000; padding: 8px; text-align: left; }
+            .inv-header { text-align: center; border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; }
+            .inv-header h2 { margin: 0; font-size: 24px; text-transform: uppercase; }
+            .inv-header p { margin: 5px 0; font-size: 14px; }
+            .inv-flex { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html" class="active"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-lbl">Active Orders</div>
+                <div class="stat-val" id="statPending">0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--receive-green);">
+                <div class="stat-lbl">Order Advance Held</div>
+                <div class="stat-val" id="statAdvance" style="color: var(--receive-green);">₹0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--active-red);">
+                <div class="stat-lbl">Overdue Orders</div>
+                <div class="stat-val" id="statOverdue" style="color: var(--active-red);">0</div>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <input type="text" id="orderSearch" class="search-box" placeholder="Search Customer Name or Phone or Invoice No..." onkeyup="filterOrders()">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('pending', this)">Pending / In-Progress</button>
+                <button class="tab" onclick="switchTab('completed', this)">Ready (In Stock)</button>
+                <button class="tab" onclick="switchTab('billed', this)">Billed / Delivered</button>
+                <button class="tab" onclick="switchTab('cancelled', this)">Cancelled</button>
+            </div>
+        </div>
+
+        <div id="orders-list" class="order-grid"></div>
+
+        <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="newJobModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
+            <h3 style="margin-top:0;"><i class="fas fa-hammer"></i> New Custom Order</h3>
+
+            <div class="form-section">
+                <div class="form-group" style="margin:0;">
+                    <label>Customer Name or Mobile</label>
+                    <input type="text" id="custSearchInput" placeholder="Type to search..." onkeyup="searchCustomer('custSearchInput', 'custSearchResults', 'selectedCustId', 'selectedCustDisplay')" autocomplete="off">
+                    <input type="hidden" id="selectedCustId">
+                    <div id="custSearchResults" class="search-results"></div>
+                    <div id="selectedCustDisplay" style="display:none; justify-content:space-between; align-items:center; background:#e3f2fd; padding:10px; border-radius:6px; margin-top:5px; font-weight:bold; color:var(--bill-blue);">
+                        <span id="custNameText"></span>
+                        <button class="btn-outline" style="padding:4px 8px; margin:0; border:none; background:white; color:var(--bill-blue);" onclick="resetCustSearch('custSearchInput', 'selectedCustId', 'selectedCustDisplay')">Change</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Order Details</div>
+                <div class="form-group">
+                    <label>Order Description</label>
+                    <textarea id="oDesc" rows="2" placeholder="Item details (e.g., 22K Men's Ring with specific design)"></textarea>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="oCat">
+                            <option value="Chain">Chain</option>
+                            <option value="Ring">Ring</option>
+                            <option value="Bangle">Bangle</option>
+                            <option value="Necklace">Necklace</option>
+                            <option value="Earring">Earring</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivery Due Date</label>
+                        <input type="date" id="oDue">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Estimated Weights & Purity</div>
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="oPurity" onchange="autoFillRate()"></select>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Est. Gross Wt (g)</label>
+                        <input type="number" id="oGrossWt" step="0.001" oninput="calcOrderTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label>Est. Stone Wt (g)</label>
+                        <input type="number" id="oStoneWt" step="0.001" value="0" oninput="calcOrderTotal()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Net Weight (g)</label>
+                    <input type="number" id="oNetWt" readonly style="background:#e8f5e9;">
+                </div>
+                <input type="hidden" id="oFineWtVal">
+            </div>
+
+            <div class="form-section" style="border-left: 4px solid var(--old-gold); background: #f3e5f5;">
+                <div class="form-section-title" style="color: var(--old-gold); border-color: #e1bee7;">Old Gold Exchanged (Optional)</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Purity</label>
+                        <select id="oOldPurity" onchange="autoFillOldRate()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rate (₹/g)</label>
+                        <input type="number" id="oOldGoldRate" oninput="calcOrderTotal()">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Gross Wt (g)</label>
+                        <input type="number" id="oOldGrossWt" step="0.001" value="0" oninput="calcOrderTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label>Stone Wt (g)</label>
+                        <input type="number" id="oOldStoneWt" step="0.001" value="0" oninput="calcOrderTotal()">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Fine Wt (g) <small style="color:var(--old-gold);">(Auto)</small></label>
+                        <input type="number" id="oOldFineWt" readonly style="background:#e1bee7; color:#4a148c; font-weight:bold;">
+                    </div>
+                    <div class="form-group">
+                        <label>Exchange / Return %</label>
+                        <input type="number" id="oOldExchangePct" value="100" oninput="calcOrderTotal()">
+                    </div>
+                </div>
+                <div style="font-size:0.85rem; color:#666; text-align:right; margin-top:5px;">
+                    Old Gold Value: <strong id="oOldGoldValueDisplay" style="color:var(--old-gold);">₹0</strong>
+                </div>
+            </div>
+
+            <div class="form-section" style="border-left: 4px solid #fbc02d; background: #fffde7;">
+                <div class="form-section-title" style="color: #f57f17; border-color: #ffe0b2;">Costing & Advance</div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Locked Gold Rate (₹/g)</label>
+                        <input type="number" id="oRate" oninput="calcOrderTotal()" style="border-color:#fbc02d; font-weight:bold;">
+                    </div>
+                    <div class="form-group">
+                        <label>Est. Making Charge (₹)</label>
+                        <input type="number" id="oMaking" value="0" oninput="calcOrderTotal()">
+                    </div>
+                </div>
+
+                <div class="summary-highlight">
+                    <div class="summary-row">
+                        <span>Gross Order Total:</span>
+                        <span class="summary-val" id="oGrossTotalDisplay" style="color:var(--accent-gold);">₹0</span>
+                    </div>
+                    <div class="summary-row" id="oOldGoldSummaryRow" style="display:none; color:#ce93d8; margin-top:5px;">
+                        <span>Less Old Gold Exchanged:</span>
+                        <span class="summary-val" id="oOldGoldTotalDisplay">-₹0</span>
+                    </div>
+                </div>
+
+                <div class="summary-row" style="margin-top:15px; align-items:center; background:rgba(0,0,0,0.05); padding:10px; border-radius:6px;">
+                    <span style="color:#555; font-size:0.85rem; font-weight:bold;">Advance Paid (₹)</span>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="oAdv" placeholder="0" style="width:100px; padding:8px;" oninput="calcOrderTotal()">
+                        <select id="oPayMode" style="width:90px; padding:8px;">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="summary-row" style="margin-top:10px; border-top:2px solid #ddd; padding-top:10px; font-size:1.1rem; font-weight:bold;">
+                    <span id="oPendingLabel">Est. Net Due:</span>
+                    <span class="summary-val" id="oPendingDisplay" style="color:#d32f2f;">₹0</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="oOldNetWt"><input type="hidden" id="oBaseAmountVal"><input type="hidden" id="oGrandTotalVal">
+
+            <button class="btn-primary" onclick="saveJob()"><i class="fas fa-lock"></i> Create Order & Print Receipt</button>
+        </div>
+    </div>
+
+    <div id="viewJobModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('viewJobModal')">&times;</button>
+            <h3 style="margin-top:0;">Manage Order <span id="vOrderId" style="color:var(--active-red);"></span></h3>
+            <input type="hidden" id="vId">
+
+            <div class="tracker">
+                <div class="tracker-step" id="step1">
+                    <div class="tracker-icon"><i class="fas fa-file-alt"></i></div>
+                    <div class="tracker-text">Intake</div>
+                </div>
+                <div class="tracker-step" id="step2">
+                    <div class="tracker-icon"><i class="fas fa-truck-loading"></i></div>
+                    <div class="tracker-text">Karigar</div>
+                </div>
+                <div class="tracker-step" id="step3">
+                    <div class="tracker-icon"><i class="fas fa-box-open"></i></div>
+                    <div class="tracker-text">Ready</div>
+                </div>
+                <div class="tracker-step" id="step4">
+                    <div class="tracker-icon"><i class="fas fa-check"></i></div>
+                    <div class="tracker-text">Billed</div>
+                </div>
+            </div>
+
+            <div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px; border-left: 4px solid #333;">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div>
+                        <h4 style="margin:0 0 5px 0; font-size:1.2rem;" id="vCustName"></h4>
+                        <p style="margin:0 0 10px 0; font-size:0.9rem; color:#555;"><i class="fas fa-info-circle"></i> <span id="vDesc"></span></p>
+                    </div>
+                    <span id="vStatusBadge" class="badge"></span>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.85rem; background:white; padding:10px; border-radius:6px; margin-bottom:10px;">
+                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Gross Wt</span><strong id="vGross"></strong></div>
+                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Rate</span><strong id="vRate" style="color:var(--active-red);"></strong></div>
+                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Making</span><strong id="vMaking"></strong></div>
+                    <div id="vFinalBarcodeDiv" style="display:none;"><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Barcode</span><strong id="vFinalBarcode" style="color:var(--receive-green); font-family:monospace;"></strong></div>
+                </div>
+
+                <div id="vOldGoldDetailsBox" style="display:none; background:#f3e5f5; padding:10px; border-radius:6px; margin-bottom:10px; font-size:0.85rem; border-left: 4px solid var(--old-gold);">
+                    <strong style="color:var(--old-gold); display:block; margin-bottom:5px;"><i class="fas fa-sync-alt"></i> Old Gold Exchanged Details:</strong>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
+                        <div><span style="color:#888; font-size:0.75rem; display:block;">Purity</span><strong id="vOldPurity"></strong></div>
+                        <div><span style="color:#888; font-size:0.75rem; display:block;">Fine Wt</span><strong id="vOldNet"></strong></div>
+                        <div><span style="color:#888; font-size:0.75rem; display:block;">Value</span><strong id="vOldValDetail" style="color:var(--old-gold);"></strong></div>
+                    </div>
+                </div>
+
+                <div style="font-size:0.9rem; border-top:1px solid #ddd; padding-top:10px; background: white; padding:10px; border-radius:6px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold;">
+                        <span id="vTotalLabel">Est. Total:</span> <span id="vGrandTotal"></span>
+                    </div>
+                    <div id="vOldGoldWrapper" style="display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px dashed #eee; display:none;">
+                        <span style="color:var(--old-gold);">Less Old Gold Value:</span> <strong id="vOldGold" style="color:var(--old-gold);"></strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <span style="color:#2e7d32;">Advance Paid:</span> <strong id="vAdv" style="color:#2e7d32;"></strong>
+                    </div>
+                </div>
+                
+                <div style="text-align:right; font-size:1.2rem; margin-top:10px; color:#d32f2f; font-weight:bold; background:#ffebee; padding:10px; border-radius:6px;">
+                    <span id="vDueLabel">Net Due:</span> <span id="vDue"></span>
+                </div>
+            </div>
+
+            <div id="addPaySection" style="margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                <h4 style="margin:0 0 10px 0; font-size:0.9rem;">Receive Additional Advance</h4>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="vNewPay" placeholder="Amount (₹)" style="flex:1;">
+                    <select id="vNewPayMode" style="width:100px;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select>
+                    <button class="btn-primary" style="width:auto; margin:0; padding:10px 20px; background:#2e7d32;" onclick="addAdvance()">Add</button>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn-primary btn-outline" style="margin-top:0;" id="btnWhatsApp" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Send Status</button>
+                <button class="btn-primary btn-outline" style="margin-top:0;" id="btnPrintCustomerReceipt" onclick="printReceiptEngine()"><i class="fas fa-print"></i> Print Receipt</button>
+                
+                <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
+                <button class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print Karigar Issue Slip</button>
+                
+                <button class="btn-primary" style="background:var(--receive-green); margin-top:0; grid-column: span 2;" id="btnReceiveMerchant" onclick="openReceiveModal()"><i class="fas fa-box-open"></i> Receive from Karigar</button>
+                
+                <button class="btn-primary" style="background:#1976d2; margin-top:0; grid-column: span 2;" id="btnGoToSales" onclick="openBillingModal()"><i class="fas fa-desktop"></i> Finalize & Bill Order</button>
+
+                <button class="btn-primary" id="btnCancel" style="background:#c62828; margin-top:0; grid-column: span 2;" onclick="openCancelModal()"><i class="fas fa-undo"></i> Cancel Job & Refund</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="assignModal" class="modal">
+        <div class="modal-content" style="max-width:450px;">
+            <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-truck-loading"></i> Issue to Karigar</h3>
+            
+            <input type="hidden" id="aOrderId">
+            
+            <div class="form-group">
+                <label>Select Karigar / Merchant</label>
+                <select id="aMerchantSelect"></select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 6px; border: 1px solid #90caf9;">
+                <label style="display: flex; align-items: center; gap: 8px; margin: 0; color: #1565c0; font-weight: bold; cursor: pointer;">
+                    <input type="checkbox" id="aProvideShopGold" style="width: 18px; height: 18px; accent-color: #1976d2;" onchange="toggleShopGoldSection()">
+                    Provide Gold from Shop Inventory
+                </label>
+            </div>
+
+            <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Unfixed/Untagged Gold Source</label>
+                    <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Issued Purity</label>
+                        <input type="text" id="aIssuedPurity" readonly style="background:#eee; font-weight:bold; color:#333; text-align:center;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Weight to Issue (g)</label>
+                        <input type="number" id="aIssuedWt" step="0.001" placeholder="e.g. 15.000" oninput="calcAssignFine()">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:10px; margin-bottom:0;">
+                    <label>Calculated Fine Gold Liability (g)</label>
+                    <input type="number" id="aIssuedFineWt" readonly style="background:#fff3e0; color:#e65100; font-weight:bold; border-color:#ffcc80;">
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
+        </div>
+    </div>
+
+    <div id="receiveModal" class="modal">
+        <div class="modal-content" style="max-width:550px;">
+            <button class="close-btn" onclick="closeModal('receiveModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--receive-green);"><i class="fas fa-box-open"></i> Receive & Finalize</h3>
+            <input type="hidden" id="rOrderId">
+            
+            <div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid var(--receive-green); margin-bottom:15px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="color:#2e7d32; font-weight:bold;">Issued to Karigar:</div>
+                    <div id="rIssuedGrossDisplay">0.000 g</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="color:#2e7d32; font-weight:bold;">Total Issued:</div>
+                    <strong id="rIssuedWtDisplay" style="font-size:1.1rem; color:#1b5e20;">0.000 g</strong>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Final Received Weights</div>
+                <div style="display:flex; justify-content:flex-end; margin-bottom:5px;">
+                    <button class="btn-outline" style="margin:0; padding:4px 8px; font-size:0.75rem; border-color:#ccc; color:#555;" onclick="autoFillFinalGross()"><i class="fas fa-copy"></i> Copy Est.</button>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rFinalGross" step="0.001" oninput="calcReceiveTotals()"></div>
+                    <div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rFinalStone" step="0.001" value="0" oninput="calcReceiveTotals()"></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Final Net Wt (g)</label><input type="number" id="rFinalNet" readonly style="background:#f0f0f0; font-weight:bold;"></div>
+                    <div class="form-group">
+                        <label>Actual Wastage</label>
+                        <div class="input-group">
+                            <input type="number" id="rWastageVal" step="0.01" value="0" oninput="calcReceiveTotals()">
+                            <select id="rWastageMode" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="gm">+ g</option></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group"><label>Final Chargeable Fine Wt (24K Equivalent)</label><input type="number" id="rFinalFine" readonly style="background:#fffde7; color:#f57f17; font-weight:bold; border-color:#ffe0b2;"></div>
+                <div class="form-group" style="padding:10px; background:#fafafa; border:1px dashed #ccc;"><label>Karigar Ledger Diff</label><input type="text" id="rWtDiff" readonly style="font-weight:bold; background:transparent; border:none; padding:0;"></div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Final Costing</div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Actual Making Chg (₹)</label><input type="number" id="rActualMaking" oninput="calcReceiveTotals()"></div>
+                    <div class="form-group"><label>Other Charges (₹)</label><input type="number" id="rActualOther" value="0" oninput="calcReceiveTotals()"></div>
+                </div>
+            </div>
+
+            <div class="summary-highlight">
+                <div class="summary-row"><span>New Final Order Total:</span><span class="summary-val" id="rNewGrandTotal" style="color:var(--accent-gold); font-size:1.2rem;">₹0</span></div>
+            </div>
+
+            <input type="hidden" id="rNewGrandTotalVal">
+            <input type="hidden" id="rNewBaseVal">
+
+            <button class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Mark Ready for Stock</button>
+        </div>
+    </div>
+
+    <div id="billingModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
+            <h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3>
+            <input type="hidden" id="billOrderId">
+            <input type="hidden" id="billCustId">
+            
+            <div id="billCustSearch" style="display:none;"></div>
+            <div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-user-tag" style="font-size:1.1rem;"></i>
+                    <span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span>
+                </div>
+                <span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span>
+            </div>
+            
+            <div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Gross Order Total:</span> <strong id="bOrdGross">₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.2rem;">
+                    <span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Receive Final Payment</div>
+                <div class="form-grid">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="billPayAmt">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Mode</label>
+                        <select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select>
+                    </div>
+                </div>
+                <button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button>
+                <div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div>
+                <div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">
+                    Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button>
+        </div>
+    </div>
+
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
+            <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Order</h3>
+            <input type="hidden" id="cOrderId">
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Advance Paid:</span> <strong id="cOrderAdv" style="color:#2e7d32;">₹0</strong></div>
+                <div id="cOrderOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--old-gold); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                    <span>Old Gold Held:</span> <strong id="cOrderOldGold">0g</strong>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Refund Advance Cash (₹)</label>
+                <input type="number" id="cRefundAmt">
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
+                <input type="checkbox" id="cReturnOldGold" checked style="width:20px; height:20px; accent-color:#ef6c00;"> 
+                <label for="cReturnOldGold" style="margin:0; color:#ef6c00; font-weight:bold; cursor:pointer;">Return Old Gold to Customer?</label>
+            </div>
+            <button class="btn btn-danger" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button>
+        </div>
+    </div>
+
+    <div id="invoice-area"></div>
+    <div id="challan-area"></div>
+    <div id="toast">Message</div>
+
+    <script src="db.js?v=35"></script> 
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function toggleDisplay(id, displayState) { const el = document.getElementById(id); if(el) el.style.display = displayState; }
+        function setText(id, text) { const el = document.getElementById(id); if(el) el.innerText = text; }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            toast.innerText = msg;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+        }
+
+        let allOrders = []; let allCustomers = []; let allMerchants = [];
+        let currentTab = 'pending';
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
+        let billingPayments = []; 
+        let activeJobData = null; 
+
+        window.onload = async function() {
+            const d = new Date(); d.setDate(d.getDate() + 10);
+            if(document.getElementById('oDue')) document.getElementById('oDue').valueAsDate = d;
+            
+            const r = await getSetting('gold_rates'); if(r) goldRates = r;
+
+            let opts = `<option value="24K">24K (Fine)</option><option value="22K">22K</option><option value="18K">18K</option>`;
+            if(goldRates.customPurities) {
+                goldRates.customPurities.forEach(cp => { opts += `<option value="${cp.name}">${cp.name}</option>`; });
+            }
+            if(document.getElementById('oPurity')) document.getElementById('oPurity').innerHTML = opts;
+            if(document.getElementById('oOldPurity')) document.getElementById('oOldPurity').innerHTML = opts;
+
+            await loadMerchants(); await loadCustomers(); await loadOrders();
+        };
+
+        async function loadMerchants() {
+            allMerchants = await getAllItems('merchants');
+            const sel = document.getElementById('aMerchantSelect');
+            if(sel) {
+                sel.innerHTML = '<option value="">-- Select Karigar --</option>';
+                allMerchants.forEach(m => sel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
+            }
+        }
+
+        async function loadCustomers() { allCustomers = await getAllItems('customers'); }
+
+        async function loadOrders() {
+            const orders = await getAllItems('orders');
+            let totalAdv = 0; let pendingCount = 0; let overdueCount = 0;
+            const now = new Date(); now.setHours(0,0,0,0);
+
+            allOrders = orders.filter(o => o.jobType === 'Order').map(o => {
+                const c = allCustomers.find(x => x.id == o.customerId);
+                if(o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar') {
+                    pendingCount++; 
+                    totalAdv += (o.advancePaid || 0);
+                    if(new Date(o.dueDate) < now) overdueCount++;
+                }
+                return { ...o, custName: c ? c.name : 'Unknown', custMobile: c ? c.mobile : '' };
+            });
+
+            setText('statPending', pendingCount);
+            setText('statAdvance', "₹" + totalAdv.toLocaleString());
+            setText('statOverdue', overdueCount);
+            renderOrders();
+        }
+
+        function switchTab(tab, btn) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderOrders();
+        }
+        function filterOrders() { renderOrders(); }
+
+        function renderOrders() {
+            const container = document.getElementById('orders-list');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            const term = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+            
+            const filtered = allOrders.filter(o => {
+                let matchTab = false;
+                if (currentTab === 'pending') {
+                    matchTab = (o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar');
+                } else if (currentTab === 'completed') {
+                    matchTab = (o.status === 'completed' || o.status === 'ready');
+                } else if (currentTab === 'billed') {
+                    matchTab = (o.status === 'billed' || o.status === 'delivered');
+                } else if (currentTab === 'cancelled') {
+                    matchTab = (o.status === 'cancelled');
+                }
+                
+                const matchSearch = o.custName.toLowerCase().includes(term) || String(o.custMobile).includes(term) || (o.description||'').toLowerCase().includes(term) || String(o.invoiceNo||'').toLowerCase().includes(term);
+                return matchTab && matchSearch;
+            });
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: 1/-1;">No orders found.</div>`;
+                return;
+            }
+
+            filtered.sort((a,b) => {
+                if(currentTab === 'pending') return new Date(a.dueDate) - new Date(b.dueDate);
+                return new Date(b.orderDate) - new Date(a.orderDate);
+            });
+
+            const now = new Date(); now.setHours(0,0,0,0);
+
+            filtered.forEach(o => {
+                const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+                const due = new Date(o.dueDate);
+                let badgeClass = 'b-pending'; let badgeText = 'Pending'; let isOverdue = false;
+
+                if(o.status === 'billed' || o.status === 'delivered') { badgeClass = 'b-billed'; badgeText = 'Delivered'; } 
+                else if(o.status === 'completed' || o.status === 'ready') { badgeClass = 'b-completed'; badgeText = 'Ready'; } 
+                else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
+                else if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                    const mId = o.merchantId; const m = allMerchants.find(x => x.id == mId);
+                    badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`;
+                } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
+
+                let cardClass = '';
+                if (o.status === 'billed' || o.status === 'delivered') cardClass = 'billed';
+                else if (o.status === 'completed' || o.status === 'ready') cardClass = 'completed';
+                else if (o.status === 'cancelled') cardClass = 'cancelled';
+                else if (isOverdue) cardClass = 'overdue';
+                
+                const dateStyle = isOverdue ? 'color:#c62828; font-weight:bold;' : 'color:#333;';
+                const adv = o.advancePaid || 0;
+                const oldGoldVal = o.oldGoldValue || 0;
+                const grandTotal = o.grandTotal || o.estAmount || 0; 
+                let netPayable = grandTotal - oldGoldVal - adv;
+                
+                if (o.status === 'billed' || o.status === 'delivered') netPayable = 0; 
+
+                const icon = '<i class="fas fa-ring" style="color:var(--accent-gold);"></i>';
+                let displayWt = o.finalGross ? `${o.finalGross}g (Final)` : `${o.grossWt}g (Est)`;
+
+                container.innerHTML += `
+                    <div class="order-card ${cardClass}">
+                        <div class="o-header">
+                            <div>
+                                <div class="o-cust">${o.custName}</div>
+                                <div style="font-size:0.8rem; color:#888;">${o.custMobile} | <b style="color:var(--bill-blue);">${invoiceNo}</b></div>
+                            </div>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                        </div>
+                        <div class="o-desc">${icon} ${o.category} - ${o.description}</div>
+                        <div class="o-meta">
+                            <div><span>Weight</span><strong>${displayWt}</strong></div>
+                            <div><span>Due Date</span><strong style="${dateStyle}">${due.toLocaleDateString()}</strong></div>
+                            <div><span>Locked Rate</span><strong>₹${(o.lockedRate || 0)}/g</strong></div>
+                            <div><span>Advance Paid</span><strong style="color:#2e7d32;">₹${adv.toLocaleString()}</strong></div>
+                        </div>
+                        <div class="o-footer">
+                            <span style="font-size:0.85rem; color:#666;">Net Due: <b style="color:${netPayable < 0 ? 'var(--exchange-purple)' : 'var(--active-red)'}; font-size:1.1rem;">₹${Math.abs(netPayable).toLocaleString()}</b></span>
+                            <button class="btn-view" onclick="openViewModal(${o.id})">${(o.status === 'billed' || o.status === 'delivered') ? 'View Details' : 'Manage Order'}</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function searchCustomer(inputId, resultsId, hiddenId, displayId) {
+            const term = document.getElementById(inputId).value.toLowerCase();
+            const resultsDiv = document.getElementById(resultsId);
+            resultsDiv.innerHTML = '';
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    div.onclick = () => {
+                        document.getElementById(hiddenId).value = c.id;
+                        document.getElementById(inputId).value = c.name;
+                        resultsDiv.style.display = 'none';
+                        document.getElementById(inputId).style.display = 'none';
+                        const disp = document.getElementById(displayId);
+                        disp.style.display = 'flex';
+                        if(displayId === 'selectedCustDisplay') {
+                             disp.innerHTML = `<span><i class="fas fa-check-circle"></i> Selected: ${c.name}</span> <button class="btn-outline" style="margin:0; padding:2px 6px; font-size:0.8rem; border:none; background:white;" onclick="resetCustSearch('${inputId}', '${hiddenId}', '${displayId}')">Change</button>`;
+                        } else {
+                             document.getElementById('billCustNameText').innerHTML = `${c.name} (${c.mobile})`;
+                        }
+                    };
+                    resultsDiv.appendChild(div);
+                });
+            } else { resultsDiv.style.display = 'none'; }
+        }
+
+        function resetCustSearch(inputId = 'custSearchInput', hiddenId = 'selectedCustId', displayId = 'selectedCustDisplay') {
+            document.getElementById(hiddenId).value = '';
+            document.getElementById(inputId).value = '';
+            document.getElementById(inputId).style.display = 'block';
+            document.getElementById(displayId).style.display = 'none';
+            document.getElementById(inputId).focus();
+        }
+
+        function openNewJobModal() { 
+            openModal('newJobModal');
+            resetCustSearch();
+            document.getElementById('oDesc').value = ''; 
+            document.getElementById('oGrossWt').value = '';
+            document.getElementById('oStoneWt').value = 0; 
+            
+            document.getElementById('oOldGrossWt').value = 0; document.getElementById('oOldStoneWt').value = 0;
+            document.getElementById('oOldNetWt').value = 0; document.getElementById('oOldFineWt').value = 0;
+            document.getElementById('oOldExchangePct').value = 100; 
+            document.getElementById('oMaking').value = 0;
+            document.getElementById('oAdv').value = '';
+            autoFillRate();
+        }
+
+        function getPurityFactor(key) {
+            if (key === '24K') return 1.000;
+            if (key === '22K') return 0.9166;
+            if (key === '18K') return 0.7500;
+            const custom = goldRates.customPurities?.find(cp => cp.name === key);
+            if (custom) return custom.pct / 100;
+            return 1.0;
+        }
+
+        function autoFillRate() {
+            const purity = document.getElementById('oPurity').value;
+            let rate = 0;
+            if(purity === '22K') rate = goldRates.rate22k;
+            else if(purity === '24K') rate = goldRates.rate24k;
+            else if(purity === '18K') rate = goldRates.rate18k || (goldRates.rate22k * 0.82); 
+            else {
+                const factor = getPurityFactor(purity);
+                rate = goldRates.rate24k * factor;
+            }
+            document.getElementById('oRate').value = Math.round(rate / 10);
+            if (!document.getElementById('oOldGoldRate').value || document.getElementById('oOldGoldRate').value == 0) {
+                 document.getElementById('oOldGoldRate').value = Math.round((goldRates.rate24k / 10)); 
+            }
+            calcOrderTotal();
+        }
+        
+        function autoFillOldRate() {
+            document.getElementById('oOldGoldRate').value = Math.round((goldRates.rate24k / 10));
+            calcOrderTotal();
+        }
+
+        function calcOrderTotal() {
+            const gross = parseFloat(document.getElementById('oGrossWt').value) || 0;
+            const stone = parseFloat(document.getElementById('oStoneWt').value) || 0;
+            const net = Math.max(0, gross - stone);
+            document.getElementById('oNetWt').value = net.toFixed(3);
+
+            const purityFactor = getPurityFactor(document.getElementById('oPurity').value);
+            const finalFineWt = net * purityFactor;
+            document.getElementById('oFineWtVal').value = finalFineWt;
+
+            // Old Gold
+            const oldGross = parseFloat(document.getElementById('oOldGrossWt').value) || 0;
+            const oldStone = parseFloat(document.getElementById('oOldStoneWt').value) || 0;
+            const oldNet = Math.max(0, oldGross - oldStone);
+            document.getElementById('oOldNetWt').value = oldNet.toFixed(3);
+
+            const oldFactor = getPurityFactor(document.getElementById('oOldPurity').value);
+            const oldFine = oldNet * oldFactor;
+            document.getElementById('oOldFineWt').value = oldFine.toFixed(3);
+
+            const oldRate = parseFloat(document.getElementById('oOldGoldRate').value) || 0;
+            const oldPct = parseFloat(document.getElementById('oOldExchangePct').value) || 100;
+            const oldGoldVal = Math.round(oldFine * oldRate * (oldPct / 100));
+            
+            document.getElementById('oOldGoldValueDisplay').innerText = "₹" + oldGoldVal.toLocaleString();
+            
+            if(oldGoldVal > 0) {
+                document.getElementById('oOldGoldSummaryRow').style.display = 'flex';
+                document.getElementById('oOldGoldTotalDisplay').innerText = "-₹" + oldGoldVal.toLocaleString();
+            } else {
+                document.getElementById('oOldGoldSummaryRow').style.display = 'none';
+            }
+
+            // Costing (Making Charges Re-Added)
+            const rate = parseFloat(document.getElementById('oRate').value) || 0;
+            const making = parseFloat(document.getElementById('oMaking').value) || 0;
+            
+            const baseTotal = Math.round((net * rate) + making);
+            const grandTotal = baseTotal;
+
+            document.getElementById('oGrossTotalDisplay').innerText = "₹" + grandTotal.toLocaleString();
+            document.getElementById('oBaseAmountVal').value = baseTotal;
+            document.getElementById('oGrandTotalVal').value = grandTotal;
+
+            const adv = parseFloat(document.getElementById('oAdv').value) || 0;
+            const pending = grandTotal - oldGoldVal - adv;
+            
+            const pendingEl = document.getElementById('oPendingDisplay');
+            if(pending < 0) {
+                pendingEl.innerText = "₹" + Math.abs(pending).toLocaleString() + " (Refund)";
+                pendingEl.style.color = "var(--old-gold)";
+                document.getElementById('oPendingLabel').innerText = "Est. Refund Due:";
+            } else {
+                pendingEl.innerText = "₹" + pending.toLocaleString();
+                pendingEl.style.color = "#d32f2f";
+                document.getElementById('oPendingLabel').innerText = "Est. Net Payable:";
+            }
+        }
+
+        async function saveJob() {
+            const custId = document.getElementById('selectedCustId').value;
+            const desc = document.getElementById('oDesc').value;
+            const grossWt = parseFloat(document.getElementById('oGrossWt').value) || 0;
+            
+            if(!custId) return showToast("Select a Customer", "error");
+            if(!desc) return showToast("Enter Description", "error");
+            if(grossWt <= 0) return showToast("Enter Est. Gross Weight", "error");
+
+            let jobObj = {
+                jobType: 'Order',
+                customerId: parseInt(custId),
+                orderDate: new Date().toISOString(),
+                dueDate: new Date(document.getElementById('oDue').value).toISOString(),
+                description: desc, 
+                category: document.getElementById('oCat').value, 
+                status: 'pending', 
+                advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
+                payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
+                
+                purity: document.getElementById('oPurity').value,
+                grossWt: grossWt, stoneWt: parseFloat(document.getElementById('oStoneWt').value) || 0,
+                netWt: parseFloat(document.getElementById('oNetWt').value) || 0,
+                fineWt: parseFloat(document.getElementById('oFineWtVal').value) || 0,
+                
+                oldGoldPurity: document.getElementById('oOldPurity').value,
+                oldGoldGross: parseFloat(document.getElementById('oOldGrossWt').value) || 0,
+                oldGoldStone: parseFloat(document.getElementById('oOldStoneWt').value) || 0,
+                oldGoldNet: parseFloat(document.getElementById('oOldNetWt').value) || 0,
+                oldGoldFine: parseFloat(document.getElementById('oOldFineWt').value) || 0,
+                oldGoldPct: parseFloat(document.getElementById('oOldExchangePct').value) || 100,
+                oldGoldRate: parseFloat(document.getElementById('oOldGoldRate').value) || 0,
+                oldGoldValue: Math.round(parseFloat(document.getElementById('oOldFineWt').value||0) * parseFloat(document.getElementById('oOldGoldRate').value||0) * (parseFloat(document.getElementById('oOldExchangePct').value||100)/100)),
+                
+                lockedRate: parseFloat(document.getElementById('oRate').value) || 0,
+                makingCharge: parseFloat(document.getElementById('oMaking').value) || 0,
+                
+                baseAmount: parseFloat(document.getElementById('oBaseAmountVal').value) || 0,
+                grandTotal: parseFloat(document.getElementById('oGrandTotalVal').value) || 0, 
+                estAmount: parseFloat(document.getElementById('oGrandTotalVal').value) || 0
+            };
+
+            const orderId = await addItem('orders', jobObj);
+            const invoiceNo = 'ORD-INV' + String(orderId).padStart(3, '0');
+            
+            const db = await dbPromise;
+            const tx = db.transaction('orders', 'readwrite');
+            const req = tx.objectStore('orders').get(orderId);
+            req.onsuccess = async (e) => {
+                let o = e.target.result;
+                o.invoiceNo = invoiceNo;
+                tx.objectStore('orders').put(o);
+                
+                if(jobObj.advancePaid > 0) {
+                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
+                }
+                
+                showToast(`Order Logged Successfully!`, "success"); 
+                closeModal('newJobModal'); 
+                loadOrders();
+            };
+        }
+
+        function openViewModal(id) {
+            const o = allOrders.find(x => x.id === id);
+            if(!o) return;
+            activeJobData = o;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+            document.getElementById('vId').value = o.id;
+            setText('vOrderId', `${invoiceNo}`);
+            setText('vCustName', o.custName);
+            setText('vDesc', `${o.category} - ${o.description}`);
+            
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
+            
+            const badge = document.getElementById('vStatusBadge');
+            if (badge) {
+                if(o.status === 'billed' || o.status === 'delivered') { 
+                    badge.className = 'badge b-billed'; badge.innerText = 'Delivered'; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('done'); document.getElementById('step4').classList.add('done');
+                } else if(o.status === 'completed' || o.status === 'ready') { 
+                    badge.className = 'badge b-completed'; badge.innerText = 'Ready'; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('active'); 
+                } else if(o.status === 'cancelled') { 
+                    badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
+                } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
+                    const mId = o.merchantId;
+                    const m = allMerchants.find(x => x.id == mId); 
+                    badge.className = 'badge b-assigned'; badge.innerHTML = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('active');
+                } else { 
+                    badge.className = 'badge b-pending'; badge.innerText = 'Intake'; 
+                    document.getElementById('step1').classList.add('active');
+                }
+            }
+
+            setText('vGross', o.finalGross ? `${o.finalGross}g (F)` : `${o.grossWt}g (E)`);
+            setText('vMaking', o.finalMaking ? `₹${o.finalMaking} (F)` : `₹${o.makingCharge} (E)`);
+            setText('vRate', `₹${o.lockedRate}/g`);
+
+            if(o.barcode) {
+                toggleDisplay('vFinalBarcodeDiv', 'block');
+                setText('vFinalBarcode', o.barcode);
+            } else {
+                toggleDisplay('vFinalBarcodeDiv', 'none');
+            }
+
+            const baseTotal = o.baseAmount || o.estAmount || 0;
+            const grandTotal = o.grandTotal || o.estAmount || 0;
+            const adv = o.advancePaid || 0;
+            const oldVal = o.oldGoldValue || 0;
+
+            setText('vTotalLabel', (o.status === 'completed' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered') ? "Final Gross Total:" : "Est. Gross Total:");
+            setText('vGrandTotal', "₹" + grandTotal.toLocaleString());
+            setText('vAdv', "-₹" + adv.toLocaleString());
+            
+            if (oldVal > 0) {
+                toggleDisplay('vOldGoldWrapper', 'flex');
+                setText('vOldGold', "-₹" + oldVal.toLocaleString());
+                toggleDisplay('vOldGoldDetailsBox', 'block');
+                setText('vOldPurity', o.oldGoldPurity);
+                setText('vOldNet', (o.oldGoldFine || o.oldGoldNet) + "g"); 
+                setText('vOldValDetail', "₹" + oldVal.toLocaleString());
+            } else {
+                toggleDisplay('vOldGoldWrapper', 'none');
+                toggleDisplay('vOldGoldDetailsBox', 'none');
+            }
+
+            let pending = grandTotal - oldVal - adv;
+            if (o.status === 'billed' || o.status === 'delivered') pending = 0; 
+            updateDueUI(pending, o.status);
+
+            const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
+            
+            toggleDisplay('addPaySection', isDone ? 'none' : 'block');
+            toggleDisplay('btnCancel', isDone ? 'none' : 'block');
+            
+            if (isDone) {
+                toggleDisplay('btnForwardMerchant', 'none');
+                toggleDisplay('btnPrintKarigarSlip', 'none');
+                toggleDisplay('btnReceiveMerchant', 'none');
+                toggleDisplay('btnGoToSales', (o.status === 'completed' || o.status === 'ready') ? 'flex' : 'none');
+            } else {
+                toggleDisplay('btnGoToSales', 'none');
+                if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                    toggleDisplay('btnForwardMerchant', 'none');
+                    toggleDisplay('btnPrintKarigarSlip', 'block');
+                    toggleDisplay('btnReceiveMerchant', 'block');
+                } else {
+                    toggleDisplay('btnForwardMerchant', 'block');
+                    toggleDisplay('btnPrintKarigarSlip', 'none');
+                    toggleDisplay('btnReceiveMerchant', 'none');
+                }
+            }
+
+            openModal('viewJobModal');
+        }
+
+        function updateDueUI(pending, status) {
+            const vDueLabel = document.getElementById('vDueLabel');
+            const vDue = document.getElementById('vDue');
+            if (pending < 0) {
+                vDueLabel.innerText = "Refund Due:";
+                vDue.innerText = "₹" + Math.abs(pending).toLocaleString();
+                vDue.style.color = "var(--old-gold)";
+            } else if (pending === 0 && (status === 'billed' || status === 'delivered')) {
+                vDueLabel.innerText = "Settled:";
+                vDue.innerText = "₹0";
+                vDue.style.color = "var(--receive-green)";
+            } else {
+                vDueLabel.innerText = "Net Due:";
+                vDue.innerText = "₹" + Math.round(pending).toLocaleString();
+                vDue.style.color = "#d32f2f";
+            }
+        }
+
+        async function addAdvance() {
+            const id = parseInt(document.getElementById('vId').value);
+            const amt = parseFloat(document.getElementById('vNewPay').value);
+            const mode = document.getElementById('vNewPayMode').value;
+            if(!amt || amt <= 0) return showToast("Enter valid amount", "error");
+
+            const db = await dbPromise;
+            const tx = db.transaction('orders', 'readwrite');
+            const store = tx.objectStore('orders');
+
+            store.get(id).onsuccess = async (e) => {
+                const o = e.target.result;
+                const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+                o.advancePaid = (o.advancePaid || 0) + amt;
+                if(!o.payments) o.payments = [];
+                o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
+                store.put(o);
+
+                await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: mode, category: 'Order Payment', amount: amt, note: `Payment for ${invoiceNo}` });
+                showToast("Advance Added!", "success"); document.getElementById('vNewPay').value = ''; closeModal('viewJobModal'); loadOrders();
+            };
+        }
+
+        // --- ASSIGN TO KARIGAR ---
+        function openAssignModal() {
+            const o = activeJobData;
+            document.getElementById('aOrderId').value = o.id;
+
+            document.getElementById('aProvideShopGold').checked = false;
+
+            const sourceLabel = document.getElementById('aSourceLabel');
+            if(sourceLabel) {
+                sourceLabel.innerHTML = `<i class="fas fa-boxes"></i> Select ${o.purity} Unfixed/Untagged Gold Source`;
+            }
+
+            toggleShopGoldSection();
+            populateAssignSourceDropdown(); 
+            closeModal('viewJobModal'); openModal('assignModal');
+        }
+
+        function toggleShopGoldSection() {
+            const isChecked = document.getElementById('aProvideShopGold').checked;
+            document.getElementById('aShopGoldSection').style.display = isChecked ? 'block' : 'none';
+            
+            if(!isChecked) {
+                document.getElementById('aRepSourceSelect').value = '';
+                document.getElementById('aIssuedPurity').value = '';
+                document.getElementById('aIssuedWt').value = '';
+                document.getElementById('aIssuedFineWt').value = '0.000';
+            } else {
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '';
+            }
+        }
+
+        async function populateAssignSourceDropdown() {
+            const sel = document.getElementById('aRepSourceSelect');
+            if(!sel) return;
+            
+            const orderPurity = activeJobData ? activeJobData.purity : '';
+            sel.innerHTML = `<option value="">-- Select ${orderPurity} Inventory Source --</option>`; 
+            
+            const inventory = await getAllItems('inventory');
+            
+            const availableStock = inventory.filter(i => 
+                i.status === 'stock' && 
+                i.netWt > 0 && 
+                i.purity === orderPurity && 
+                (!i.category || i.category.toLowerCase().includes('fine') || i.category.toLowerCase().includes('raw') || i.category.toLowerCase().includes('unfixed'))
+            );
+
+            if(availableStock.length === 0) {
+                sel.innerHTML += `<option value="" disabled>No ${orderPurity} unfixed gold found in stock!</option>`;
+            } else {
+                availableStock.forEach(i => {
+                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity}</option>`;
+                });
+            }
+        }
+
+        function autoFillAssignSource() {
+            const sel = document.getElementById('aRepSourceSelect');
+            if(sel.selectedIndex > 0) {
+                const opt = sel.options[sel.selectedIndex];
+                const max = opt.getAttribute('data-max');
+                const purity = opt.getAttribute('data-purity');
+                document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
+                document.getElementById('aIssuedPurity').value = purity;
+                calcAssignFine();
+            } else {
+                document.getElementById('aIssuedWt').placeholder = `e.g. 15.000`;
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '';
+                document.getElementById('aIssuedFineWt').value = '0.000';
+            }
+        }
+
+        function calcAssignFine() {
+            const grossWt = parseFloat(document.getElementById('aIssuedWt').value) || 0;
+            const purity = document.getElementById('aIssuedPurity').value;
+            if(!purity) return;
+            const factor = getPurityFactor(purity);
+            const fineWt = grossWt * factor;
+            document.getElementById('aIssuedFineWt').value = fineWt.toFixed(3);
+        }
+
+        async function confirmAssignOrder() {
+            const oId = parseInt(document.getElementById('aOrderId').value);
+            const mId = document.getElementById('aMerchantSelect').value;
+            
+            if(!mId) return showToast("Select a Karigar", "error");
+
+            const provideShopGold = document.getElementById('aProvideShopGold').checked;
+            
+            const stockId = document.getElementById('aRepSourceSelect').value;
+            const issuedGrossWt = parseFloat(document.getElementById('aIssuedWt').value) || 0;
+            const issuedPurity = document.getElementById('aIssuedPurity').value;
+            const issuedFineWt = parseFloat(document.getElementById('aIssuedFineWt').value) || 0;
+
+            if (provideShopGold) {
+                if(!stockId) return showToast("Select Gold Source from Inventory", "error");
+                if(issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
+            }
+
+            const o = activeJobData;
+            o.status = 'in_progress';
+            
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'inventory', 'purchases'], 'readwrite');
+
+            if (provideShopGold) {
+                let invReq = tx.objectStore('inventory').get(parseInt(stockId));
+                invReq.onsuccess = (e) => {
+                    let item = e.target.result;
+                    if(!item || item.netWt < issuedGrossWt) {
+                        tx.abort();
+                        showToast("Insufficient stock in the selected source!", "error");
+                        return;
+                    }
+
+                    item.netWt -= issuedGrossWt;
+                    item.grossWt -= issuedGrossWt;
+                    item.weight = item.netWt;
+                    if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; } 
+                    tx.objectStore('inventory').put(item);
+
+                    o.merchantId = mId;
+                    o.sourceStockId = parseInt(stockId);
+                    o.issuedGrossWt = issuedGrossWt;
+                    o.issuedPurity = issuedPurity; 
+                    o.issuedFineWt = issuedFineWt; 
+                    tx.objectStore('orders').put(o);
+                };
+            } else {
+                o.merchantId = mId;
+                o.sourceStockId = null;
+                o.issuedGrossWt = 0;
+                o.issuedPurity = 'N/A'; 
+                o.issuedFineWt = 0; 
+                tx.objectStore('orders').put(o);
+            }
+            
+            tx.onerror = (e) => { showToast("Error processing assignment.", "error"); };
+            tx.oncomplete = () => { showToast("Assigned to Karigar!", "success"); closeModal('assignModal'); loadOrders(); };
+        }
+
+        // --- RECEIVE ---
+        function openReceiveModal() {
+            const o = activeJobData;
+            document.getElementById('rOrderId').value = o.id;
+            
+            const issuedFine = (o.issuedFineWt || 0).toFixed(3);
+            document.getElementById('rIssuedGrossDisplay').innerText = `${o.issuedGrossWt || 0}g (${o.issuedPurity || '-'})`;
+            document.getElementById('rIssuedWtDisplay').innerText = `${issuedFine} g`;
+            
+            document.getElementById('rFinalGross').value = '';
+            document.getElementById('rFinalGross').placeholder = `Est: ${o.grossWt}g`;
+            document.getElementById('rFinalStone').value = o.stoneWt || 0;
+            
+            document.getElementById('rWastageVal').value = o.wastageVal || 0;
+            document.getElementById('rWastageMode').value = o.wastageMode || 'pct';
+            
+            // Populate making charge from the initial order creation
+            document.getElementById('rActualMaking').value = o.makingCharge || 0;
+            document.getElementById('rActualOther').value = o.otherCharge || 0;
+            
+            calcReceiveTotals(); 
+            closeModal('viewJobModal'); openModal('receiveModal');
+        }
+
+        function autoFillFinalGross() {
+            if(activeJobData) {
+                document.getElementById('rFinalGross').value = activeJobData.grossWt || 0;
+                calcReceiveTotals();
+            }
+        }
+
+        function calcReceiveTotals() {
+            const o = activeJobData;
+            const issuedFine = o.issuedFineWt || 0;
+            const finalGross = parseFloat(document.getElementById('rFinalGross').value) || 0;
+            const finalStone = parseFloat(document.getElementById('rFinalStone').value) || 0;
+            const finalNet = Math.max(0, finalGross - finalStone);
+            document.getElementById('rFinalNet').value = finalNet.toFixed(3);
+
+            // Calculate Wastage Weight
+            const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
+            const wastageMode = document.getElementById('rWastageMode').value;
+            let wastageWt = 0;
+            if (wastageMode === 'pct') {
+                wastageWt = finalNet * (wastageVal / 100);
+            } else {
+                wastageWt = wastageVal;
+            }
+            const netWithWastage = finalNet + wastageWt;
+
+            const purityFactor = getPurityFactor(o.purity);
+            const finalFineWt = netWithWastage * purityFactor; 
+            document.getElementById('rFinalFine').value = finalFineWt.toFixed(3);
+
+            const diff = finalFineWt - issuedFine;
+            const diffEl = document.getElementById('rWtDiff');
+            if (diff > 0) { diffEl.value = `+${diff.toFixed(3)} g (Karigar Added / Owes Karigar)`; diffEl.style.color = "var(--active-red)"; } 
+            else if (diff < 0) { diffEl.value = `${diff.toFixed(3)} g (Karigar Returned / Karigar Owes)`; diffEl.style.color = "var(--receive-green)"; } 
+            else { diffEl.value = "0.000 g (No Difference)"; diffEl.style.color = "#333"; }
+
+            // Costing (Making Charges Included)
+            const actualMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
+            const otherCharges = parseFloat(document.getElementById('rActualOther').value) || 0;
+            
+            const baseTotal = Math.round((netWithWastage * (o.lockedRate || 0)) + actualMaking + otherCharges);
+            const newGrand = baseTotal; 
+
+            document.getElementById('rNewGrandTotal').innerText = "₹" + newGrand.toLocaleString();
+            document.getElementById('rNewBaseVal').value = baseTotal;
+            document.getElementById('rNewGrandTotalVal').value = newGrand;
+        }
+
+        async function confirmReceiveOrder() {
+            const o = activeJobData;
+            
+            const fGross = parseFloat(document.getElementById('rFinalGross').value) || 0;
+            const fStone = parseFloat(document.getElementById('rFinalStone').value) || 0;
+            const fNet = parseFloat(document.getElementById('rFinalNet').value) || 0;
+            
+            const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
+            const wastageMode = document.getElementById('rWastageMode').value;
+            let wastageWt = (wastageMode === 'pct') ? fNet * (wastageVal / 100) : wastageVal;
+            const netWithWastage = fNet + wastageWt;
+
+            const fFine = parseFloat(document.getElementById('rFinalFine').value) || 0;
+            const fMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
+            const fOther = parseFloat(document.getElementById('rActualOther').value) || 0;
+            
+            const fBase = parseFloat(document.getElementById('rNewBaseVal').value) || 0;
+            const fGrand = parseFloat(document.getElementById('rNewGrandTotalVal').value) || 0;
+
+            if(fGross <= 0) return showToast("Enter valid Final Weight", "error");
+
+            let catPrefix = 'ITM'; 
+            if (o.category && o.category.length >= 3) catPrefix = o.category.substring(0, 3).toUpperCase();
+            const barcode = await generateBarcode('ORD-' + catPrefix);
+
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'purchases', 'inventory', 'merchant_payments'], 'readwrite');
+
+            const issuedFine = o.issuedFineWt || 0;
+            const metalDiffToKarigar = fFine - issuedFine; 
+
+            tx.objectStore('inventory').add({
+                barcode: barcode, category: o.category, name: `Custom: ${o.description}`, purity: o.purity, 
+                grossWt: fGross, stoneWt: fStone, netWt: fNet, weight: fGross, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
+            });
+
+            o.status = 'completed'; 
+            o.barcode = barcode; 
+            o.finalGross = fGross; 
+            o.finalStone = fStone; 
+            o.finalNet = fNet;
+            o.wastageVal = wastageVal;
+            o.wastageMode = wastageMode;
+            o.finalNetWithWastage = netWithWastage; // Saves the chargeable weight
+            o.finalFineWt = fFine; 
+            o.finalMaking = fMaking;
+            o.otherCharge = fOther;
+            o.baseAmount = fBase; 
+            o.grandTotal = fGrand;
+            
+            tx.objectStore('orders').put(o);
+
+            if(o.merchantId && metalDiffToKarigar !== 0) {
+                let mReq = tx.objectStore('merchants').get(parseInt(o.merchantId));
+                mReq.onsuccess = (e) => {
+                    const m = e.target.result;
+                    m.goldBalance = (parseFloat(m.goldBalance)||0) + metalDiffToKarigar;
+                    tx.objectStore('merchants').put(m);
+                };
+
+                const now = new Date().toISOString();
+                tx.objectStore('purchases').add({ merchantId: o.merchantId, date: now, type: 'Unfixed', category: `Jobwork Liability (Ord #${o.id})`, totalFineWeight: metalDiffToKarigar, paidAmount: 0, dueAmount: 0, totalAmount: 0 });
+            }
+
+            tx.oncomplete = () => { showToast("Order Received to Stock!", "success"); closeModal('receiveModal'); loadOrders(); };
+        }
+
+        // --- BILLING ---
+        function openBillingModal() {
+            const o = activeJobData;
+            document.getElementById('billOrderId').value = o.id;
+            document.getElementById('billCustId').value = o.customerId;
+            document.getElementById('billCustNameText').innerText = o.custName;
+            
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            document.getElementById('billInvoiceBadge').innerText = invoiceNo;
+
+            document.getElementById('billCustDisplay').style.display = 'flex';
+            document.getElementById('billCustSearch').style.display = 'none';
+
+            const grandTotal = o.grandTotal || o.estAmount || 0;
+            const adv = o.advancePaid || 0;
+            const oldVal = o.oldGoldValue || 0;
+            const netDue = grandTotal - oldVal - adv;
+
+            document.getElementById('bOrdGross').innerText = "₹" + grandTotal.toLocaleString();
+            document.getElementById('bOrdOld').innerText = "-₹" + oldVal.toLocaleString();
+            document.getElementById('bOrdAdv').innerText = "-₹" + adv.toLocaleString();
+            document.getElementById('bOrdNet').innerText = "₹" + Math.max(0, netDue).toLocaleString();
+
+            billingPayments = []; renderBillPayments();
+            closeModal('viewJobModal'); openModal('billingModal');
+        }
+
+        function addBillPayment() {
+            const amt = parseFloat(document.getElementById('billPayAmt').value);
+            const mode = document.getElementById('billPayMode').value;
+            if(!amt || amt <= 0) return showToast("Enter a valid payment amount", "error");
+            billingPayments.push({ mode: mode, amount: amt });
+            document.getElementById('billPayAmt').value = '';
+            renderBillPayments();
+        }
+
+        function renderBillPayments() {
+            const d = document.getElementById('billPayList'); 
+            d.innerHTML = ''; let paidNow = 0;
+            billingPayments.forEach((p, idx) => {
+                paidNow += p.amount;
+                d.innerHTML += `<div style="display:flex; justify-content:space-between; background:#e0e0e0; padding:8px 12px; border-radius:6px; font-size:0.9rem; border: 1px solid #ccc;">
+                    <span><i class="fas fa-money-check-alt"></i> ${p.mode}</span>
+                    <span>₹${p.amount.toLocaleString()} <i class="fas fa-trash" style="margin-left:10px; color:#d32f2f; cursor:pointer;" onclick="billingPayments.splice(${idx},1); renderBillPayments();"></i></span>
+                </div>`;
+            });
+
+            const o = activeJobData;
+            let netDue = (o.grandTotal||o.estAmount||0) - (o.oldGoldValue||0) - (o.advancePaid||0);
+            document.getElementById('billRemainingDue').innerText = "₹" + Math.max(0, netDue - paidNow).toLocaleString();
+        }
+
+        async function confirmFinalBill() {
+            const o = activeJobData;
+            const finalCustId = document.getElementById('billCustId').value;
+            if(!finalCustId) return showToast("Select customer.", "error");
+
+            const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'sales', 'inventory', 'cashflow', 'old_gold'], 'readwrite');
+            
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            o.invoiceNo = invoiceNo; 
+
+            if(!o.barcode) return showToast("Barcode not found.", "error");
+            const totalCashReceived = (o.advancePaid || 0) + newlyPaid;
+            const remainingDue = Math.max(0, o.grandTotal - (o.oldGoldValue || 0) - (o.advancePaid || 0) - newlyPaid);
+
+            tx.objectStore('sales').add({
+                date: new Date().toISOString(), customerId: parseInt(finalCustId), jobType: 'Order',
+                invoiceNo: invoiceNo, orderId: o.id,
+                items: [{ 
+                    id: 'inv_'+Date.now(), 
+                    barcode: o.barcode, 
+                    category: o.category, 
+                    purity: o.purity, 
+                    weight: o.finalNetWithWastage || o.finalNet, 
+                    rate: o.lockedRate, 
+                    makingAmount: o.finalMaking || 0, 
+                    total: o.grandTotal 
+                }],
+                subTotal: o.baseAmount, discount: 0, gst: o.gstAmount, oldGoldDeduction: o.oldGoldValue, grandTotal: o.grandTotal,
+                paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
+            });
+
+            let iReq = tx.objectStore('inventory').index('barcode').get(o.barcode);
+            iReq.onsuccess = (e) => { const item = e.target.result; if(item) { item.status = 'sold'; tx.objectStore('inventory').put(item); } };
+
+            const allOGReq = tx.objectStore('old_gold').getAll();
+            allOGReq.onsuccess = (e) => {
+                const allOG = e.target.result || [];
+                const linkedOG = allOG.filter(g => g.saleId === o.id);
+                for(const og of linkedOG) {
+                    tx.objectStore('old_gold').delete(og.id);
+                }
+            };
+
+            o.status = 'billed'; o.customerId = parseInt(finalCustId);
+            if(!o.payments) o.payments = []; o.payments.push(...billingPayments);
+            tx.objectStore('orders').put(o);
+
+            billingPayments.forEach(p => {
+                tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Order Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}` });
+            });
+
+            tx.oncomplete = () => { showToast("Order Billed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders(); };
+        }
+
+        // --- CANCELLATION ---
+        function openCancelModal() {
+            const o = activeJobData;
+            document.getElementById('cOrderId').value = o.id;
+            document.getElementById('cOrderAdv').innerText = "₹" + (o.advancePaid || 0).toLocaleString();
+            document.getElementById('cRefundAmt').value = o.advancePaid || 0;
+            
+            if(o.oldGoldValue > 0) {
+                document.getElementById('cOrderOldGoldDiv').style.display = 'flex';
+                document.getElementById('cOrderOldGold').innerText = `${o.oldGoldNet}g (${o.oldGoldPurity}) - ₹${o.oldGoldValue.toLocaleString()}`;
+            } else { document.getElementById('cOrderOldGoldDiv').style.display = 'none'; }
+            
+            closeModal('viewJobModal'); openModal('cancelModal');
+        }
+
+        async function confirmCancelOrder() {
+            const o = activeJobData;
+            const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            
+            const oldStatus = o.status; 
+
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'purchases', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
+            
+            o.status = 'cancelled'; 
+            o.refundedAmount = refundAmt;
+            tx.objectStore('orders').put(o);
+            
+            if(refundAmt > 0) {
+                tx.objectStore('cashflow').add({ 
+                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', 
+                    amount: refundAmt, note: `Refund for ${invoiceNo} (Job #${o.id})` 
+                });
+            }
+            
+            if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && o.sourceStockId) {
+                let invReq = tx.objectStore('inventory').get(parseInt(o.sourceStockId));
+                invReq.onsuccess = (ev) => {
+                    let item = ev.target.result;
+                    if(item) {
+                        item.netWt += o.issuedGrossWt;
+                        item.grossWt += o.issuedGrossWt;
+                        item.weight = item.netWt;
+                        item.status = 'stock'; 
+                        tx.objectStore('inventory').put(item);
+                    }
+                }
+            }
+
+            const returnOldGold = document.getElementById('cReturnOldGold').checked;
+            if(returnOldGold && (o.oldGoldValue > 0)) {
+                const allOGReq = tx.objectStore('old_gold').getAll();
+                allOGReq.onsuccess = (e) => {
+                    const allOG = e.target.result || [];
+                    const linkedOG = allOG.filter(g => g.saleId === o.id || g.orderId === o.id);
+                    for(const og of linkedOG) {
+                        tx.objectStore('old_gold').delete(og.id);
+                    }
+                };
+            }
+
+            tx.oncomplete = () => { 
+                showToast("Order Cancelled & Refunded!", "success"); 
+                closeModal('cancelModal'); 
+                loadOrders(); 
+            };
+        }
+
+        // --- PRINTING ---
+        function printReceiptEngine(targetId = null) {
+            const o = targetId ? allOrders.find(x => x.id === targetId) : activeJobData;
+            if(!o) return;
+            const isFinal = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered');
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+            let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 400px; margin: 0 auto; font-family:monospace;">
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0;">BHARTI JEWELLERS</h2>
+                    <h3 style="margin:5px 0 0 0;">${isFinal ? 'TAX INVOICE' : 'ESTIMATE'} (ORDER)</h3>
+                    <div style="font-size:15px; margin-top:6px; font-weight:bold; color:#1565c0;">Invoice No: ${invoiceNo}</div>
+                </div>
+                <b>Customer:</b> ${o.custName}<br><b>Item:</b> ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
+            
+            const wVal = isFinal ? (o.finalNetWithWastage || o.finalNet || o.finalGross) : o.grossWt;
+            const base = o.baseAmount || o.estAmount || 0;
+            html += `<table style="width:100%; margin-top:15px;">
+                <tr><td>${o.category} (${o.purity})</td><td style="text-align:right">${wVal}g</td></tr>
+            </table><hr>
+            <div style="display:flex; justify-content:space-between;"><b>Item Value:</b><b>₹${base}</b></div>`;
+            if(o.oldGoldValue > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
+            
+            html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
+            document.getElementById('invoice-area').innerHTML = html;
+            window.print();
+        }
+
+        function printKarigarSlip() {
+            const o = activeJobData;
+            if(!o) return;
+            const mId = o.merchantId;
+            const m = allMerchants.find(x => x.id == mId);
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            
+            document.getElementById('chKarigarName').innerText = m ? m.name : 'Unknown';
+            document.getElementById('chDate').innerText = new Date().toLocaleDateString();
+            document.getElementById('chOrderId').innerText = invoiceNo;
+            document.getElementById('chDueDate').innerText = new Date(o.dueDate).toLocaleDateString();
+            
+            document.getElementById('chItemBody').innerHTML = `
+                <tr>
+                    <td style="border: 1px solid #000; padding: 8px;"><b>${o.category}</b><br><small>${o.description}</small></td>
+                    <td style="border: 1px solid #000; padding: 8px;">${o.purity}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${o.grossWt}g</td>
+                </tr>
+            `;
+            
+            if(o.issuedGrossWt > 0) {
+                document.getElementById('chIssuedGross').innerText = o.issuedGrossWt.toFixed(3);
+                document.getElementById('chIssuedPurity').innerText = o.issuedPurity || 'N/A';
+                document.getElementById('chIssuedWt').innerText = (o.issuedFineWt || 0).toFixed(3);
+            } else {
+                document.getElementById('chIssuedGross').innerText = "0.000";
+                document.getElementById('chIssuedPurity').innerText = "-";
+                document.getElementById('chIssuedWt').innerText = "0.000 (Pure Labor / Metal by Karigar)";
+            }
+            
+            window.print();
+        }
+
+        function sendWhatsApp() {
+            const o = activeJobData;
+            if(!o || !o.custMobile) return showToast("No mobile number found for this customer.", "error");
+            
+            let grandTotal = o.grandTotal || o.estAmount || 0;
+            const oldVal = o.oldGoldValue || 0;
+            const adv = o.advancePaid || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            
+            let netDue = grandTotal - oldVal - adv;
+            if (o.status === 'billed' || o.status === 'delivered') netDue = 0;
+
+            let msg = `Hello ${o.custName},\n\nYour custom order for *${o.description}* (Ref: ${invoiceNo}) is ${o.status === 'pending' || o.status === 'in_progress' ? 'currently being processed' : 'Ready for pickup!'}.\n\n`;
+            msg += `Order Total: Rs. ${Math.round(grandTotal).toLocaleString()}\n`;
+            if (oldVal > 0) msg += `Old Gold Deducted: -Rs. ${oldVal.toLocaleString()}\n`;
+            if (adv > 0) msg += `Advance Paid: -Rs. ${adv.toLocaleString()}\n`;
+            msg += `---------------------\n`;
+            if (netDue < 0) msg += `*Refund Due: Rs. ${Math.abs(netDue).toLocaleString()}*\n\n`;
+            else if (netDue === 0 && (o.status === 'billed' || o.status === 'delivered')) msg += `*Bill fully paid.*\n\n`;
+            else msg += `*Pending Balance: Rs. ${Math.round(netDue).toLocaleString()}*\n\n`;
+            msg += `Thank you,\n*Bharti Jewellers*`;
+            
+            let phone = o.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>

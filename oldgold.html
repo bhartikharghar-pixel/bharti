@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Old Gold / UR - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --white: #ffffff;
+            --border-color: #2a2a2a; --whatsapp: #25D366; --exchange-purple: #8e24aa;
+            --order-blue: #1976d2; --loan-orange: #ef6c00; --receive-green: #2e7d32;
+        }
+
+        /* --- CORE RESET --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); color: #333; padding-top: 60px; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- HEADER & SIDEBAR --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-btn { background: transparent; border: 1px solid #333; width: 40px; height: 40px; border-radius: 4px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2999; backdrop-filter: blur(2px); }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+
+        /* --- DASHBOARD --- */
+        .app-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-bottom: 4px solid #ccc; display: flex; flex-direction: column; position: relative; overflow: hidden;}
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: #333; margin-bottom: 5px;}
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase; }
+
+        /* Custom Stat Colors */
+        .sc-total { border-bottom-color: #333; }
+        .sc-direct { border-bottom-color: var(--exchange-purple); }
+        .sc-pos { border-bottom-color: #00897b; }
+        .sc-order { border-bottom-color: var(--order-blue); }
+        .sc-loan { border-bottom-color: var(--loan-orange); }
+
+        /* Filters */
+        .filter-bar { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .date-input { border: 1px solid #ddd; padding: 10px 12px; border-radius: 6px; font-size: 0.9rem; flex: 1; min-width: 130px; outline: none; background: #fafafa; transition: border 0.2s;}
+        .date-input:focus { border-color: var(--exchange-purple); }
+        .btn-filter { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; gap: 5px;}
+        .btn-filter:hover { background: #000; }
+
+        /* Transaction Table */
+        .card { background: white; border-radius: 12px; padding: 0; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-header { padding: 15px 20px; border-bottom: 1px solid #eee; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-weight: 700; font-size: 1.1rem; color: #333; margin: 0;}
+        
+        .table-responsive { overflow-x: auto; width: 100%; }
+        .r-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 800px; }
+        .r-table th { background: #f8f9fa; color: #555; padding: 12px 15px; text-align: left; font-weight: 600; border-bottom: 2px solid #eee; text-transform: uppercase; font-size: 0.8rem;}
+        .r-table td { padding: 15px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: middle; }
+        .r-table tr:hover { background: #fdfdfd; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .b-pos { background: #e0f2f1; color: #00897b; border: 1px solid #b2dfdb;}
+        .b-direct { background: #f3e5f5; color: var(--exchange-purple); border: 1px solid #e1bee7;}
+        .b-order { background: #e3f2fd; color: var(--order-blue); border: 1px solid #bbdefb;}
+        .b-loan { background: #fff3e0; color: var(--loan-orange); border: 1px solid #ffe0b2;}
+        .b-melt { background: #efebe9; color: #455a64; border: 1px solid #cfd8dc;} 
+        
+        .party-name { font-weight: 700; color: #333; display: block; font-size: 1rem;}
+        .tx-desc { color: #666; font-size: 0.85rem; margin-top: 2px; display: block; }
+        .tx-purity { font-size: 0.75rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #555; font-weight: 600;}
+        
+        .val-negative { color: var(--out-red); font-weight: bold; }
+        .val-positive { color: var(--receive-green); font-weight: bold; }
+
+        /* Multi-FAB Menu */
+        .fab-container { position: fixed; bottom: 30px; right: 30px; z-index: 100; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 15px;}
+        .fab { width: 60px; height: 60px; background: var(--exchange-purple); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(142, 36, 170, 0.4); font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; border:none; outline:none;}
+        .fab:hover { transform: scale(1.05); }
+        .fab:active { transform: scale(0.95); }
+        .fab-action { width: 50px; height: 50px; background: #333; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 1.2rem; cursor: pointer; transition: 0.2s; border:none; opacity: 0; transform: translateY(20px) scale(0.5); pointer-events: none;}
+        .fab-container:hover .fab-action { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        .fab-container:hover .fab-action:nth-child(2) { transition-delay: 0.05s; }
+        .fab-action:hover { background: #000; transform: scale(1.1) !important;}
+        .fab-label { position: absolute; right: 60px; background: rgba(0,0,0,0.8); color: white; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; pointer-events: none; opacity: 0; transition: 0.2s;}
+        .fab-container:hover .fab-label { opacity: 1; }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 95%; max-width: 600px; border-radius: 16px; padding: 25px; position: relative; animation: slideUp 0.3s ease-out; max-height: 90vh; overflow-y: auto;}
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666;}
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 15px; position: relative;}
+        label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 5px; font-weight: 600; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fafafa; font-family: inherit; transition: 0.2s;}
+        input:focus, select:focus { border-color: var(--exchange-purple); outline: none; background: white;}
+        input[readonly] { background: #eee; font-weight: 600; color: #333; }
+        
+        .btn-primary { width: 100%; padding: 14px; background: var(--exchange-purple); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: background 0.2s;}
+        .btn-primary:hover { background: #7b1fa2; }
+
+        .search-results { position: absolute; background: white; width: 100%; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.1); top: 100%; left: 0;}
+        .suggestion-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.9rem;}
+        .suggestion-item:hover { background: #f3e5f5; color: var(--exchange-purple); font-weight: 500;}
+
+        /* Progress Steps */
+        .step-box { background: #fff8e1; border: 1px solid #ffe082; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #fbc02d;}
+        .step-title { font-weight: 700; color: #f57f17; font-size: 0.9rem; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;}
+
+        /* Toast Notifications */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 8px; padding: 16px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: var(--receive-green); }
+        #toast.error { background-color: var(--active-red); }
+
+        @media (max-width: 768px) { .r-table { display: block; overflow-x: auto; white-space: nowrap; } }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+    
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="oldgold.html" class="active"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="stats-grid">
+            <div class="stat-card sc-total" style="background:#f4f6f8;">
+                <div class="stat-lbl">Accumulated Box (UR Gold)</div>
+                <div class="stat-val" id="statTotalWt">0.000 g</div>
+                <div style="font-size:0.8rem; color:#555;">Value: <b id="statTotalVal">₹0</b></div>
+                <i class="fas fa-box-open" style="position:absolute; right:15px; top:20px; font-size:2rem; color:#ccc;"></i>
+            </div>
+            <div class="stat-card sc-pos">
+                <div class="stat-lbl" style="color:#00897b;">POS Exchanges</div>
+                <div class="stat-val" id="statPosWt">0.000 g</div>
+            </div>
+            <div class="stat-card sc-order">
+                <div class="stat-lbl" style="color:var(--order-blue);">Order Exchanges</div>
+                <div class="stat-val" id="statOrderWt">0.000 g</div>
+            </div>
+            <div class="stat-card sc-direct">
+                <div class="stat-lbl" style="color:var(--exchange-purple);">Direct Cash Buys</div>
+                <div class="stat-val" id="statDirectWt">0.000 g</div>
+                <div style="font-size:0.8rem; color:#8e24aa;">Cash Paid: <b id="statDirectPaid">₹0</b></div>
+            </div>
+            <div class="stat-card sc-loan">
+                <div class="stat-lbl" style="color:var(--loan-orange);">Loan Collateral</div>
+                <div class="stat-val" id="statLoanWt">0.000 g</div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <span style="font-weight:600; color:#555;"><i class="fas fa-filter"></i> Filter:</span>
+            <input type="date" id="filterFrom" class="date-input">
+            <span style="color:#888;">to</span>
+            <input type="date" id="filterTo" class="date-input">
+            <input type="text" id="filterSearch" class="date-input" placeholder="Search Customer..." style="flex:1;">
+            <select id="filterSource" class="date-input" style="flex:0.5;">
+                <option value="ALL">All Categories</option>
+                <option value="DIRECT">Direct Cash Buys</option>
+                <option value="POS">POS Exchanges</option>
+                <option value="ORDER">Custom Orders</option>
+                <option value="LOAN">Loan Collateral</option>
+                <option value="MELT">Sent to Refinery</option>
+            </select>
+            <button class="btn-filter" onclick="loadOldGoldLedger()"><i class="fas fa-search"></i> Apply</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-list-alt"></i> Unified Old Gold Ledger</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="r-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Ref</th>
+                            <th>Category</th>
+                            <th>Customer & Details</th>
+                            <th style="text-align:right;">Net Weight</th>
+                            <th style="text-align:right;">Assigned Value (₹)</th>
+                            <th style="text-align:center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerBody">
+                        <tr><td colspan="6" style="text-align:center; padding:30px; color:#888;">Loading Ledger...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="fab-container">
+            <button class="fab"><i class="fas fa-plus"></i></button>
+            <button class="fab-action" onclick="openBuyModal()" style="background:var(--exchange-purple);">
+                <i class="fas fa-shopping-bag"></i>
+                <span class="fab-label">Buy Old Gold</span>
+            </button>
+            <button class="fab-action" onclick="openMeltModal()" style="background:#455a64;">
+                <i class="fas fa-fire"></i>
+                <span class="fab-label">Send to Refinery (Melt)</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="buyModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('buyModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--exchange-purple);"><i class="fas fa-shopping-bag"></i> Buy Old Gold (Direct)</h3>
+
+            <div class="form-group">
+                <label>Select Customer</label>
+                <input type="text" id="custSearchInput" placeholder="Type Name or Mobile..." onkeyup="searchCustomer()" autocomplete="off">
+                <input type="hidden" id="selectedCustomerId">
+                <div id="custSearchResults" class="search-results"></div>
+                <div id="selectedCustDisplay" style="display:none; justify-content:space-between; align-items:center; background:#f3e5f5; padding:12px; border-radius:8px; margin-top:5px; font-weight:bold; color:var(--exchange-purple); border: 1px solid #e1bee7;">
+                    <span id="custNameText"></span>
+                    <button style="padding:4px 8px; border:none; background:white; color:var(--active-red); border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="resetCustSearch()">Change</button>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group"><label>Description</label><input type="text" id="bDesc" placeholder="e.g. Old Ring / Bangle"></div>
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="bPurity" onchange="autoFillBuyRate()"></select>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group"><label>Gross Wt (g)</label><input type="number" id="bGrossWt" step="0.001" placeholder="0" oninput="calcBuyItem()"></div>
+                <div class="form-group"><label>Stone/Dust (g)</label><input type="number" id="bStoneWt" step="0.001" placeholder="0" oninput="calcBuyItem()"></div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group"><label>Net Wt (g)</label><input type="number" id="bNetWt" readonly style="background:#f3e5f5; color:var(--exchange-purple); font-weight:bold;"></div>
+                <div class="form-group"><label>Rate (₹/g)</label><input type="number" id="bRate" oninput="calcBuyItem()"></div>
+            </div>
+
+            <div class="form-group" style="background:#fbe9e7; padding:10px; border-radius:8px; border:1px solid #ffccbc;">
+                <label style="color:#d84315;">Cash Payout Percentage (%)</label>
+                <input type="number" id="bExchangePct" value="100" oninput="calcBuyItem()" placeholder="e.g. 95" style="border-color:#ffab91;">
+                <small style="color:#e64a19; font-size:0.7rem; display:block; margin-top:4px;">Enter what % of the calculated gold value you are handing them in cash.</small>
+            </div>
+
+            <div class="form-group">
+                <label>Payment Mode (Given to Customer)</label>
+                <select id="bMode">
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                </select>
+            </div>
+
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; border: 1px solid #ddd; margin-bottom:15px; text-align:center;">
+                <span style="font-size:0.9rem; color:#666;">Final Amount to Pay:</span><br>
+                <strong id="bLiveTotal" style="font-size:1.8rem; color:var(--out-red);">₹0</strong>
+            </div>
+
+            <button class="btn-primary" onclick="saveDirectPurchase()"><i class="fas fa-check-circle"></i> Save & Record Payment</button>
+            <p style="font-size:0.75rem; color:#666; text-align:center; margin-top:10px;">*This will automatically deduct the cash from your Master Cashbook.</p>
+        </div>
+    </div>
+
+    <div id="meltModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <button class="close-btn" onclick="closeModal('meltModal')">&times;</button>
+            <h3 style="margin-top:0; color:#455a64;"><i class="fas fa-fire"></i> Melt Old Gold (Send to Refinery)</h3>
+            <p style="font-size:0.85rem; color:#666; margin-top:-5px; margin-bottom:15px;">Convert accumulated Old Gold Box into refined stock.</p>
+
+            <div class="step-box">
+                <div class="step-title"><i class="fas fa-box-open"></i> STEP 1: Current Box Status</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:1rem;">
+                    <span>Available Old Gold (UR):</span>
+                    <strong id="meltAvailableWt" style="font-size:1.3rem; color:#333;">0.000 g</strong>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Weight Sent to Refinery (g)</label>
+                <input type="number" id="meltSentWt" step="0.001" placeholder="e.g. 50.000" oninput="calcMeltLoss()">
+                <small style="color:#d32f2f; font-weight:bold; display:block; margin-top:4px;">This weight will be removed from your Old Gold Box.</small>
+            </div>
+
+            <div style="text-align:center; margin: 20px 0; color:#aaa;"><i class="fas fa-arrow-down fa-2x"></i></div>
+
+            <div class="step-box" style="background:#e8f5e9; border-color:#c8e6c9; border-left-color:#4caf50;">
+                <div class="step-title" style="color:#2e7d32;"><i class="fas fa-cubes"></i> STEP 2: Refinery Return</div>
+                
+                <div class="form-grid" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label>Final Received Weight (g)</label>
+                        <input type="number" id="meltReturnWt" step="0.001" placeholder="e.g. 45.500" oninput="calcMeltLoss()">
+                    </div>
+                    <div class="form-group">
+                        <label>Resulting Purity (%)</label>
+                        <input type="number" id="meltResultPurity" step="0.01" value="100" placeholder="e.g. 100 or 99.5" oninput="calcMeltLoss()">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:5px; background:#fff3e0; padding:12px; border-radius:8px; border:1px solid #ffe0b2;">
+                    <label style="color:#e65100; margin-bottom:2px;">Calculated Fine Weight (Pure Gold content)</label>
+                    <strong id="meltFineWtDisplay" style="font-size:1.4rem; color:#ef6c00;">0.000 g</strong>
+                </div>
+                
+                <div class="form-grid" style="margin-top:10px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Physical Loss / Dust (g)</label>
+                        <input type="text" id="meltLossWt" readonly style="background:transparent; border:none; color:var(--out-red); font-weight:bold; padding:0;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Refinery Charges (₹) [Optional]</label>
+                        <input type="number" id="meltCharges" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background:#455a64;" onclick="processMelt()"><i class="fas fa-cogs"></i> Process & Add to Inventory</button>
+            <p style="font-size:0.75rem; color:#888; text-align:center; margin-top:10px;">*The calculated Fine Weight will be logged and the Mixed Gold block will be instantly added to your Stock Inventory.</p>
+        </div>
+    </div>
+
+    <div id="toast">Message Saved!</div>
+
+    <script src="db.js?v=35"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            toast.innerText = msg;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+        }
+
+        let allCustomers = [];
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [] };
+        
+        let globalOldGoldAvailable = 0; // Tracks live box weight
+
+        window.onload = async function() {
+            // Setup Dates
+            const today = new Date();
+            document.getElementById('filterTo').valueAsDate = today;
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('filterFrom').value = firstDay.toISOString().split('T')[0];
+
+            // Load Rates & Purities
+            const r = await getSetting('gold_rates'); 
+            if(r) goldRates = r;
+
+            const puritySelect = document.getElementById('bPurity');
+            if(puritySelect) {
+                let opts = `<option value="22K">22K</option><option value="18K">18K</option><option value="24K">24K</option><option value="Silver">Silver</option>`;
+                if(goldRates.customPurities && goldRates.customPurities.length > 0) {
+                    goldRates.customPurities.forEach(cp => {
+                        opts += `<option value="${cp.name}" data-pct="${cp.pct}">${cp.name}</option>`;
+                    });
+                }
+                puritySelect.innerHTML = opts;
+            }
+
+            allCustomers = await getAllItems('customers');
+            autoFillBuyRate();
+            await loadOldGoldLedger();
+        };
+
+        // --- CUSTOMER SEARCH ---
+        function searchCustomer() {
+            const term = document.getElementById('custSearchInput').value.toLowerCase();
+            const box = document.getElementById('custSearchResults');
+            box.innerHTML = ''; box.style.display = 'none';
+            if(term.length < 1) return;
+            
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0,5);
+            if(matches.length > 0) {
+                box.style.display = 'block';
+                matches.forEach(c => {
+                    const d = document.createElement('div'); d.className = 'suggestion-item';
+                    d.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    d.onclick = () => {
+                        document.getElementById('selectedCustomerId').value = c.id;
+                        document.getElementById('custSearchInput').style.display = 'none';
+                        box.style.display = 'none';
+                        
+                        const disp = document.getElementById('selectedCustDisplay');
+                        disp.style.display = 'flex';
+                        document.getElementById('custNameText').innerHTML = `<i class="fas fa-check-circle"></i> ${c.name} (${c.mobile})`;
+                    };
+                    box.appendChild(d);
+                });
+            }
+        }
+
+        function resetCustSearch() {
+            document.getElementById('selectedCustomerId').value = '';
+            document.getElementById('custSearchInput').value = '';
+            document.getElementById('custSearchInput').style.display = 'block';
+            document.getElementById('selectedCustDisplay').style.display = 'none';
+            document.getElementById('custSearchInput').focus();
+        }
+
+        // --- MASTER LEDGER ENGINE ---
+        async function loadOldGoldLedger() {
+            const tbody = document.getElementById('ledgerBody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#888;"><i class="fas fa-spinner fa-spin"></i> Compiling Data...</td></tr>';
+
+            let combinedLedger = [];
+
+            // 1. Pull Old Gold from POS Sales
+            const sales = await getAllItems('sales');
+            sales.forEach(s => {
+                if(s.status === 'cancelled') return; 
+                const c = allCustomers.find(x => x.id == s.customerId);
+                if(s.items && s.items.length > 0) {
+                    s.items.forEach(item => {
+                        if(item.isOldGold) {
+                            combinedLedger.push({
+                                rawId: s.id, source: 'POS', date: s.date,
+                                customerName: c ? c.name : 'Unknown', customerPhone: c ? c.mobile : '',
+                                description: item.category, purity: item.purity,
+                                netWt: parseFloat(item.weight), rate: item.rate,
+                                amount: Math.abs(parseFloat(item.total)) // Stored as negative in cart
+                            });
+                        }
+                    });
+                }
+            });
+
+            // 2. Pull Old Gold from Custom Orders
+            const orders = await getAllItems('orders');
+            orders.forEach(o => {
+                if(o.status === 'cancelled' && o.oldGoldReturned) return; // Skip if they took it back
+                if(o.oldGoldValue > 0) {
+                    const c = allCustomers.find(x => x.id == o.customerId);
+                    combinedLedger.push({
+                        rawId: o.id, source: 'ORDER', date: o.orderDate,
+                        customerName: c ? c.name : 'Unknown', customerPhone: c ? c.mobile : '',
+                        description: `Order Adv - ${o.description}`, purity: o.oldGoldPurity,
+                        netWt: parseFloat(o.oldGoldNet), rate: o.oldGoldRate,
+                        amount: parseFloat(o.oldGoldValue)
+                    });
+                }
+            });
+
+            // 3. Pull Direct Old Gold Purchases & Melts
+            let directRecords = [];
+            try { directRecords = await getAllItems('old_gold'); } catch(e){}
+            
+            directRecords.forEach(d => {
+                if (d.type === 'MELT') {
+                    combinedLedger.push({
+                        rawId: d.id, source: 'MELT', date: d.date,
+                        customerName: 'REFINERY', customerPhone: '-',
+                        description: `Melted: ${d.lossWt}g Loss`, purity: d.purity || 'Mixed',
+                        netWt: -parseFloat(d.sentWt), // Negative because it left the box
+                        rate: 0, amount: parseFloat(d.charges || 0)
+                    });
+                } else {
+                    const c = allCustomers.find(x => x.id == d.customerId);
+                    combinedLedger.push({
+                        rawId: d.id, source: 'DIRECT', date: d.date,
+                        customerName: c ? c.name : 'Unknown', customerPhone: c ? c.mobile : '',
+                        description: d.description, purity: d.purity,
+                        netWt: parseFloat(d.netWt), rate: d.rate,
+                        amount: parseFloat(d.amount)
+                    });
+                }
+            });
+
+            // 4. Pull Gold Collateral from Loans
+            const loans = await getAllItems('loans');
+            loans.forEach(l => {
+                if(l.weight && l.weight > 0 && l.status === 'active') {
+                    const c = allCustomers.find(x => x.id == l.customerId);
+                    combinedLedger.push({
+                        rawId: l.id, source: 'LOAN', date: l.date,
+                        customerName: c ? c.name : 'Unknown', customerPhone: c ? c.mobile : '',
+                        description: `Pledged: ${l.description}`, purity: l.purity || 'N/A',
+                        netWt: parseFloat(l.weight), rate: 0, 
+                        amount: parseFloat(l.amount) 
+                    });
+                }
+            });
+
+            // --- GLOBAL BALANCE CALCULATION (Independent of Filters) ---
+            globalOldGoldAvailable = 0;
+            combinedLedger.forEach(t => {
+                if(t.source !== 'LOAN') { // Loans are collateral, not meltable box stock
+                    globalOldGoldAvailable += t.netWt; // MELT is already negative, so += works perfectly
+                }
+            });
+            // Update Melt Modal dynamically
+            document.getElementById('meltAvailableWt').innerText = Math.max(0, globalOldGoldAvailable).toFixed(3) + " g";
+
+            // --- FILTERING FOR DASHBOARD & TABLE ---
+            const dateFrom = document.getElementById('filterFrom').value;
+            const dateTo = document.getElementById('filterTo').value;
+            const sourceFilter = document.getElementById('filterSource').value;
+            const searchFilter = document.getElementById('filterSearch').value.toLowerCase();
+
+            // Stats Counters (Filtered)
+            let totalWt = 0, totalVal = 0, directPaid = 0;
+            let wtPos = 0, wtOrder = 0, wtDirect = 0, wtLoan = 0;
+
+            let displayLedger = combinedLedger.filter(t => {
+                const d = t.date.split('T')[0];
+                let passDate = true;
+                if(dateFrom && d < dateFrom) passDate = false;
+                if(dateTo && d > dateTo) passDate = false;
+                
+                let passSource = true;
+                if(sourceFilter !== 'ALL' && t.source !== sourceFilter) passSource = false;
+
+                let passSearch = true;
+                if(searchFilter && !t.customerName.toLowerCase().includes(searchFilter) && !t.customerPhone.includes(searchFilter)) passSearch = false;
+
+                if(passDate && passSource && passSearch) {
+                    if(t.source !== 'LOAN') { 
+                        totalWt += t.netWt;
+                        if(t.source !== 'MELT') totalVal += t.amount;
+                    }
+                    if(t.source === 'DIRECT') { directPaid += t.amount; wtDirect += t.netWt; }
+                    if(t.source === 'POS') wtPos += t.netWt;
+                    if(t.source === 'ORDER') wtOrder += t.netWt;
+                    if(t.source === 'LOAN') wtLoan += t.netWt;
+                }
+
+                return passDate && passSource && passSearch;
+            });
+
+            // Sort Descending
+            displayLedger.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            // --- RENDER UI ---
+            document.getElementById('statTotalWt').innerText = globalOldGoldAvailable.toFixed(3) + " g";
+            document.getElementById('statTotalVal').innerText = "₹" + totalVal.toLocaleString();
+            
+            document.getElementById('statPosWt').innerText = wtPos.toFixed(3) + " g";
+            document.getElementById('statOrderWt').innerText = wtOrder.toFixed(3) + " g";
+            document.getElementById('statDirectWt').innerText = wtDirect.toFixed(3) + " g";
+            document.getElementById('statDirectPaid').innerText = "₹" + directPaid.toLocaleString();
+            document.getElementById('statLoanWt').innerText = wtLoan.toFixed(3) + " g";
+
+            tbody.innerHTML = '';
+
+            if(displayLedger.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#888;">No records found for this filter.</td></tr>';
+                return;
+            }
+
+            displayLedger.forEach(t => {
+                const dateStr = new Date(t.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+                
+                let badgeClass = '', badgeText = '', linkUrl = '';
+                if(t.source === 'POS') { badgeClass = 'b-pos'; badgeText = 'POS Exch'; linkUrl = `sales.html?edit=${t.rawId}`; }
+                if(t.source === 'ORDER') { badgeClass = 'b-order'; badgeText = 'Order Adv'; linkUrl = `orders.html`; }
+                if(t.source === 'LOAN') { badgeClass = 'b-loan'; badgeText = 'Collateral'; linkUrl = `loans.html`; }
+                if(t.source === 'DIRECT') { badgeClass = 'b-direct'; badgeText = 'Cash Buy'; }
+                if(t.source === 'MELT') { badgeClass = 'b-melt'; badgeText = 'Melted'; }
+
+                let actionBtn = '';
+                if (t.source === 'DIRECT') {
+                    actionBtn = `
+                        <button style="padding:6px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:4px; cursor:pointer;" onclick="waReceipt('${t.customerName}', '${t.customerPhone}', ${t.netWt}, '${t.purity}', ${t.amount})" title="Send Receipt"><i class="fab fa-whatsapp"></i></button>
+                        <i class="fas fa-trash" style="color:#d32f2f; cursor:pointer; margin-left:10px; font-size:1.1rem;" onclick="deleteRecord(${t.rawId})" title="Delete Record"></i>
+                    `;
+                } else if (t.source === 'MELT') {
+                    actionBtn = `<i class="fas fa-trash" style="color:#d32f2f; cursor:pointer; font-size:1.1rem;" onclick="deleteRecord(${t.rawId})" title="Delete Record"></i>`;
+                } else {
+                    actionBtn = `<button style="padding:5px 10px; background:#f0f0f0; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; color:#333;" onclick="window.location.href='${linkUrl}'">View Source</button>`;
+                }
+
+                let amountText = '';
+                if (t.source === 'LOAN') amountText = `(Loan) ₹${t.amount.toLocaleString()}`;
+                else if (t.source === 'MELT') amountText = `(Fee) ₹${t.amount.toLocaleString()}`;
+                else amountText = `₹${t.amount.toLocaleString()}`;
+
+                const wtColor = t.netWt < 0 ? 'color:var(--out-red);' : '';
+                const sign = t.netWt < 0 ? '' : '+';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="white-space:nowrap; font-size:0.85rem; color:#555;">${dateStr}<br><small>Ref: ${t.rawId}</small></td>
+                        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                        <td>
+                            <span class="party-name">${t.customerName}</span>
+                            <span class="tx-desc">${t.description} <span class="tx-purity">${t.purity}</span></span>
+                        </td>
+                        <td style="font-weight:600; ${wtColor}">${sign}${t.netWt.toFixed(3)}g<br><small style="color:#888;">${t.rate > 0 ? '@ ₹'+t.rate+'/g' : ''}</small></td>
+                        <td class="text-right" style="font-weight:700; font-size:1.05rem; color: #333;">
+                            ${amountText}
+                        </td>
+                        <td style="text-align:center;">${actionBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- DIRECT PURCHASE LOGIC ---
+        function openBuyModal() {
+            resetCustSearch();
+            document.getElementById('bDesc').value = '';
+            document.getElementById('bGrossWt').value = '';
+            document.getElementById('bStoneWt').value = '';
+            document.getElementById('bExchangePct').value = 100;
+            document.getElementById('bLiveTotal').innerText = "₹0";
+            document.getElementById('buyModal').style.display = 'flex';
+            autoFillBuyRate();
+        }
+
+        function autoFillBuyRate() {
+            const selectEl = document.getElementById('bPurity');
+            if(!selectEl) return;
+            const purity = selectEl.value;
+            let r = 0;
+            
+            if(purity === '22K') r = goldRates.rate22k;
+            else if(purity === '24K') r = goldRates.rate24k;
+            else if(purity === '18K') r = goldRates.rate18k || (goldRates.rate22k * 0.82);
+            else if(purity === 'Silver') r = (goldRates.rateSilver || 0) / 1000;
+            else {
+                const selectedOpt = selectEl.options[selectEl.selectedIndex];
+                const pct = parseFloat(selectedOpt.dataset.pct);
+                if(pct) r = (goldRates.rate24k * (pct / 100));
+            }
+            if(purity !== 'Silver') r = r/10; 
+            
+            // Suggest 5% drop for cash buying standard
+            if(r > 0) r = r * 0.95; 
+
+            document.getElementById('bRate').value = Math.round(r);
+            calcBuyItem();
+        }
+
+        function calcBuyItem() {
+            const grossWt = parseFloat(document.getElementById('bGrossWt').value) || 0;
+            const stoneWt = parseFloat(document.getElementById('bStoneWt').value) || 0;
+            const netWt = Math.max(0, grossWt - stoneWt);
+            document.getElementById('bNetWt').value = netWt.toFixed(3);
+
+            const rate = parseFloat(document.getElementById('bRate').value) || 0;
+            const goldVal = netWt * rate;
+
+            const exchPct = parseFloat(document.getElementById('bExchangePct').value) || 100;
+            const finalTotal = Math.round(goldVal * (exchPct / 100));
+            
+            document.getElementById('bLiveTotal').innerText = "₹" + finalTotal.toLocaleString();
+        }
+
+        async function saveDirectPurchase() {
+            const custIdStr = document.getElementById('selectedCustomerId').value;
+            const custId = parseInt(custIdStr);
+            if(!custId) return showToast("Select a Customer from the search list", "error");
+
+            const desc = document.getElementById('bDesc').value;
+            const netWt = parseFloat(document.getElementById('bNetWt').value) || 0;
+            const rate = parseFloat(document.getElementById('bRate').value) || 0;
+            const finalTotal = parseFloat(document.getElementById('bLiveTotal').innerText.replace(/₹|,/g,'')) || 0;
+            const mode = document.getElementById('bMode').value;
+
+            if(!desc) return showToast("Enter Item Description", "error");
+            if(netWt <= 0 || finalTotal <= 0) return showToast("Invalid Weight or Amount", "error");
+
+            const c = allCustomers.find(x => x.id == custId);
+
+            // 1. Save to Old Gold Table
+            const txId = await addItem('old_gold', {
+                type: 'BUY',
+                customerId: custId,
+                date: new Date().toISOString(),
+                description: desc,
+                purity: document.getElementById('bPurity').value,
+                grossWt: parseFloat(document.getElementById('bGrossWt').value) || 0,
+                stoneWt: parseFloat(document.getElementById('bStoneWt').value) || 0,
+                netWt: netWt,
+                rate: rate,
+                exchPct: parseFloat(document.getElementById('bExchangePct').value) || 100,
+                amount: finalTotal,
+                mode: mode
+            });
+
+            // 2. Sync with Cashflow (Money OUT of Shop)
+            await addItem('cashflow', {
+                date: new Date().toISOString(),
+                type: 'OUT',
+                mode: mode,
+                category: 'Old Gold Direct Purchase',
+                amount: finalTotal,
+                note: `Bought ${netWt}g ${document.getElementById('bPurity').value} from ${c.name} (Ref #${txId})`
+            });
+
+            showToast("Purchase Saved & Cashbook Updated!", "success");
+            closeModal('buyModal');
+            
+            if(confirm("Send WhatsApp Receipt to Customer?")) {
+                waReceipt(c.name, c.mobile, netWt, document.getElementById('bPurity').value, finalTotal);
+            }
+            
+            loadOldGoldLedger();
+        }
+
+        // --- MELTING / REFINERY LOGIC ---
+        function openMeltModal() {
+            document.getElementById('meltSentWt').value = '';
+            document.getElementById('meltReturnWt').value = '';
+            document.getElementById('meltResultPurity').value = '100'; // Defaulting to 100%
+            document.getElementById('meltLossWt').value = '';
+            document.getElementById('meltCharges').value = '';
+            document.getElementById('meltFineWtDisplay').innerText = '0.000 g';
+            document.getElementById('meltModal').style.display = 'flex';
+        }
+
+        function calcMeltLoss() {
+            const sent = parseFloat(document.getElementById('meltSentWt').value) || 0;
+            const returned = parseFloat(document.getElementById('meltReturnWt').value) || 0;
+            const purity = parseFloat(document.getElementById('meltResultPurity').value) || 100;
+
+            if(sent > 0 && returned > 0) {
+                const loss = sent - returned; // Physical weight loss/dust
+                document.getElementById('meltLossWt').value = loss.toFixed(3) + " g";
+            } else {
+                document.getElementById('meltLossWt').value = '';
+            }
+
+            // Calculate exact pure gold content based on returned physical weight * purity %
+            const fineWt = returned * (purity / 100);
+            document.getElementById('meltFineWtDisplay').innerText = fineWt.toFixed(3) + " g";
+        }
+
+        async function processMelt() {
+            const sentWt = parseFloat(document.getElementById('meltSentWt').value);
+            const returnWt = parseFloat(document.getElementById('meltReturnWt').value);
+            const resultPurity = parseFloat(document.getElementById('meltResultPurity').value);
+            const charges = parseFloat(document.getElementById('meltCharges').value) || 0;
+
+            if(!sentWt || sentWt <= 0) return showToast("Enter weight sent to refinery.", "error");
+            if(!returnWt || returnWt <= 0) return showToast("Enter returned weight.", "error");
+            if(!resultPurity || resultPurity <= 0 || resultPurity > 100) return showToast("Enter a valid resulting purity percentage.", "error");
+            if(sentWt > globalOldGoldAvailable) return showToast(`Cannot melt ${sentWt}g. You only have ${globalOldGoldAvailable.toFixed(3)}g available.`, "error");
+
+            const fineWt = returnWt * (resultPurity / 100);
+            const lossWt = sentWt - returnWt;
+
+            if(!confirm(`Confirm Melting Details:\n\nSent: ${sentWt}g\nReceived: ${returnWt}g (${resultPurity}% Purity)\nFine Weight (Pure Gold): ${fineWt.toFixed(3)}g\nLoss/Dust: ${lossWt.toFixed(3)}g\n\nThis will remove ${sentWt}g from Old Gold and add ${returnWt}g to your Inventory. Proceed?`)) return;
+
+            // Generate sequential MLTMIXED barcode by checking current inventory
+            const allInventory = await getAllItems('inventory');
+            let maxMeltIndex = 0;
+            allInventory.forEach(item => {
+                if (item.barcode && item.barcode.startsWith('MLTMIXED')) {
+                    const num = parseInt(item.barcode.replace('MLTMIXED', ''));
+                    if (!isNaN(num) && num > maxMeltIndex) {
+                        maxMeltIndex = num;
+                    }
+                }
+            });
+            
+            const nextSeq = maxMeltIndex + 1;
+            const newBarcode = "MLTMIXED" + nextSeq.toString().padStart(3, '0');
+
+            const db = await dbPromise;
+            const tx = db.transaction(['old_gold', 'inventory', 'cashflow'], 'readwrite');
+            const now = new Date().toISOString();
+
+            // 1. Log Melt in Old Gold Table (Removes from UR Box)
+            const meltData = {
+                type: 'MELT',
+                date: now,
+                sentWt: sentWt,
+                returnWt: returnWt,
+                lossWt: lossWt,
+                purity: `${resultPurity}%`, // Saved for ledger display
+                charges: charges
+            };
+            const meltReq = tx.objectStore('old_gold').add(meltData);
+
+            meltReq.onsuccess = async (e) => {
+                const meltId = e.target.result;
+
+                // 2. Add Returned Mixed Gold to Main Inventory
+                tx.objectStore('inventory').add({
+                    barcode: newBarcode,
+                    category: 'Mixed Gold', 
+                    name: `Melted Gold Mix (${resultPurity}%)`,
+                    purity: `${resultPurity}%`, 
+                    grossWt: returnWt,   // Physical Gross
+                    netWt: returnWt,     // Physical Net
+                    fineWt: fineWt,      // Pure Gold Content computed via Purity
+                    weight: returnWt,    // Legacy/fallback physical weight
+                    pieces: 1,
+                    status: 'stock',
+                    source: `melt_${meltId}`,
+                    addedDate: now
+                });
+
+                // 3. Log Refinery Charges to Cashflow
+                if(charges > 0) {
+                    tx.objectStore('cashflow').add({
+                        date: now, type: 'OUT', mode: 'Cash',
+                        category: 'Refinery Charges (Tighal)', amount: charges,
+                        note: `Melting cost for Batch #${meltId}`
+                    });
+                }
+
+                tx.oncomplete = () => {
+                    showToast(`Gold Melted! Added ${newBarcode} to Inventory.`, "success");
+                    closeModal('meltModal');
+                    loadOldGoldLedger();
+                };
+            };
+        }
+
+        // --- DELETE LOGIC ---
+        async function deleteRecord(id) {
+            if(!confirm("DANGER: Are you sure you want to delete this record?\n\nNote: You must manually delete the corresponding expense entry from the Cashflow page to maintain accounting accuracy.")) return;
+            await deleteItem('old_gold', parseInt(id));
+            loadOldGoldLedger();
+        }
+
+        // --- WHATSAPP RECEIPT ---
+        function waReceipt(name, mobile, weight, purity, total) {
+            if(!mobile || mobile.length < 10) return showToast("Valid mobile number not found.", "error");
+            let phone = mobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+
+            let msg = `Hello ${name},\n\nWe have successfully received your Old Gold at *Bharti Jewellers*.\n\n`;
+            msg += `*Item:* Old Gold (${purity})\n`;
+            msg += `*Net Weight:* ${weight}g\n`;
+            msg += `*Total Cash Paid:* Rs. ${total.toLocaleString()}\n`;
+            msg += `\nThank you for your trust!\nRegards,\nBharti Jewellers`;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>

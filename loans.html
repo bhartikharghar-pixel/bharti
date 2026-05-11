@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gold Loans - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* --- GLOBAL STYLES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: #f0f2f5; padding-top: 60px; color: #333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        /* --- HEADER & SIDEBAR --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: #000; display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid #C5A059; }
+        .header-title { color: #C5A059; font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: #111; z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid #222; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; transition: 0.2s; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, #D32F2F, transparent); color: white; border-left: 5px solid #D32F2F; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- DASHBOARD --- */
+        .app-container { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid #C5A059; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: #333; }
+        .stat-lbl { font-size: 0.9rem; color: #666; font-weight: 500; }
+
+        /* Filter & Tabs */
+        .controls-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .search-box { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none; }
+        
+        .tabs { display: flex; background: #e0e0e0; border-radius: 10px; padding: 4px; gap: 5px; }
+        .tab { padding: 8px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
+        .tab.active { background: white; color: #D32F2F; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Loan Cards Grid */
+        .loan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .loan-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; border-top: 4px solid #1976d2; transition: transform 0.2s; }
+        .loan-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .loan-card.closed { border-top-color: #2e7d32; opacity: 0.8; }
+        
+        .l-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .l-cust { font-weight: 700; font-size: 1.1rem; color: #222; display: block; }
+        .l-amt { font-weight: 700; font-size: 1.2rem; color: #D32F2F; }
+        .l-sub { font-size: 0.85rem; color: #666; margin-bottom: 5px; display: block; }
+        
+        .l-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+        .badge-active { background: #e3f2fd; color: #1565c0; }
+        .badge-closed { background: #e8f5e9; color: #2e7d32; }
+        .badge-overdue { background: #ffebee; color: #c62828; }
+
+        .l-footer { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #eee; display: flex; justify-content: space-between; align-items: center; }
+        .btn-view { padding: 6px 15px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+
+        /* FAB */
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: #D32F2F; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 95%; max-width: 600px; border-radius: 16px; padding: 25px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666; }
+        h3 { margin-top: 0; color: #333; font-weight: 700; }
+
+        /* Form Styling */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; position: relative; }
+        label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 5px; font-weight: 500; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fff; transition: border 0.2s; }
+        input:focus, select:focus { border-color: #D32F2F; outline: none; }
+        input[readonly] { background: #f9f9f9; font-weight: 600; color: #333; }
+
+        /* Custom Search Dropdown */
+        .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        .search-item:hover { background: #fff5f5; color: #D32F2F; }
+
+        .btn-primary { width: 100%; padding: 14px; background: #D32F2F; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;}
+        .btn-primary:hover { background: #b71c1c; }
+
+        /* Ledger Styles */
+        .ledger-box { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; align-items: center;}
+        .info-row.highlight { font-weight: 700; color: #D32F2F; border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 10px; font-size: 1.1rem;}
+
+        .ledger-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
+        .ledger-table th { background: #333; color: white; padding: 10px; text-align: left; position: sticky; top: 0;}
+        .ledger-table td { border-bottom: 1px solid #eee; padding: 10px; }
+        .ledger-table tr.current-month { background: #e3f2fd; border-left: 4px solid #1976d2; }
+
+        .text-green { color: #2e7d32; font-weight: bold; }
+        .text-red { color: #c62828; font-weight: bold; }
+
+        /* Print Specifics */
+        @media print {
+            body { background: white; padding: 0; color: black; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .fab, .close-btn, #paymentBox, #btnSettleClose, #btnWaReminder, #btnPrintLedger { display: none !important; }
+            .modal { position: static; display: block !important; background: none; }
+            .modal-content { box-shadow: none; max-width: 100%; width: 100%; padding: 0; margin: 0; border: none; }
+            .ledger-table th { background: #eee !important; color: #000 !important; -webkit-print-color-adjust: exact; }
+            .ledger-box { border: 1px solid #000; break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <header class="app-header">
+        <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="header-title">Bharti Jewellers</div>
+    </header>
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html" class="active"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: #1976d2;">
+                <div class="stat-lbl">Total Shop Cash Balance</div>
+                <div class="stat-val" id="shopBalance" style="color: #1976d2;">₹0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-lbl">Active Loan Accounts</div>
+                <div class="stat-val" id="totalCustomers">0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #2e7d32;">
+                <div class="stat-lbl">Total Outstanding Principal</div>
+                <div class="stat-val" id="totalOutstanding" style="color: #2e7d32;">₹0</div>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <input type="text" id="loanListSearch" class="search-box" placeholder="Search by Customer Name or Mobile..." onkeyup="filterLoansList()">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('active', this)">Active Loans</button>
+                <button class="tab" onclick="switchTab('closed', this)">History</button>
+            </div>
+        </div>
+
+        <div id="loans-list" class="loan-grid"></div>
+
+        <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('createModal')">&times;</button>
+            <h3>New Gold Loan</h3>
+
+            <div class="form-group">
+                <label>Select Customer</label>
+                <input type="text" id="customerSearchInput" placeholder="Type Name or Mobile to Search..." onkeyup="filterSelectableCustomers()" autocomplete="off">
+                <input type="hidden" id="selectedCustomerId">
+                <div id="customerSearchResults" class="search-results"></div>
+                <div id="selectedCustDisplay" style="display:none; margin-top:5px; font-weight:bold; color:#1976d2;"></div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label style="color:#D32F2F;">Loan Start Date</label>
+                    <input type="date" id="loanStartDate" style="border-color:#D32F2F;">
+                </div>
+                <div class="form-group">
+                    <label>Item Description</label>
+                    <input type="text" id="loanDesc" placeholder="e.g. 2 Gold Bangles">
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Gross Weight (g)</label>
+                    <input type="number" id="loanWeight" step="0.01" oninput="calcMaxLoan()">
+                </div>
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="loanPurity" onchange="calcMaxLoan()">
+                        <option value="22">22 K (916)</option>
+                        <option value="18">18 K (750)</option>
+                        <option value="24">24 K (999)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="background:#fff3e0; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; color:#e65100; border:1px solid #ffe0b2;">
+                Estimated Max Loan (75%): <strong id="lblMaxLoan">₹0</strong>
+            </div>
+
+            <div class="form-group">
+                <label>Loan Amount Provided (₹)</label>
+                <input type="number" id="loanAmount" style="font-weight:bold; border-color:#D32F2F; color:#D32F2F;">
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Duration (Months)</label>
+                    <input type="number" id="loanDurationVal" value="6">
+                </div>
+                <div class="form-group">
+                    <label>Monthly Interest Rate (%)</label>
+                    <input type="number" id="loanInterest" value="2.0">
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="saveLoan()">Create Loan Account</button>
+            <p style="font-size: 0.75rem; color: #666; text-align: center; margin-top: 10px;">*The loan amount will be instantly deducted from your Shop Cash Balance.</p>
+        </div>
+    </div>
+
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
+            <h3 id="viewTitle" style="display:flex; justify-content:space-between; align-items:center; padding-right:40px;">
+                <span>Loan Ledger</span>
+                <button id="btnPrintLedger" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#555;" onclick="window.print()" title="Print Statement"><i class="fas fa-print"></i></button>
+            </h3>
+            <input type="hidden" id="viewLoanId">
+
+            <div class="ledger-box" style="background: #e3f2fd; border-color: #bbdefb; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h4 style="margin:0 0 5px 0; color:#1565c0; font-size:1.1rem;" id="vCustNameDetail">Customer Name</h4>
+                    <div style="font-size:0.85rem; color:#555;" id="vCustPhoneDetail"><i class="fas fa-phone"></i> +91 0000000000</div>
+                </div>
+                <button class="btn-primary" id="btnWaReminder" style="width:auto; margin:0; padding:8px 12px; background:#25D366; font-size:0.85rem; color:#000;" onclick="sendLoanWhatsApp()"><i class="fab fa-whatsapp"></i> Reminder</button>
+            </div>
+
+            <div class="ledger-box">
+                <div class="info-row"><span>Start Date:</span> <strong id="vStartDate">-</strong></div>
+                <div class="info-row"><span>Due Date:</span> <strong id="vDueDate" style="color:#d32f2f;">-</strong></div>
+                <div class="info-row"><span>Interest Rate:</span> <strong id="vInterestRate">0%</strong></div>
+                <hr style="border:0; border-top:1px solid #ddd; margin:10px 0;">
+                
+                <div class="info-row"><span>Principal Outstanding:</span> <strong id="vPrincipal">₹0</strong></div>
+                <div class="info-row"><span>Accrued Interest Pending:</span> <strong id="vAccruedInt" style="color:#d32f2f;">₹0</strong></div>
+                <div class="info-row highlight"><span>Total Settle Amount:</span> <strong id="vSettleAmt">₹0</strong></div>
+            </div>
+
+            <div id="paymentBox" class="ledger-box" style="background:#fff; border-color:#2e7d32;">
+                <h4 style="margin:0 0 10px 0; color:#2e7d32; font-size:0.95rem;">Receive Payment (Interest / Principal)</h4>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="payAmount" placeholder="Amount (₹)" style="flex:1;">
+                    <button class="btn-primary" style="margin:0; width:auto; background:#333; padding:10px 20px;" onclick="processPayment()">Record</button>
+                </div>
+            </div>
+
+            <div style="max-height:250px; overflow-y:auto; border: 1px solid #eee; border-radius:8px;">
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Principal</th>
+                            <th>Int. +</th>
+                            <th>Paid -</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerBody"></tbody>
+                </table>
+            </div>
+
+            <button class="btn-primary" id="btnSettleClose" style="background:#c62828; margin-top:20px;" onclick="closeAccount()">Receive Full Amount & Close Loan</button>
+        </div>
+    </div>
+
+    <script src="db.js?v=36"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+
+        let allLoans = [];
+        let allCustomers = [];
+        let currentTab = 'active';
+        let goldRates = { rate22k: 0 };
+
+        window.onload = async function() {
+            const r = await getSetting('gold_rates');
+            if(r) goldRates = r;
+            
+            await loadCashBalance(); 
+            await loadCustomers();
+            await loadLoans();
+        };
+
+        // --- SHOP CASH BALANCE LOGIC ---
+        async function loadCashBalance() {
+            try {
+                const flows = await getAllItems('cashflow');
+                let totalCash = 0;
+                flows.forEach(f => {
+                    if (f.mode === 'Cash' || f.mode === 'UPI') { 
+                        if (f.type === 'IN') totalCash += parseFloat(f.amount);
+                        if (f.type === 'OUT') totalCash -= parseFloat(f.amount);
+                    }
+                });
+                document.getElementById('shopBalance').innerText = "₹" + totalCash.toLocaleString();
+            } catch (e) {
+                console.error("Error loading cash flow:", e);
+                document.getElementById('shopBalance').innerText = "₹0";
+            }
+        }
+
+        // --- LOAD DATA & SYNC ENGINE ---
+        async function loadCustomers() {
+            allCustomers = await getAllItems('customers');
+        }
+
+        // Syncs missing months based on reducing balance
+        function syncLoanLedger(l) {
+            if (l.status !== 'active') return false; 
+            
+            const startDate = new Date(l.date);
+            const now = new Date();
+            
+            // Calculate how many months have passed since the loan started
+            let elapsedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+            if (elapsedMonths < 0) elapsedMonths = 0;
+            
+            const expectedLedgerLength = elapsedMonths + 1;
+            
+            if (l.ledger.length < expectedLedgerLength) {
+                let updated = false;
+                for (let i = l.ledger.length; i < expectedLedgerLength; i++) {
+                    const prevEntry = l.ledger[i - 1];
+                    
+                    const missingMonthDate = new Date(startDate);
+                    missingMonthDate.setMonth(startDate.getMonth() + i);
+                    const monthStr = missingMonthDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                    
+                    // Core Reducing Balance Logic: Next month's interest is strictly based on previous month's CLOSING principal
+                    const newOpenPrincipal = prevEntry.closingPrincipal;
+                    const newInterest = Math.round((newOpenPrincipal * l.ratePercent) / 100);
+                    
+                    l.ledger.push({
+                        month: monthStr,
+                        openPrincipal: newOpenPrincipal,
+                        interestCharged: newInterest,
+                        paidInterest: 0,
+                        paidPrincipal: 0,
+                        closingPrincipal: newOpenPrincipal, // Remains the same until payment is made
+                        status: 'active'
+                    });
+                    updated = true;
+                }
+                return updated;
+            }
+            return false;
+        }
+
+        async function loadLoans() {
+            const loans = await getAllItems('loans');
+            const customers = await getAllItems('customers');
+            
+            let totalPrin = 0;
+            let activeCustIds = new Set();
+
+            allLoans = await Promise.all(loans.map(async (l) => {
+                const c = customers.find(x => x.id == l.customerId);
+                
+                // AUTO-SYNC: Generate missing months & interest automatically
+                if (syncLoanLedger(l)) {
+                    await updateItem('loans', l); 
+                }
+
+                let currentPrin = l.amount;
+                if(l.ledger && l.ledger.length > 0) {
+                    currentPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
+                }
+
+                if(l.status === 'active') {
+                    totalPrin += currentPrin;
+                    activeCustIds.add(l.customerId);
+                }
+
+                return { 
+                    ...l, 
+                    custName: c ? c.name : 'Unknown', 
+                    custMobile: c ? c.mobile : '',
+                    currentPrincipal: currentPrin 
+                };
+            }));
+
+            document.getElementById('totalOutstanding').innerText = "₹" + totalPrin.toLocaleString();
+            document.getElementById('totalCustomers').innerText = activeCustIds.size;
+            renderLoans();
+        }
+
+        function renderLoans() {
+            const container = document.getElementById('loans-list');
+            container.innerHTML = '';
+            
+            const term = document.getElementById('loanListSearch').value.toLowerCase();
+            const filtered = allLoans.filter(l => 
+                l.status === currentTab && 
+                (l.custName.toLowerCase().includes(term) || String(l.custMobile).includes(term))
+            );
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: span 3;">No ${currentTab} loans found.</div>`;
+                return;
+            }
+
+            filtered.sort((a,b) => {
+                if (currentTab === 'active') return new Date(a.dueDate) - new Date(b.dueDate);
+                return new Date(b.date) - new Date(a.date);
+            });
+
+            filtered.forEach(l => {
+                const now = new Date();
+                const due = new Date(l.dueDate);
+                let badgeClass = 'badge-active';
+                let badgeText = 'Active';
+
+                if(l.status === 'closed') {
+                    badgeClass = 'badge-closed'; badgeText = 'Closed';
+                } else if(due < now) {
+                    badgeClass = 'badge-overdue'; badgeText = 'Overdue';
+                }
+
+                const div = document.createElement('div');
+                div.className = `loan-card ${l.status}`;
+                div.innerHTML = `
+                    <div class="l-header">
+                        <div>
+                            <span class="l-cust">${l.custName}</span>
+                            <span class="l-sub">#${l.id} • ${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
+                        </div>
+                        <span class="l-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    
+                    <div class="l-amt">₹${l.currentPrincipal.toLocaleString()}</div>
+                    <div class="l-sub">${l.description}</div>
+                    
+                    <div class="l-meta" style="margin-top: 10px;">
+                         <span class="l-badge" style="background:#eee; color:#555;">${l.weight}g</span>
+                         <span class="l-badge" style="background:#eee; color:#555;">${l.purity}K</span>
+                         <span class="l-badge" style="background:#eee; color:#555;">${l.ratePercent}% Rate</span>
+                    </div>
+
+                    <div class="l-footer">
+                        <span style="font-size:0.8rem; color:${due < now ? '#c62828' : '#666'}; font-weight:bold;">
+                            Due: ${due.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                        </span>
+                        <button class="btn-view" onclick="openLedger(${l.id})">Manage Ledger</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function switchTab(tab, btn) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderLoans();
+        }
+
+        function filterLoansList() { renderLoans(); }
+
+        // --- CUSTOMER SEARCH ---
+        function filterSelectableCustomers() {
+            const term = document.getElementById('customerSearchInput').value.toLowerCase();
+            const resultsDiv = document.getElementById('customerSearchResults');
+            resultsDiv.innerHTML = '';
+            
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    div.onclick = () => selectCustomer(c.id, c.name);
+                    resultsDiv.appendChild(div);
+                });
+            } else {
+                resultsDiv.style.display = 'none';
+            }
+        }
+
+        function selectCustomer(id, name) {
+            document.getElementById('selectedCustomerId').value = id;
+            document.getElementById('customerSearchInput').value = name;
+            document.getElementById('customerSearchResults').style.display = 'none';
+        }
+
+        // --- CREATE LOAN ---
+        function openCreateModal() { 
+            document.getElementById('createModal').style.display = 'flex'; 
+            document.getElementById('selectedCustomerId').value = '';
+            document.getElementById('customerSearchInput').value = '';
+            document.getElementById('loanAmount').value = '';
+            document.getElementById('loanWeight').value = '';
+            document.getElementById('lblMaxLoan').innerText = '₹0';
+
+            // Set default date to today (IST logic for inputs)
+            const today = new Date();
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            const istDate = new Date(today.getTime() + istOffset);
+            document.getElementById('loanStartDate').value = istDate.toISOString().split('T')[0];
+        }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function calcMaxLoan() {
+            const wt = parseFloat(document.getElementById('loanWeight').value) || 0;
+            const purity = document.getElementById('loanPurity').value;
+            
+            let rate10g = parseFloat(goldRates.rate22k || 0);
+            let ratePerGram = rate10g / 10; 
+
+            let factor = 1.0;
+            if(purity == '18') factor = 0.818; // 18/22
+            if(purity == '24') factor = 1.09;  // 24/22
+
+            const effectiveRate = ratePerGram * factor;
+            const marketValue = wt * effectiveRate;
+            const maxLoan = Math.round(marketValue * 0.75); // 75% LTV
+            
+            document.getElementById('lblMaxLoan').innerText = "₹" + maxLoan.toLocaleString();
+            
+            if(!document.getElementById('loanAmount').value) {
+                document.getElementById('loanAmount').value = maxLoan;
+            }
+        }
+
+        async function saveLoan() {
+            const custId = document.getElementById('selectedCustomerId').value;
+            const amount = parseFloat(document.getElementById('loanAmount').value);
+            const interest = parseFloat(document.getElementById('loanInterest').value);
+            const durVal = parseInt(document.getElementById('loanDurationVal').value);
+            const startDateVal = document.getElementById('loanStartDate').value;
+
+            if(!custId) return alert("Please select a customer");
+            if(!amount || amount <= 0) return alert("Enter Valid Loan Amount");
+            if(!startDateVal) return alert("Please select a Start Date");
+
+            const startDate = new Date(startDateVal);
+            let dueDate = new Date(startDate);
+            dueDate.setMonth(dueDate.getMonth() + durVal);
+
+            const monthStr = startDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+            const firstMonthInterest = Math.round((amount * interest) / 100);
+
+            const ledger = [{
+                month: monthStr,
+                openPrincipal: amount,
+                interestCharged: firstMonthInterest,
+                paidInterest: 0,
+                paidPrincipal: 0,
+                closingPrincipal: amount, 
+                status: 'active'
+            }];
+
+            const loan = {
+                customerId: custId,
+                description: document.getElementById('loanDesc').value,
+                weight: parseFloat(document.getElementById('loanWeight').value),
+                purity: document.getElementById('loanPurity').value,
+                amount: amount,
+                ratePercent: interest,
+                durationVal: durVal,
+                durationUnit: 'Months',
+                date: startDate.toISOString(), // Can be backdated
+                dueDate: dueDate.toISOString(),
+                status: 'active',
+                ledger: ledger
+            };
+
+            // AUTO SYNC immediately for backdated loans so ledger is built up to today
+            syncLoanLedger(loan);
+
+            const loanId = await addItem('loans', loan);
+
+            // LOG CASHFLOW: Subtract loan amount from shop balance
+            await addItem('cashflow', {
+                date: new Date().toISOString(), // The actual cash left the drawer today, or we just log it as today's entry to avoid messing up past rojmel
+                type: 'OUT',
+                mode: 'Cash',
+                category: 'New Gold Loan',
+                amount: amount,
+                note: `Principal disbursed for Loan #${loanId}`
+            });
+
+            alert("Loan Created Successfully!");
+            closeModal('createModal');
+            await loadCashBalance(); 
+            await loadLoans();
+        }
+
+        // --- LEDGER LOGIC ---
+        let currentLoanId = null;
+
+        async function openLedger(id) {
+            currentLoanId = id;
+            const db = await dbPromise;
+            const tx = db.transaction('loans', 'readonly');
+            const store = tx.objectStore('loans');
+            
+            store.get(id).onsuccess = (e) => {
+                const l = e.target.result;
+                const c = allCustomers.find(x => x.id == l.customerId); 
+                const lastEntry = l.ledger[l.ledger.length - 1];
+                
+                document.getElementById('viewTitle').innerHTML = `
+                    <span>Loan #${l.id}</span>
+                    <button id="btnPrintLedger" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#555;" onclick="window.print()" title="Print Statement"><i class="fas fa-print"></i></button>
+                `;
+                document.getElementById('viewLoanId').value = l.id;
+                
+                document.getElementById('vCustNameDetail').innerText = c ? c.name : 'Unknown Customer';
+                document.getElementById('vCustPhoneDetail').innerHTML = `<i class="fas fa-phone"></i> ${c ? c.mobile : 'No Number'}`;
+
+                document.getElementById('vInterestRate').innerText = l.ratePercent + "% / Month";
+                document.getElementById('vStartDate').innerText = new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+                document.getElementById('vDueDate').innerText = new Date(l.dueDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+                let totalPendingInterest = 0;
+                l.ledger.forEach(r => totalPendingInterest += (r.interestCharged - r.paidInterest));
+                const currentPrincipal = lastEntry.closingPrincipal;
+                const settleAmt = currentPrincipal + totalPendingInterest;
+                
+                document.getElementById('vPrincipal').innerText = "₹" + currentPrincipal.toLocaleString();
+                document.getElementById('vAccruedInt').innerText = "₹" + totalPendingInterest.toLocaleString();
+                document.getElementById('vSettleAmt').innerText = "₹" + settleAmt.toLocaleString();
+
+                const tbody = document.getElementById('ledgerBody');
+                tbody.innerHTML = '';
+                
+                l.ledger.forEach((row, idx) => {
+                    const isCurrent = (idx === l.ledger.length - 1) && l.status === 'active';
+                    const tr = document.createElement('tr');
+                    if(isCurrent) tr.className = 'current-month';
+                    
+                    tr.innerHTML = `
+                        <td style="white-space:nowrap;">${row.month}</td>
+                        <td>₹${row.openPrincipal.toLocaleString()}</td>
+                        <td class="text-red">+${row.interestCharged}</td>
+                        <td class="text-green">-${row.paidInterest + row.paidPrincipal}</td>
+                        <td><strong>₹${row.closingPrincipal.toLocaleString()}</strong></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                if(l.status === 'closed') {
+                    document.getElementById('paymentBox').style.display = 'none';
+                    document.getElementById('btnSettleClose').style.display = 'none';
+                    document.getElementById('btnWaReminder').style.display = 'none';
+                    document.getElementById('vSettleAmt').innerText = "Settled";
+                } else {
+                    document.getElementById('paymentBox').style.display = 'block';
+                    document.getElementById('btnSettleClose').style.display = 'block';
+                    document.getElementById('btnWaReminder').style.display = 'inline-block';
+                }
+
+                document.getElementById('viewModal').style.display = 'flex';
+            };
+        }
+
+        async function processPayment() {
+            const payAmt = parseFloat(document.getElementById('payAmount').value);
+            if(!payAmt || payAmt <= 0) return alert("Enter Amount");
+
+            const db = await dbPromise;
+            const tx = db.transaction('loans', 'readwrite');
+            const store = tx.objectStore('loans');
+
+            store.get(currentLoanId).onsuccess = async (e) => {
+                const l = e.target.result;
+                
+                // Force sync internally just in case a background update was missed
+                syncLoanLedger(l); 
+
+                let remainingPay = payAmt;
+                let lastEntry = l.ledger[l.ledger.length - 1];
+
+                // 1. DEDUCT PENDING INTEREST FIRST 
+                // We loop through all past months and clear out any unpaid interest
+                let amountToDistribute = remainingPay;
+                for (let i = 0; i < l.ledger.length; i++) {
+                    let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
+                    if (unpaidInt > 0) {
+                        if (amountToDistribute >= unpaidInt) {
+                            l.ledger[i].paidInterest += unpaidInt;
+                            amountToDistribute -= unpaidInt;
+                        } else {
+                            l.ledger[i].paidInterest += amountToDistribute;
+                            amountToDistribute = 0;
+                            break;
+                        }
+                    }
+                }
+                
+                // 2. DEDUCT PRINCIPAL 
+                // Any remaining money pays down the principal on the CURRENT month's row.
+                // This guarantees the NEXT month starts with a smaller 'openPrincipal'.
+                let prinPay = amountToDistribute;
+                lastEntry.paidPrincipal += prinPay;
+                lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
+
+                if (!l.payments) l.payments = [];
+                l.payments.push({ date: new Date().toISOString(), amount: payAmt, mode: 'Cash' });
+
+                if (lastEntry.closingPrincipal <= 0) {
+                    l.status = 'closed';
+                    l.closeDate = new Date().toISOString();
+                    lastEntry.closingPrincipal = 0;
+                }
+
+                store.put(l);
+
+                // LOG CASHFLOW
+                await addItem('cashflow', {
+                    date: new Date().toISOString(),
+                    type: 'IN',
+                    mode: 'Cash',
+                    category: 'Interest Payment',
+                    amount: payAmt,
+                    note: `Partial Payment / EMI received for Loan #${currentLoanId}`
+                });
+
+                alert("Payment Recorded & Cashbook Updated!");
+                document.getElementById('payAmount').value = '';
+                await loadCashBalance(); 
+                await loadLoans();
+                openLedger(currentLoanId); 
+            };
+        }
+
+        async function closeAccount() {
+            const settleAmtStr = document.getElementById('vSettleAmt').innerText.replace('₹','').replace(/,/g,'');
+            const settleAmt = parseFloat(settleAmtStr);
+
+            if(!confirm(`Settle Loan?\n\nCustomer must pay: ₹${settleAmt.toLocaleString()}\n\nThis will clear all dues, close the account, and log the final payment in the cashbook.`)) return;
+
+            const db = await dbPromise;
+            const tx = db.transaction('loans', 'readwrite');
+            const store = tx.objectStore('loans');
+            
+            store.get(currentLoanId).onsuccess = async (e) => {
+                const l = e.target.result;
+                
+                const lastEntry = l.ledger[l.ledger.length - 1];
+                let totalPendingInterest = 0;
+                l.ledger.forEach(r => totalPendingInterest += (r.interestCharged - r.paidInterest));
+                
+                const pendingPrin = lastEntry.closingPrincipal;
+
+                lastEntry.paidInterest += totalPendingInterest;
+                lastEntry.paidPrincipal += pendingPrin;
+                lastEntry.closingPrincipal = 0;
+                
+                l.status = 'closed';
+                l.closeDate = new Date().toISOString();
+                
+                if (!l.payments) l.payments = [];
+                l.payments.push({ date: new Date().toISOString(), amount: settleAmt, mode: 'Cash', type: 'Full Settlement' });
+
+                store.put(l);
+                
+                if (settleAmt > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(),
+                        type: 'IN',
+                        mode: 'Cash',
+                        category: 'Loan Closed',
+                        amount: settleAmt,
+                        note: `Full Settlement received for closing Loan #${currentLoanId}`
+                    });
+                }
+
+                alert("Loan Settled & Closed. Cashbook Updated.");
+                closeModal('viewModal');
+                await loadCashBalance(); 
+                await loadLoans();
+            };
+        }
+
+        // --- WHATSAPP REMINDER LOGIC ---
+        function sendLoanWhatsApp() {
+            const l = allLoans.find(x => x.id === currentLoanId);
+            if(!l || !l.custMobile) return alert("No valid mobile number found for this customer.");
+            
+            const settleAmtStr = document.getElementById('vSettleAmt').innerText.replace('₹','').replace(/,/g,'');
+            const settleAmt = parseFloat(settleAmtStr);
+            const accruedInt = document.getElementById('vAccruedInt').innerText;
+            const prinAmt = document.getElementById('vPrincipal').innerText;
+
+            let msg = `Hello ${l.custName},\n\nThis is a gentle reminder from *Bharti Jewellers* regarding your Gold Loan (A/C #${l.id}).\n\n`;
+            msg += `*Outstanding Details:*\n`;
+            msg += `• Principal Amount: ${prinAmt}\n`;
+            msg += `• Pending Interest: ${accruedInt}\n`;
+            msg += `------------------------\n`;
+            msg += `*Total Amount Due: ₹${settleAmt.toLocaleString()}*\n\n`;
+            msg += `Please arrange for payment at your earliest convenience to maintain your account actively. Let us know if you have already made the payment.\n\n`;
+            msg += `Regards,\n*Bharti Jewellers*`;
+            
+            let phone = l.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>

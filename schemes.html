@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BC Schemes (11+1) - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a;
+            --whatsapp: #25D366; --test-mode: #9c27b0; --overdue-orange: #ff9800;
+        }
+
+        /* --- GLOBAL STYLES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; color: #333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- HEADER & SIDEBAR --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid #222; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; transition: 0.2s; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 5px solid #fff; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* Test Mode Toggle */
+        .test-toggle { display: flex; align-items: center; gap: 8px; color: white; font-size: 0.85rem; font-weight: 600; background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
+        .test-toggle.active { border-color: var(--test-mode); color: #e1bee7; background: rgba(156, 39, 176, 0.2); }
+
+        /* --- DASHBOARD --- */
+        .app-container { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid var(--accent-gold); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: #333; }
+        .stat-lbl { font-size: 0.9rem; color: #666; font-weight: 500; }
+
+        .controls-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .search-box { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none; }
+        .tabs { display: flex; background: #e0e0e0; border-radius: 10px; padding: 4px; gap: 5px; flex-wrap: wrap;}
+        .tab { padding: 8px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
+        .tab.active { background: white; color: var(--active-red); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Scheme Cards */
+        .scheme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 15px; }
+        .scheme-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; border-top: 4px solid #1976d2; transition: transform 0.2s; display: flex; flex-direction: column;}
+        .scheme-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .scheme-card.completed { border-top-color: var(--accent-gold); }
+        .scheme-card.overdue { border-top-color: var(--overdue-orange); }
+        
+        .s-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; }
+        .s-cust { font-weight: 700; font-size: 1.15rem; color: #222; display: block; }
+        
+        /* Progress Bar */
+        .prog-container { width: 100%; background: #eee; height: 6px; border-radius: 3px; margin: 10px 0; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, #1976d2, #4caf50); border-radius: 3px; transition: width 0.3s; }
+        .prog-fill.overdue { background: linear-gradient(90deg, #ff9800, #e65100); }
+        
+        /* 12 Month Visual Tracker */
+        .month-tracker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 15px; }
+        .m-box { height: 30px; border-radius: 6px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: #999; transition: 0.2s; border: 1px solid #e0e0e0; }
+        .m-box.paid { background: #4caf50; color: white; border-color: #388e3c; }
+        .m-box.bonus { border: 2px dashed var(--accent-gold); background: #fff8e1; color: var(--accent-gold); }
+        .m-box.bonus.paid { background: var(--accent-gold); color: white; border: none; box-shadow: 0 2px 5px rgba(197, 160, 89, 0.4); }
+
+        .s-footer { margin-top: auto; padding-top: 15px; border-top: 1px dashed #eee; display: flex; justify-content: space-between; align-items: center; }
+        .btn-view { padding: 8px 15px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 95%; max-width: 600px; border-radius: 16px; padding: 25px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666; z-index: 10;}
+
+        /* Form Styling */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; position: relative; }
+        label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 5px; font-weight: 600; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fafafa; transition: border 0.2s; }
+        input:focus, select:focus { border-color: var(--active-red); outline: none; background: white;}
+
+        .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        .search-item:hover { background: #fff5f5; color: var(--active-red); }
+
+        .btn-primary { width: 100%; padding: 14px; background: var(--active-red); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;}
+        .btn-whatsapp { background: var(--whatsapp); }
+
+        /* Ledger Table */
+        .ledger-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; text-align: left; }
+        .ledger-table th { background: #333; color: white; padding: 10px; }
+        .ledger-table td { border-bottom: 1px solid #eee; padding: 10px; }
+        
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
+        .badge-pending { background: #f5f5f5; color: #666; }
+        .badge-paid { background: #e8f5e9; color: #2e7d32; }
+        .badge-bonus { background: #fff8e1; color: #f57f17; border: 1px solid #ffb300; }
+        .badge-wallet { background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; }
+        .badge-overdue { background: #ffe0b2; color: #e65100; border: 1px solid #ff9800; }
+        
+        .test-banner { display:none; background: var(--test-mode); color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 0.85rem; text-align: center; font-weight: bold; }
+
+        /* --- PRINT PASSBOOK STYLES --- */
+        #print-area { display: none; background: white; padding: 30px; color: #000; font-family: sans-serif; }
+        @media print { 
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .fab { display: none !important; } 
+            body { background: white; padding: 0; }
+            #print-area { display: block !important; } 
+            .prt-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            .prt-table th, .prt-table td { border: 1px solid #000; padding: 8px; text-align: left; }
+            .prt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+        
+        <div class="test-toggle" id="testToggleBtn" onclick="toggleTestMode()">
+            <i class="fas fa-bug"></i> Test Mode: OFF
+        </div>
+    </header>
+    
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="schemes.html" class="active"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-lbl">Active Schemes</div>
+                <div class="stat-val" id="statActive">0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #2e7d32;">
+                <div class="stat-lbl">Total Collection So Far</div>
+                <div class="stat-val" id="statCollected" style="color: #2e7d32;">₹0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #C5A059;">
+                <div class="stat-lbl">Completed/Matured</div>
+                <div class="stat-val" id="statCompleted" style="color: #C5A059;">0</div>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <input type="text" id="schemeSearch" class="search-box" placeholder="Search by Customer Name or Mobile..." onkeyup="filterSchemes()">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('active', this)">Active Accounts</button>
+                <button class="tab" onclick="switchTab('overdue', this)">Overdue <span id="overdueCountBadge" style="background:#ff9800; color:white; padding:2px 6px; border-radius:10px; font-size:0.7rem; margin-left:5px;">0</span></button>
+                <button class="tab" onclick="switchTab('completed', this)">Matured / Closed</button>
+            </div>
+        </div>
+
+        <div id="schemes-list" class="scheme-grid"></div>
+
+        <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('createModal')">&times;</button>
+            <h3 style="margin-top:0; color: var(--active-red);"><i class="fas fa-hand-holding-heart"></i> Start 11+1 Scheme</h3>
+
+            <div class="form-group">
+                <label>Select Customer</label>
+                <input type="text" id="customerSearchInput" placeholder="Type Name or Mobile..." onkeyup="searchCustomer()" autocomplete="off">
+                <input type="hidden" id="selectedCustomerId">
+                <div id="customerSearchResults" class="search-results"></div>
+                <div id="selectedCustDisplay" style="display:none; margin-top:5px; font-weight:bold; color:#1976d2;"></div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Monthly Installment (₹)</label>
+                    <input type="number" id="sAmount" placeholder="e.g. 1000" oninput="calcSchemePreview()">
+                </div>
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" id="sDate">
+                </div>
+            </div>
+
+            <div style="background:#fff8e1; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #ffe082;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem;">
+                    <span>Customer Pays (11 Months):</span> <strong id="pCustPays">₹0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem;">
+                    <span>Shop Bonus (12th Month):</span> <strong id="pBonus" style="color:#C5A059;">+₹0</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-weight:bold; font-size:1.1rem;">
+                    <span>Total Maturity Value:</span> <span id="pTotal" style="color:#2e7d32;">₹0</span>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="saveScheme()"><i class="fas fa-check"></i> Open Scheme Account</button>
+        </div>
+    </div>
+
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
+            <h3 id="viewTitle" style="margin-top:0;">Scheme Ledger</h3>
+            <input type="hidden" id="viewSchemeId">
+            <input type="hidden" id="vCustPhone">
+            <input type="hidden" id="vCustId">
+
+            <div id="testBanner" class="test-banner">
+                <i class="fas fa-bug"></i> Test Mode is ON. Fast-forwards do not log to Cashbook.
+                <button onclick="quickFillTenMonths()" style="background:white; color:var(--test-mode); border:none; padding:5px 10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-top:8px; display:block; width:100%;">
+                    <i class="fas fa-forward"></i> Fast-Forward 10 Months Paid
+                </button>
+            </div>
+
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border-left: 4px solid #333;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h4 style="margin:0 0 5px 0; font-size:1.2rem;" id="vCustName"></h4>
+                    <span id="vCustWalletBal" class="badge badge-wallet" style="display:none;"><i class="fas fa-wallet"></i> Wallet: ₹0</span>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#555; margin-bottom:10px;">
+                    <span id="vInstallmentAmt">Monthly: ₹0</span>
+                    <span id="vMaturityAmt" style="font-weight:bold; color:var(--active-red);">Maturity: ₹0</span>
+                </div>
+                
+                <div id="vTracker" class="month-tracker"></div>
+            </div>
+
+            <div id="paymentBox" style="background:#e8f5e9; padding:15px; border-radius:8px; border: 1px solid #c8e6c9; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h4 style="margin:0 0 10px 0; color:#2e7d32; font-size:0.95rem;"><i class="fas fa-money-bill-wave"></i> Receive Installment</h4>
+                    <button id="btnUndoPayment" onclick="undoLastPayment()" style="display:none; background:transparent; border:1px solid #d32f2f; color:#d32f2f; border-radius:4px; padding:2px 8px; font-size:0.75rem; cursor:pointer; font-weight:bold;">
+                        <i class="fas fa-undo"></i> Undo Last
+                    </button>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <strong style="color:#2e7d32; display:block;">Next Due: <span id="vNextDueMonth" style="color:#555; font-weight:normal;">Month X</span></strong>
+                        <span style="font-size:0.8rem; color:#666;">(₹<span id="vBaseEmi"></span> per month)</span>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="number" id="payAmountInput" placeholder="Amount" style="width:90px; margin:0;">
+                        <select id="payModeInput" style="width:90px; margin:0; font-weight:bold;">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Bank">Bank</option>
+                        </select>
+                        <button class="btn-primary" style="width:auto; margin:0; padding:10px 15px; background:#2e7d32;" onclick="payInstallment()">Pay</button>
+                    </div>
+                </div>
+                <p style="font-size:0.75rem; color:#666; margin:8px 0 0 0;">*You can enter a larger amount (e.g. ₹2000) to pay for multiple months at once.</p>
+            </div>
+            
+            <div id="maturedBox" style="display:none; background:#fff8e1; padding:15px; border-radius:8px; border: 1px solid #ffe082; margin-bottom:15px; text-align:center;">
+                <h4 style="margin:0 0 5px 0; color:#f57f17;"><i class="fas fa-trophy"></i> Scheme Matured!</h4>
+                <p style="font-size:0.85rem; color:#666; margin:0 0 10px 0;">Customer has ₹<span id="vAvailableRedeem"></span> available to spend.</p>
+                <button class="btn-primary" style="background:#C5A059; width:100%;" onclick="redeemScheme()"><i class="fas fa-wallet"></i> Redeem & Credit to Customer Wallet</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 15px;">
+                <button class="btn-primary btn-whatsapp" style="margin-top:0;" onclick="sendWhatsAppReminder()"><i class="fab fa-whatsapp"></i> Send Reminder</button>
+                <button class="btn-primary" style="background:#333; margin-top:0;" onclick="printPassbook()"><i class="fas fa-print"></i> Print Passbook</button>
+                <button class="btn-primary" id="btnCancelScheme" style="background:#d32f2f; margin-top:0; grid-column: span 2;" onclick="deleteScheme()"><i class="fas fa-trash"></i> Delete Scheme Account</button>
+            </div>
+
+            <div style="max-height:200px; overflow-y:auto; border-top: 1px solid #eee; padding-top:10px;">
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Status</th>
+                            <th>Mode</th>
+                            <th style="text-align:right;">Amount</th>
+                            <th style="text-align:right;">Paid On</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-area">
+        <div class="prt-header">
+            <h2 style="margin:0; font-size:24px;">BHARTI JEWELLERS</h2>
+            <p style="margin:5px 0;">11+1 BC SCHEME PASSBOOK</p>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <div>
+                <strong>Name:</strong> <span id="prtName"></span><br>
+                <strong>Start Date:</strong> <span id="prtDate"></span>
+            </div>
+            <div style="text-align:right;">
+                <strong>Installment:</strong> <span id="prtEmi"></span><br>
+                <strong>Maturity Value:</strong> <span id="prtTotal"></span>
+            </div>
+        </div>
+        <table class="prt-table">
+            <thead>
+                <tr>
+                    <th>Installment</th>
+                    <th>Status</th>
+                    <th>Mode</th>
+                    <th>Amount</th>
+                    <th>Date Paid</th>
+                </tr>
+            </thead>
+            <tbody id="prtBody"></tbody>
+        </table>
+        <div style="text-align:center; font-size:12px; margin-top:30px; color:#555;">
+            *System Generated Passbook Statement*
+        </div>
+    </div>
+
+    <script src="db.js?v=35"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // --- BULLETPROOF DATA EXTRACTORS ---
+        const getSafeDate = (d) => {
+            if (!d) return '';
+            try {
+                const dateObj = new Date(d);
+                if (!isNaN(dateObj.getTime())) {
+                    const year = dateObj.getFullYear();
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+            } catch(e) {}
+            return String(d).split('T')[0].split(' ')[0];
+        };
+
+        const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
+
+        let allSchemes = [];
+        let allCustomers = [];
+        let currentTab = 'active';
+        
+        let isTestMode = false;
+        let overdueCount = 0;
+
+        window.onload = async function() {
+            document.getElementById('sDate').valueAsDate = new Date();
+            await loadCustomers();
+            await loadSchemes();
+        };
+
+        // --- TEST MODE LOGIC ---
+        function toggleTestMode() {
+            isTestMode = !isTestMode;
+            const btn = document.getElementById('testToggleBtn');
+            if(isTestMode) {
+                btn.classList.add('active');
+                btn.innerHTML = '<i class="fas fa-bug"></i> Test Mode: ON';
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '<i class="fas fa-bug"></i> Test Mode: OFF';
+            }
+        }
+
+        // --- DATA LOADING ---
+        async function loadCustomers() {
+            allCustomers = await getAllItems('customers').catch(() => []);
+        }
+
+        async function loadSchemes() {
+            const schemes = await getAllItems('schemes').catch(() => []);
+            const todayISO = new Date().toISOString();
+            
+            let activeCount = 0;
+            let totalCollected = 0;
+            let completedCount = 0;
+            overdueCount = 0;
+
+            allSchemes = schemes.map(s => {
+                const c = allCustomers.find(x => String(x.id) === String(s.customerId));
+                
+                let paidMonths = 0;
+                let cashCollected = 0;
+                let isOverdue = false;
+                
+                s.ledger.forEach(month => {
+                    if(month.status === 'paid') {
+                        paidMonths++;
+                        cashCollected += getSafeNum(s.amount);
+                    }
+                    if(month.status === 'bonus_applied') {
+                        paidMonths++; 
+                    }
+                });
+
+                // Check for Overdue
+                if (s.status === 'active') {
+                    const firstPending = s.ledger.find(m => m.status === 'pending');
+                    if (firstPending && firstPending.expectedDate < todayISO) {
+                        isOverdue = true;
+                        overdueCount++;
+                    }
+                }
+
+                if(s.status === 'active') {
+                    activeCount++;
+                    totalCollected += cashCollected;
+                } else if(s.status === 'completed' || s.status === 'redeemed') {
+                    completedCount++;
+                }
+
+                return { 
+                    ...s, 
+                    custName: c ? c.name : 'Unknown Customer', 
+                    custMobile: c ? c.mobile : '',
+                    paidMonths: paidMonths,
+                    totalCollected: cashCollected,
+                    isOverdue: isOverdue
+                };
+            });
+
+            document.getElementById('statActive').innerText = activeCount;
+            document.getElementById('statCollected').innerText = "₹" + totalCollected.toLocaleString();
+            document.getElementById('statCompleted').innerText = completedCount;
+            document.getElementById('overdueCountBadge').innerText = overdueCount;
+            
+            renderSchemes();
+        }
+
+        function renderSchemes() {
+            const container = document.getElementById('schemes-list');
+            container.innerHTML = '';
+            
+            const term = document.getElementById('schemeSearch').value.toLowerCase();
+            const filtered = allSchemes.filter(s => {
+                let statusMatch = false;
+                if (currentTab === 'active') statusMatch = s.status === 'active' && !s.isOverdue;
+                else if (currentTab === 'overdue') statusMatch = s.status === 'active' && s.isOverdue;
+                else statusMatch = (s.status === 'completed' || s.status === 'redeemed');
+
+                const searchMatch = s.custName.toLowerCase().includes(term) || String(s.custMobile).includes(term);
+                return statusMatch && searchMatch;
+            });
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: span 3;">No ${currentTab} schemes found.</div>`;
+                return;
+            }
+
+            filtered.sort((a,b) => new Date(b.startDate) - new Date(a.startDate)).forEach(s => {
+                const maturityVal = getSafeNum(s.amount) * 12;
+                let statusBadge = '';
+                
+                if(s.status === 'active') {
+                    if (s.isOverdue) statusBadge = `<span class="badge badge-overdue"><i class="fas fa-exclamation-triangle"></i> Overdue</span>`;
+                    else statusBadge = `<span class="badge badge-pending">${s.paidMonths}/12 Paid</span>`;
+                }
+                else if(s.status === 'completed') statusBadge = `<span class="badge badge-bonus">Matured - Ready</span>`;
+                else if(s.status === 'redeemed') statusBadge = `<span class="badge badge-paid">Redeemed/Closed</span>`;
+
+                const pct = (s.paidMonths / 12) * 100;
+                const fillClass = s.isOverdue ? 'prog-fill overdue' : 'prog-fill';
+
+                let blocksHtml = '';
+                for(let i=1; i<=12; i++) {
+                    if(i <= s.paidMonths) {
+                        if(i === 12) blocksHtml += `<div class="m-box bonus paid">B</div>`;
+                        else blocksHtml += `<div class="m-box paid">${i}</div>`;
+                    } else {
+                        if(i === 12) blocksHtml += `<div class="m-box bonus">12</div>`;
+                        else blocksHtml += `<div class="m-box">${i}</div>`;
+                    }
+                }
+
+                const cardClass = s.status === 'active' ? (s.isOverdue ? 'scheme-card overdue' : 'scheme-card') : `scheme-card ${s.status}`;
+
+                container.innerHTML += `
+                    <div class="${cardClass}">
+                        <div class="s-header">
+                            <div>
+                                <span class="s-cust">${s.custName}</span>
+                                <span style="font-size:0.8rem; color:#888;">Started: ${new Date(s.startDate).toLocaleDateString()}</span>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="font-size:0.85rem; color:#666;">Monthly: ₹${getSafeNum(s.amount).toLocaleString()}</span>
+                            <span style="font-weight:bold; color:var(--active-red);">Maturity: ₹${maturityVal.toLocaleString()}</span>
+                        </div>
+
+                        <div class="prog-container"><div class="${fillClass}" style="width:${pct}%"></div></div>
+                        <div class="month-tracker" style="margin-top:10px;">${blocksHtml}</div>
+
+                        <div class="s-footer">
+                            <span style="font-size:0.75rem; color:#666;">Scheme #${s.id}</span>
+                            <button class="btn-view" onclick="openManageModal(${s.id})">Manage Ledger</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function switchTab(tab, btn) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderSchemes();
+        }
+
+        function filterSchemes() { renderSchemes(); }
+
+        // --- CUSTOMER SEARCH ---
+        function searchCustomer() {
+            const term = document.getElementById('customerSearchInput').value.toLowerCase();
+            const resultsDiv = document.getElementById('customerSearchResults');
+            resultsDiv.innerHTML = '';
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    div.onclick = () => {
+                        document.getElementById('selectedCustomerId').value = c.id;
+                        document.getElementById('customerSearchInput').value = c.name;
+                        resultsDiv.style.display = 'none';
+                        const disp = document.getElementById('selectedCustDisplay');
+                        disp.style.display = 'block';
+                        disp.innerHTML = `<i class="fas fa-check-circle"></i> Selected: ${c.name} <span style="float:right; cursor:pointer; color:#D32F2F;" onclick="this.parentElement.style.display='none'; document.getElementById('selectedCustomerId').value='';">Remove</span>`;
+                    };
+                    resultsDiv.appendChild(div);
+                });
+            } else { resultsDiv.style.display = 'none'; }
+        }
+
+        // --- CREATE SCHEME ---
+        function openCreateModal() { 
+            document.getElementById('createModal').style.display = 'flex'; 
+            document.getElementById('selectedCustomerId').value = '';
+            document.getElementById('customerSearchInput').value = '';
+            document.getElementById('selectedCustDisplay').style.display = 'none';
+            document.getElementById('sAmount').value = '';
+            calcSchemePreview();
+        }
+
+        function calcSchemePreview() {
+            const amt = parseFloat(document.getElementById('sAmount').value) || 0;
+            document.getElementById('pCustPays').innerText = "₹" + (amt * 11).toLocaleString();
+            document.getElementById('pBonus').innerText = "+₹" + amt.toLocaleString();
+            document.getElementById('pTotal').innerText = "₹" + (amt * 12).toLocaleString();
+        }
+
+        async function saveScheme() {
+            const custId = document.getElementById('selectedCustomerId').value;
+            const amt = parseFloat(document.getElementById('sAmount').value);
+            const sDate = document.getElementById('sDate').value;
+
+            if(!custId) return alert("Select Customer");
+            if(!amt || amt <= 0) return alert("Enter valid monthly installment");
+
+            const start = new Date(sDate);
+            let ledger = [];
+            for(let i=1; i<=12; i++) {
+                let mDate = new Date(start);
+                mDate.setMonth(mDate.getMonth() + (i - 1));
+                
+                ledger.push({
+                    monthNumber: i,
+                    expectedDate: mDate.toISOString(),
+                    paidDate: null,
+                    amount: amt,
+                    mode: '-',
+                    status: i === 12 ? 'pending_bonus' : 'pending' 
+                });
+            }
+
+            const scheme = {
+                customerId: custId,
+                amount: amt,
+                startDate: new Date(sDate).toISOString(),
+                status: 'active',
+                ledger: ledger
+            };
+
+            await addItem('schemes', scheme);
+            alert("11+1 Scheme Account Opened Successfully!");
+            closeModal('createModal');
+            loadSchemes();
+        }
+
+        // --- MANAGE LEDGER ---
+        async function openManageModal(id) {
+            const s = allSchemes.find(x => x.id === id);
+            if(!s) return;
+
+            document.getElementById('viewSchemeId').value = s.id;
+            document.getElementById('vCustId').value = s.customerId;
+            document.getElementById('vCustName').innerText = s.custName;
+            document.getElementById('vCustPhone').value = s.custMobile;
+            document.getElementById('vInstallmentAmt').innerText = "Monthly: ₹" + getSafeNum(s.amount).toLocaleString();
+            document.getElementById('vBaseEmi').innerText = getSafeNum(s.amount);
+            document.getElementById('vMaturityAmt').innerText = "Maturity: ₹" + (getSafeNum(s.amount) * 12).toLocaleString();
+            document.getElementById('vAvailableRedeem').innerText = (getSafeNum(s.amount) * 12).toLocaleString();
+
+            // Show Undo Button only if there is a paid installment
+            const hasPayments = s.ledger.some(m => m.status === 'paid' || m.status === 'bonus_applied');
+            document.getElementById('btnUndoPayment').style.display = hasPayments && (s.status === 'active' || s.status === 'completed') ? 'inline-block' : 'none';
+
+            // Fetch latest customer data to display wallet balance
+            const c = await getItem('customers', parseInt(s.customerId));
+            if(c && getSafeNum(c.bcBalance) > 0) {
+                document.getElementById('vCustWalletBal').style.display = 'inline-block';
+                document.getElementById('vCustWalletBal').innerHTML = `<i class="fas fa-wallet"></i> BC Wallet: ₹${getSafeNum(c.bcBalance).toLocaleString()}`;
+            } else {
+                document.getElementById('vCustWalletBal').style.display = 'none';
+            }
+
+            document.getElementById('payAmountInput').value = s.amount;
+            document.getElementById('payModeInput').value = 'Cash';
+
+            document.getElementById('testBanner').style.display = isTestMode && s.status === 'active' ? 'block' : 'none';
+
+            let blocksHtml = '';
+            for(let i=1; i<=12; i++) {
+                if(i <= s.paidMonths) {
+                    if(i === 12) blocksHtml += `<div class="m-box bonus paid">B</div>`;
+                    else blocksHtml += `<div class="m-box paid">${i}</div>`;
+                } else {
+                    if(i === 12) blocksHtml += `<div class="m-box bonus">12</div>`;
+                    else blocksHtml += `<div class="m-box">${i}</div>`;
+                }
+            }
+            document.getElementById('vTracker').innerHTML = blocksHtml;
+
+            const tbody = document.getElementById('ledgerBody');
+            tbody.innerHTML = '';
+            let nextPendingFound = false;
+
+            s.ledger.forEach(row => {
+                let bClass = 'badge-pending';
+                let sText = 'Pending';
+                let dText = '-';
+                let mText = row.mode || '-';
+
+                if(row.status === 'paid') { bClass = 'badge-paid'; sText = 'Paid'; dText = new Date(row.paidDate).toLocaleDateString(); }
+                if(row.status === 'bonus_applied') { bClass = 'badge-bonus'; sText = 'Bonus Credited'; dText = new Date(row.paidDate).toLocaleDateString(); mText = 'System'; }
+                if(row.status === 'pending_bonus') { bClass = 'badge-pending'; sText = 'Awaiting Bonus'; }
+
+                if(!nextPendingFound && (row.status === 'pending')) {
+                    const expectedM = new Date(row.expectedDate).toLocaleString('default', { month: 'long', year: 'numeric' });
+                    document.getElementById('vNextDueMonth').innerText = `Month ${row.monthNumber} (${expectedM})`;
+                    nextPendingFound = true;
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>Month ${row.monthNumber}</td>
+                        <td><span class="badge ${bClass}">${sText}</span></td>
+                        <td>${mText}</td>
+                        <td style="text-align:right;">₹${getSafeNum(row.amount)}</td>
+                        <td style="text-align:right; color:#666;">${dText}</td>
+                    </tr>
+                `;
+            });
+
+            if(s.status === 'active') {
+                document.getElementById('paymentBox').style.display = 'block';
+                document.getElementById('maturedBox').style.display = 'none';
+                document.getElementById('btnCancelScheme').style.display = 'block';
+            } else if(s.status === 'completed') {
+                document.getElementById('paymentBox').style.display = 'none';
+                document.getElementById('maturedBox').style.display = 'block'; 
+                document.getElementById('btnCancelScheme').style.display = 'none';
+            } else {
+                document.getElementById('paymentBox').style.display = 'none';
+                document.getElementById('maturedBox').style.display = 'none';
+                document.getElementById('btnCancelScheme').style.display = 'none';
+            }
+
+            document.getElementById('viewModal').style.display = 'flex';
+        }
+
+        // --- ENHANCED MULTIPLE INSTALLMENT PAYMENT LOGIC ---
+        async function payInstallment() {
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const payAmt = parseFloat(document.getElementById('payAmountInput').value) || 0;
+            const payMode = document.getElementById('payModeInput').value;
+            
+            const s = await getItem('schemes', id);
+            if(!s) return;
+
+            const baseAmt = getSafeNum(s.amount);
+
+            if(payAmt < baseAmt) {
+                return alert(`Amount must be at least ₹${baseAmt} (1 Installment)`);
+            }
+
+            const monthsToPay = Math.floor(payAmt / baseAmt);
+            const remainder = payAmt % baseAmt;
+            
+            if (remainder !== 0) {
+                if(!confirm(`Amount ₹${payAmt} is not an exact multiple of ₹${baseAmt}. The system will only mark ${monthsToPay} exact month(s) as paid. Proceed?`)) return;
+            }
+
+            let monthsMarked = 0;
+
+            for (let i = 0; i < s.ledger.length; i++) {
+                if (monthsMarked >= monthsToPay) break;
+                if (s.ledger[i].status === 'pending') {
+                    s.ledger[i].status = 'paid';
+                    s.ledger[i].mode = payMode; 
+                    s.ledger[i].paidDate = new Date().toISOString();
+                    monthsMarked++;
+                }
+            }
+
+            if (monthsMarked === 0) {
+                return alert("No pending months left to pay!");
+            }
+
+            const appliedAmount = monthsMarked * baseAmt;
+            
+            // Log to cashflow using the selected Mode
+            await addItem('cashflow', {
+                date: new Date().toISOString(), type: 'IN', mode: payMode,
+                category: 'Scheme Installment', amount: appliedAmount, note: `Paid ${monthsMarked} month(s) for Scheme #${s.id}`
+            });
+
+            // 11+1 MAGIC LOGIC
+            const paidCount = s.ledger.filter(m => m.status === 'paid').length;
+            if(paidCount >= 11 && s.status !== 'completed' && s.status !== 'redeemed') {
+                const bonusIndex = s.ledger.findIndex(m => m.monthNumber === 12);
+                if (bonusIndex !== -1 && s.ledger[bonusIndex].status !== 'bonus_applied') {
+                    s.ledger[bonusIndex].status = 'bonus_applied';
+                    s.ledger[bonusIndex].mode = 'System';
+                    s.ledger[bonusIndex].paidDate = new Date().toISOString();
+                    s.status = 'completed'; 
+                    alert(`${monthsMarked} Installment(s) Paid via ${payMode}!\n\n🎉 12th Month Bonus has been auto-credited. Scheme is now Matured and ready to redeem.`);
+                }
+            } else {
+                alert(`${monthsMarked} Installment(s) Paid via ${payMode} Successfully!`);
+            }
+
+            await updateItem('schemes', s);
+            
+            closeModal('viewModal');
+            loadSchemes();
+        }
+
+        // --- NEW: UNDO LAST PAYMENT ---
+        async function undoLastPayment() {
+            if(!confirm("Are you sure you want to revert the last payment? This will mark the month as Unpaid and log a Reversal/Refund in the Cashbook to balance the drawer.")) return;
+            
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const s = await getItem('schemes', id);
+            if(!s) return;
+
+            let lastPaidIndex = -1;
+            let reversedBonus = false;
+
+            // Find highest paid month (or bonus)
+            for(let i = s.ledger.length - 1; i >= 0; i--) {
+                if (s.ledger[i].status === 'paid' || s.ledger[i].status === 'bonus_applied') {
+                    if (s.ledger[i].status === 'bonus_applied') {
+                        s.ledger[i].status = 'pending_bonus';
+                        s.ledger[i].paidDate = null;
+                        s.ledger[i].mode = '-';
+                        s.status = 'active'; // Change scheme back to active if bonus is reverted
+                        reversedBonus = true;
+                        // Now we must also revert the 11th month (the actual cash payment that triggered the bonus)
+                        continue; 
+                    }
+                    if (s.ledger[i].status === 'paid') {
+                        lastPaidIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (lastPaidIndex === -1) return alert("No payments found to undo.");
+
+            const reversedAmount = getSafeNum(s.ledger[lastPaidIndex].amount);
+            const oldMode = s.ledger[lastPaidIndex].mode || 'Cash';
+
+            s.ledger[lastPaidIndex].status = 'pending';
+            s.ledger[lastPaidIndex].paidDate = null;
+            s.ledger[lastPaidIndex].mode = '-';
+            s.status = 'active'; // Guarantee it's active
+
+            // Log Reversal in Cashbook to fix drawer math
+            await addItem('cashflow', {
+                date: new Date().toISOString(), type: 'OUT', mode: oldMode,
+                category: 'Scheme Installment Reversal', amount: reversedAmount, 
+                note: `Reverted Month ${s.ledger[lastPaidIndex].monthNumber} payment for Scheme #${s.id}`
+            });
+
+            await updateItem('schemes', s);
+            
+            let msg = `Payment for Month ${s.ledger[lastPaidIndex].monthNumber} (₹${reversedAmount}) successfully reverted.\nA reversal has been logged in the Cashbook.`;
+            if(reversedBonus) msg += "\n\nThe 12th Month Bonus was also removed because the account is no longer fully paid.";
+            alert(msg);
+
+            openManageModal(id); // Refresh modal
+            loadSchemes(); // Refresh dashboard
+        }
+
+
+        // --- REDEEM SCHEME & ADD TO CUSTOMER WALLET ---
+        async function redeemScheme() {
+            if(!confirm("Redeem this scheme? This will close the account and add the full maturity value (12 months) to the customer's BC Wallet for future purchases.")) return;
+            
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            
+            const db = await dbPromise;
+            const tx = db.transaction(['schemes', 'customers', 'cashflow'], 'readwrite');
+            
+            let sReq = tx.objectStore('schemes').get(id);
+            sReq.onsuccess = (e) => {
+                const s = e.target.result;
+                if(s.status === 'redeemed') return; // Prevent double trigger
+                
+                const maturityVal = getSafeNum(s.amount) * 12;
+                
+                // 1. Update Scheme Status
+                s.status = 'redeemed';
+                s.redeemDate = new Date().toISOString();
+                tx.objectStore('schemes').put(s);
+                
+                // 2. Update Customer Wallet Balance
+                let cReq = tx.objectStore('customers').get(parseInt(s.customerId));
+                cReq.onsuccess = (ce) => {
+                    const cust = ce.target.result;
+                    if(cust) {
+                        cust.bcBalance = (getSafeNum(cust.bcBalance)) + maturityVal;
+                        tx.objectStore('customers').put(cust);
+                    }
+                };
+                
+                // 3. Log the 1-month Bonus as an Expense in Master Cashbook
+                tx.objectStore('cashflow').add({
+                    date: new Date().toISOString(), type: 'OUT', mode: 'System',
+                    category: 'Scheme Bonus Expense', amount: getSafeNum(s.amount),
+                    note: `1 Month Bonus given for Matured Scheme #${s.id} (Added to Wallet)`
+                });
+                
+                tx.oncomplete = () => {
+                    alert("Scheme Redeemed! ₹" + maturityVal.toLocaleString() + " added to Customer Wallet.");
+                    closeModal('viewModal');
+                    loadSchemes();
+                };
+            };
+        }
+
+        // --- TEST MODE: FAST FORWARD ---
+        async function quickFillTenMonths() {
+            if(!isTestMode) return;
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            
+            const s = await getItem('schemes', id);
+            let modified = 0;
+            
+            for(let i=0; i<10; i++) { 
+                if(s.ledger[i].status === 'pending') {
+                    s.ledger[i].status = 'paid';
+                    s.ledger[i].mode = 'Test';
+                    s.ledger[i].paidDate = new Date().toISOString();
+                    modified++;
+                }
+            }
+            
+            if(modified > 0) {
+                await updateItem('schemes', s);
+                alert(`TEST MODE: Fast-forwarded ${modified} months! (No cashflow logs created). Open ledger again to pay the 11th month and trigger bonus.`);
+                closeModal('viewModal');
+                loadSchemes();
+            } else {
+                alert("Already paid 10 or more months.");
+            }
+        }
+
+        // --- WHATSAPP REMINDER ---
+        function sendWhatsAppReminder() {
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const s = allSchemes.find(x => x.id === id);
+            const phoneStr = document.getElementById('vCustPhone').value;
+            
+            if(!phoneStr || phoneStr.length < 10) return alert("Valid mobile number not found for customer.");
+            
+            const pendingInst = s.ledger.find(m => m.status === 'pending');
+            if(!pendingInst) return alert("No pending installments to remind.");
+
+            const expectedMonth = new Date(pendingInst.expectedDate).toLocaleString('default', { month: 'long', year: 'numeric' });
+            
+            let msg = `Hello ${s.custName},\n\nThis is a friendly reminder from *Bharti Jewellers* regarding your 11+1 Gold Scheme.\n\n`;
+            msg += `Your installment of *Rs. ${s.amount}* for the month of *${expectedMonth}* is currently due.\n`;
+            msg += `Please pay at your earliest convenience to stay eligible for your 12th-month bonus!\n\nThank you.`;
+
+            let phone = phoneStr.toString().replace(/\D/g, '');
+            if(phone.length === 10) phone = '91' + phone;
+
+            const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        // --- DELETE SCHEME ---
+        async function deleteScheme() {
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            if(!confirm("DANGER: Are you sure you want to completely delete this scheme? (Cashbook history of payments will not be deleted).")) return;
+            
+            await deleteItem('schemes', id);
+            alert("Scheme deleted.");
+            closeModal('viewModal');
+            loadSchemes();
+        }
+
+        // --- PRINT PASSBOOK ---
+        function printPassbook() {
+            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const s = allSchemes.find(x => x.id === id);
+            if(!s) return;
+
+            document.getElementById('prtName').innerText = s.custName;
+            document.getElementById('prtDate').innerText = new Date(s.startDate).toLocaleDateString();
+            document.getElementById('prtEmi').innerText = "₹" + getSafeNum(s.amount).toLocaleString();
+            document.getElementById('prtTotal').innerText = "₹" + (getSafeNum(s.amount) * 12).toLocaleString();
+
+            const tbody = document.getElementById('prtBody');
+            tbody.innerHTML = '';
+            
+            s.ledger.forEach(row => {
+                let status = 'Pending';
+                let paidD = '-';
+                let pMode = row.mode || '-';
+                if(row.status === 'paid') { status = 'Paid'; paidD = new Date(row.paidDate).toLocaleDateString(); }
+                if(row.status === 'bonus_applied') { status = 'Shop Bonus'; paidD = new Date(row.paidDate).toLocaleDateString(); pMode = 'System'; }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>Month ${row.monthNumber}</td>
+                        <td>${status}</td>
+                        <td>${pMode}</td>
+                        <td>₹${getSafeNum(row.amount)}</td>
+                        <td>${paidD}</td>
+                    </tr>
+                `;
+            });
+
+            window.print();
+        }
+    </script>
+</body>
+</html>

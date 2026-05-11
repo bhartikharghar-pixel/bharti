@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Cuts - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a;
+            --success-green: #2e7d32; --warning-orange: #f57f17; --receive-blue: #1976d2;
+        }
+
+        /* --- GLOBAL STYLES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; font-size: 0.9rem; color:#333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        /* --- SIDEBAR & HEADER --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1;}
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); transition: 0.2s; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 5px solid var(--active-red); }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- PAGE CONTENT --- */
+        .app-container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 5px solid var(--accent-gold); display: flex; flex-direction: column;}
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: #333; margin-top: 5px; }
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase;}
+
+        /* Filter Bar */
+        .filter-bar { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .date-input { border: 1px solid #ddd; padding: 10px 12px; border-radius: 6px; font-size: 0.9rem; flex: 1; min-width: 130px; outline: none; background: #fafafa; transition: border 0.2s;}
+        .date-input:focus { border-color: var(--accent-gold); }
+        .btn-filter { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        .btn-filter:hover { background: #000; }
+
+        /* Summary Box inside Dashboard */
+        .summary-box { display: flex; justify-content: space-between; background: #fff8e1; padding: 15px 20px; border-radius: 8px; border: 1px solid #ffe0b2; margin-bottom: 20px; font-weight: 600; color: #555; }
+        .summary-box span strong { color: var(--active-red); font-size: 1.1rem; }
+
+        /* History Table */
+        .card { background: white; border-radius: 12px; padding: 0; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        .table-responsive { overflow-x: auto; width: 100%; }
+        .cut-table { width: 100%; border-collapse: collapse; min-width: 700px; font-size: 0.9rem; }
+        .cut-table th { background: #f8f9fa; color: #555; text-align: left; padding: 15px; font-weight: 600; border-bottom: 2px solid #eee; text-transform: uppercase; font-size: 0.8rem;}
+        .cut-table td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: middle;}
+        .cut-table tr:hover { background: #fdfdfd; }
+
+        .amt-text { color: var(--active-red); font-weight: bold; }
+        .gold-text { color: var(--warning-orange); font-weight: bold; }
+        .party-name { font-weight: 700; color: var(--receive-blue); display: block; font-size: 1rem;}
+
+        /* FAB */
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal.open { display: flex; }
+        .modal-content { background: white; width: 95%; max-width: 500px; border-radius: 16px; padding: 25px; position: relative; animation: slideUp 0.3s ease-out; box-shadow: 0 10px 30px rgba(0,0,0,0.3);}
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666;}
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 5px; color: #555; font-weight: 600; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fafafa; font-family: inherit; transition: border 0.2s;}
+        input:focus, select:focus { border-color: var(--active-red); outline: none; background: white;}
+        
+        .info-box { background: #fff3e0; padding: 15px; border-radius: 8px; color: #ef6c00; font-size: 0.9rem; margin-bottom: 15px; border-left: 4px solid var(--warning-orange); font-weight: 500; line-height: 1.4;}
+
+        .btn-block { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px;}
+        .btn-primary { background: var(--active-red); color: white; transition: 0.2s;}
+        .btn-primary:hover { background: #b71c1c; }
+
+        /* Toast Notifications */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 8px; padding: 16px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: var(--success-green); }
+        #toast.error { background-color: var(--active-red); }
+
+        @media (max-width: 768px) {
+            .summary-box { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+    
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html" class="active"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: var(--warning-orange);">
+                <div class="stat-lbl">Total Unfixed Gold (Global Liability)</div>
+                <div class="stat-val gold-text" id="total-gold-liability">0.000 g</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--active-red);">
+                <div class="stat-lbl">Value of Gold Fixed (Filtered)</div>
+                <div class="stat-val amt-text" id="filtered-cut-val">₹0</div>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <span style="font-weight:600; color:#555;"><i class="fas fa-filter"></i> Filters:</span>
+            <input type="date" id="filterFrom" class="date-input">
+            <span style="color:#888;">to</span>
+            <input type="date" id="filterTo" class="date-input">
+            <select id="filterMerchant" class="date-input" style="flex:1.5;">
+                <option value="ALL">All Merchants</option>
+            </select>
+            <button class="btn-filter" onclick="loadHistory()"><i class="fas fa-search"></i> Apply</button>
+        </div>
+
+        <div class="summary-box" id="summaryBox" style="display:none;">
+            <span>Filtered Gold Fixed: <strong id="sumGoldFixed" style="color:var(--warning-orange);">0.000 g</strong></span>
+            <span>Total Liability Converted: <strong id="sumCashConverted">₹0</strong></span>
+        </div>
+
+        <div class="card">
+            <div style="padding: 15px 20px; border-bottom: 1px solid #eee; background: #fafafa;">
+                <h3 style="margin:0; font-size: 1.1rem; color: #333;"><i class="fas fa-list"></i> Rate Cut History Ledger</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="cut-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Merchant</th>
+                            <th class="text-right">Weight Fixed</th>
+                            <th class="text-right">Locked Rate</th>
+                            <th class="text-right">Total Cash Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cut-list">
+                        <tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">Loading Data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="fab" onclick="openModal()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="cutModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h3 style="margin-top:0; color:var(--active-red);"><i class="fas fa-percentage"></i> New Rate Cut</h3>
+            <p style="font-size:0.85rem; color:#666; margin-top:-5px; margin-bottom:15px;">Convert pending gold liability into cash liability at today's rate.</p>
+
+            <div class="form-group">
+                <label>Select Merchant / Supplier</label>
+                <select id="cutMerchant" onchange="updateMerchantBalance()">
+                    <option value="">-- Choose Merchant --</option>
+                </select>
+            </div>
+
+            <div class="info-box" id="goldBalanceDisplay">
+                Select a merchant to see their pending Gold Liability.
+            </div>
+
+            <div class="form-group">
+                <label>Weight to Fix (g)</label>
+                <input type="number" id="cutWeight" step="0.001" placeholder="e.g. 50.000" oninput="calcTotal()">
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="cutPurity" onchange="autoFillRate()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Fix Rate (₹/g)</label>
+                    <input type="number" id="cutRate" placeholder="Today's Rate" oninput="calcTotal()">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px; background:#ffebee; padding:15px; border-radius:8px; border: 1px dashed #ef9a9a;">
+                <label style="color:var(--active-red); font-size:0.9rem;">Total Value (Converted to Cash Debt)</label>
+                <input type="text" id="cutTotal" readonly style="font-weight:bold; color:var(--active-red); background:transparent; border:none; font-size:1.5rem; padding:0;">
+            </div>
+
+            <button class="btn-block btn-primary" onclick="saveRateCut()"><i class="fas fa-lock"></i> CONFIRM & LOCK RATE</button>
+        </div>
+    </div>
+
+    <div id="toast">Message Saved!</div>
+
+    <script src="db.js?v=35"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function closeModal() { document.getElementById('cutModal').classList.remove('open'); }
+        
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            toast.innerText = msg;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+        }
+
+        let allMerchants = [];
+        let selectedMerchant = null;
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
+
+        window.onload = async function() {
+            // Setup Dates
+            const today = new Date();
+            document.getElementById('filterTo').valueAsDate = today;
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            document.getElementById('filterFrom').value = firstDay.toISOString().split('T')[0];
+
+            // Load Rates & Custom Purities
+            const r = await getSetting('gold_rates');
+            if(r) goldRates = r;
+
+            const puritySelect = document.getElementById('cutPurity');
+            let opts = `<option value="24K">24K</option><option value="22K">22K</option><option value="18K">18K</option>`;
+            if(goldRates.customPurities && goldRates.customPurities.length > 0) {
+                goldRates.customPurities.forEach(cp => { opts += `<option value="${cp.name}">${cp.name}</option>`; });
+            }
+            puritySelect.innerHTML = opts;
+
+            await loadMerchants();
+            await loadHistory();
+            autoFillRate();
+        };
+
+        function openModal() {
+            document.getElementById('cutModal').classList.add('open');
+            document.getElementById('cutWeight').value = '';
+            document.getElementById('cutTotal').value = '';
+            document.getElementById('cutMerchant').value = "";
+            document.getElementById('goldBalanceDisplay').innerHTML = "Select a merchant to see their pending Gold Liability.";
+            autoFillRate();
+        }
+
+        // --- MERCHANTS & BALANCE ---
+        async function loadMerchants() {
+            allMerchants = await getAllItems('merchants');
+            
+            let totalGoldLiab = 0;
+            const sel = document.getElementById('cutMerchant');
+            const fSel = document.getElementById('filterMerchant');
+            
+            sel.innerHTML = '<option value="">-- Choose Merchant --</option>';
+            fSel.innerHTML = '<option value="ALL">All Merchants</option>';
+            
+            allMerchants.forEach(m => {
+                totalGoldLiab += (parseFloat(m.goldBalance) || 0);
+                
+                sel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+                fSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+
+            document.getElementById('total-gold-liability').innerText = totalGoldLiab.toFixed(3) + " g";
+        }
+
+        function updateMerchantBalance() {
+            const mId = document.getElementById('cutMerchant').value;
+            if (!mId) {
+                selectedMerchant = null;
+                document.getElementById('goldBalanceDisplay').innerHTML = "Select a merchant to see their pending Gold Liability.";
+                document.getElementById('cutWeight').value = '';
+                return;
+            }
+            selectedMerchant = allMerchants.find(m => m.id == mId);
+            
+            const goldBal = selectedMerchant.goldBalance || 0;
+            const absBal = Math.abs(goldBal);
+            const directionText = goldBal >= 0 ? "(Shop Owes Karigar)" : "(Karigar Owes Shop)";
+            const color = goldBal >= 0 ? "var(--active-red)" : "var(--success-green)";
+
+            document.getElementById('goldBalanceDisplay').innerHTML = `
+                Available Unfixed Gold ${directionText}: <br><strong style="color:${color}; font-size:1.4rem;">${absBal.toFixed(3)} g</strong><br>
+                <small style="color:#666;">This exact amount has been auto-filled below. You can edit it if needed.</small>
+            `;
+
+            // Auto fill weight to exact 0
+            if (absBal > 0) {
+                document.getElementById('cutWeight').value = absBal.toFixed(3);
+                calcTotal();
+            } else {
+                document.getElementById('cutWeight').value = '';
+                document.getElementById('cutTotal').value = '₹0';
+            }
+        }
+
+        // --- CALCULATION ENGINE ---
+        function getPurityFactor(key) {
+            if (key === '24K') return 1.000;
+            if (key === '22K') return 0.9166;
+            if (key === '18K') return 0.7500;
+            const custom = goldRates.customPurities?.find(cp => cp.name === key);
+            if (custom) return custom.pct / 100;
+            return 1.0;
+        }
+
+        function autoFillRate() {
+            const purity = document.getElementById('cutPurity').value;
+            let rate = 0;
+            if(purity === '22K') rate = goldRates.rate22k;
+            else if(purity === '24K') rate = goldRates.rate24k;
+            else if(purity === '18K') rate = goldRates.rate18k || (goldRates.rate22k * 0.82); 
+            else {
+                const factor = getPurityFactor(purity);
+                rate = goldRates.rate24k * factor;
+            }
+            document.getElementById('cutRate').value = Math.round(rate / 10);
+            calcTotal();
+        }
+
+        function calcTotal() {
+            const wt = parseFloat(document.getElementById('cutWeight').value) || 0;
+            const rate = parseFloat(document.getElementById('cutRate').value) || 0;
+            const total = Math.round(wt * rate);
+            document.getElementById('cutTotal').value = "₹" + total.toLocaleString();
+        }
+
+        // --- SAVE LOGIC ---
+        async function saveRateCut() {
+            const mId = document.getElementById('cutMerchant').value;
+            const wt = parseFloat(document.getElementById('cutWeight').value);
+            const rate = parseFloat(document.getElementById('cutRate').value);
+            const purity = document.getElementById('cutPurity').value;
+
+            if(!mId || !wt || !rate) return showToast("Please fill all fields.", "error");
+            if(!selectedMerchant) return showToast("Merchant error.", "error");
+
+            const currentGold = selectedMerchant.goldBalance || 0;
+            const absCurrentGold = Math.abs(currentGold);
+
+            // Use parseFloat with toFixed to avoid strict floating point precision errors
+            if(wt > parseFloat(absCurrentGold.toFixed(3))) {
+                return alert(`Error: Ledger only has ${absCurrentGold.toFixed(3)}g unfixed gold available to cut. You entered ${wt}g.`);
+            }
+
+            const totalAmt = Math.round(wt * rate);
+            const directionText = currentGold >= 0 ? "Shop Debt" : "Merchant Debt";
+
+            if(!confirm(`Confirm Rate Cut?\n\nConvert ${wt}g Gold (${directionText})\nInto ₹${totalAmt} Cash?`)) return;
+
+            const db = await dbPromise;
+            const tx = db.transaction(['merchants', 'rate_cuts', 'purchases'], 'readwrite');
+            
+            // 1. Update Merchant Balances
+            // If currentGold is POSITIVE (We owe them): Deduct gold, Add cash
+            // If currentGold is NEGATIVE (They owe us): Add gold, Deduct cash
+            const mult = currentGold >= 0 ? 1 : -1; 
+            
+            let newGoldBalance = currentGold - (wt * mult);
+            // Snap to 0 if it's extremely close due to floating point residuals
+            if (Math.abs(newGoldBalance) < 0.001) {
+                newGoldBalance = 0;
+            }
+
+            const mStore = tx.objectStore('merchants');
+            selectedMerchant.goldBalance = newGoldBalance;
+            selectedMerchant.balance = (selectedMerchant.balance || 0) + (totalAmt * mult); 
+            mStore.put(selectedMerchant);
+
+            const now = new Date().toISOString();
+
+            // 2. Log in Native Purchases Table (So Master Ledger & Cashbook see it)
+            tx.objectStore('purchases').add({
+                merchantId: parseInt(mId), date: now, type: 'Rate Cut (Settlement)', 
+                category: `Rate Cut (${purity})`,
+                totalFineWeight: -(wt * mult), 
+                dueAmount: totalAmt * mult,  
+                paidAmount: 0, totalAmount: totalAmt * mult, itemDetails: []
+            });
+
+            // 3. Log History in dedicated Rate Cuts table (for this specific UI page)
+            // Save absolute weights so the UI displays cleanly
+            const cStore = tx.objectStore('rate_cuts');
+            cStore.add({
+                merchantId: parseInt(mId), weight: wt * mult, purity: purity, rate: rate, amount: totalAmt * mult,
+                date: now, status: 'active'
+            });
+
+            tx.oncomplete = () => {
+                showToast("Rate Cut Successful! Balances Updated.", "success");
+                closeModal();
+                loadMerchants(); 
+                loadHistory();
+            };
+        }
+
+        // --- HISTORY & FILTERING ---
+        async function loadHistory() {
+            const dateFrom = document.getElementById('filterFrom').value;
+            const dateTo = document.getElementById('filterTo').value;
+            const merchFilter = document.getElementById('filterMerchant').value;
+
+            const cuts = await getAllItems('rate_cuts');
+            const container = document.getElementById('cut-list');
+            container.innerHTML = '';
+
+            let filteredTotalCash = 0;
+            let filteredTotalGold = 0;
+
+            let displayList = cuts.filter(c => {
+                const dStr = c.date.split('T')[0];
+                let passDate = true;
+                if (dateFrom && dStr < dateFrom) passDate = false;
+                if (dateTo && dStr > dateTo) passDate = false;
+                
+                let passMerch = true;
+                if (merchFilter !== 'ALL' && c.merchantId != merchFilter) passMerch = false;
+
+                if(passDate && passMerch) {
+                    filteredTotalCash += Math.abs(c.amount);
+                    filteredTotalGold += Math.abs(parseFloat(c.weight));
+                }
+
+                return passDate && passMerch;
+            });
+
+            document.getElementById('filtered-cut-val').innerText = "₹" + filteredTotalCash.toLocaleString();
+
+            if (merchFilter !== 'ALL' || dateFrom !== dateTo) {
+                document.getElementById('summaryBox').style.display = 'flex';
+                document.getElementById('sumGoldFixed').innerText = filteredTotalGold.toFixed(3) + " g";
+                document.getElementById('sumCashConverted').innerText = "₹" + filteredTotalCash.toLocaleString();
+            } else {
+                document.getElementById('summaryBox').style.display = 'none';
+            }
+
+            if(displayList.length === 0) {
+                container.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">No rate cuts found for selected filters.</td></tr>';
+                return;
+            }
+
+            // Sort Newest First
+            displayList.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(c => {
+                const mName = allMerchants.find(m => m.id == c.merchantId)?.name || 'Unknown';
+                const fDate = new Date(c.date).toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric', hour:'2-digit', minute:'2-digit'});
+
+                const absWt = Math.abs(c.weight);
+                const absAmt = Math.abs(c.amount);
+                
+                // Display whether the cut happened on Shop's debt or Merchant's debt
+                const dirBadge = c.weight >= 0 ? '<span style="color:#d32f2f; font-size:0.7rem;">(Shop Owed)</span>' : '<span style="color:#2e7d32; font-size:0.7rem;">(Karigar Owed)</span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color:#555; font-size:0.8rem;">${fDate}</td>
+                    <td><span class="party-name">${mName}</span></td>
+                    <td class="text-right gold-text">${absWt.toFixed(3)} g <br>${dirBadge}</td>
+                    <td class="text-right">₹${c.rate}/g</td>
+                    <td class="text-right amt-text">₹${absAmt.toLocaleString()}</td>
+                `;
+                container.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>

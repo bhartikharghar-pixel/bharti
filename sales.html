@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>POS - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --white: #ffffff;
+            --border-color: #2a2a2a; --whatsapp: #25D366; --exchange-purple: #8e24aa;
+            --bc-wallet: #7b1fa2;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); color: #333; padding-top: 60px; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        .app-header { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px; 
+            background: var(--header-bg); display: flex; align-items: center; 
+            padding: 0 15px; z-index: 1000; border-bottom: 2px solid var(--accent-gold); 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5); justify-content: space-between;
+        }
+        .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-btn { background: transparent; border: 1px solid #333; width: 40px; height: 40px; border-radius: 4px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2999; backdrop-filter: blur(2px); }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+
+        .app-container { max-width: 1400px; margin: 0 auto; padding: 15px; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; height: calc(100vh - 80px); }
+        @media (max-width: 968px) { .app-container { display: block; height: auto; padding-bottom: 80px; } .col-right { margin-top: 20px; } }
+
+        .tabs { display: flex; background: #e0e0e0; padding: 5px; border-radius: 10px; margin-bottom: 15px; }
+        .tab { flex: 1; text-align: center; padding: 10px; font-weight: 600; color: #555; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab.active { background: white; color: #000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .card-title { font-weight: 700; font-size: 1.1rem; color: #333; display: flex; align-items: center; gap: 8px; }
+
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; background: #f9f9f9; transition: 0.2s;}
+        input:focus, select:focus { border-color: var(--accent-gold); background: #fff;}
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 5px; }
+
+        .input-group { display: flex; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .input-group input { border: none; flex: 1; border-radius: 0; }
+        .input-group select { width: 80px; background: #eee; border: none; border-left: 1px solid #ddd; font-weight: 600; color: #333; text-align: center; }
+
+        .suggestions { position: absolute; background: white; width: 100%; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .suggestion-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .suggestion-item:hover { background: #f0f0f0; color: var(--active-red); font-weight: 500;}
+
+        .cart-box { height: 350px; overflow-y: auto; background: #fff; border: 1px solid #eee; border-radius: 8px; }
+        .cart-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .cart-table th { position: sticky; top: 0; background: #333; color: white; padding: 10px; text-align: left; }
+        .cart-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; }
+
+        .summary-panel { background: #1a1a1a; color: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);}
+        .sum-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; color: #ccc; align-items: center;}
+        .sum-row.total { border-top: 1px dashed #555; padding-top: 10px; margin-top: 10px; font-size: 1.3rem; font-weight: 700; color: var(--accent-gold); }
+        
+        .dark-input { background: rgba(255,255,255,0.1); border: 1px solid #444; color: white; padding: 6px; width: 80px; text-align: right; border-radius: 4px; }
+        .dark-select { background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #444; padding: 6px; border-radius: 4px; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
+        .btn-primary { background: #333; color: white; }
+        .btn-success { background: var(--accent-gold); color: #000; }
+        .btn-success:hover { background: #b08d4a; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #aaa; color: #555; padding: 5px 10px; width: auto; font-size: 0.8rem; }
+        .btn-outline-gold { background: transparent; border: 1px solid #C5A059; color: #C5A059; padding: 6px 12px; width: auto; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer;}
+        .btn-outline-gold:hover { background: #C5A059; color: #000; }
+
+        .pay-chips { display: flex; gap: 8px; margin: 15px 0; }
+        .pay-chip { background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; border: 1px solid transparent; color: white; }
+        .pay-chip.active { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(197, 160, 89, 0.1);}
+
+        @media print { .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .tabs { display: none !important; } #invoice-area { display: block !important; } }
+        #invoice-area { display: none; background: white; padding: 20px; font-family: 'Times New Roman', serif; color: #000; }
+        .inv-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+        .inv-table th, .inv-table td { border: 1px solid #000; padding: 6px; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(3px);}
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative;}
+        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 1.5rem; background: none; border: none; cursor: pointer; color:#888;}
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html" class="active"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="col-left">
+            <div class="tabs">
+                <div class="tab active" id="tab-pos" onclick="switchView('pos')"><i class="fas fa-desktop"></i> POS Billing</div>
+                <div class="tab" id="tab-hist" onclick="switchView('hist')"><i class="fas fa-history"></i> Sales History & Dues</div>
+            </div>
+
+            <div id="view-pos">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><i class="fas fa-user-circle"></i> Customer Details</div>
+                        <button class="btn-outline" onclick="openModal('custModal')"><i class="fas fa-plus"></i> New</button>
+                    </div>
+                    <div class="form-group" style="position:relative;">
+                        <input type="text" id="custSearch" placeholder="Search Customer by Name or Phone..." onkeyup="searchCustomer()" autocomplete="off">
+                        <div id="custSuggestions" class="suggestions"></div>
+                        <input type="hidden" id="custId">
+                    </div>
+                    <div id="custDisplay" style="display:none; background:#e3f2fd; padding:12px; border-radius:8px; color:#0d47a1; font-weight:600; align-items:center; justify-content:space-between; border: 1px solid #bbdefb;">
+                        <span id="custNameDisplay"></span>
+                        <button onclick="resetCust()" style="background:white; border:1px solid #0d47a1; border-radius:4px; color:#0d47a1; padding:4px 8px; font-weight:bold; cursor:pointer;">Change</button>
+                    </div>
+
+                    <div id="bcWalletPanel" style="display:none; background:linear-gradient(135deg, #f3e5f5, #e1bee7); border:1px solid #ce93d8; padding:15px; border-radius:8px; margin-top:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; box-shadow: 0 4px 10px rgba(123, 31, 162, 0.1);">
+                        <div style="color:var(--bc-wallet); font-weight:bold; font-size:1.1rem; display:flex; flex-direction:column;">
+                            <span><i class="fas fa-gift"></i> BC Scheme Balance: ₹<span id="bcBalanceDisplay">0</span></span>
+                            <span id="bcMaturedText" style="font-size:0.8rem; font-weight:normal; color:#4a148c;"></span>
+                        </div>
+                        <button id="btnApplyBc" onclick="toggleBcWallet()" style="background:var(--bc-wallet); color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition:0.2s; white-space:nowrap;"><i class="fas fa-check"></i> Apply Balance</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title"><i class="fas fa-gem"></i> Add Item</div>
+                        <button class="btn-outline-gold" onclick="toggleManualItem()"><i class="fas fa-edit"></i> Custom / Exchange</button>
+                    </div>
+                    
+                    <div class="form-group" style="position:relative;" id="barcodeSearchBox">
+                        <input type="text" id="itemSearch" placeholder="Scan Barcode or Search Category..." onkeyup="searchItem()" style="font-weight:bold; border: 2px solid #C5A059;" autocomplete="off">
+                        <div id="itemSuggestions" class="suggestions"></div>
+                    </div>
+
+                    <div id="itemEntry" style="display:none; border-top:1px solid #eee; padding-top:15px;">
+                        <h4 style="margin:0 0 10px 0; color:#333;" id="itemNameDisplay">Item Name</h4>
+                        
+                        <div id="stockRemainderBox" style="display:none; background:#e3f2fd; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.9rem; color:#1565c0; border: 1px solid #90caf9; align-items:center; justify-content:space-between;">
+                            <span><i class="fas fa-box-open"></i> Remaining in Stock:</span>
+                            <strong id="remStockText" style="font-size:1.05rem;">0 Pcs | 0.000 g</strong>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Sell Qty (Pcs) <small id="lblMaxQty" style="color:#1976d2;"></small></label>
+                                <input type="number" id="itemSellQty" value="1" min="1" oninput="calcItemLive()">
+                            </div>
+                            <div class="form-group">
+                                <label>Gross Wt (g) <small id="lblMaxWt" style="color:#1976d2;"></small></label>
+                                <input type="number" id="itemWt" step="0.001" oninput="calcItemLive()">
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Stone Wt (g)</label>
+                                <input type="number" id="itemStoneWt" step="0.001" value="0" oninput="calcItemLive()">
+                            </div>
+                            <div class="form-group">
+                                <label>HUID / Mark</label>
+                                <input type="text" id="itemHuid" placeholder="Optional">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Wastage / Tounch</label>
+                            <div class="input-group">
+                                <input type="number" id="itemWastageVal" placeholder="0" step="0.01" oninput="calcItemLive()">
+                                <select id="itemWastageMode" onchange="calcItemLive()">
+                                    <option value="pct">%</option>
+                                    <option value="gm">g</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="background:#e8f5e9; padding:8px 12px; border-radius:6px; margin-bottom:15px; display:flex; justify-content:space-between; font-size:0.9rem; color:#2e7d32; border:1px solid #c8e6c9;">
+                            <span>Net Wt: <b id="liveNetWt">0.000 g</b></span>
+                            <span>Payable Wt: <b id="livePayableWt">0.000 g</b></span>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group"><label>Rate (₹/g)</label><input type="number" id="itemRate" oninput="calcItemLive()"></div>
+                            <div class="form-group">
+                                <label>GST (%)</label>
+                                <input type="number" id="itemGst" value="3" oninput="calcItemLive()">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Making Charges</label>
+                            <div class="input-group">
+                                <input type="number" id="mkVal" placeholder="0" oninput="calcItemLive()">
+                                <select id="mkType" onchange="calcItemLive()"><option value="pct">%</option><option value="flat">₹</option></select>
+                            </div>
+                        </div>
+
+                        <div style="background:#fff8e1; padding:12px; border-radius:8px; font-size:0.9rem; margin-bottom:15px; color:#5d4037; border: 1px solid #ffe082;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span>Metal Value: <b id="liveGold">₹0</b></span>
+                                <span>Making: <b id="liveMaking">₹0</b></span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span style="font-size:0.8rem;">Item GST:</span> <b id="liveGst">₹0</b>
+                            </div>
+                            <div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:8px; font-weight:700; color:#333; display:flex; justify-content:space-between; font-size: 1.1rem;">
+                                <span>Final Total:</span> <span id="liveTotal" style="color:var(--active-red);">₹0</span>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="itemId"><input type="hidden" id="itemCode"><input type="hidden" id="itemCat"><input type="hidden" id="itemPurity">
+                        <button class="btn btn-primary" onclick="addToCart()"><i class="fas fa-cart-plus"></i> Add to Cart</button>
+                    </div>
+
+                    <div id="manualItemEntry" style="display:none; border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
+                        <h4 style="margin:0 0 10px 0; color:var(--exchange-purple);"><i class="fas fa-pen"></i> Custom Entry / Exchange</h4>
+                        
+                        <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#f3e5f5; padding:10px; border-radius:8px; border:1px solid #ce93d8;">
+                            <input type="checkbox" id="mIsExchange" style="width:20px; height:20px; accent-color:var(--exchange-purple);" onchange="autoFillManualRate()">
+                            <label for="mIsExchange" style="margin:0; color:var(--exchange-purple); font-weight:bold; cursor:pointer;">Is this an Exchange (Old Metal)?</label>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Metal Type</label>
+                                <select id="mMetalType" onchange="handleManualMetalChange()">
+                                    <option value="Gold">Gold</option>
+                                    <option value="Silver">Silver</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Purity</label>
+                                <select id="mItemPurity" onchange="autoFillManualRate()">
+                                    </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Description / Details</label>
+                            <input type="text" id="mItemName" placeholder="e.g. Old Chain or Nose Pin">
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group"><label>Gross Wt (g)</label><input type="number" id="mGrossWt" step="0.001" placeholder="0" oninput="calcManualItem()"></div>
+                            <div class="form-group"><label>Stone/Dust (g)</label><input type="number" id="mStoneWt" step="0.001" placeholder="0" oninput="calcManualItem()"></div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group"><label>Net Wt (g)</label><input type="number" id="mNetWt" readonly style="background:#e8f5e9; color:#2e7d32; font-weight:bold;"></div>
+                            <div class="form-group"><label>Fine Wt (g) <small style="color:#1976d2;">(Calc)</small></label><input type="number" id="mFineWt" readonly style="background:#e3f2fd; color:#1976d2; font-weight:bold;"></div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label id="mRateLabel">Rate (₹/g)</label>
+                                <input type="number" id="mItemRate" oninput="calcManualItem()" step="0.01">
+                            </div>
+                            <div class="form-group" id="exchangePctDiv" style="display:none;">
+                                <label style="color:#d84315;">Exchange %</label>
+                                <input type="number" id="mExchangePct" value="100" oninput="calcManualItem()">
+                            </div>
+                        </div>
+
+                        <div class="form-grid" id="manualSaleDiv">
+                            <div class="form-group">
+                                <label>Making Charges</label>
+                                <div class="input-group">
+                                    <input type="number" id="mMkVal" placeholder="0" oninput="calcManualItem()">
+                                    <select id="mMkType" onchange="calcManualItem()"><option value="pct">%</option><option value="flat">₹</option></select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>GST (%)</label>
+                                <input type="number" id="mItemGst" value="3" oninput="calcManualItem()">
+                            </div>
+                        </div>
+
+                        <div style="background:#fff8e1; padding:12px; border-radius:8px; font-size:0.9rem; margin-bottom:15px; border: 1px solid #ffe082;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span style="color:#555;"><span id="mLiveGoldLabel">Metal Value:</span> <b id="mLiveGold">₹0</b></span>
+                                <span style="color:#555;" id="mLiveMakingBox">Making: <b id="mLiveMaking">₹0</b></span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;" id="mLiveGstBox">
+                                <span style="font-size:0.8rem; color:#555;">Item GST:</span> <b id="mLiveGst">₹0</b>
+                            </div>
+                            <div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:8px; font-weight:700; display:flex; justify-content:space-between; font-size:1.1rem;">
+                                <span>Calculated Total:</span> <span id="mLiveTotal" style="color:var(--active-red);">₹0</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="addManualToCart()"><i class="fas fa-cart-plus"></i> Add Item</button>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="view-hist" style="display:none;">
+                <div class="card" style="margin-bottom: 10px; padding: 15px;">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <input type="text" id="histSearch" placeholder="Search Customer Name or Bill #..." onkeyup="filterHistory()" style="flex:1; min-width:200px;">
+                        <select id="histStatusFilter" onchange="filterHistory()" style="width:150px; background:#eee;">
+                            <option value="all">All Bills</option>
+                            <option value="paid">Fully Paid</option>
+                            <option value="due">Pending Dues</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="histList" style="max-height:650px; overflow-y:auto; padding-right:5px;"></div>
+            </div>
+        </div>
+
+        <div class="col-right" id="rightPanel">
+            <div class="card" style="display:flex; flex-direction:column; padding:0; overflow:hidden;">
+                <div style="padding:15px; background:#333; color:white; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fas fa-shopping-cart"></i> Cart Items (<span id="cartCount">0</span>)</span>
+                    <span style="color:#ff8a65; cursor:pointer; font-size:0.85rem;" onclick="clearCart()"><i class="fas fa-trash"></i> Clear</span>
+                </div>
+                <div class="cart-box" style="border:none;">
+                    <table class="cart-table">
+                        <thead style="display:none;"><tr><th>Item</th><th>Wt</th><th>Total</th><th></th></tr></thead>
+                        <tbody id="cartBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="summary-panel">
+                <div class="sum-row"><span>Items Value (Inc. Making)</span> <span id="sumSub">₹0</span></div>
+                
+                <div class="sum-row">
+                    <span style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="applyGstToggle" checked style="width:16px; height:16px; accent-color:var(--accent-gold); cursor:pointer;" onchange="calcBillSummary()">
+                        <label for="applyGstToggle" style="margin:0; color:#ccc; font-size:0.95rem; cursor:pointer;">Apply GST</label>
+                    </span>
+                    <span id="sumGst">₹0</span>
+                </div>
+
+                <div class="sum-row" id="sumOldGoldRow" style="color: #ce93d8;"><span>Less: Exchanged Metal</span> <span id="sumOldGold">-₹0</span></div>
+                
+                <div class="sum-row" id="sumBcWalletRow" style="display:none; color: #e1bee7; font-weight:bold;">
+                    <span><i class="fas fa-wallet"></i> Less: BC Wallet Applied</span> 
+                    <span id="sumBcWallet">-₹0</span>
+                </div>
+                
+                <div class="sum-row" style="margin-top:10px;">
+                    <span>Bill Discount</span>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="sumDiscVal" class="dark-input" value="0" oninput="calcBillSummary()">
+                        <select id="sumDiscMode" class="dark-select" onchange="calcBillSummary()">
+                            <option value="flat">₹</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="sum-row total"><span>Grand Total</span> <span id="sumGrand">₹0</span></div>
+
+                <div style="margin-top:20px; border-top:1px solid #444; padding-top:15px;">
+                    <div style="font-size:0.8rem; color:#888; margin-bottom:5px; font-weight:bold;" id="payBoxLabel">RECEIVED PAYMENT</div>
+                    <div class="pay-chips">
+                        <div class="pay-chip active" onclick="setPayMode(this, 'Cash')">Cash</div>
+                        <div class="pay-chip" onclick="setPayMode(this, 'UPI')">UPI</div>
+                        <div class="pay-chip" onclick="setPayMode(this, 'Bank Transfer')">Bank Transfer</div>
+                        <div class="pay-chip" onclick="setPayMode(this, 'Card')">Card</div>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="payAmt" class="dark-input" style="width:100%; text-align:left;" placeholder="Enter Amount Received">
+                        <button style="background:var(--accent-gold); color:#000; border:none; width:50px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1.2rem;" onclick="addPayment()">+</button>
+                    </div>
+                    <div id="payList" style="margin-top:10px; display:flex; flex-direction:column; gap:5px;"></div>
+                </div>
+
+                <div class="sum-row" style="margin-top:20px; background:rgba(0,0,0,0.3); padding:15px; border-radius:8px;">
+                    <span style="color:#ffcc80; font-size:1.1rem;" id="sumBalLabel">Remaining Due</span> 
+                    <span id="sumBal" style="font-weight:700; color:#ffcc80; font-size:1.2rem;">₹0</span>
+                </div>
+
+                <input type="hidden" id="editingSaleId">
+                <button id="btnSave" class="btn btn-success" style="margin-top:20px;" onclick="saveSale()"><i class="fas fa-check-circle"></i> Save & Print Bill</button>
+                <button id="btnCancelEdit" class="btn btn-outline" style="display:none; color:white; border-color:white; width:100%; margin-top:10px;" onclick="cancelEdit()">Cancel Edit</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="document.getElementById('custModal').style.display='none'">&times;</button>
+            <h3 style="margin-top:0; color:var(--active-red);">New Customer</h3>
+            <div class="form-group"><label>Full Name</label><input id="ncName" placeholder="Customer Name"></div>
+            <div class="form-group"><label>Mobile Number</label><input type="tel" id="ncMobile" placeholder="10-digit number"></div>
+            <div class="form-group"><label>City / Area</label><input id="ncCity" placeholder="Address"></div>
+            <button class="btn btn-primary" onclick="saveNewCust()">Save Customer</button>
+        </div>
+    </div>
+
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
+            <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Bill & Refund</h3>
+            <input type="hidden" id="cancelSaleId">
+            
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Bill Total:</span> <strong id="cBillTotal">₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#2e7d32;"><span>Amount Paid by Customer:</span> <strong id="cBillPaid">₹0</strong></div>
+                <div id="cBillOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--exchange-purple); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                    <span>Metal Exchanged:</span> <strong id="cBillOldGold">₹0</strong>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Refund Amount (₹)</label>
+                    <input type="number" id="cRefundAmt">
+                </div>
+                <div class="form-group">
+                    <label>Refund Mode</label>
+                    <select id="cRefundMode">
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
+            </div>
+            <small style="color:#666; display:block; margin-bottom:15px;">This will strictly deduct money from the selected Cashbook bucket.</small>
+            
+            <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
+                <input type="checkbox" id="cRevertStock" checked disabled style="width:20px; height:20px; accent-color:#ef6c00;"> 
+                <label for="cRevertStock" style="margin:0; color:#ef6c00;">Items will be forcefully restored to Inventory Stock.</label>
+            </div>
+
+            <button class="btn btn-danger" onclick="confirmCancelSale()"><i class="fas fa-trash"></i> Confirm Cancellation & Restore</button>
+        </div>
+    </div>
+
+    <div id="invoice-area"></div>
+
+    <script src="db.js?v=35"></script>
+    <script>
+        // --- HELPERS ---
+        function formatInv(id) { return `INV-${String(id).padStart(4, '0')}`; }
+        const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
+        
+        // --- NATIVE PRINT BRIDGE ---
+        function triggerPrint() {
+            if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
+                AndroidInterface.printPage();
+            } else {
+                window.print();
+            }
+        }
+
+        // --- UI CONTROLS ---
+        function toggleSidebar() { 
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (!sidebar.classList.contains('open')) {
+                sidebar.classList.add('open'); overlay.classList.add('show');
+                history.pushState({ view: 'sidebar' }, '', '#menu');
+            } else {
+                sidebar.classList.remove('open'); overlay.classList.remove('show');
+                if (window.location.hash === '#menu') history.back();
+            }
+        }
+
+        function openModal(id) { 
+            const targetId = id || 'custModal'; 
+            const modal = document.getElementById(targetId);
+            if (modal) {
+                modal.style.display = 'flex';
+                history.pushState({ view: 'modal', id: targetId }, '', '#' + targetId);
+            }
+        }
+
+        function closeModal(id) { 
+            const targetId = id || 'custModal';
+            const modal = document.getElementById(targetId);
+            if (modal) {
+                modal.style.display = 'none';
+                if (window.location.hash === '#' + targetId) history.back();
+            }
+        }
+
+        window.addEventListener('popstate', function(event) {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open'); overlay.classList.remove('show');
+            }
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        });
+        
+        let cart = [], payments = [], deletedPayments = [];
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+        let allSalesData = []; 
+        let globalGstDefault = 3;
+        let selectedPayMode = 'Cash';
+
+        // BC Wallet Variables
+        let availableBcBalance = 0;
+        let useBcWallet = false;
+        let appliedBcAmount = 0;
+        let pendingMaturedSchemes = [];
+        let maturedSchemesTotal = 0;
+
+        let currentSelectedItem = null; 
+
+        function checkIsSilver(purity) {
+            if(!purity) return false;
+            const p = purity.toUpperCase();
+            if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
+            let customS = goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
+            if (customS) return true;
+            return false;
+        }
+
+        const getPurityFactor = (key) => {
+            if (!key) return 1.000;
+            if (key === '24K' || key === 'Silver') return 1.000;
+            if (key === '22K') return 0.9166;
+            if (key === '18K') return 0.7500;
+            if (key === 'Silver 92.5%') return 0.925;
+            
+            let customG = goldRates.customPurities?.find(cp => cp.name === key);
+            if (customG) return customG.pct / 100;
+            
+            let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
+            if (customS) return customS.pct / 100;
+            
+            return 1.0;
+        };
+
+        window.onload = async () => {
+            const defaults = await getSetting('billing_defaults');
+            if(defaults && defaults.gst) globalGstDefault = defaults.gst;
+            document.getElementById('itemGst').value = globalGstDefault;
+            document.getElementById('mItemGst').value = globalGstDefault;
+
+            const r = await getSetting('gold_rates'); 
+            if(r) goldRates = r;
+
+            handleManualMetalChange(); 
+            autoFillManualRate(); 
+            loadHistory();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewId = urlParams.get('view');
+            const editId = urlParams.get('edit');
+            const cid = urlParams.get('cid');
+            
+            if (viewId) { setTimeout(() => printHistory(parseInt(viewId)), 500); } 
+            else if (editId) { setTimeout(() => editSale(parseInt(editId)), 500); }
+            else if (cid) {
+                const c = await getItem('customers', parseInt(cid));
+                if (c) selectCust(c);
+            }
+        };
+
+        function switchView(v) {
+            document.getElementById('view-pos').style.display = v=='pos'?'block':'none';
+            document.getElementById('view-hist').style.display = v=='hist'?'block':'none';
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.getElementById(v=='pos'?'tab-pos':'tab-hist').classList.add('active');
+            if(window.innerWidth < 968) document.getElementById('rightPanel').style.display = v=='pos'?'block':'none';
+        }
+
+        // --- CUSTOMER LOGIC WITH BC WALLET SMART DETECTION ---
+        async function searchCustomer() {
+            const term = document.getElementById('custSearch').value.toLowerCase();
+            const box = document.getElementById('custSuggestions');
+            box.innerHTML = ''; box.style.display = 'none';
+            if(term.length < 1) return;
+            const list = await getAllItems('customers');
+            const matches = list.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0,5);
+            if(matches.length > 0) {
+                box.style.display = 'block';
+                matches.forEach(c => {
+                    const d = document.createElement('div'); d.className = 'suggestion-item';
+                    d.innerHTML = `<b>${c.name}</b> (${c.mobile})`;
+                    d.onclick = () => selectCust(c); box.appendChild(d);
+                });
+            }
+        }
+        
+        async function selectCust(c) {
+            document.getElementById('custSearch').value = '';
+            document.getElementById('custSuggestions').style.display = 'none';
+            document.getElementById('custId').value = c.id;
+            document.getElementById('custDisplay').style.display = 'flex';
+            document.getElementById('custNameDisplay').innerHTML = `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
+            
+            const allSchemes = await getAllItems('schemes');
+            pendingMaturedSchemes = allSchemes.filter(s => s.customerId == c.id && s.status === 'completed');
+            maturedSchemesTotal = pendingMaturedSchemes.reduce((sum, s) => sum + (s.amount * 12), 0);
+
+            availableBcBalance = getSafeNum(c.bcBalance) + maturedSchemesTotal;
+            useBcWallet = false;
+            appliedBcAmount = 0;
+            
+            const bcPanel = document.getElementById('bcWalletPanel');
+            if (availableBcBalance > 0) {
+                bcPanel.style.display = 'flex';
+                let maturedText = maturedSchemesTotal > 0 ? `<br><small style="color:#ba68c8; font-weight:normal;">(Includes ₹${maturedSchemesTotal.toLocaleString()} from unredeemed matured scheme)</small>` : '';
+                document.getElementById('bcBalanceDisplay').innerHTML = availableBcBalance.toLocaleString() + maturedText;
+                
+                const btn = document.getElementById('btnApplyBc');
+                btn.innerHTML = '<i class="fas fa-check"></i> Apply Balance';
+                btn.style.background = "var(--bc-wallet)";
+            } else {
+                bcPanel.style.display = 'none';
+            }
+            calcBillSummary();
+        }
+        
+        function resetCust() { 
+            document.getElementById('custId').value=''; 
+            document.getElementById('custDisplay').style.display='none'; 
+            
+            availableBcBalance = 0;
+            useBcWallet = false;
+            appliedBcAmount = 0;
+            pendingMaturedSchemes = [];
+            maturedSchemesTotal = 0;
+            deletedPayments = []; // Clear tracking
+            document.getElementById('bcWalletPanel').style.display = 'none';
+            calcBillSummary();
+        }
+        
+        async function saveNewCust() {
+            const name = document.getElementById('ncName').value;
+            const mobile = document.getElementById('ncMobile').value;
+            if(!name || !mobile) return alert("Name & Mobile required.");
+            const id = await addItem('customers', { name, mobile, city: document.getElementById('ncCity').value, bcBalance: 0 });
+            closeModal('custModal');
+            selectCust({id, name, mobile, bcBalance: 0});
+        }
+
+        // --- ITEM SEARCH LOGIC (WITH LOOSE STOCK/QUANTITY) ---
+        async function searchItem() {
+            const term = document.getElementById('itemSearch').value.toUpperCase();
+            const box = document.getElementById('itemSuggestions');
+            box.innerHTML = ''; box.style.display = 'none';
+            if(term.length < 1) { document.getElementById('itemEntry').style.display = 'none'; return; }
+            const list = await getAllItems('inventory');
+            const matches = list.filter(i => i.status === 'stock' && (i.barcode.includes(term) || i.category.toUpperCase().includes(term))).slice(0,5);
+            if(matches.length > 0) {
+                box.style.display = 'block';
+                matches.forEach(i => {
+                    const d = document.createElement('div'); d.className = 'suggestion-item';
+                    const pcsStr = i.pieces > 1 ? `[${i.pieces} Pcs] ` : '';
+                    d.innerHTML = `<b>${i.barcode}</b> - ${i.category} <small style="color:#C5A059;">${pcsStr}[${i.purity} | ${getSafeNum(i.grossWt || i.netWt || i.weight).toFixed(3)}g]</small>`;
+                    d.onclick = () => loadItem(i); box.appendChild(d);
+                });
+            }
+        }
+
+        function loadItem(i) {
+            document.getElementById('itemSearch').value = '';
+            document.getElementById('itemSuggestions').style.display = 'none';
+            
+            document.getElementById('manualItemEntry').style.display = 'none';
+            document.getElementById('itemEntry').style.display = 'block';
+            
+            currentSelectedItem = i;
+            
+            document.getElementById('itemId').value = i.id;
+            document.getElementById('itemCode').value = i.barcode;
+            document.getElementById('itemCat').value = i.category;
+            document.getElementById('itemPurity').value = i.purity;
+            document.getElementById('itemNameDisplay').innerHTML = `<b>${i.barcode}</b> | ${i.category} <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${i.purity}</span>`;
+            
+            document.getElementById('itemStoneWt').value = getSafeNum(i.stoneWt);
+            document.getElementById('itemHuid').value = i.huid || i.mark || '';
+            document.getElementById('itemWastageVal').value = 0;
+            document.getElementById('itemWastageMode').value = 'pct';
+
+            const isSilv = checkIsSilver(i.purity);
+            const availPcs = parseInt(i.pieces) || 1;
+            const availWt = getSafeNum(i.grossWt || i.netWt || i.weight);
+            
+            document.getElementById('lblMaxQty').innerText = `(Max: ${availPcs})`;
+            document.getElementById('lblMaxWt').innerText = `(Max: ${availWt.toFixed(3)}g)`;
+            
+            const qtyInput = document.getElementById('itemSellQty');
+            const wtInput = document.getElementById('itemWt');
+
+            qtyInput.max = availPcs;
+
+            // If it's bulk or has multiple pieces, let them edit qty & weight
+            if (availPcs > 1 || isSilv || i.category === 'MIX') {
+                document.getElementById('stockRemainderBox').style.display = 'flex';
+                qtyInput.value = 1;
+                qtyInput.removeAttribute('readonly');
+                wtInput.removeAttribute('readonly');
+                qtyInput.style.background = '#fff';
+                wtInput.style.background = '#fff';
+
+                // Automatically set weight to full weight if it's 1 piece, else clear it to force them to weigh it
+                if (availPcs === 1) {
+                    wtInput.value = availWt;
+                } else {
+                    wtInput.value = ''; 
+                }
+            } else {
+                document.getElementById('stockRemainderBox').style.display = 'none';
+                qtyInput.value = availPcs;
+                qtyInput.setAttribute('readonly', 'true');
+                wtInput.value = availWt;
+                wtInput.setAttribute('readonly', 'true');
+                qtyInput.style.background = '#e8e8e8';
+                wtInput.style.background = '#e8e8e8';
+            }
+            
+            document.getElementById('itemGst').value = globalGstDefault;
+            
+            let pureRatePerGram = isSilv ? (goldRates.rateSilver / 1000) : (goldRates.rate24k / 10);
+            let r = 0;
+            
+            if(i.purity === '22K') r = goldRates.rate22k / 10;
+            else if(i.purity === '18K') r = (goldRates.rate18k || (goldRates.rate22k * 0.82)) / 10;
+            else r = pureRatePerGram * getPurityFactor(i.purity);
+            
+            document.getElementById('itemRate').value = parseFloat(r.toFixed(2));
+            calcItemLive();
+        }
+
+        function calcItemLive() {
+            const grossWt = getSafeNum(document.getElementById('itemWt').value);
+            const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
+            const netWt = Math.max(0, grossWt - stoneWt);
+
+            const wastVal = getSafeNum(document.getElementById('itemWastageVal').value);
+            const wastMode = document.getElementById('itemWastageMode').value;
+            const wastAmt = wastMode === 'pct' ? (netWt * wastVal / 100) : wastVal;
+
+            const payableWt = netWt + wastAmt;
+
+            document.getElementById('liveNetWt').innerText = netWt.toFixed(3) + " g";
+            document.getElementById('livePayableWt').innerText = payableWt.toFixed(3) + " g";
+
+            const rate = getSafeNum(document.getElementById('itemRate').value);
+            const mkVal = getSafeNum(document.getElementById('mkVal').value);
+            const mkType = document.getElementById('mkType').value;
+            const gstPct = getSafeNum(document.getElementById('itemGst').value);
+
+            const goldVal = payableWt * rate;
+            const mkAmt = (mkType === 'pct') ? (goldVal * mkVal / 100) : mkVal;
+            const baseTotal = goldVal + mkAmt;
+            const gstAmt = baseTotal * (gstPct / 100);
+
+            document.getElementById('liveGold').innerText = "₹" + Math.round(goldVal).toLocaleString();
+            document.getElementById('liveMaking').innerText = "₹" + Math.round(mkAmt).toLocaleString();
+            document.getElementById('liveGst').innerText = "₹" + Math.round(gstAmt).toLocaleString();
+            document.getElementById('liveTotal').innerText = "₹" + Math.round(baseTotal + gstAmt).toLocaleString();
+
+            if(currentSelectedItem) {
+                const availPcs = parseInt(currentSelectedItem.pieces) || 1;
+                
+                // Only show dynamic remainders for multi-piece or bulk items
+                if(availPcs > 1 || checkIsSilver(currentSelectedItem.purity) || currentSelectedItem.category === 'MIX') {
+                    const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.netWt || currentSelectedItem.weight);
+                    const sellQty = parseInt(document.getElementById('itemSellQty').value) || 0;
+
+                    let remPcs = availPcs - sellQty;
+                    let remWt = availWt - grossWt;
+
+                    const remStockEl = document.getElementById('remStockText');
+                    if (remPcs < 0 || remWt < 0) {
+                        remStockEl.style.color = '#d32f2f'; 
+                        remStockEl.innerText = `OVER-SELL WARNING! (${remPcs} Pcs | ${remWt.toFixed(3)} g)`;
+                    } else {
+                        remStockEl.style.color = '#1565c0'; 
+                        remStockEl.innerText = `${remPcs} Pcs | ${remWt.toFixed(3)} g remaining`;
+                    }
+                }
+            }
+        }
+
+        function addToCart() {
+            const id = document.getElementById('itemId').value;
+            
+            const sellQty = parseInt(document.getElementById('itemSellQty').value) || 1;
+            const grossWt = getSafeNum(document.getElementById('itemWt').value);
+
+            if (currentSelectedItem) {
+                const availPcs = parseInt(currentSelectedItem.pieces) || 1;
+                const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.weight || currentSelectedItem.netWt);
+                
+                // Strict validation before adding
+                if (sellQty > availPcs) return alert(`Cannot sell more pieces than available in stock (${availPcs}).`);
+                if (grossWt > availWt) return alert(`Gross Weight exceeds available stock (${availWt}g).`);
+            }
+
+            const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
+            const netWt = Math.max(0, grossWt - stoneWt);
+            const wastVal = getSafeNum(document.getElementById('itemWastageVal').value);
+            const wastMode = document.getElementById('itemWastageMode').value;
+            const wastAmt = wastMode === 'pct' ? (netWt * wastVal / 100) : wastVal;
+            const payableWt = netWt + wastAmt;
+
+            const rate = getSafeNum(document.getElementById('itemRate').value);
+            const mkVal = getSafeNum(document.getElementById('mkVal').value);
+            const mkType = document.getElementById('mkType').value;
+            const gstPct = getSafeNum(document.getElementById('itemGst').value);
+
+            const goldVal = payableWt * rate;
+            const mkAmt = (mkType === 'pct') ? (goldVal * mkVal / 100) : mkVal;
+            const baseAmt = Math.round(goldVal + mkAmt);
+            const gstAmt = Math.round(baseAmt * (gstPct / 100));
+            const finalTotal = baseAmt + gstAmt;
+            
+            const huidVal = document.getElementById('itemHuid').value || '';
+            
+            cart.push({
+                id: id, isOldGold: false,
+                barcode: document.getElementById('itemCode').value,
+                category: document.getElementById('itemCat').value,
+                purity: document.getElementById('itemPurity').value,
+                huid: huidVal,
+                weight: grossWt, 
+                grossWt: grossWt,
+                stoneWt: stoneWt,
+                netWt: netWt,
+                wastageVal: wastVal,
+                wastageMode: wastMode,
+                payableWt: payableWt,
+                sellQty: sellQty,
+                rate: rate, makingType: mkType, makingRate: mkVal,
+                makingAmount: Math.round(mkAmt), baseAmount: baseAmt,
+                gstPct: gstPct, gstAmount: gstAmt, total: finalTotal
+            });
+            
+            currentSelectedItem = null; 
+            renderCart();
+            document.getElementById('itemEntry').style.display = 'none';
+        }
+
+        function toggleManualItem() {
+            const manualBox = document.getElementById('manualItemEntry');
+            const invBox = document.getElementById('itemEntry');
+            if(manualBox.style.display === 'none') {
+                manualBox.style.display = 'block'; invBox.style.display = 'none';
+                document.getElementById('mItemGst').value = globalGstDefault;
+                document.getElementById('mItemName').focus();
+            } else {
+                manualBox.style.display = 'none';
+            }
+        }
+
+        function handleManualMetalChange() {
+            const metal = document.getElementById('mMetalType').value;
+            const puritySelect = document.getElementById('mItemPurity');
+            puritySelect.innerHTML = '';
+            
+            if (metal === 'Gold') {
+                puritySelect.innerHTML = `
+                    <option value="22K">22K</option>
+                    <option value="18K">18K</option>
+                    <option value="24K">24K</option>
+                `;
+                if(goldRates.customPurities) {
+                    goldRates.customPurities.forEach(cp => {
+                        puritySelect.innerHTML += `<option value="${cp.name}">${cp.name}</option>`;
+                    });
+                }
+            } else {
+                puritySelect.innerHTML = `
+                    <option value="Silver">Silver</option>
+                    <option value="Silver 92.5%">Silver 92.5%</option>
+                `;
+                if(goldRates.customSilverPurities) {
+                    goldRates.customSilverPurities.forEach(cp => {
+                        puritySelect.innerHTML += `<option value="${cp.name}">${cp.name}</option>`;
+                    });
+                }
+            }
+            autoFillManualRate();
+        }
+
+        function autoFillManualRate() {
+            const metal = document.getElementById('mMetalType').value;
+            const selectEl = document.getElementById('mItemPurity');
+            const purity = selectEl.value;
+            const isExch = document.getElementById('mIsExchange').checked;
+            
+            let r = 0;
+            const pureGoldRate = goldRates.rate24k / 10;
+            const pureSilverRate = goldRates.rateSilver / 1000;
+            
+            if (isExch) {
+                r = (metal === 'Silver') ? pureSilverRate : pureGoldRate;
+            } else {
+                if(purity === '22K') r = goldRates.rate22k / 10;
+                else if(purity === '24K') r = pureGoldRate;
+                else if(purity === '18K') r = (goldRates.rate18k || (goldRates.rate22k * 0.82)) / 10;
+                else if(purity === 'Silver') r = pureSilverRate;
+                else {
+                    const cpList = (metal === 'Silver') ? goldRates.customSilverPurities : goldRates.customPurities;
+                    const cp = cpList?.find(x => x.name === purity);
+                    if(cp) {
+                        r = (metal === 'Silver') ? (pureSilverRate * (cp.pct / 100)) : (pureGoldRate * (cp.pct / 100));
+                    }
+                }
+            }
+
+            document.getElementById('mRateLabel').innerText = isExch ? (metal === 'Silver' ? 'Pure Silver (₹/g)' : '24K Rate (₹/g)') : 'Rate (₹/g)';
+            document.getElementById('mItemRate').value = parseFloat(r.toFixed(2));
+            calcManualItem();
+        }
+
+        function calcManualItem() {
+            const metal = document.getElementById('mMetalType').value;
+            const grossWt = getSafeNum(document.getElementById('mGrossWt').value);
+            const stoneWt = getSafeNum(document.getElementById('mStoneWt').value);
+            const netWt = Math.max(0, grossWt - stoneWt);
+            document.getElementById('mNetWt').value = netWt.toFixed(3);
+
+            const selectEl = document.getElementById('mItemPurity');
+            const purityVal = selectEl.value;
+            
+            const fineWt = netWt * getPurityFactor(purityVal);
+            document.getElementById('mFineWt').value = fineWt.toFixed(3);
+
+            const isExch = document.getElementById('mIsExchange').checked;
+            const rate = getSafeNum(document.getElementById('mItemRate').value);
+            
+            if(isExch) {
+                document.getElementById('manualSaleDiv').style.display = 'none';
+                document.getElementById('mLiveMakingBox').style.display = 'none';
+                document.getElementById('mLiveGstBox').style.display = 'none';
+                document.getElementById('exchangePctDiv').style.display = 'block';
+                document.getElementById('mLiveGoldLabel').innerText = metal === 'Silver' ? 'Base Silver Value:' : 'Base Gold Value:';
+            } else {
+                document.getElementById('manualSaleDiv').style.display = 'flex';
+                document.getElementById('mLiveMakingBox').style.display = 'inline';
+                document.getElementById('mLiveGstBox').style.display = 'flex';
+                document.getElementById('exchangePctDiv').style.display = 'none';
+                document.getElementById('mLiveGoldLabel').innerText = 'Metal Value:';
+            }
+
+            let metalVal = isExch ? (fineWt * rate) : (netWt * rate);
+
+            if(isExch) {
+                const exchPct = getSafeNum(document.getElementById('mExchangePct').value) || 100;
+                const finalTotal = Math.round(metalVal * (exchPct / 100));
+                
+                document.getElementById('mLiveGold').innerText = "₹" + Math.round(metalVal).toLocaleString();
+                document.getElementById('mLiveTotal').innerText = "-₹" + finalTotal.toLocaleString();
+            } else {
+                const mkVal = getSafeNum(document.getElementById('mMkVal').value);
+                const mkType = document.getElementById('mMkType').value;
+                const gstPct = getSafeNum(document.getElementById('mItemGst').value);
+                
+                const mkAmt = (mkType === 'pct') ? (metalVal * mkVal / 100) : mkVal;
+                const baseTotal = metalVal + mkAmt;
+                const gstAmt = baseTotal * (gstPct / 100);
+                const finalTotal = Math.round(baseTotal + gstAmt);
+
+                document.getElementById('mLiveGold').innerText = "₹" + Math.round(metalVal).toLocaleString();
+                document.getElementById('mLiveMaking').innerText = "₹" + Math.round(mkAmt).toLocaleString();
+                document.getElementById('mLiveGst').innerText = "₹" + Math.round(gstAmt).toLocaleString();
+                document.getElementById('mLiveTotal').innerText = "₹" + finalTotal.toLocaleString();
+            }
+        }
+
+        function addManualToCart() {
+            const metal = document.getElementById('mMetalType').value;
+            const name = document.getElementById('mItemName').value;
+            const grossWt = getSafeNum(document.getElementById('mGrossWt').value);
+            const stoneWt = getSafeNum(document.getElementById('mStoneWt').value);
+            const netWt = Math.max(0, grossWt - stoneWt);
+            const isExch = document.getElementById('mIsExchange').checked;
+            
+            if(!name) return alert("Enter an Item Name/Description");
+            if(netWt <= 0) return alert("Net Weight must be greater than 0");
+
+            const purity = document.getElementById('mItemPurity').value;
+            const rate = getSafeNum(document.getElementById('mItemRate').value);
+            const fineWt = getSafeNum(document.getElementById('mFineWt').value);
+            
+            let metalVal = isExch ? (fineWt * rate) : (netWt * rate);
+            
+            let finalData = {};
+
+            if(isExch) {
+                const exchPct = getSafeNum(document.getElementById('mExchangePct').value) || 100;
+                const finalExchVal = Math.round(metalVal * (exchPct / 100));
+                
+                finalData = {
+                    id: 'manual_old_' + Date.now(), 
+                    isOldGold: true, 
+                    metal: metal,
+                    barcode: metal === 'Silver' ? 'OLD SILVER' : 'OLD GOLD',
+                    category: name + ` (Exch: ${purity})`, purity: purity, weight: netWt, 
+                    grossWt: grossWt, stoneWt: stoneWt, netWt: netWt, fineWt: fineWt,
+                    exchangePct: exchPct,
+                    rate: rate, baseAmount: 0, gstPct: 0, gstAmount: 0, 
+                    total: -finalExchVal, sellQty: 1 
+                };
+            } else {
+                const mkVal = getSafeNum(document.getElementById('mMkVal').value);
+                const mkType = document.getElementById('mMkType').value;
+                const gstPct = getSafeNum(document.getElementById('mItemGst').value);
+                
+                const mkAmt = (mkType === 'pct') ? (metalVal * mkVal / 100) : mkVal;
+                const baseAmt = Math.round(metalVal + mkAmt);
+                const gstAmt = Math.round(baseAmt * (gstPct / 100));
+                const finalTotal = baseAmt + gstAmt;
+
+                finalData = {
+                    id: 'manual_' + Date.now(), 
+                    isOldGold: false, 
+                    metal: metal,
+                    barcode: 'CUSTOM',
+                    category: name, purity: purity, weight: netWt, 
+                    rate: rate, makingType: mkType, makingRate: mkVal, makingAmount: Math.round(mkAmt), 
+                    baseAmount: baseAmt, gstPct: gstPct, gstAmount: gstAmt, total: finalTotal, sellQty: 1
+                };
+            }
+
+            cart.push(finalData);
+            renderCart();
+            
+            document.getElementById('mItemName').value = '';
+            document.getElementById('mGrossWt').value = '';
+            document.getElementById('mStoneWt').value = '';
+            document.getElementById('mMkVal').value = '';
+            document.getElementById('mIsExchange').checked = false;
+            document.getElementById('manualItemEntry').style.display = 'none';
+        }
+
+        // --- CART & BILLING SUMMARY LOGIC ---
+        function renderCart() {
+            const b = document.getElementById('cartBody'); b.innerHTML = '';
+            cart.forEach((i, idx) => {
+                let descTxt = i.barcode;
+                if(i.huid) descTxt += ` | HUID: ${i.huid}`; 
+                
+                if(!i.isOldGold) {
+                    const mkTxt = i.makingType==='pct' ? `${i.makingRate}%` : `₹${i.makingRate}`;
+                    descTxt += ` | Mk: ${mkTxt} | GST: ${i.gstPct}%`;
+                } else {
+                    descTxt += ` | Fine: ${i.fineWt}g`;
+                }
+                const color = i.isOldGold ? '#8e24aa' : '#333';
+                const totalDisplay = i.isOldGold ? i.total.toLocaleString() : `+${i.total.toLocaleString()}`;
+                
+                const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
+                const wtDisplay = i.payableWt ? i.payableWt.toFixed(3) : i.weight;
+
+                b.innerHTML += `
+                <tr style="background: white; border-bottom: 5px solid #f5f5f5;">
+                    <td><b style="color:${color}">${i.category}</b><br><small style="color:#888;">${descTxt}</small></td>
+                    <td style="text-align:center; font-weight:600;">${pcsText}${wtDisplay}g</td>
+                    <td style="text-align:right; font-weight:bold; color:${color}">${totalDisplay}</td>
+                    <td style="text-align:center; width:30px;"><i class="fas fa-times-circle" style="color:#d32f2f; cursor:pointer; font-size:1.2rem;" onclick="cart.splice(${idx},1); renderCart();"></i></td>
+                </tr>`;
+            });
+            document.getElementById('cartCount').innerText = cart.length;
+            calcBillSummary();
+        }
+        function clearCart() { cart = []; renderCart(); }
+
+        function toggleBcWallet() {
+            useBcWallet = !useBcWallet;
+            calcBillSummary();
+        }
+
+        function setPayMode(el, mode) {
+            document.querySelectorAll('.pay-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active'); selectedPayMode = mode;
+        }
+
+        function addPayment() {
+            let a = getSafeNum(document.getElementById('payAmt').value);
+            if(!a || a === 0) return;
+
+            const grandTotalText = document.getElementById('sumGrand').innerText.replace(/₹|,/g,'');
+            const currentGrand = parseFloat(grandTotalText) || 0;
+            
+            // If paying out a refund, or taking money in
+            if (currentGrand < 0) {
+                a = -Math.abs(a); 
+            } else {
+                a = Math.abs(a);
+            }
+
+            payments.push({
+                mode: selectedPayMode, 
+                amount: a, 
+                date: new Date().toISOString(), 
+                isNew: true 
+            });
+            renderPayments();
+            document.getElementById('payAmt').value = '';
+        }
+
+        function removePayment(idx) {
+            const p = payments[idx];
+            if (!p.isNew) deletedPayments.push(p);
+            payments.splice(idx, 1);
+            renderPayments();
+        }
+
+        function renderPayments() {
+            const d = document.getElementById('payList'); d.innerHTML = '';
+            payments.forEach((p, idx) => {
+                const displayAmt = p.amount < 0 ? Math.abs(p.amount) + ' (Refund)' : p.amount;
+                
+                const delBtn = `<i class="fas fa-trash" style="margin-left:10px; color:#ff8a65; cursor:pointer;" onclick="removePayment(${idx})" title="Delete Payment"></i>`;
+
+                d.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; font-size:0.9rem; color:white; border: 1px solid #444;">
+                    <span><i class="fas fa-money-check-alt"></i> ${p.mode} <small style="color:#aaa; margin-left:5px;">${p.date ? new Date(p.date).toLocaleDateString('en-IN') : ''}</small></span>
+                    <span>₹${displayAmt.toLocaleString()} ${delBtn}</span>
+                </div>`;
+            });
+            calcBillSummary();
+        }
+
+        function calcBillSummary() {
+            let baseSubtotal = 0; 
+            let totalGst = 0; 
+            let totalOldGold = 0; 
+            
+            const applyGst = document.getElementById('applyGstToggle').checked;
+
+            cart.forEach(i => {
+                if (i.isOldGold) {
+                    totalOldGold += Math.abs(i.total);
+                } else {
+                    baseSubtotal += i.baseAmount;
+                    totalGst += applyGst ? i.gstAmount : 0;
+                }
+            });
+
+            const discVal = getSafeNum(document.getElementById('sumDiscVal').value);
+            const discAmt = discVal; 
+
+            let tempTotal = (baseSubtotal + totalGst) - totalOldGold - discAmt;
+            appliedBcAmount = 0;
+
+            if (useBcWallet && availableBcBalance > 0) {
+                appliedBcAmount = Math.min(availableBcBalance, Math.max(0, tempTotal));
+                tempTotal -= appliedBcAmount;
+                
+                document.getElementById('sumBcWalletRow').style.display = 'flex';
+                document.getElementById('sumBcWallet').innerText = "-₹" + appliedBcAmount.toLocaleString();
+                
+                const btn = document.getElementById('btnApplyBc');
+                btn.innerHTML = '<i class="fas fa-times"></i> Remove Wallet';
+                btn.style.background = "var(--active-red)";
+            } else {
+                document.getElementById('sumBcWalletRow').style.display = 'none';
+                
+                if(availableBcBalance > 0) {
+                    const btn = document.getElementById('btnApplyBc');
+                    btn.innerHTML = '<i class="fas fa-check"></i> Apply Balance';
+                    btn.style.background = "var(--bc-wallet)";
+                }
+            }
+
+            const grandTotal = tempTotal;
+            const paid = payments.reduce((a,b)=>a+b.amount,0);
+            
+            const balance = grandTotal - paid;
+            
+            document.getElementById('sumSub').innerText = "₹" + baseSubtotal.toLocaleString();
+            
+            document.getElementById('sumGst').innerText = "₹" + totalGst.toLocaleString();
+            if(!applyGst) {
+                document.getElementById('sumGst').style.textDecoration = "line-through";
+                document.getElementById('sumGst').style.color = "#888";
+            } else {
+                document.getElementById('sumGst').style.textDecoration = "none";
+                document.getElementById('sumGst').style.color = "#ccc";
+            }
+
+            document.getElementById('sumOldGold').innerText = "-₹" + totalOldGold.toLocaleString();
+            document.getElementById('sumGrand').innerText = "₹" + grandTotal.toLocaleString();
+            
+            const balEl = document.getElementById('sumBal');
+            const balLabel = document.getElementById('sumBalLabel');
+            
+            const payBoxLabel = document.getElementById('payBoxLabel');
+            const payAmtInput = document.getElementById('payAmt');
+
+            if (grandTotal < 0) {
+                payBoxLabel.innerText = "REFUND TO CUSTOMER (PAYOUT)";
+                payBoxLabel.style.color = "#ffcc80";
+                payAmtInput.placeholder = "Enter Refund Amount Given";
+            } else {
+                payBoxLabel.innerText = "RECEIVED PAYMENT";
+                payBoxLabel.style.color = "#888";
+                payAmtInput.placeholder = "Enter Amount Received";
+            }
+
+            if (balance < 0) {
+                balEl.innerText = "₹" + Math.abs(balance).toLocaleString() + " (Refund Due)";
+                balEl.style.color = "var(--exchange-purple)";
+                balLabel.innerText = "Refund Due";
+            } else if (balance === 0) {
+                balEl.innerText = "₹0";
+                balEl.style.color = "var(--in-green)";
+                balLabel.innerText = "Settled";
+            } else {
+                balEl.innerText = "₹" + balance.toLocaleString();
+                balEl.style.color = "#ffcc80";
+                balLabel.innerText = "Remaining Due";
+            }
+        }
+
+        async function saveSale() {
+            const cid = document.getElementById('custId').value;
+            if(!cid) return alert("Select Customer");
+            if(cart.length === 0) return alert("Cart Empty");
+
+            // Aggressively capture un-added payment input
+            let pendingPayInput = getSafeNum(document.getElementById('payAmt').value);
+            if (pendingPayInput !== 0) {
+                addPayment(); 
+            }
+            
+            const applyGst = document.getElementById('applyGstToggle').checked;
+
+            let baseSubtotal = 0; let totalGst = 0; let totalOldGold = 0;
+            cart.forEach(i => {
+                if(i.isOldGold) totalOldGold += Math.abs(i.total);
+                else { baseSubtotal += i.baseAmount; totalGst += applyGst ? i.gstAmount : 0; }
+            });
+
+            const discVal = getSafeNum(document.getElementById('sumDiscVal').value);
+            
+            const grandTotalText = document.getElementById('sumGrand').innerText.replace(/₹|,/g,'');
+            const grand = parseFloat(grandTotalText);
+            const paid = payments.reduce((a,b)=>a+b.amount,0);
+
+            const editId = document.getElementById('editingSaleId').value;
+            
+            let originalDate = new Date().toISOString();
+            if (editId) {
+                const oldSale = allSalesData.find(os => os.id == editId);
+                if (oldSale && oldSale.date) originalDate = oldSale.date;
+            }
+
+            const cleanPayments = payments.map(p => {
+                const { isNew, ...rest } = p;
+                return rest;
+            });
+
+            const saleData = {
+                date: originalDate, customerId: cid, items: cart,
+                subTotal: baseSubtotal, gst: totalGst, oldGoldDeduction: totalOldGold,
+                discountMode: 'flat', discount: discVal, 
+                bcWalletDeduction: appliedBcAmount, 
+                grandTotal: grand, paidAmount: paid, pendingAmount: grand - paid, payments: cleanPayments,
+                isGstBill: applyGst,
+                status: 'completed'
+            };
+            
+            const db = await dbPromise;
+            const tx = db.transaction(['sales', 'customers', 'inventory', 'cashflow', 'schemes', 'old_gold'], 'readwrite');
+            
+            // --- 1. HANDLE SCHEME MATURITY REDEMPTION ---
+            if (appliedBcAmount > 0 || maturedSchemesTotal > 0) {
+                for(let s of pendingMaturedSchemes) {
+                    s.status = 'redeemed';
+                    s.redeemDate = new Date().toISOString();
+                    tx.objectStore('schemes').put(s);
+
+                    tx.objectStore('cashflow').add({
+                        date: new Date().toISOString(), type: 'OUT', mode: 'System',
+                        category: 'Scheme Bonus Expense', amount: s.amount,
+                        note: `1 Month Bonus for Matured Scheme #${s.id} (Auto-Redeemed at POS)`
+                    });
+                }
+
+                // --- 2. UPDATE CUSTOMER WALLET BALANCE ---
+                let cReq = tx.objectStore('customers').get(parseInt(cid));
+                cReq.onsuccess = (e) => {
+                    const cust = e.target.result;
+                    if(cust) {
+                        let oldBcDeduction = 0;
+                        if (editId) {
+                            const oldSale = allSalesData.find(os => os.id == editId);
+                            if (oldSale) oldBcDeduction = oldSale.bcWalletDeduction || 0;
+                        }
+                        
+                        cust.bcBalance = (getSafeNum(cust.bcBalance)) + maturedSchemesTotal + oldBcDeduction - appliedBcAmount;
+                        tx.objectStore('customers').put(cust);
+                    }
+                };
+            }
+
+            // --- 3. SAVE THE SALE RECORD & UPDATE INVENTORY ---
+            let sid;
+            if(editId) {
+                sid = parseInt(editId);
+                saleData.id = sid;
+                
+                const allOGReq = tx.objectStore('old_gold').getAll();
+                allOGReq.onsuccess = (e) => {
+                    const allOG = e.target.result || [];
+                    const linkedOG = allOG.filter(g => g.saleId === sid);
+                    for(const og of linkedOG) {
+                        tx.objectStore('old_gold').delete(og.id);
+                    }
+                };
+
+                await updateStockStatusInternal(tx, cart, 'sold'); 
+                tx.objectStore('sales').put(saleData);
+            } else {
+                await updateStockStatusInternal(tx, cart, 'sold');
+                var sReq = tx.objectStore('sales').add(saleData);
+                sid = await new Promise(r => { sReq.onsuccess = e => r(e.target.result); });
+                saleData.id = sid; 
+            }
+
+            // --- 4. INSERT EXCHANGED OLD METAL INTO UR BOX (old_gold table) ---
+            for(const i of cart) {
+                if(i.isOldGold) {
+                    tx.objectStore('old_gold').add({
+                        saleId: sid,
+                        type: 'BUY',
+                        metal: i.metal || (checkIsSilver(i.purity) ? 'Silver' : 'Gold'),
+                        customerId: parseInt(cid),
+                        date: originalDate,
+                        description: i.category,
+                        purity: i.purity,
+                        grossWt: i.grossWt || i.weight,
+                        stoneWt: i.stoneWt || 0,
+                        netWt: i.netWt || i.weight,
+                        fineWt: i.fineWt || ((i.netWt || i.weight) * getPurityFactor(i.purity)),
+                        rate: i.rate,
+                        exchPct: i.exchangePct || 100, 
+                        amount: Math.abs(i.total),
+                        mode: 'POS Exchange'
+                    });
+                }
+            }
+            
+            // --- 5. LOG REVERSALS FOR DELETED PAYMENTS (Edits) ---
+            deletedPayments.forEach(p => {
+                let flowType = p.amount < 0 ? 'IN' : 'OUT'; // Reversing the original direction
+                let flowAmt = Math.abs(p.amount);
+                
+                tx.objectStore('cashflow').add({
+                    date: new Date().toISOString(),
+                    type: flowType, mode: p.mode,
+                    category: 'POS Payment Reversal', amount: flowAmt, note: `Reversed payment for Bill #${formatInv(sid)} (Edit)`
+                });
+            });
+
+            // --- 6. LOG CASHFLOW FOR NEW/ACTIVE PAYMENTS ---
+            let noteSuffix = editId ? ` (Edited)` : '';
+            payments.forEach(p => {
+                if (editId && !p.isNew) return; // Ignore old locked payments we didn't touch
+                
+                let flowType = p.amount < 0 ? 'OUT' : 'IN';
+                let flowAmt = Math.abs(p.amount);
+                
+                let cat = '';
+                if (p.amount < 0) cat = 'POS Refund (Payout)';
+                else if (editId) cat = 'POS Due Payment';
+                else cat = 'POS Sale';
+
+                tx.objectStore('cashflow').add({
+                    date: p.date || new Date().toISOString(),
+                    type: flowType, mode: p.mode,
+                    category: cat, amount: flowAmt, note: `Payment for Bill #${formatInv(sid)}${noteSuffix}`
+                });
+            });
+
+            tx.oncomplete = () => {
+                printInvoice(saleData);
+                
+                cart = []; payments = []; deletedPayments = []; 
+                renderCart(); renderPayments();
+                resetCust();
+                document.getElementById('sumDiscVal').value = 0;
+                document.getElementById('editingSaleId').value = '';
+                document.getElementById('btnSave').innerHTML = '<i class="fas fa-check-circle"></i> Save & Print Bill';
+                document.getElementById('btnCancelEdit').style.display = 'none';
+                
+                loadHistory();
+            };
+        }
+
+        // Dedicated helper to safely restore or deduct items from stock
+        function updateStockStatusInternal(tx, items, action) {
+            return new Promise((resolve) => {
+                const store = tx.objectStore('inventory');
+                let count = 0;
+                if(items.length === 0) resolve();
+
+                for(const i of items) {
+                    if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
+                        count++;
+                        if(count === items.length) resolve();
+                        continue;
+                    }
+                    
+                    const req = store.get(parseInt(i.id));
+                    req.onsuccess = (e) => {
+                        const item = e.target.result;
+                        if(item) { 
+                            const sellQty = i.sellQty || 1;
+                            const sellGross = i.grossWt !== undefined ? i.grossWt : (i.weight || 0);
+                            const sellStone = i.stoneWt || 0;
+                            const sellNet = i.netWt !== undefined ? i.netWt : sellGross;
+                            
+                            const isSilver = checkIsSilver(item.purity);
+
+                            if (action === 'sold') {
+                                // If it is a bulk item (silver or mix) or has multiple pieces, deduct proportionally
+                                if (isSilver || item.category === 'MIX' || item.pieces > 1) {
+                                    item.pieces = (parseInt(item.pieces) || 1) - sellQty;
+                                    item.grossWt = Math.max(0, (parseFloat(item.grossWt) || 0) - sellGross);
+                                    item.stoneWt = Math.max(0, (parseFloat(item.stoneWt) || 0) - sellStone);
+                                    item.netWt = Math.max(0, (parseFloat(item.netWt) || 0) - sellNet);
+                                    item.weight = item.grossWt; 
+                                    item.fineWt = item.netWt * getPurityFactor(item.purity);
+
+                                    // If completely empty or negligible weight left, mark as sold
+                                    if (item.pieces <= 0 || item.netWt <= 0.05) {
+                                        item.status = 'sold';
+                                        item.pieces = 0;
+                                        item.netWt = 0;
+                                        item.grossWt = 0;
+                                        item.stoneWt = 0;
+                                        item.weight = 0;
+                                        item.fineWt = 0;
+                                    } else {
+                                        item.status = 'stock';
+                                    }
+                                } else {
+                                    // Standard 1-piece item
+                                    item.status = 'sold';
+                                    item.pieces = 0;
+                                    item.netWt = 0;
+                                    item.grossWt = 0;
+                                    item.stoneWt = 0;
+                                    item.weight = 0;
+                                    item.fineWt = 0;
+                                }
+                            } else if (action === 'stock') {
+                                // Restoring to stock (for edits or cancellations)
+                                item.status = 'stock';
+                                item.pieces = (parseInt(item.pieces) || 0) + sellQty;
+                                item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
+                                item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
+                                item.netWt = (parseFloat(item.netWt) || 0) + sellNet;
+                                item.weight = item.grossWt;
+                                item.fineWt = item.netWt * getPurityFactor(item.purity);
+                            }
+                            store.put(item); 
+                        }
+                        count++;
+                        if(count === items.length) resolve();
+                    };
+                }
+            });
+        }
+
+        async function editSale(id) {
+            if(!confirm("Edit this bill? This will load the items back into the cart. Add your new payment and click Update.")) return;
+            const sale = await new Promise(async r => {
+                const db = await dbPromise;
+                db.transaction('sales').objectStore('sales').get(id).onsuccess = e => r(e.target.result);
+            });
+            if(!sale) return;
+            
+            // Re-add items back to stock temporarily while editing
+            const db = await dbPromise;
+            const tx = db.transaction('inventory', 'readwrite');
+            await updateStockStatusInternal(tx, sale.items, 'stock');
+            
+            cart = sale.items; 
+            
+            payments = sale.payments ? sale.payments.map(p => ({...p, isNew: false})) : [];
+
+            document.getElementById('sumDiscVal').value = sale.discount || 0;
+            document.getElementById('applyGstToggle').checked = sale.isGstBill !== false;
+            
+            const cust = await new Promise(async r => {
+                const db2 = await dbPromise;
+                db2.transaction('customers').objectStore('customers').get(parseInt(sale.customerId)).onsuccess = e => r(e.target.result);
+            });
+
+            if(cust) {
+                cust.bcBalance = (getSafeNum(cust.bcBalance)) + (sale.bcWalletDeduction || 0);
+                selectCust(cust);
+                if (sale.bcWalletDeduction > 0) {
+                    useBcWallet = true;
+                    calcBillSummary();
+                }
+            }
+            
+            document.getElementById('editingSaleId').value = sale.id;
+            document.getElementById('btnSave').innerHTML = "<i class='fas fa-save'></i> UPDATE BILL";
+            document.getElementById('btnCancelEdit').style.display = 'block';
+            
+            renderCart(); renderPayments(); switchView('pos');
+        }
+
+        async function cancelEdit() {
+            location.reload();
+        }
+
+        // --- CANCEL & REFUND BILL ---
+        async function openCancelModal(id) {
+            const sale = allSalesData.find(s => s.id === id);
+            if(!sale) return;
+
+            document.getElementById('cancelSaleId').value = id;
+            document.getElementById('cBillTotal').innerText = "₹" + sale.grandTotal.toLocaleString();
+            document.getElementById('cBillPaid').innerText = "₹" + sale.paidAmount.toLocaleString();
+            
+            document.getElementById('cRefundAmt').value = sale.paidAmount > 0 ? sale.paidAmount : 0; 
+            
+            if(sale.oldGoldDeduction > 0) {
+                document.getElementById('cBillOldGoldDiv').style.display = 'flex';
+                document.getElementById('cBillOldGold').innerText = "₹" + sale.oldGoldDeduction.toLocaleString();
+            } else {
+                document.getElementById('cBillOldGoldDiv').style.display = 'none';
+            }
+            
+            openModal('cancelModal');
+        }
+
+        async function confirmCancelSale() {
+            const id = parseInt(document.getElementById('cancelSaleId').value);
+            const refundAmt = getSafeNum(document.getElementById('cRefundAmt').value);
+            const revertStock = document.getElementById('cRevertStock').checked;
+            const refundMode = document.getElementById('cRefundMode').value || 'Cash';
+
+            const db = await dbPromise;
+            const tx = db.transaction(['sales', 'customers', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
+            const store = tx.objectStore('sales');
+
+            store.get(id).onsuccess = async (e) => {
+                const sale = e.target.result;
+                sale.status = 'cancelled';
+                sale.refundedAmount = refundAmt;
+                store.put(sale);
+
+                if (sale.bcWalletDeduction > 0) {
+                    let cReq = tx.objectStore('customers').get(parseInt(sale.customerId));
+                    cReq.onsuccess = (ev) => {
+                        const c = ev.target.result;
+                        if(c) {
+                            c.bcBalance = (getSafeNum(c.bcBalance)) + sale.bcWalletDeduction;
+                            tx.objectStore('customers').put(c);
+                        }
+                    };
+                }
+
+                if(revertStock) {
+                    await updateStockStatusInternal(tx, sale.items, 'stock');
+                }
+
+                const ogReq = tx.objectStore('old_gold').getAll();
+                ogReq.onsuccess = (ev) => {
+                    const allOG = ev.target.result || [];
+                    const linkedOG = allOG.filter(g => g.saleId === id);
+                    for(const og of linkedOG) {
+                        tx.objectStore('old_gold').delete(og.id);
+                    }
+                };
+
+                if(refundAmt > 0) {
+                    tx.objectStore('cashflow').add({
+                        date: new Date().toISOString(), type: 'OUT', mode: refundMode,
+                        category: 'Bill Cancellation Refund', amount: refundAmt, note: `Refund for Cancelled Bill #${formatInv(id)}`
+                    });
+                }
+                
+                if(sale.oldGoldDeduction > 0) {
+                    tx.objectStore('cashflow').add({
+                        date: new Date().toISOString(), type: 'OUT', mode: 'Metal Exchange',
+                        category: 'Bill Cancellation Reversal', amount: sale.oldGoldDeduction, note: `Reversing Exchange for Cancelled Bill #${formatInv(id)}`
+                    });
+                }
+
+                tx.oncomplete = () => {
+                    alert("Bill Cancelled & Refund Processed!");
+                    closeModal('cancelModal');
+                    loadHistory();
+                };
+            };
+        }
+
+        // --- HISTORY LOGIC ---
+        async function loadHistory() {
+            const list = await getAllItems('sales');
+            allSalesData = list; 
+            renderHistory(list);
+        }
+
+        async function filterHistory() {
+            const term = document.getElementById('histSearch').value.toLowerCase();
+            const status = document.getElementById('histStatusFilter').value;
+            const custs = await getAllItems('customers');
+
+            let filtered = allSalesData.filter(s => {
+                const c = custs.find(x => x.id == s.customerId);
+                const cName = c ? c.name.toLowerCase() : '';
+                const sId = formatInv(s.id).toLowerCase();
+                const matchesSearch = cName.includes(term) || sId.includes(term);
+
+                let matchesStatus = true;
+                if(status === 'paid') matchesStatus = s.pendingAmount === 0 && s.status !== 'cancelled';
+                if(status === 'due') matchesStatus = s.pendingAmount !== 0 && s.status !== 'cancelled';
+                if(status === 'cancelled') matchesStatus = s.status === 'cancelled';
+                if(status === 'all' && s.status === 'cancelled') matchesStatus = false;
+
+                return matchesSearch && matchesStatus;
+            });
+            renderHistory(filtered);
+        }
+
+        async function renderHistory(list) {
+            const custs = await getAllItems('customers');
+            const div = document.getElementById('histList');
+            div.innerHTML = '';
+            
+            if(list.length === 0) {
+                div.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">No invoices found.</div>';
+                return;
+            }
+
+            list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(s => {
+                const c = custs.find(x => x.id == s.customerId) || {name:'Unknown', mobile:''};
+                
+                let statusHtml = '';
+                if(s.status === 'cancelled') {
+                    statusHtml = `<span style="background:#eeeeee; color:#757575; padding:3px 8px; border-radius:4px; font-size:0.75rem;">CANCELLED</span>`;
+                } else if (s.pendingAmount === 0) {
+                    statusHtml = `<span style="background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:4px; font-size:0.75rem;">PAID</span>`;
+                } else if (s.pendingAmount > 0) {
+                    statusHtml = `<span style="background:#ffebee; color:#c62828; padding:3px 8px; border-radius:4px; font-size:0.75rem;">DUE: ₹${s.pendingAmount}</span>`;
+                } else {
+                    statusHtml = `<span style="background:#f3e5f5; color:#8e24aa; padding:3px 8px; border-radius:4px; font-size:0.75rem;">REFUND: ₹${Math.abs(s.pendingAmount)}</span>`;
+                }
+                
+                const isCancelled = s.status === 'cancelled';
+                const cardStyle = isCancelled ? 'opacity: 0.7;' : 'box-shadow:0 2px 8px rgba(0,0,0,0.05);';
+
+                const paidHtml = `<div style="font-size:0.85rem; color:#2e7d32;">Paid: ₹${s.paidAmount.toLocaleString()}</div>`;
+                const dueHtml = s.pendingAmount > 0 ? `<div style="font-size:0.85rem; color:#c62828; font-weight:bold;">Due: ₹${s.pendingAmount.toLocaleString()}</div>` : '';
+                
+                const payDueBtn = s.pendingAmount > 0 && !isCancelled ? `<button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--accent-gold); color:#000; font-weight:bold; cursor:pointer;" onclick="editSale(${s.id})"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>` : '';
+
+                div.innerHTML += `<div style="background:#fff; padding:20px; border-radius:12px; margin-bottom:15px; border-left:4px solid #333; ${cardStyle}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; font-size:1.1rem; color:#222;">${c.name}</span>
+                        <span style="font-weight:bold; font-size:1.1rem; color:var(--active-red); ${isCancelled?'text-decoration:line-through;':''}">₹${s.grandTotal.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <div style="font-size:0.85rem; color:#666;">${formatInv(s.id)} | ${new Date(s.date).toLocaleString('en-IN', {day:'numeric', month:'short', year:'numeric'})}</div>
+                        ${statusHtml}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; background:#f9f9f9; padding:5px; border-radius:4px;">
+                        ${paidHtml}
+                        ${dueHtml}
+                    </div>
+                    ${!isCancelled ? `
+                    <div style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f0; display:flex; gap:10px; font-size:0.85rem; font-weight:600; flex-wrap:wrap;">
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick='printHistory(${s.id})'><i class="fas fa-print"></i> Print</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick="editSale(${s.id})"><i class="fas fa-edit"></i> Edit</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--whatsapp); color:white; cursor:pointer;" onclick="waInvoice(${s.id}, '${c.mobile}', '${c.name}', ${s.grandTotal}, ${s.pendingAmount})"><i class="fab fa-whatsapp"></i> Send</button>
+                        ${payDueBtn}
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#ffebee; color:#c62828; cursor:pointer;" onclick="openCancelModal(${s.id})"><i class="fas fa-undo"></i> Cancel</button>
+                    </div>` : ''}
+                </div>`;
+            });
+        }
+
+        async function printHistory(id) {
+            const sale = await new Promise(async r => {
+                const db = await dbPromise;
+                db.transaction('sales').objectStore('sales').get(id).onsuccess = e => r(e.target.result);
+            });
+            printInvoice(sale);
+        }
+
+        async function printInvoice(sale) {
+            const cust = await new Promise(async r => {
+                const db = await dbPromise;
+                db.transaction('customers').objectStore('customers').get(parseInt(sale.customerId)).onsuccess = e => r(e.target.result);
+            });
+            
+            const isGst = sale.isGstBill !== false; // Default true for legacy bills without the flag
+            const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
+
+            let html = `
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0; font-size:24px;">BHARTI JEWELLERS</h2>
+                    <p style="margin:5px 0 0 0; font-size:12px;">Main Market, City | Ph: 9876543210</p>
+                    <h3 style="margin:10px 0 0 0; font-size:16px;">${titleText}</h3>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:13px;">
+                    <div>
+                        <strong>To:</strong> <span>${cust.name}</span><br>
+                        <span>${cust.mobile}</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <strong>Invoice #:</strong> <span>${formatInv(sale.id)}</span><br>
+                        <strong>Date:</strong> <span>${new Date(sale.date).toLocaleString('en-IN')}</span>
+                    </div>
+                </div>
+                <table class="inv-table">
+                    <thead>
+                        <tr style="background:#f0f0f0;">
+                            <th style="text-align:left;">Description</th>
+                            <th>Wt (g)</th>
+                            <th>Rate</th>
+                            <th>Mk</th>
+                            ${isGst ? '<th>GST</th>' : ''}
+                            <th style="text-align:right;">Total Amt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            sale.items.forEach(i => {
+                let mkDisplay = '-'; let gstDisplay = '-';
+                let rowTotal = Math.abs(i.total);
+                
+                if(!i.isOldGold) {
+                    mkDisplay = i.makingType === 'pct' ? Math.round(i.rate * i.weight * i.makingRate / 100) : i.makingAmount;
+                    gstDisplay = i.gstPct + '%';
+                    if (!isGst) rowTotal = i.baseAmount; // Exclude GST from item total if no GST
+                }
+                
+                const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
+                const wtDisplay = i.payableWt ? i.payableWt.toFixed(3) : i.weight;
+                
+                let pName = `<b>${i.category}</b><br><small style="font-size:10px;">${i.purity}`;
+                if(i.huid) pName += ` | HUID: ${i.huid}`;
+                pName += `</small>`;
+
+                html += `
+                <tr>
+                    <td style="border: 1px solid #000; padding: 6px;">${pName}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align:center;">${pcsText}${wtDisplay}g</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align:center;">${i.rate}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align:center;">${mkDisplay}</td>
+                    ${isGst ? `<td style="border: 1px solid #000; padding: 6px; text-align:center;">${gstDisplay}</td>` : ''}
+                    <td style="border: 1px solid #000; padding: 6px; text-align:right;">${rowTotal.toLocaleString()}</td>
+                </tr>`;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+                <div style="display:flex; justify-content:flex-end; margin-top:15px; font-size:14px;">
+                    <table style="width:280px;">
+                        <tr><td>Items Value:</td><td style="text-align:right;">₹${sale.subTotal.toLocaleString()}</td></tr>
+            `;
+
+            if(isGst && sale.gst > 0) {
+                html += `<tr><td>Total GST:</td><td style="text-align:right;">+₹${sale.gst.toLocaleString()}</td></tr>`;
+            }
+
+            if(sale.oldGoldDeduction > 0) {
+                html += `<tr><td>Less Exchanged Metal:</td><td style="text-align:right; color:#8e24aa;">-₹${sale.oldGoldDeduction.toLocaleString()}</td></tr>`;
+            }
+
+            if(sale.bcWalletDeduction > 0) {
+                html += `<tr><td>Less BC Wallet:</td><td style="text-align:right; color:#1976d2;">-₹${sale.bcWalletDeduction.toLocaleString()}</td></tr>`;
+            }
+
+            if(sale.discount > 0) {
+                html += `<tr><td>Discount:</td><td style="text-align:right;">-₹${sale.discount.toLocaleString()}</td></tr>`;
+            }
+
+            html += `
+                        <tr style="font-weight:bold; font-size:16px; border-top:2px solid #000; padding-top:5px;">
+                            <td style="padding-top:5px;">Grand Total:</td><td style="text-align:right; padding-top:5px;">₹${sale.grandTotal.toLocaleString()}</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+
+            if (sale.payments && sale.payments.length > 0) {
+                html += `
+                <div style="margin-top:15px; border-top:1px dashed #000; padding-top:10px; font-size:13px;">
+                    <strong style="display:block; margin-bottom:8px;">Payment History:</strong>
+                    <table style="width:100%; margin-top:5px; font-size:12px; border-collapse: collapse;">
+                        <tbody>
+                `;
+                sale.payments.forEach(p => {
+                    const pDate = new Date(p.date || sale.date).toLocaleDateString('en-IN');
+                    html += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">${pDate}</td><td style="padding:4px; border-bottom:1px solid #eee;">${p.mode}</td><td style="text-align:right; padding:4px; border-bottom:1px solid #eee;">₹${Math.abs(p.amount).toLocaleString()}</td></tr>`;
+                });
+                html += `
+                        </tbody>
+                    </table>
+                    <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                        <table style="width:250px; font-size:14px;">
+                            <tr><td style="padding-top:5px;">Total Paid:</td><td style="text-align:right; padding-top:5px; color:#2e7d32;">₹${Math.abs(sale.paidAmount).toLocaleString()}</td></tr>
+                `;
+                
+                if (sale.pendingAmount < 0) {
+                    html += `<tr style="font-weight:bold; font-size:15px; color:#8e24aa;"><td style="padding-top:5px;">Refund Due:</td><td style="text-align:right; padding-top:5px;">₹${Math.abs(sale.pendingAmount).toLocaleString()}</td></tr>`;
+                } else {
+                    html += `<tr style="font-weight:bold; font-size:15px; color:#d32f2f;"><td style="padding-top:5px;">Remaining Due:</td><td style="text-align:right; padding-top:5px;">₹${sale.pendingAmount.toLocaleString()}</td></tr>`;
+                }
+
+                html += `
+                        </table>
+                    </div>
+                </div>
+                `;
+            }
+
+            html += `
+                <div style="margin-top:40px; text-align:center; font-size:11px; color:#555; border-top:1px dashed #ccc; padding-top:10px;">
+                    Thank you for shopping with us! Standard terms and conditions apply.
+                </div>
+            `;
+
+            document.getElementById('invoice-area').innerHTML = html;
+            
+            // Allow DOM to update before sending to print spooler
+            setTimeout(() => {
+                triggerPrint();
+            }, 300);
+        }
+
+        function waInvoice(id, mobile, name, total, due) {
+            let msg = `Hello ${name},\n\nThank you for shopping at Bharti Jewellers! 🙏\n\nYour Invoice Details:\nInvoice No: ${formatInv(id)}\nTotal Amount: ₹${total.toLocaleString()}\n`;
+            if(due > 0) msg += `Pending Due: ₹${due.toLocaleString()}\n`;
+            msg += `\nWe hope to see you again soon.\n\nRegards,\nBharti Jewellers`;
+
+            let phone = mobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>
