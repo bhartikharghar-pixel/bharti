@@ -323,7 +323,6 @@
                     <span id="uiTotalIn">₹0</span>
                 </div>
 
-                <!-- GRAND TOTAL JAMA -->
                 <div class="grand-total-box">
                     <div class="gt-row">
                         <span class="grand-total-lbl"><i class="fas fa-equals"></i> G.Total Cash (IN)</span>
@@ -395,7 +394,6 @@
                     </div>
                 </div>
 
-                <!-- GRAND TOTAL NAMA -->
                 <div class="grand-total-box">
                     <div class="gt-row">
                         <span class="grand-total-lbl"><i class="fas fa-equals"></i> G.Total Cash (OUT)</span>
@@ -1162,34 +1160,41 @@
                 logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true, 'FINE');
             });
 
+            // --- OLD GOLD & MELTING LOGIC (REFINED) ---
             oldGold.forEach(o => {
                 if (o.mode !== 'POS Exchange') {
                     if (o.type === 'MELT') {
-                        let sent = getSafeNet(o);
+                        let sent = getSafeNet(o); // कुल पुराना सोना जो रिफाइनरी भेजा
                         let recv = getSafeNum(o.receivedWt || o.fineWt || o.pureWt || o.meltedWt);
                         let loss = getSafeNum(o.lossWt);
                         
+                        // ऑटोमैटिक कैलकुलेशन (अगर कोई एक चीज छूट गई हो तो सिस्टम खुद बैलेंस कर लेगा)
                         if (recv > 0 && loss === 0) loss = sent - recv;
+                        if (loss > 0 && recv === 0) recv = sent - loss;
+
                         if (loss < 0) loss = 0;
+                        if (recv < 0) recv = 0;
 
                         let partyName = o.refineryName || getMerchName(o.merchantId) || getCustName(o.customerId) || 'Metal Refinery';
 
                         if (recv > 0 || loss > 0) {
                             if (recv > 0) {
-                                // Add melted slab strictly to Mix Metal (not Fine Inventory)
-                                logMetal(o.date, recv, 'IN', 'melt_in', 'Mix Metal (Melted) Received', 'fas fa-layer-group', 'var(--mix-metal)', 'Melted Slab Added to Mix Metal', partyName, `MELT-${o.id}`, true, 'MIX');
-                                // Deduct from Old Gold
-                                logMetal(o.date, recv, 'OUT', 'oldgold_out', 'Old Metal Melted', 'fas fa-fire', 'var(--out-red)', 'Old Gold Converted to Mix Metal', partyName, `MELT-${o.id}`, false, 'OLD');
+                                // 1. JAMA (IN): गलाई के बाद मिली डली (Mix Metal)
+                                logMetal(o.date, recv, 'IN', 'melt_in', 'Mix Metal Received (Refinery)', 'fas fa-layer-group', 'var(--mix-metal)', 'Pure/Mix Slab received from melting', partyName, `MELT-${o.id}`, true, 'MIX');
+                                
+                                // 2. NAMA (OUT): जितना सोना डली बन गया, उतना Old Gold से कम करें
+                                logMetal(o.date, recv, 'OUT', 'melt_out', 'Old Gold Sent & Converted', 'fas fa-fire', 'var(--out-red)', 'Old Gold portion recovered as Mix Metal', partyName, `MELT-${o.id}`, false, 'OLD');
                             }
                             if (loss > 0) {
-                                // Show melting loss specifically deducted from Old Gold
-                                logMetal(o.date, loss, 'OUT', 'melt_loss', 'Melting Loss', 'fas fa-level-down-alt', 'var(--out-red)', 'Weight Loss during Melting process', partyName, `MELT-${o.id}`, false, 'OLD');
+                                // 3. NAMA (OUT): गलाई की घट (Melting Loss) को Old Gold से कम करें और NAMA में दिखाएँ
+                                logMetal(o.date, loss, 'OUT', 'melt_loss', 'Melting Loss (Ghat)', 'fas fa-level-down-alt', 'var(--out-red)', `Weight Loss in Melting. Total Sent: ${sent.toFixed(3)}g`, partyName, `MELT-${o.id}`, false, 'OLD');
                             }
                         } else {
-                            // Fallback if receiving details not updated yet
-                            logMetal(o.date, sent, 'OUT', 'oldgold_out', 'Old Metal Melted', 'fas fa-fire', 'var(--out-red)', 'Old Gold Sent to Refinery', partyName, `MELT-${o.id}`, false, 'OLD');
+                            // Fallback: अगर अभी तक प्राप्त या लॉस का वजन नहीं डाला गया है
+                            logMetal(o.date, sent, 'OUT', 'melt_out', 'Old Gold Sent to Refinery', 'fas fa-truck', 'var(--out-red)', 'Pending Mix Metal Receive Details', partyName, `MELT-${o.id}`, false, 'OLD');
                         }
                     } else {
+                        // ग्राहक से सीधा पुराना सोना खरीदा
                         logMetal(o.date, getSafeNet(o), 'OUT', 'oldgold_out', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', 'Direct Old Gold Buy', getCustName(o.customerId), `UR-${o.id}`, true, 'OLD');
                     }
                 }
