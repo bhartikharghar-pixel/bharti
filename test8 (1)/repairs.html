@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Repairs - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a;
+            --whatsapp: #25D366; --merchant-orange: #f57f17;
+            --receive-green: #2e7d32; --repair-purple: #6a1b9a;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); color: #333; padding-top: 60px; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; outline: none; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- HEADER & SIDEBAR --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 1000; border-bottom: 2px solid var(--accent-gold); box-shadow: 0 2px 10px rgba(0,0,0,0.5); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-btn { background: transparent; border: 1px solid #333; width: 40px; height: 40px; border-radius: 4px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2999; backdrop-filter: blur(2px); }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+
+        /* --- DASHBOARD --- */
+        .app-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid var(--repair-purple); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: #333; }
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase;}
+
+        .controls-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .search-box { flex: 1; padding: 12px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; min-width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none;}
+        .search-box:focus { border-color: var(--repair-purple); }
+        
+        .tabs { display: flex; background: #e0e0e0; border-radius: 10px; padding: 4px; gap: 5px; flex-wrap: wrap;}
+        .tab { flex: 1; min-width: 100px; text-align: center; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
+        .tab.active { background: white; color: var(--repair-purple); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 15px; }
+        .order-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--repair-purple); transition: transform 0.2s; position: relative; display: flex; flex-direction: column;}
+        .order-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+        
+        .order-card.ready { border-top-color: var(--receive-green); opacity: 0.95; }
+        .order-card.billed { border-top-color: #333; opacity: 0.8; background:#fafafa;}
+        .order-card.cancelled { border-top-color: #888; opacity: 0.6; }
+        .order-card.overdue { border-top-color: #d32f2f; }
+        
+        .o-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .o-cust { font-weight: 700; font-size: 1.15rem; color: #222; }
+        .o-desc { font-size: 0.95rem; color: #444; font-weight: 500; margin-bottom: 10px; line-height: 1.4; display:flex; align-items:center; gap:8px;}
+        
+        .o-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f9f9f9; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 15px; }
+        .o-meta div { display: flex; flex-direction: column; }
+        .o-meta span { color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight:600;}
+        .o-meta strong { color: #333; }
+
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .b-pending { background: #f3e5f5; color: #6a1b9a; }
+        .b-assigned { background: #fffde7; color: #f57f17; border: 1px solid #ffe082;}
+        .b-completed { background: #e8f5e9; color: #2e7d32; }
+        .b-billed { background: #e0e0e0; color: #333; }
+        .b-cancelled { background: #eeeeee; color: #757575; }
+        .b-overdue { background: #ffebee; color: #c62828; animation: pulse 2s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        .o-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #eee; padding-top: 15px; }
+        .btn-view { padding: 8px 15px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: 0.2s;}
+        .btn-view:hover { background: #000; }
+
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--repair-purple); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(106, 27, 154, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; width: 95%; max-width: 650px; border-radius: 16px; padding: 25px; max-height: 95vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666; z-index: 10;}
+
+        .form-section { background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-bottom: 15px; position: relative;}
+        .form-section-title { font-size: 0.8rem; font-weight: 700; color: var(--repair-purple); text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group { margin-bottom: 12px; position: relative; }
+        .label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 4px; font-weight: 600; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit; background: #fafafa; transition: 0.2s;}
+        input:focus, select:focus, textarea:focus { border-color: var(--repair-purple); background: white; outline: none;}
+        input[readonly] { background: #eee; color: #333; font-weight: 600; border-color: #ccc; }
+
+        .input-group { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+        .input-group input { border: none; flex: 1; border-radius: 0; }
+        .input-group select { width: 100px; border: none; border-left: 1px solid #ddd; background: #eee; font-weight: 600; }
+
+        .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        .search-item:hover { background: #f3e5f5; color: var(--repair-purple); }
+
+        .btn-primary { width: 100%; padding: 12px; background: var(--repair-purple); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;}
+        .btn-outline { background: transparent; border: 1px solid #ccc; color: #555; }
+        .btn-outline:hover { background: #f0f0f0; }
+
+        .summary-highlight { background: #1a1a1a; color: #fff; padding: 15px; border-radius: 8px; margin-top: 10px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);}
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; align-items: center;}
+        .summary-val { font-weight: 700; color: #fff; }
+
+        /* Progress Tracker UX */
+        .tracker { display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; padding: 0 10px;}
+        .tracker::before { content: ''; position: absolute; top: 15px; left: 10%; width: 80%; height: 3px; background: #eee; z-index: 1; }
+        .tracker-step { position: relative; z-index: 2; text-align: center; flex: 1; }
+        .tracker-icon { width: 32px; height: 32px; border-radius: 50%; background: #eee; color: #999; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px; font-size: 0.85rem; font-weight: bold; border: 3px solid white; transition: 0.3s; }
+        .tracker-text { font-size: 0.7rem; color: #888; font-weight: 600; text-transform: uppercase; }
+        
+        .tracker-step.active .tracker-icon { background: var(--repair-purple); color: white; box-shadow: 0 0 0 4px rgba(106, 27, 154, 0.2); }
+        .tracker-step.active .tracker-text { color: var(--repair-purple); font-weight: 700;}
+        .tracker-step.done .tracker-icon { background: var(--receive-green); color: white; }
+        .tracker-step.done .tracker-text { color: var(--receive-green); }
+
+        .audit-box { background:#f4f4f4; padding:15px; border-radius:8px; margin-bottom:15px; border-left:4px solid #333;}
+        .audit-row { display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.9rem;}
+
+        /* Toast Notifications */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 8px; padding: 16px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: var(--receive-green); }
+        #toast.error { background-color: var(--active-red); }
+
+        /* --- PRINT STYLES --- */
+        #invoice-area, #challan-area { display: none; background: white; padding: 30px; font-family: 'Times New Roman', serif; color: #000; }
+        @media print { 
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .fab, #toast { display: none !important; } 
+            body { background: white; padding: 0; }
+            #invoice-area, #challan-area { display: block !important; } 
+            .inv-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+            .inv-table th, .inv-table td { border: 1px solid #000; padding: 8px; text-align: left; }
+            .inv-header { text-align: center; border-bottom: 2px solid #000; margin-bottom: 20px; padding-bottom: 10px; }
+            .inv-header h2 { margin: 0; font-size: 24px; text-transform: uppercase; }
+            .inv-header p { margin: 5px 0; font-size: 14px; }
+            .inv-flex { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html" class="active"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+       <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="stat-card" style="border-left-color: var(--repair-purple);">
+                <div class="stat-lbl">Counter Intake</div>
+                <div class="stat-val" id="statIntake">0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--merchant-orange);">
+                <div class="stat-lbl">With Karigar</div>
+                <div class="stat-val" id="statWithKarigar">0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--receive-green);">
+                <div class="stat-lbl">Ready (In Shop)</div>
+                <div class="stat-val" id="statReady">0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #333;">
+                <div class="stat-lbl">Advance Held</div>
+                <div class="stat-val" id="statAdvance" style="color: var(--receive-green);">₹0</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--active-red);">
+                <div class="stat-lbl">Overdue</div>
+                <div class="stat-val" id="statOverdue" style="color: var(--active-red);">0</div>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <input type="text" id="orderSearch" class="search-box" placeholder="Search Customer Name or Phone or Invoice No..." onkeyup="filterOrders()">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('pending', this)">Pending / In-Progress</button>
+                <button class="tab" onclick="switchTab('completed', this)">Ready (In Shop)</button>
+                <button class="tab" onclick="switchTab('billed', this)">Delivered</button>
+                <button class="tab" onclick="switchTab('cancelled', this)">Cancelled</button>
+            </div>
+        </div>
+
+        <div id="orders-list" class="order-grid"></div>
+
+        <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="newJobModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
+            <h3 style="margin-top:0;"><i class="fas fa-tools"></i> New Repair Job</h3>
+
+            <div class="form-section">
+                <div class="form-group" style="margin:0;">
+                    <label>Customer Name or Mobile</label>
+                    <input type="text" id="custSearchInput" placeholder="Type to search..." onkeyup="searchCustomer('custSearchInput', 'custSearchResults', 'selectedCustId', 'selectedCustDisplay')" autocomplete="off">
+                    <input type="hidden" id="selectedCustId">
+                    <div id="custSearchResults" class="search-results"></div>
+                    <div id="selectedCustDisplay" style="display:none; justify-content:space-between; align-items:center; background:#e3f2fd; padding:10px; border-radius:6px; margin-top:5px; font-weight:bold; color:var(--bill-blue);">
+                        <span id="custNameText"></span>
+                        <button class="btn-outline" style="padding:4px 8px; margin:0; border:none; background:white; color:var(--bill-blue);" onclick="resetCustSearch('custSearchInput', 'selectedCustId', 'selectedCustDisplay')">Change</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Repair Details</div>
+                <div class="form-group">
+                    <label>Repair Description</label>
+                    <textarea id="oDesc" rows="2" placeholder="Describe the item and repair needed..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Delivery Due Date</label>
+                    <input type="date" id="oDue">
+                </div>
+            </div>
+
+            <div class="form-section" style="background:#fdfbf7;">
+                <div class="form-section-title">Metal Intake & Estimates</div>
+                <div class="form-group">
+                    <label>Customer Old Gold Received</label>
+                    <div class="input-group">
+                        <input type="number" id="rCustGold" step="0.001" placeholder="Weight (g)">
+                        <select id="rCustPurity" style="width: 100px; padding: 10px;">
+                            <option value="24">24K (Fine)</option>
+                            <option value="22" selected>22K</option>
+                            <option value="18">18K</option>
+                            <option value="14">14K</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Est. Extra Shop Gold Needed (24K) (g)</label>
+                    <input type="number" id="rEstExtra" step="0.001" placeholder="e.g. 1.500" oninput="calcRepairTotal()">
+                </div>
+            </div>
+
+            <div class="form-section" style="border-left: 4px solid #fbc02d; background: #fffde7;">
+                <div class="form-section-title" style="color: #f57f17; border-color: #ffe0b2;">Costing & Advance</div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Approx Gold Rate (₹/g)</label>
+                        <input type="number" id="oRate" oninput="calcRepairTotal()" style="border-color:#fbc02d; font-weight:bold;">
+                    </div>
+                    <div class="form-group">
+                        <label>Est. Repair Charge (₹)</label>
+                        <input type="number" id="oMaking" value="0" oninput="calcRepairTotal()">
+                    </div>
+                </div>
+
+                <div class="summary-highlight" style="background:#333;">
+                    <div class="summary-row">
+                        <span>Approx Repair Cost:</span>
+                        <span class="summary-val" id="rGrossTotalDisplay" style="color:var(--accent-gold);">₹0</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:#aaa; text-align:right;">*Final bill based on actual gold used.</div>
+                </div>
+
+                <div class="summary-row" style="margin-top:15px; align-items:center; background:rgba(0,0,0,0.05); padding:10px; border-radius:6px;">
+                    <span style="color:#555; font-size:0.85rem; font-weight:bold;">Advance Paid (₹)</span>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="oAdv" placeholder="0" style="width:100px; padding:8px;" oninput="calcRepairTotal()">
+                        <select id="oPayMode" style="width:90px; padding:8px;">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="summary-row" style="margin-top:10px; border-top:2px solid #ddd; padding-top:10px; font-size:1.1rem; font-weight:bold;">
+                    <span id="oPendingLabel">Est. Net Due:</span>
+                    <span class="summary-val" id="oPendingDisplay" style="color:#ff8a65;">₹0</span>
+                </div>
+            </div>
+
+            <input type="hidden" id="oGrandTotalVal">
+
+            <button class="btn-primary" onclick="saveJob()"><i class="fas fa-lock"></i> Create Repair & Print Receipt</button>
+        </div>
+    </div>
+
+    <div id="viewJobModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('viewJobModal')">&times;</button>
+            <h3 style="margin-top:0;">Manage Repair <span id="vOrderId" style="color:var(--active-red);"></span></h3>
+            <input type="hidden" id="vId">
+
+            <div class="tracker">
+                <div class="tracker-step" id="step1">
+                    <div class="tracker-icon"><i class="fas fa-file-alt"></i></div>
+                    <div class="tracker-text">Intake</div>
+                </div>
+                <div class="tracker-step" id="step2">
+                    <div class="tracker-icon"><i class="fas fa-truck-loading"></i></div>
+                    <div class="tracker-text">Karigar</div>
+                </div>
+                <div class="tracker-step" id="step3">
+                    <div class="tracker-icon"><i class="fas fa-box-open"></i></div>
+                    <div class="tracker-text">Ready</div>
+                </div>
+                <div class="tracker-step" id="step4">
+                    <div class="tracker-icon"><i class="fas fa-check"></i></div>
+                    <div class="tracker-text">Delivered</div>
+                </div>
+            </div>
+
+            <div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px; border-left: 4px solid #333;">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div>
+                        <h4 style="margin:0 0 5px 0; font-size:1.2rem;" id="vCustName"></h4>
+                        <p style="margin:0 0 10px 0; font-size:0.9rem; color:#555;"><i class="fas fa-info-circle"></i> <span id="vDesc"></span></p>
+                    </div>
+                    <span id="vStatusBadge" class="badge"></span>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.85rem; background:white; padding:10px; border-radius:6px; margin-bottom:10px; border: 1px solid var(--repair-purple);">
+                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Cust Old Gold In</span><strong id="vRepCustWt" style="color:var(--repair-purple);"></strong></div>
+                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Est. Extra Gold</span><strong id="vRepEstEx" style="color:var(--out-red);"></strong></div>
+                </div>
+
+                <div style="font-size:0.9rem; border-top:1px solid #ddd; padding-top:10px; background: white; padding:10px; border-radius:6px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold;">
+                        <span id="vTotalLabel">Est. Total:</span> <span id="vGrandTotal"></span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <span style="color:#2e7d32;">Advance Paid:</span> <strong id="vAdv" style="color:#2e7d32;"></strong>
+                    </div>
+                </div>
+                
+                <div style="text-align:right; font-size:1.2rem; margin-top:10px; color:#d32f2f; font-weight:bold; background:#ffebee; padding:10px; border-radius:6px;">
+                    <span id="vDueLabel">Net Due:</span> <span id="vDue"></span>
+                </div>
+            </div>
+
+            <div id="addPaySection" style="margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                <h4 style="margin:0 0 10px 0; font-size:0.9rem;">Receive Additional Advance</h4>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="vNewPay" placeholder="Amount (₹)" style="flex:1;">
+                    <select id="vNewPayMode" style="width:100px;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select>
+                    <button class="btn-primary" style="width:auto; margin:0; padding:10px 20px; background:#2e7d32;" onclick="addAdvance()">Add</button>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button class="btn-primary btn-outline" style="margin-top:0;" id="btnWhatsApp" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Send Status</button>
+                <button class="btn-primary btn-outline" style="margin-top:0;" id="btnPrintCustomerReceipt" onclick="printReceiptEngine()"><i class="fas fa-print"></i> Print Receipt</button>
+                
+                <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
+                <button class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print Karigar Issue Slip</button>
+                
+                <button class="btn-primary" style="background:var(--receive-green); margin-top:0; grid-column: span 2;" id="btnReceiveMerchant" onclick="openReceiveModal()"><i class="fas fa-box-open"></i> Receive from Karigar</button>
+                
+                <button class="btn-primary" style="background:#1976d2; margin-top:0; grid-column: span 2;" id="btnGoToSales" onclick="openBillingModal()"><i class="fas fa-desktop"></i> Finalize & Deliver</button>
+
+                <button class="btn-primary" id="btnCancel" style="background:#c62828; margin-top:0; grid-column: span 2;" onclick="openCancelModal()"><i class="fas fa-undo"></i> Cancel Repair & Refund</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="assignModal" class="modal">
+        <div class="modal-content" style="max-width:450px;">
+            <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-truck-loading"></i> Issue to Karigar</h3>
+            
+            <input type="hidden" id="aOrderId">
+            
+            <div class="form-group">
+                <label>Select Karigar / Merchant</label>
+                <select id="aMerchantSelect"></select>
+            </div>
+
+            <div class="form-section" style="border-left: 4px solid var(--merchant-orange); padding:10px 15px;">
+                <div class="audit-box">
+                    <div class="audit-row"><span style="color:#666;">Cust Old Gold Forwarded:</span> <strong id="aRepCustWt">0.000g</strong></div>
+                </div>
+                <div class="form-group">
+                    <label>Shop Fine Gold Issued (24K) (g)</label>
+                    <input type="number" id="aRepShopGold" step="0.001" placeholder="e.g. 2.000" value="0" oninput="toggleRepStockSearch()">
+                    <small style="color:#888;">Leave 0 if sending only customer's old gold.</small>
+                </div>
+                
+                <div class="form-group" id="aRepStockGroup" style="display:none; border-top:1px dashed #ccc; padding-top:10px; margin-top:10px;">
+                    <label style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select 24K/Fine Gold Source (Inventory)</label>
+                    <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;"></select>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
+        </div>
+    </div>
+
+    <div id="receiveModal" class="modal">
+        <div class="modal-content" style="max-width:550px;">
+            <button class="close-btn" onclick="closeModal('receiveModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--receive-green);"><i class="fas fa-box-open"></i> Receive & Finalize</h3>
+            <input type="hidden" id="rOrderId">
+            
+            <div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid var(--receive-green); margin-bottom:15px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="color:#2e7d32; font-weight:bold;">Total 22K Working Metal Issued:</div>
+                    <div id="rIssuedGrossDisplay">0.000 g</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="color:#2e7d32; font-weight:bold;">Total 22K:</div>
+                    <strong id="rIssuedWtDisplay" style="font-size:1.1rem; color:#1b5e20;">0.000 g</strong>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Repair Metal Audit (22K Terms)</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Finished Item Wt (22K) (g)</label>
+                        <input type="number" id="rRepFinished" step="0.001" placeholder="e.g. 5.200" oninput="calcRepairAudit()">
+                    </div>
+                    <div class="form-group">
+                        <label>Raw Metal Returned (22K) (g)</label>
+                        <input type="number" id="rRepRawRet" step="0.001" value="0" oninput="calcRepairAudit()">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Karigar Labor Amount (₹)</label>
+                        <input type="number" id="rRepLabor" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Loss (22K)</label>
+                        <div class="input-group">
+                            <input type="number" id="rRepLossVal" step="0.01" value="0" oninput="calcRepairAudit()">
+                            <select id="rRepLossMode" onchange="calcRepairAudit()"><option value="pct">%</option><option value="gm">g</option></select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background:#f4f6f9; padding:12px; border-radius:8px; border:1px solid #ddd; font-size:0.85rem; margin-top:15px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Total 22K Given:</span><strong id="rAuditGiven">0.000g</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--receive-green);"><span>Total 22K Returned:</span><strong id="rAuditReturned">0.000g</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Allowed Loss (22K):</span><strong id="rAuditAllowedLoss">0.000g</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Actual Loss (22K):</span><strong id="rAuditActualLoss">0.000g</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:6px; padding-top:6px; border-top:1px dashed #ccc;">
+                        <strong>Excess Loss (Shortage):</strong><strong id="rAuditExcessLoss" style="color:var(--out-red);">0.000g</strong>
+                    </div>
+                    <div id="rAuditNotice" style="margin-top:8px; font-size:0.8rem; color:#555;"></div>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Complete Audit & Mark Ready</button>
+        </div>
+    </div>
+
+    <div id="billingModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
+            <h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Deliver Repair</h3>
+            <input type="hidden" id="billOrderId">
+            <input type="hidden" id="billCustId">
+            
+            <div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-user-tag" style="font-size:1.1rem;"></i>
+                    <span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span>
+                </div>
+                <span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed Repair</span>
+            </div>
+            
+            <div class="form-section" style="border-left: 4px solid var(--info-blue);">
+                <div class="audit-box">
+                    <div class="audit-row"><span style="color:#666;">Finished Weight:</span> <strong id="bRepFinWt">0.000g</strong></div>
+                    <div class="audit-row"><span style="color:#666;">Cust Old Gold Deduct:</span> <strong id="bRepCustWt">-0.000g</strong></div>
+                    <div class="audit-row" style="border-top:1px solid #ccc; padding-top:5px;"><span style="color:var(--info-blue); font-weight:bold;">Shop Extra Gold Billable:</span> <strong id="bRepBillableWt" style="color:var(--info-blue);">0.000g</strong></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Final Gold Rate (₹/g)</label><input type="number" id="bRepRate" oninput="calcRepairBill()"></div>
+                    <div class="form-group"><label>Repair Charge (Cust) (₹)</label><input type="number" id="bRepLab" oninput="calcRepairBill()"></div>
+                </div>
+                
+                <div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-top:15px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Total Repair Bill:</span> <strong id="bRepTotal">₹0</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bRepAdv">-₹0</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.2rem;">
+                        <span>Net Due Now:</span> <strong id="bRepNet" style="color:var(--active-red);">₹0</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Receive Final Payment</div>
+                <div class="form-grid">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="billPayAmt">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Mode</label>
+                        <select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select>
+                    </div>
+                </div>
+                <button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button>
+                <div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div>
+                <div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">
+                    Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong>
+                </div>
+            </div>
+
+            <button class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button>
+        </div>
+    </div>
+
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
+            <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Repair</h3>
+            <input type="hidden" id="cOrderId">
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Advance Paid:</span> <strong id="cOrderAdv" style="color:#2e7d32;">₹0</strong></div>
+                <div id="cRepOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--repair-purple); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                    <span>Cust Item Held:</span> <strong id="cRepOldGold">0g</strong>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Refund Advance Cash (₹)</label>
+                <input type="number" id="cRefundAmt">
+            </div>
+            <button class="btn btn-danger" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button>
+        </div>
+    </div>
+
+    <div id="invoice-area"></div>
+    <div id="challan-area"></div>
+    <div id="toast">Message</div>
+
+    <script src="db.js?v=35"></script> 
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function toggleDisplay(id, displayState) { const el = document.getElementById(id); if(el) el.style.display = displayState; }
+        function setText(id, text) { const el = document.getElementById(id); if(el) el.innerText = text; }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            toast.innerText = msg;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+        }
+
+        let allOrders = []; let allCustomers = []; let allMerchants = [];
+        let currentTab = 'pending';
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
+        let billingPayments = []; 
+        let activeJobData = null; 
+
+        window.onload = async function() {
+            const d = new Date(); d.setDate(d.getDate() + 10);
+            if(document.getElementById('oDue')) document.getElementById('oDue').valueAsDate = d;
+            
+            const r = await getSetting('gold_rates'); if(r) goldRates = r;
+
+            let opts = `<option value="24K">24K (Fine)</option><option value="22K">22K</option><option value="18K">18K</option>`;
+            if(goldRates.customPurities) {
+                goldRates.customPurities.forEach(cp => { opts += `<option value="${cp.name}">${cp.name}</option>`; });
+            }
+            if(document.getElementById('aIssuedPurity')) document.getElementById('aIssuedPurity').innerHTML = opts;
+
+            await loadMerchants(); await loadCustomers(); await loadOrders();
+        };
+
+        async function loadMerchants() {
+            allMerchants = await getAllItems('merchants');
+            const sel = document.getElementById('aMerchantSelect');
+            if(sel) {
+                sel.innerHTML = '<option value="">-- Select Karigar --</option>';
+                allMerchants.forEach(m => sel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
+            }
+        }
+
+        async function loadCustomers() { allCustomers = await getAllItems('customers'); }
+
+        async function loadOrders() {
+            const orders = await getAllItems('orders');
+            
+            // Stats Counters
+            let intakeCount = 0;
+            let karigarCount = 0;
+            let readyCount = 0;
+            let overdueCount = 0;
+            let totalAdv = 0;
+
+            const now = new Date(); 
+            now.setHours(0,0,0,0);
+
+            // Filter and Map Repairs
+            allOrders = orders.filter(o => o.jobType === 'Repair').map(o => {
+                const c = allCustomers.find(x => x.id == o.customerId);
+                const status = o.status;
+
+                // 1. Counter Intake (New order, not yet assigned)
+                if (status === 'pending') {
+                    intakeCount++;
+                    totalAdv += (o.advancePaid || 0);
+                    if(new Date(o.dueDate) < now) overdueCount++;
+                }
+                // 2. With Karigar (Assigned to merchant)
+                else if (status === 'in_progress' || status === 'with_karigar') {
+                    karigarCount++;
+                    totalAdv += (o.advancePaid || 0);
+                    if(new Date(o.dueDate) < now) overdueCount++;
+                }
+                // 3. Ready (Work done, awaiting customer)
+                else if (status === 'ready' || status === 'completed') {
+                    readyCount++;
+                    totalAdv += (o.advancePaid || 0);
+                }
+
+                return { ...o, custName: c ? c.name : 'Unknown', custMobile: c ? c.mobile : '' };
+            });
+
+            // Update UI Stats
+            setText('statIntake', intakeCount);
+            setText('statWithKarigar', karigarCount);
+            setText('statReady', readyCount);
+            setText('statOverdue', overdueCount);
+            setText('statAdvance', "₹" + totalAdv.toLocaleString());
+            
+            renderOrders();
+        }
+
+        function switchTab(tab, btn) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderOrders();
+        }
+        function filterOrders() { renderOrders(); }
+
+        function renderOrders() {
+            const container = document.getElementById('orders-list');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            const term = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+            
+          const filtered = allOrders.filter(o => {
+                let matchTab = false;
+                if (currentTab === 'pending') {
+                    // This tab now shows both Counter Intake AND Karigar Pending
+                    matchTab = (o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar');
+                } else if (currentTab === 'completed') {
+                    matchTab = (o.status === 'completed' || o.status === 'ready');
+                } else if (currentTab === 'billed') {
+                    matchTab = (o.status === 'billed' || o.status === 'delivered');
+                } else if (currentTab === 'cancelled') {
+                    matchTab = (o.status === 'cancelled');
+                }
+                
+                const term = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+                const matchSearch = o.custName.toLowerCase().includes(term) || 
+                                   String(o.custMobile).includes(term) || 
+                                   (o.description||'').toLowerCase().includes(term) || 
+                                   String(o.invoiceNo||'').toLowerCase().includes(term);
+                return matchTab && matchSearch;
+            });
+            if(filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: 1/-1;">No repairs found.</div>`;
+                return;
+            }
+
+            filtered.sort((a,b) => {
+                if(currentTab === 'pending') return new Date(a.dueDate) - new Date(b.dueDate);
+                return new Date(b.orderDate) - new Date(a.orderDate);
+            });
+
+            const now = new Date(); now.setHours(0,0,0,0);
+
+            filtered.forEach(o => {
+                const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+                const due = new Date(o.dueDate);
+                let badgeClass = 'b-pending'; let badgeText = 'Pending'; let isOverdue = false;
+
+                if(o.status === 'billed' || o.status === 'delivered') { badgeClass = 'b-billed'; badgeText = 'Delivered'; } 
+                else if(o.status === 'completed' || o.status === 'ready') { badgeClass = 'b-completed'; badgeText = 'Ready'; } 
+                else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
+                else if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                    const mId = o.repairMeta?.merchantId; const m = allMerchants.find(x => x.id == mId);
+                    badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`;
+                } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
+
+                let cardClass = 'type-repair';
+                if (o.status === 'billed' || o.status === 'delivered') cardClass += ' billed';
+                else if (o.status === 'completed' || o.status === 'ready') cardClass += ' completed';
+                else if (o.status === 'cancelled') cardClass += ' cancelled';
+                else if (isOverdue) cardClass += ' overdue';
+                
+                const dateStyle = isOverdue ? 'color:#c62828; font-weight:bold;' : 'color:#333;';
+                const adv = o.advancePaid || 0;
+                
+                const meta = o.repairMeta || {};
+                let base = meta.finalBill || ((meta.estExtraGold||0) * (meta.estRate||0) + (meta.estLabour||0));
+                let netPayable = base - adv;
+                if (o.status === 'billed' || o.status === 'delivered') netPayable = 0; 
+
+                const icon = '<i class="fas fa-tools" style="color:var(--repair-purple);"></i>';
+                let displayWt = `${(meta.custOldWt||0).toFixed(3)}g (In) / ${(meta.estExtraGold||0).toFixed(3)}g (Est.Ex)`;
+
+                container.innerHTML += `
+                    <div class="order-card ${cardClass}">
+                        <div class="o-header">
+                            <div>
+                                <div class="o-cust">${o.custName}</div>
+                                <div style="font-size:0.8rem; color:#888;">${o.custMobile} | <b style="color:var(--repair-purple);">${invoiceNo}</b></div>
+                            </div>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                        </div>
+                        <div class="o-desc">${icon} Repair - ${o.description}</div>
+                        <div class="o-meta">
+                            <div><span>Weight Profile</span><strong>${displayWt}</strong></div>
+                            <div><span>Due Date</span><strong style="${dateStyle}">${due.toLocaleDateString()}</strong></div>
+                            <div><span>Est Rate</span><strong>₹${(meta.estRate || 0)}/g</strong></div>
+                            <div><span>Advance Paid</span><strong style="color:#2e7d32;">₹${adv.toLocaleString()}</strong></div>
+                        </div>
+                        <div class="o-footer">
+                            <span style="font-size:0.85rem; color:#666;">Net Due: <b style="color:${netPayable < 0 ? 'var(--exchange-purple)' : 'var(--active-red)'}; font-size:1.1rem;">₹${Math.abs(netPayable).toLocaleString()}</b></span>
+                            <button class="btn-view" onclick="openViewModal(${o.id})">${(o.status === 'billed' || o.status === 'delivered') ? 'View Details' : 'Manage Repair'}</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- SEARCH LOGIC ---
+        function searchCustomer(inputId, resultsId, hiddenId, displayId) {
+            const term = document.getElementById(inputId).value.toLowerCase();
+            const resultsDiv = document.getElementById(resultsId);
+            resultsDiv.innerHTML = '';
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    div.onclick = () => {
+                        document.getElementById(hiddenId).value = c.id;
+                        document.getElementById(inputId).value = c.name;
+                        resultsDiv.style.display = 'none';
+                        document.getElementById(inputId).style.display = 'none';
+                        const disp = document.getElementById(displayId);
+                        disp.style.display = 'flex';
+                        if(displayId === 'selectedCustDisplay') {
+                             disp.innerHTML = `<span><i class="fas fa-check-circle"></i> Selected: ${c.name}</span> <button class="btn-outline" style="margin:0; padding:2px 6px; font-size:0.8rem; border:none; background:white;" onclick="resetCustSearch('${inputId}', '${hiddenId}', '${displayId}')">Change</button>`;
+                        } else {
+                             document.getElementById('billCustNameText').innerHTML = `${c.name} (${c.mobile})`;
+                        }
+                    };
+                    resultsDiv.appendChild(div);
+                });
+            } else { resultsDiv.style.display = 'none'; }
+        }
+
+        function resetCustSearch(inputId = 'custSearchInput', hiddenId = 'selectedCustId', displayId = 'selectedCustDisplay') {
+            document.getElementById(hiddenId).value = '';
+            document.getElementById(inputId).value = '';
+            document.getElementById(inputId).style.display = 'block';
+            document.getElementById(displayId).style.display = 'none';
+            document.getElementById(inputId).focus();
+        }
+
+        // --- NEW JOB LOGIC ---
+        function openNewJobModal() { 
+            openModal('newJobModal');
+            resetCustSearch();
+            document.getElementById('oDesc').value = ''; 
+            document.getElementById('rCustGold').value = '';
+            document.getElementById('rCustPurity').value = '22';
+            document.getElementById('rEstExtra').value = '';
+            document.getElementById('oRate').value = '';
+            document.getElementById('oMaking').value = 0;
+            document.getElementById('oAdv').value = '';
+            document.getElementById('rGrossTotalDisplay').innerText = '₹0';
+            document.getElementById('oPendingDisplay').innerText = '₹0';
+            
+            // Auto fill approx rate based on 22k
+            if(goldRates && goldRates.rate22k) {
+                document.getElementById('oRate').value = Math.round(goldRates.rate22k / 10);
+            }
+        }
+
+        function calcRepairTotal() {
+            const estEx = parseFloat(document.getElementById('rEstExtra').value) || 0;
+            const rate = parseFloat(document.getElementById('oRate').value) || 0;
+            const lab = parseFloat(document.getElementById('oMaking').value) || 0;
+            
+            const approxTotal = (estEx * rate) + lab;
+            document.getElementById('rGrossTotalDisplay').innerText = "₹" + Math.round(approxTotal).toLocaleString();
+            document.getElementById('oGrandTotalVal').value = Math.round(approxTotal);
+
+            const adv = parseFloat(document.getElementById('oAdv').value) || 0;
+            const pending = approxTotal - adv;
+
+            const pendingEl = document.getElementById('oPendingDisplay');
+            if(pending < 0) {
+                pendingEl.innerText = "₹" + Math.abs(pending).toLocaleString() + " (Refund)";
+                pendingEl.style.color = "var(--exchange-purple)";
+                document.getElementById('oPendingLabel').innerText = "Est. Refund Due:";
+            } else {
+                pendingEl.innerText = "₹" + pending.toLocaleString();
+                pendingEl.style.color = "#ff8a65";
+                document.getElementById('oPendingLabel').innerText = "Est. Net Payable:";
+            }
+        }
+
+        async function saveJob() {
+            const custId = document.getElementById('selectedCustId').value;
+            const desc = document.getElementById('oDesc').value;
+            
+            if(!custId) return showToast("Select a Customer", "error");
+            if(!desc) return showToast("Enter Description", "error");
+
+            let jobObj = {
+                jobType: 'Repair',
+                customerId: parseInt(custId),
+                orderDate: new Date().toISOString(),
+                dueDate: new Date(document.getElementById('oDue').value).toISOString(),
+                description: desc, 
+                category: 'Repair', 
+                status: 'pending', // Pending/Intake
+                advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
+                payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
+                repairMeta: {
+                    custOldWt: parseFloat(document.getElementById('rCustGold').value) || 0,
+                    custOldPurity: parseInt(document.getElementById('rCustPurity').value) || 22,
+                    estExtraGold: parseFloat(document.getElementById('rEstExtra').value) || 0,
+                    estRate: parseFloat(document.getElementById('oRate').value) || 0,
+                    estLabour: parseFloat(document.getElementById('oMaking').value) || 0,
+                    merchantId: null, shopGoldIssued: 0, sourceStockId: null,
+                    finishedWt: 0, rawReturned: 0, karigarLabour: 0, allowedLoss: 0, actualLoss: 0, excessLoss: 0,
+                    finalRate: 0, finalCustLabour: 0, finalBill: 0,
+                    issuedDate: null, auditDate: null
+                }
+            };
+
+            const orderId = await addItem('orders', jobObj);
+            const invoiceNo = 'ORD-INVR' + String(orderId).padStart(3, '0');
+            
+            const db = await dbPromise;
+            const tx = db.transaction('orders', 'readwrite');
+            const req = tx.objectStore('orders').get(orderId);
+            req.onsuccess = async (e) => {
+                let o = e.target.result;
+                o.invoiceNo = invoiceNo;
+                tx.objectStore('orders').put(o);
+                
+                if(jobObj.advancePaid > 0) {
+                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Repair Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
+                }
+                
+                showToast(`Repair Logged Successfully!`, "success"); 
+                closeModal('newJobModal'); 
+                loadOrders();
+            };
+        }
+
+        // --- VIEW / MANAGE JOB ---
+        function openViewModal(id) {
+            const o = allOrders.find(x => x.id === id);
+            if(!o) return;
+            activeJobData = o;
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+
+            document.getElementById('vId').value = o.id;
+            setText('vOrderId', `${invoiceNo}`);
+            setText('vCustName', o.custName);
+            setText('vDesc', `Repair - ${o.description}`);
+            
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
+            
+            const badge = document.getElementById('vStatusBadge');
+            if (badge) {
+                if(o.status === 'billed' || o.status === 'delivered') { 
+                    badge.className = 'badge b-billed'; badge.innerText = 'Delivered'; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('done'); document.getElementById('step4').classList.add('done');
+                } else if(o.status === 'completed' || o.status === 'ready') { 
+                    badge.className = 'badge b-completed'; badge.innerText = 'Ready'; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('active'); 
+                } else if(o.status === 'cancelled') { 
+                    badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
+                } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
+                    const mId = o.repairMeta?.merchantId;
+                    const m = allMerchants.find(x => x.id == mId); 
+                    badge.className = 'badge b-assigned'; badge.innerHTML = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('active');
+                } else { 
+                    badge.className = 'badge b-pending'; badge.innerText = 'Intake'; 
+                    document.getElementById('step1').classList.add('active');
+                }
+            }
+
+            const meta = o.repairMeta || {};
+            const displayPurity = meta.custOldPurity ? `${meta.custOldPurity}K` : '22K';
+            setText('vRepCustWt', `${(meta.custOldWt||0).toFixed(3)}g (${displayPurity})`);
+            setText('vRepEstEx', (meta.estExtraGold||0).toFixed(3) + 'g');
+            
+            const adv = o.advancePaid || 0;
+            let base = meta.finalBill || ((meta.estExtraGold||0) * (meta.estRate||0) + (meta.estLabour||0));
+            
+            setText('vTotalLabel', (o.status === 'completed' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered') ? "Final Total:" : "Est. Total:");
+            setText('vGrandTotal', "₹" + Math.round(base).toLocaleString());
+            setText('vAdv', "-₹" + adv.toLocaleString());
+
+            let pending = base - adv;
+            if(o.status === 'billed' || o.status === 'delivered') pending = 0;
+            updateDueUI(pending, o.status);
+
+            const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
+            
+            toggleDisplay('addPaySection', isDone ? 'none' : 'block');
+            toggleDisplay('btnCancel', isDone ? 'none' : 'block');
+            
+            if (isDone) {
+                toggleDisplay('btnForwardMerchant', 'none');
+                toggleDisplay('btnPrintKarigarSlip', 'none');
+                toggleDisplay('btnReceiveMerchant', 'none');
+                toggleDisplay('btnGoToSales', (o.status === 'completed' || o.status === 'ready') ? 'flex' : 'none');
+            } else {
+                toggleDisplay('btnGoToSales', 'none');
+                if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                    toggleDisplay('btnForwardMerchant', 'none');
+                    toggleDisplay('btnPrintKarigarSlip', 'block');
+                    toggleDisplay('btnReceiveMerchant', 'block');
+                } else {
+                    toggleDisplay('btnForwardMerchant', 'block');
+                    toggleDisplay('btnPrintKarigarSlip', 'none');
+                    toggleDisplay('btnReceiveMerchant', 'none');
+                }
+            }
+
+            openModal('viewJobModal');
+        }
+
+        function updateDueUI(pending, status) {
+            const vDueLabel = document.getElementById('vDueLabel');
+            const vDue = document.getElementById('vDue');
+            if (pending < 0) {
+                vDueLabel.innerText = "Refund Due:";
+                vDue.innerText = "₹" + Math.abs(pending).toLocaleString();
+                vDue.style.color = "var(--exchange-purple)";
+            } else if (pending === 0 && (status === 'billed' || status === 'delivered')) {
+                vDueLabel.innerText = "Settled:";
+                vDue.innerText = "₹0";
+                vDue.style.color = "var(--receive-green)";
+            } else {
+                vDueLabel.innerText = "Net Due:";
+                vDue.innerText = "₹" + Math.round(pending).toLocaleString();
+                vDue.style.color = "#d32f2f";
+            }
+        }
+
+        async function addAdvance() {
+            const id = parseInt(document.getElementById('vId').value);
+            const amt = parseFloat(document.getElementById('vNewPay').value);
+            const mode = document.getElementById('vNewPayMode').value;
+            if(!amt || amt <= 0) return showToast("Enter valid amount", "error");
+
+            const db = await dbPromise;
+            const tx = db.transaction('orders', 'readwrite');
+            const store = tx.objectStore('orders');
+
+            store.get(id).onsuccess = async (e) => {
+                const o = e.target.result;
+                const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+
+                o.advancePaid = (o.advancePaid || 0) + amt;
+                if(!o.payments) o.payments = [];
+                o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
+                store.put(o);
+
+                await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: mode, category: 'Repair Payment', amount: amt, note: `Payment for ${invoiceNo}` });
+                showToast("Payment Added!", "success"); document.getElementById('vNewPay').value = ''; closeModal('viewJobModal'); loadOrders();
+            };
+        }
+
+        // --- STEP 1: ASSIGN TO MERCHANT (24K LEDGER MATH UPDATED) ---
+        function openAssignModal() {
+            const o = activeJobData;
+            document.getElementById('aOrderId').value = o.id;
+
+            const meta = o.repairMeta || {};
+            const displayPurity = meta.custOldPurity ? `${meta.custOldPurity}K` : '22K';
+            document.getElementById('aRepCustWt').innerText = `${(meta.custOldWt||0).toFixed(3)}g (${displayPurity})`;
+            
+            document.getElementById('aRepShopGold').value = 0;
+            document.getElementById('aRepStockGroup').style.display = 'none';
+            populateRepSourceDropdown(); 
+            
+            closeModal('viewJobModal'); openModal('assignModal');
+        }
+
+        async function populateRepSourceDropdown() {
+            const sel = document.getElementById('aRepSourceSelect');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- Select Inventory Source --</option>';
+            
+            const inventory = await getAllItems('inventory');
+            const merchants = await getAllItems('merchants');
+            const merchMap = {}; merchants.forEach(m => merchMap[m.id] = m.name);
+
+            inventory.filter(i => i.status === 'stock' && i.netWt > 0).forEach(i => {
+                if(i.purity === '24K' || (i.category && i.category.toUpperCase().includes('FINE')) || (i.category && i.category.toUpperCase() === 'MIX')) {
+                    let mName = i.merchantId ? merchMap[i.merchantId] : 'Shop Stock';
+                    sel.innerHTML += `<option value="${i.id}">${i.barcode} | ${i.purity} | ${i.netWt}g [From: ${mName}]</option>`;
+                }
+            });
+        }
+
+        function toggleRepStockSearch() {
+            const val = parseFloat(document.getElementById('aRepShopGold').value) || 0;
+            document.getElementById('aRepStockGroup').style.display = val > 0 ? 'block' : 'none';
+        }
+
+        async function confirmAssignOrder() {
+            const oId = parseInt(document.getElementById('aOrderId').value);
+            const mId = document.getElementById('aMerchantSelect').value;
+            if(!mId) return showToast("Select a Karigar", "error");
+
+            const o = activeJobData;
+            o.status = 'with_karigar';
+
+            if(!o.repairMeta) o.repairMeta = {};
+            o.repairMeta.issuedDate = new Date().toISOString(); 
+            
+            let metalAddedToKarigar = 0;
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'inventory'], 'readwrite');
+
+            const sGold = parseFloat(document.getElementById('aRepShopGold').value) || 0; // This is 24K
+            const stockId = document.getElementById('aRepSourceSelect').value;
+            
+            if (sGold > 0 && !stockId) return showToast("Select a Fine Gold Source to deduct from.", "error");
+
+            o.repairMeta.merchantId = parseInt(mId);
+            o.repairMeta.shopGoldIssued = sGold;
+            o.repairMeta.sourceStockId = stockId; 
+
+            // Ledger Logic: Dynamically Convert Customer Gold to 24K Equivalent based on selected Karat
+            const custKarat = o.repairMeta.custOldPurity || 22;
+            const cust24kEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / 24);
+            // Add exactly 24K values to Karigar ledger
+            metalAddedToKarigar = cust24kEquivalent + sGold;
+
+            // Deduct Shop Gold from Inventory exactly as requested
+            if (sGold > 0) {
+                let invReq = tx.objectStore('inventory').get(parseInt(stockId));
+                invReq.onsuccess = (e) => {
+                    let item = e.target.result;
+                    if(item) {
+                        item.netWt -= sGold;
+                        item.grossWt -= sGold;
+                        item.weight = item.netWt;
+                        if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; }
+                        tx.objectStore('inventory').put(item);
+                    }
+                }
+            }
+
+            tx.objectStore('orders').put(o);
+
+            if (metalAddedToKarigar > 0) {
+                const mStore = tx.objectStore('merchants');
+                mStore.get(parseInt(mId)).onsuccess = (e) => {
+                    const m = e.target.result;
+                    m.goldBalance = (parseFloat(m.goldBalance)||0) + metalAddedToKarigar;
+                    mStore.put(m);
+                };
+            }
+
+            tx.oncomplete = () => { showToast("Issued to Karigar!", "success"); closeModal('assignModal'); loadOrders(); };
+        }
+
+        // --- STEP 2: RECEIVE & AUDIT (24K LEDGER MATH UPDATED) ---
+        function openReceiveModal() {
+            const o = activeJobData;
+            document.getElementById('rOrderId').value = o.id;
+            
+            // Convert whatever Karat the customer gave into the 22K working base
+            const custKarat = o.repairMeta.custOldPurity || 22;
+            const custOld22K = (o.repairMeta.custOldWt || 0) * (custKarat / 22);
+            
+            const shop24K = (o.repairMeta?.shopGoldIssued || 0);
+            const shop22KEquiv = shop24K * (24 / 22);
+            const totalIssued22K = custOld22K + shop22KEquiv;
+            
+            document.getElementById('rIssuedGrossDisplay').innerText = `Cust(22K Eqv): ${custOld22K.toFixed(3)}g + Shop(22K Eqv): ${shop22KEquiv.toFixed(3)}g`;
+            document.getElementById('rIssuedWtDisplay').innerText = `${totalIssued22K.toFixed(3)} g (22K)`;
+            
+            document.getElementById('rRepFinished').value = '';
+            document.getElementById('rRepRawRet').value = 0;
+            document.getElementById('rRepLabor').value = '';
+            document.getElementById('rRepLossVal').value = 0;
+            document.getElementById('rRepLossMode').value = 'pct';
+            
+            calcRepairAudit(); 
+            closeModal('viewJobModal'); openModal('receiveModal');
+        }
+
+        function calcRepairAudit() {
+            const o = activeJobData;
+            
+            // Convert whatever Karat the customer gave into the 22K working base
+            const custKarat = o.repairMeta.custOldPurity || 22;
+            const custOld22K = (o.repairMeta.custOldWt || 0) * (custKarat / 22);
+            
+            const shop24K = (o.repairMeta?.shopGoldIssued || 0);
+            const shop22KEquiv = shop24K * (24 / 22);
+            const totalIssued22K = custOld22K + shop22KEquiv;
+            
+            const finW = parseFloat(document.getElementById('rRepFinished').value) || 0;
+            const retW = parseFloat(document.getElementById('rRepRawRet').value) || 0;
+            
+            const totalReturned22K = finW + retW;
+            const actualLoss22K = Math.max(0, totalIssued22K - totalReturned22K);
+
+            const lossVal = parseFloat(document.getElementById('rRepLossVal').value) || 0;
+            const lossMode = document.getElementById('rRepLossMode').value;
+            let allowedLoss22K = 0;
+
+            if (lossMode === 'pct') {
+                allowedLoss22K = totalIssued22K * (lossVal / 100);
+            } else {
+                allowedLoss22K = lossVal;
+            }
+
+            const excessLoss22K = Math.max(0, actualLoss22K - allowedLoss22K);
+            const excessLoss24K = excessLoss22K * (22 / 24); // To show Karigar ledger impact
+
+            document.getElementById('rAuditGiven').innerText = totalIssued22K.toFixed(3) + 'g';
+            document.getElementById('rAuditReturned').innerText = totalReturned22K.toFixed(3) + 'g';
+            document.getElementById('rAuditActualLoss').innerText = actualLoss22K.toFixed(3) + 'g';
+            document.getElementById('rAuditAllowedLoss').innerText = allowedLoss22K.toFixed(3) + 'g';
+            
+            const excessEl = document.getElementById('rAuditExcessLoss');
+            excessEl.innerText = excessLoss22K.toFixed(3) + 'g (22K) -> ' + excessLoss24K.toFixed(3) + 'g (24K)';
+            
+            if (excessLoss22K > 0) {
+                excessEl.style.color = 'var(--out-red)';
+                document.getElementById('rAuditNotice').innerHTML = `<i class="fas fa-exclamation-triangle" style="color:var(--out-red);"></i> ${excessLoss24K.toFixed(3)}g (24K) shortage will remain on Karigar's balance.`;
+            } else {
+                excessEl.style.color = 'var(--receive-green)';
+                document.getElementById('rAuditNotice').innerHTML = `<i class="fas fa-check-circle" style="color:var(--receive-green);"></i> Loss is within allowed limits.`;
+            }
+        }
+
+        async function confirmReceiveOrder() {
+            const o = activeJobData;
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'inventory', 'merchant_payments'], 'readwrite');
+
+            const finW = parseFloat(document.getElementById('rRepFinished').value) || 0;
+            const retW = parseFloat(document.getElementById('rRepRawRet').value) || 0;
+            const lab = parseFloat(document.getElementById('rRepLabor').value) || 0;
+            const lossVal = parseFloat(document.getElementById('rRepLossVal').value) || 0;
+            const lossMode = document.getElementById('rRepLossMode').value;
+
+            if(finW <= 0) return showToast("Enter Finished Weight", "error");
+
+            // Convert whatever Karat the customer gave into the 22K working base
+            const custKarat = o.repairMeta.custOldPurity || 22;
+            const custOld22K = (o.repairMeta.custOldWt || 0) * (custKarat / 22);
+            
+            const shop24K = (o.repairMeta?.shopGoldIssued || 0);
+            const shop22KEquiv = shop24K * (24 / 22);
+            const totalIssued22K = custOld22K + shop22KEquiv;
+            
+            let allowedLoss22K = lossMode === 'pct' ? totalIssued22K * (lossVal / 100) : lossVal;
+            const totalReturned22K = finW + retW;
+            const actualLoss22K = Math.max(0, totalIssued22K - totalReturned22K);
+            const excessLoss22K = Math.max(0, actualLoss22K - allowedLoss22K);
+
+            o.status = 'ready';
+            o.repairMeta.finishedWt = finW; 
+            o.repairMeta.rawReturned = retW; 
+            o.repairMeta.karigarLabour = lab;
+            o.repairMeta.allowedLoss = allowedLoss22K;
+            o.repairMeta.actualLoss = actualLoss22K;
+            o.repairMeta.excessLoss = excessLoss22K;
+            o.repairMeta.auditDate = new Date().toISOString();
+            
+            tx.objectStore('orders').put(o);
+
+            // Convert 22K Returns back to 24K Equivalent to clear the Ledger
+            const finW24K = finW * (22 / 24);
+            const retW24K = retW * (22 / 24);
+            const allowedLoss24K = allowedLoss22K * (22 / 24);
+
+            // Merchant Ledger Update - Deduct returned AND allowed loss in 24K terms
+            const mStore = tx.objectStore('merchants');
+            mStore.get(o.repairMeta.merchantId).onsuccess = (e) => {
+                const m = e.target.result;
+                m.goldBalance = (parseFloat(m.goldBalance)||0) - (finW24K + retW24K + allowedLoss24K); 
+                m.balance = (parseFloat(m.balance)||0) + lab;
+                mStore.put(m);
+            };
+
+            // Add returned raw metal to inventory (Tagging as 22K)
+            if (retW > 0) {
+                const barcode = await generateBarcode('RAW-RET');
+                tx.objectStore('inventory').add({
+                    barcode: barcode, category: 'Raw Metal Returned', name: `From Repair #${o.id}`, purity: '22K',
+                    grossWt: retW, stoneWt: 0, netWt: retW, weight: retW, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
+                });
+            }
+
+            tx.objectStore('merchant_payments').add({
+                merchantId: o.repairMeta.merchantId, amount: lab, gold: -(finW24K + retW24K + allowedLoss24K), goldType: 'unfixed', metal: 'Gold', paymentType: 'OUT',
+                date: new Date().toISOString(), mode: 'System Audit', note: `Audit Settled Rep #${o.id} (Lab: ${lab})`
+            });
+
+            tx.oncomplete = () => { showToast("Audit Complete!", "success"); closeModal('receiveModal'); loadOrders(); };
+        }
+
+        // --- STEP 3: FINAL CHECKOUT / BILLING ---
+        function openBillingModal() {
+            const o = activeJobData;
+            document.getElementById('billOrderId').value = o.id;
+            document.getElementById('billCustId').value = o.customerId;
+            document.getElementById('billCustNameText').innerText = o.custName;
+            
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+            document.getElementById('billInvoiceBadge').innerText = invoiceNo;
+
+            const meta = o.repairMeta || {};
+            // Customer billing is primarily weight-based (what is handed over vs received)
+            const shopGoldUsed = Math.max(0, meta.finishedWt - meta.custOldWt);
+            
+            document.getElementById('bRepFinWt').innerText = meta.finishedWt.toFixed(3) + 'g';
+            document.getElementById('bRepCustWt').innerText = '-' + meta.custOldWt.toFixed(3) + 'g';
+            document.getElementById('bRepBillableWt').innerText = shopGoldUsed.toFixed(3) + 'g';
+            
+            document.getElementById('bRepRate').value = meta.estRate;
+            document.getElementById('bRepLab').value = meta.estLabour;
+            
+            calcRepairBill();
+
+            billingPayments = []; renderBillPayments();
+            closeModal('viewJobModal'); openModal('billingModal');
+        }
+
+        function calcRepairBill() {
+            const o = activeJobData;
+            const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
+            const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
+            const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+            
+            const total = Math.round((shopGoldUsed * rate) + lab);
+            const adv = o.advancePaid || 0;
+            const netDue = total - adv;
+
+            document.getElementById('bRepTotal').innerText = "₹" + total.toLocaleString();
+            document.getElementById('bRepAdv').innerText = "-₹" + adv.toLocaleString();
+            
+            const bRepNetEl = document.getElementById('bRepNet');
+            if (netDue < 0) {
+                // Customer overpaid, show refund amount
+                bRepNetEl.innerText = "₹" + Math.abs(netDue).toLocaleString() + " (Refund Due)";
+                bRepNetEl.style.color = "var(--repair-purple)";
+            } else {
+                bRepNetEl.innerText = "₹" + netDue.toLocaleString();
+                bRepNetEl.style.color = "var(--active-red)";
+            }
+            
+            renderBillPayments(); 
+        }
+
+        function addBillPayment() {
+            const amt = parseFloat(document.getElementById('billPayAmt').value);
+            const mode = document.getElementById('billPayMode').value;
+            if(!amt || amt <= 0) return showToast("Enter a valid payment amount", "error");
+            billingPayments.push({ mode: mode, amount: amt });
+            document.getElementById('billPayAmt').value = '';
+            renderBillPayments();
+        }
+
+        function renderBillPayments() {
+            const d = document.getElementById('billPayList'); 
+            d.innerHTML = ''; let paidNow = 0;
+            billingPayments.forEach((p, idx) => {
+                paidNow += p.amount;
+                d.innerHTML += `<div style="display:flex; justify-content:space-between; background:#e0e0e0; padding:8px 12px; border-radius:6px; font-size:0.9rem; border: 1px solid #ccc;">
+                    <span><i class="fas fa-money-check-alt"></i> ${p.mode}</span>
+                    <span>₹${p.amount.toLocaleString()} <i class="fas fa-trash" style="margin-left:10px; color:#d32f2f; cursor:pointer;" onclick="billingPayments.splice(${idx},1); renderBillPayments();"></i></span>
+                </div>`;
+            });
+
+            const o = activeJobData;
+            const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
+            const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
+            const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+            const netDue = Math.round((shopGoldUsed * rate) + lab) - (o.advancePaid || 0);
+            
+            const remaining = netDue - paidNow;
+            const remEl = document.getElementById('billRemainingDue');
+
+            if (remaining < 0) {
+                remEl.innerText = "₹" + Math.abs(remaining).toLocaleString() + " (Refund to Customer)";
+                remEl.style.color = "var(--repair-purple)";
+            } else {
+                remEl.innerText = "₹" + remaining.toLocaleString();
+                remEl.style.color = "var(--active-red)";
+            }
+        }
+
+        async function confirmFinalBill() {
+            const o = activeJobData;
+            const finalCustId = document.getElementById('billCustId').value;
+            if(!finalCustId) return showToast("Select customer.", "error");
+
+            const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'sales', 'cashflow'], 'readwrite');
+            
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+            o.invoiceNo = invoiceNo; 
+
+            const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
+            const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
+            const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+            const finalBill = Math.round((shopGoldUsed * rate) + lab);
+
+            // Calculate if a refund is owed
+            let totalReceived = (o.advancePaid || 0) + newlyPaid;
+            let refundAmount = 0;
+            if (totalReceived > finalBill) {
+                refundAmount = totalReceived - finalBill;
+            }
+
+            o.status = 'delivered'; o.repairMeta.finalRate = rate; o.repairMeta.finalCustLabour = lab; o.repairMeta.finalBill = finalBill;
+            o.grandTotal = finalBill; o.customerId = parseInt(finalCustId);
+            if(!o.payments) o.payments = []; o.payments.push(...billingPayments);
+            
+            // Mark refunded amount in the order
+            if (refundAmount > 0) {
+                o.refundedAmount = (o.refundedAmount || 0) + refundAmount;
+            }
+            
+            tx.objectStore('orders').put(o);
+            
+            tx.objectStore('sales').add({
+                date: new Date().toISOString(), customerId: parseInt(finalCustId), jobType: 'Repair',
+                invoiceNo: invoiceNo, orderId: o.id,
+                items: [{ id: 'rep_'+o.id, category: 'Repair Service', purity: '-', weight: shopGoldUsed, rate: rate, makingAmount: lab, total: finalBill }],
+                subTotal: finalBill, discount: 0, gst: 0, oldGoldDeduction: 0, grandTotal: finalBill,
+                paidAmount: finalBill, // Log the exact amount applied to the bill
+                pendingAmount: Math.max(0, finalBill - totalReceived),
+                status: 'completed'
+            });
+
+            billingPayments.forEach(p => {
+                tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Repair Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}` });
+            });
+
+            // Automatically register cash leaving the shop for the refund
+            if (refundAmount > 0) {
+                tx.objectStore('cashflow').add({ 
+                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash', 
+                    category: 'Repair Excess Refund', amount: refundAmount, note: `Refunded excess advance for ${invoiceNo}` 
+                });
+            }
+
+            tx.oncomplete = () => { showToast("Repair Billed & Refund Managed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders(); };
+        }
+
+        // --- CANCELLATION ENGINE ---
+        function openCancelModal() {
+            const o = activeJobData;
+            document.getElementById('cOrderId').value = o.id;
+            document.getElementById('cOrderAdv').innerText = "₹" + (o.advancePaid || 0).toLocaleString();
+            document.getElementById('cRefundAmt').value = o.advancePaid || 0;
+            document.getElementById('cRepOldGold').innerText = `${o.repairMeta?.custOldWt || 0}g`;
+            closeModal('viewJobModal'); openModal('cancelModal');
+        }
+
+        async function confirmCancelOrder() {
+            const o = activeJobData;
+            const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+            
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'cashflow', 'inventory'], 'readwrite');
+            
+            o.status = 'cancelled'; o.refundedAmount = refundAmt;
+            tx.objectStore('orders').put(o);
+            
+            if(refundAmt > 0) {
+                tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
+            }
+            if ((o.advancePaid || 0) > 0) {
+                tx.objectStore('cashflow').add({ date: o.orderDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
+            }
+
+            if(o.status === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
+                 const custKarat = o.repairMeta.custOldPurity || 22;
+                 const cust24kEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / 24);
+                 const totalIssued24K = cust24kEquivalent + (o.repairMeta.shopGoldIssued || 0);
+                 
+                 let mReq = tx.objectStore('merchants').get(parseInt(o.repairMeta.merchantId));
+                 mReq.onsuccess = (ev) => { const m = ev.target.result; if(m) { m.goldBalance = (m.goldBalance || 0) - totalIssued24K; tx.objectStore('merchants').put(m); } };
+                 
+                 if (o.repairMeta.shopGoldIssued > 0 && o.repairMeta.sourceStockId) {
+                     let invReq = tx.objectStore('inventory').get(parseInt(o.repairMeta.sourceStockId));
+                     invReq.onsuccess = (ev) => {
+                         let item = ev.target.result;
+                         if(item) {
+                             item.netWt += o.repairMeta.shopGoldIssued;
+                             item.grossWt += o.repairMeta.shopGoldIssued;
+                             item.weight = item.netWt;
+                             item.status = 'stock';
+                             tx.objectStore('inventory').put(item);
+                         }
+                     }
+                 }
+            }
+
+            tx.oncomplete = () => { showToast("Repair Cancelled & Refunded!", "success"); closeModal('cancelModal'); loadOrders(); };
+        }
+
+        // --- PRINT ENGINE ---
+        function printReceiptEngine(targetId = null) {
+            const o = targetId ? allOrders.find(x => x.id === targetId) : activeJobData;
+            if(!o) return;
+            const isFinal = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered');
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+
+            let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 400px; margin: 0 auto; font-family:monospace;">
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0;">BHARTI JEWELLERS</h2>
+                    <h3 style="margin:5px 0 0 0;">${isFinal ? 'TAX INVOICE' : 'ESTIMATE'} (REPAIR)</h3>
+                    <div style="font-size:15px; margin-top:6px; font-weight:bold; color:#1565c0;">Invoice No: ${invoiceNo}</div>
+                </div>
+                <b>Customer:</b> ${o.custName}<br><b>Item:</b> ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
+            
+            const meta = o.repairMeta || {};
+            if(!isFinal) {
+                html += `<table style="width:100%; margin-top:15px;">
+                    <tr><td>Old Gold Recv:</td><td style="text-align:right"><b>${(meta.custOldWt||0).toFixed(3)}g</b></td></tr>
+                    <tr><td>Est Extra Needed:</td><td style="text-align:right"><b>${(meta.estExtraGold||0).toFixed(3)}g</b></td></tr>
+                </table><hr style="border-top:1px dashed #000;">
+                <table style="width:100%;">
+                    <tr><td>Est Gold Cost (@₹${meta.estRate}):</td><td style="text-align:right">₹${Math.round((meta.estExtraGold||0)*(meta.estRate||0))}</td></tr>
+                    <tr><td>Est Repair Charge:</td><td style="text-align:right">₹${meta.estLabour}</td></tr>
+                </table><hr style="border-top:2px solid #000;">
+                <div style="display:flex; justify-content:space-between; font-size:16px;"><b>Total Est Cost:</b><b>₹${Math.round(((meta.estExtraGold||0)*(meta.estRate||0))+(meta.estLabour||0))}</b></div>`;
+            } else {
+                const shopGoldUsed = Math.max(0, meta.finishedWt - meta.custOldWt);
+                html += `<table style="width:100%; margin-top:15px;">
+                    <tr><td>Finished Weight:</td><td style="text-align:right"><b>${(meta.finishedWt||0).toFixed(3)}g</b></td></tr>
+                    <tr><td>Less Old Gold:</td><td style="text-align:right"><b>-${(meta.custOldWt||0).toFixed(3)}g</b></td></tr>
+                    <tr><td><b>Net Gold Added:</b></td><td style="text-align:right"><b>${shopGoldUsed.toFixed(3)}g</b></td></tr>
+                </table><hr style="border-top:1px dashed #000;">
+                <table style="width:100%;">
+                    <tr><td>Gold Cost (@₹${meta.finalRate}):</td><td style="text-align:right">₹${Math.round(shopGoldUsed*meta.finalRate)}</td></tr>
+                    <tr><td>Repair Charge:</td><td style="text-align:right">₹${meta.finalCustLabour}</td></tr>
+                </table><hr style="border-top:2px solid #000;">
+                <div style="display:flex; justify-content:space-between; font-size:18px;"><b>Final Bill:</b><b>₹${meta.finalBill}</b></div>`;
+            }
+            
+            html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div>`;
+            
+            // Add refund string to print layout if refund is issued
+            if (isFinal && o.advancePaid > meta.finalBill) {
+                html += `<div style="font-weight:bold; color:#d32f2f;">Cash Refunded: ₹${o.advancePaid - meta.finalBill}</div>`;
+            }
+            
+            html += `</div>`;
+            document.getElementById('invoice-area').innerHTML = html;
+            window.print();
+        }
+
+        function printKarigarSlip() {
+            const o = activeJobData;
+            if(!o) return;
+            const mId = o.repairMeta?.merchantId;
+            const m = allMerchants.find(x => x.id == mId);
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+            
+            document.getElementById('chKarigarName').innerText = m ? m.name : 'Unknown';
+            document.getElementById('chDate').innerText = new Date().toLocaleDateString();
+            document.getElementById('chOrderId').innerText = invoiceNo;
+            document.getElementById('chDueDate').innerText = new Date(o.dueDate).toLocaleDateString();
+            
+            document.getElementById('chItemBody').innerHTML = `
+                <tr>
+                    <td style="border: 1px solid #000; padding: 8px;"><b>Repair: ${o.category}</b><br><small>${o.description}</small></td>
+                    <td style="border: 1px solid #000; padding: 8px;">-</td>
+                    <td style="border: 1px solid #000; padding: 8px;">-</td>
+                </tr>
+            `;
+            
+            // Working metal is printed on the slip as 22K
+            const custKarat = o.repairMeta.custOldPurity || 22;
+            const custOld22K = (o.repairMeta.custOldWt || 0) * (custKarat / 22);
+            
+            const shop24K = (o.repairMeta?.shopGoldIssued || 0);
+            const shop22KEquiv = shop24K * (24 / 22);
+            const totalIssued22K = custOld22K + shop22KEquiv;
+
+            document.getElementById('chIssuedGross').innerText = totalIssued22K.toFixed(3);
+            document.getElementById('chIssuedPurity').innerText = "22K Working Metal";
+            document.getElementById('chIssuedWt').innerText = "-";
+            
+            window.print();
+        }
+
+        function sendWhatsApp() {
+            const o = activeJobData;
+            if(!o || !o.custMobile) return showToast("No mobile number found for this customer.", "error");
+            
+            let grandTotal = o.repairMeta.finalBill || ((o.repairMeta.estExtraGold||0) * (o.repairMeta.estRate||0) + (o.repairMeta.estLabour||0));
+            const adv = o.advancePaid || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+            
+            let netDue = grandTotal - adv;
+            if (o.status === 'billed' || o.status === 'delivered') netDue = 0;
+
+            let msg = `Hello ${o.custName},\n\nYour repair for *${o.description}* (Ref: ${invoiceNo}) is ${o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar' ? 'currently being processed' : 'Ready for pickup!'}.\n\n`;
+            msg += `Repair Total: Rs. ${Math.round(grandTotal).toLocaleString()}\n`;
+            if (adv > 0) msg += `Advance Paid: -Rs. ${adv.toLocaleString()}\n`;
+            msg += `---------------------\n`;
+            if (netDue < 0) msg += `*Refund Due: Rs. ${Math.abs(netDue).toLocaleString()}*\n\n`;
+            else if (netDue === 0 && (o.status === 'billed' || o.status === 'delivered')) msg += `*Bill fully paid.*\n\n`;
+            else msg += `*Pending Balance: Rs. ${Math.round(netDue).toLocaleString()}*\n\n`;
+            msg += `Thank you,\n*Bharti Jewellers*`;
+            
+            let phone = o.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>

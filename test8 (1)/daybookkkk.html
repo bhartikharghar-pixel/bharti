@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daybook (Rojmel) - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a;
+            --in-green: #2e7d32; --out-red: #c62828; --info-blue: #1976d2;
+            --old-gold: #8e24aa;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            --card-hover: 0 8px 20px rgba(197, 160, 89, 0.15);
+        }
+
+        /* --- GLOBAL STYLES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; font-size: 0.9rem; color: #333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- HEADER & SIDEBAR --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1;}
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 5px solid #fff; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- DAYBOOK LAYOUT --- */
+        .app-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+        
+        .top-controls { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
+        .date-picker-group { display: flex; align-items: center; gap: 10px; }
+        .date-picker-group label { font-weight: 700; color: #555; }
+        .date-input { border: 1px solid #ddd; padding: 10px 15px; border-radius: 8px; font-family: inherit; font-size: 1rem; background: #fafafa; outline: none; transition: 0.2s;}
+        .date-input:focus { border-color: var(--accent-gold); background: white; }
+        .btn-print { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
+        .btn-print:hover { background: #000; color: var(--accent-gold); }
+
+        /* --- MONTHLY STATS --- */
+        .monthly-stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .m-stat-card { background: linear-gradient(135deg, #1e293b, #0f172a); color: white; padding: 20px 25px; border-radius: 16px; position: relative; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.15); border-top: 4px solid var(--accent-gold);}
+        .m-stat-card.sales { border-top-color: var(--in-green); }
+        .m-stat-card.udhari { border-top-color: #f59e0b; }
+        .m-stat-card.metal { border-top-color: #94a3b8; }
+        .m-stat-card::before { content: ''; position: absolute; right: -15px; bottom: -20px; font-family: 'Font Awesome 5 Free'; font-weight: 900; font-size: 6rem; opacity: 0.05; transform: rotate(-10deg);}
+        .m-stat-card.sales::before { content: '\f0d6'; }
+        .m-stat-card.udhari::before { content: '\f02d'; }
+        .m-stat-card.metal::before { content: '\f1b2'; }
+        
+        .m-stat-title { font-size: 0.85rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px;}
+        .m-stat-value { font-size: 1.8rem; font-weight: 800; color: #fff; line-height: 1.2;}
+        .m-stat-sub { font-size: 0.85rem; color: #cbd5e1; margin-top: 10px; display: flex; justify-content: space-between; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 10px;}
+
+        /* Daybook Grid */
+        .daybook-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; align-items: start; }
+        
+        .db-column { background: #fff; border-radius: 16px; padding: 20px; box-shadow: var(--card-shadow); border-top: 5px solid #333; min-height: 500px;}
+        .db-col-in { border-top-color: var(--in-green); }
+        .db-col-out { border-top-color: var(--out-red); }
+        
+        .db-header { font-size: 1.4rem; font-weight: 800; text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed #eee; text-transform: uppercase; letter-spacing: 1px;}
+        .in-title { color: var(--in-green); }
+        .out-title { color: var(--out-red); }
+
+        /* Dynamic DB Cards */
+        .db-card { background: #fdfdfd; border: 1px solid #eee; border-radius: 10px; padding: 15px; margin-bottom: 15px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;}
+        .db-card:hover { transform: translateY(-3px); box-shadow: var(--card-hover); border-color: var(--accent-gold); }
+        .db-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 4px; background: #ccc; }
+        .db-card.in-card::before { background: var(--in-green); }
+        .db-card.out-card::before { background: var(--out-red); }
+        
+        .db-card-title { font-weight: 700; font-size: 1.05rem; color: #333; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        .db-card-title i.fa-expand-arrows-alt { color: #ccc; font-size: 0.9rem; transition: 0.2s;}
+        .db-card:hover .db-card-title i.fa-expand-arrows-alt { color: var(--accent-gold); transform: scale(1.1);}
+        
+        .db-metrics { display: flex; justify-content: space-between; align-items: center; }
+        .db-cash { font-size: 1.2rem; font-weight: 800; }
+        .db-cash.in-val { color: var(--in-green); }
+        .db-cash.out-val { color: var(--out-red); }
+        .db-metal { font-size: 0.85rem; font-weight: 600; color: #555; background: #eee; padding: 3px 8px; border-radius: 6px; }
+
+        /* Balances */
+        .bal-box { background: #111; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);}
+        .bal-box.closing { background: linear-gradient(135deg, #1976d2, #0d47a1); margin-bottom: 0; margin-top: 20px; }
+        
+        .bal-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.2);}
+        .bal-lbl { font-size: 1rem; font-weight: 700; color: var(--accent-gold); text-transform: uppercase; display: flex; flex-direction: column;}
+        .bal-lbl small { font-size: 0.7rem; color: #aaa; text-transform: none; font-weight: normal;}
+        .bal-box.closing .bal-lbl { color: #bbdefb; }
+        .bal-box.closing .bal-lbl small { color: #e3f2fd; }
+        .bal-val-total { font-size: 1.6rem; font-weight: 800; }
+        
+        .bal-split { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; flex-wrap: wrap;}
+        .bal-split-item { display: flex; flex-direction: column; flex: 1; min-width: 30%;}
+        .bal-split-item span { font-size: 0.75rem; color: #ccc; text-transform: uppercase; font-weight: 600; margin-bottom: 2px;}
+        .bal-box.closing .bal-split-item span { color: #bbdefb; }
+        .bal-split-item strong { font-size: 1rem; color: #fff;}
+
+        /* Total Boxes */
+        .total-box { padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-top: 15px; font-weight: 800; font-size: 1.3rem;}
+        .total-in { background: #e8f5e9; color: var(--in-green); border: 1px solid #c8e6c9;}
+        .total-out { background: #ffebee; color: var(--out-red); border: 1px solid #ffcdd2;}
+
+        .empty-state { text-align: center; padding: 30px; color: #999; font-style: italic; background: #fafafa; border-radius: 8px; border: 1px dashed #ddd; margin-bottom: 15px;}
+
+        /* --- MODAL FOR DETAILED TABLE --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: #f4f6f9; padding: 0; width: 95%; max-width: 1000px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); max-height: 90vh; display: flex; flex-direction: column; position: relative; animation: slideUp 0.3s ease-out;}
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .modal-header { background: white; padding: 20px 25px; border-bottom: 1px solid #ddd; border-radius: 16px 16px 0 0; display: flex; justify-content: space-between; align-items: center;}
+        .modal-title { margin: 0; font-size: 1.4rem; font-weight: 700; color: #333; display: flex; align-items: center; gap: 10px;}
+        .modal-subtitle { color: #666; font-size: 0.9rem; margin-top: 5px; font-weight: 500;}
+        .close-btn { font-size: 2rem; background: none; border: none; cursor: pointer; color: #888; transition: 0.2s;}
+        .close-btn:hover { color: var(--active-red); }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1;}
+
+        .table-responsive { overflow-x: auto; border: 1px solid #eee; border-radius: 10px; }
+        .detail-table { width: 100%; border-collapse: collapse; min-width: 800px; font-size: 0.9rem;}
+        .detail-table th { background: #f1f5f9; padding: 12px 15px; text-align: left; color: #444; font-weight: 700; border-bottom: 2px solid #cbd5e1; position: sticky; top: 0; z-index: 10; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px;}
+        .detail-table td { padding: 15px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; color: #333;}
+        .detail-table tr:hover { background: #fdfdfd; }
+        .detail-table tfoot th { background: #e2e8f0; padding: 15px; font-size: 1.1rem; color: #1e293b; border-top: 2px solid #cbd5e1;}
+
+        .t-time { font-size: 0.8rem; color: #888; white-space: nowrap;}
+        .t-ref { font-size: 0.8rem; font-weight: 700; color: #555; display: inline-block; margin-top: 4px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px;}
+        .t-party { font-weight: 700; color: var(--info-blue); display: block; font-size: 1rem;}
+        .t-party-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; background: #e3f2fd; color: #1565c0; padding: 2px 6px; border-radius: 4px; margin-top: 4px; text-transform: uppercase;}
+        
+        .t-desc-box { background: #fafafa; padding: 10px 15px; border-radius: 8px; border: 1px solid #eee;}
+        .t-desc-title { font-weight: 700; color: #333; margin-bottom: 5px; display: block; border-bottom: 1px dashed #ddd; padding-bottom: 5px;}
+        .t-desc-detail { font-size: 0.85rem; color: #666; line-height: 1.5;}
+        
+        .t-mode { font-size: 0.75rem; font-weight: 700; background: #f5f5f5; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; color: #555; display: inline-block; white-space: nowrap;}
+        
+        .t-metal { font-weight: 700; font-size: 1rem; text-align: right; white-space: nowrap;}
+        .t-metal.pos { color: var(--in-green); }
+        .t-metal.neg { color: var(--out-red); }
+        .t-cash { font-weight: 800; font-size: 1.1rem; text-align: right; white-space: nowrap;}
+        .t-cash.pos { color: var(--in-green); }
+        .t-cash.neg { color: var(--out-red); }
+
+        #printArea { display: none; }
+
+        @media (max-width: 900px) {
+            .monthly-stats-container { grid-template-columns: 1fr; }
+            .daybook-grid { grid-template-columns: 1fr; gap: 20px; }
+            .db-column { min-height: auto; }
+            .top-controls { flex-direction: column; align-items: stretch; }
+            .date-picker-group { flex-direction: column; align-items: stretch; }
+            .modal-content { width: 95%; max-height: 90vh; }
+            .bal-split { flex-direction: column; gap: 10px; }
+        }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            @page { margin: 10mm; size: A4 landscape; }
+            body { background: white; padding: 0; font-size: 10px; color: black; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .top-controls, .monthly-stats-container, .daybook-grid, .modal { display: none !important; }
+            .app-container { max-width: 100%; padding: 0; margin: 0; }
+            
+            #printArea { display: block !important; width: 100%; }
+            .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+            .print-header h1 { margin: 0; font-size: 18px; text-transform: uppercase; }
+            .print-header p { margin: 4px 0 0; font-size: 12px; color: #333; }
+            
+            .print-split { display: flex; flex-direction: row; width: 100%; gap: 2%; align-items: flex-start; }
+            .print-col { width: 49%; display: flex; flex-direction: column; }
+
+            .print-bal-box { border: 1px solid #000; padding: 10px; margin-bottom: 15px; background: #f9f9f9 !important; -webkit-print-color-adjust: exact; border-radius: 4px;}
+            .print-bal-title { font-weight: bold; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 8px;}
+            .print-bal-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;}
+            .print-bal-total { font-weight: bold; font-size: 13px; border-top: 1px dashed #999; padding-top: 6px; margin-top: 6px; display: flex; justify-content: space-between;}
+
+            .print-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 15px; page-break-inside: avoid; }
+            .print-table th, .print-table td { border: 1px solid #ccc; padding: 4px; vertical-align: top; }
+            .print-table th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
+            .print-table .section-row { background: #e0e0e0 !important; text-align: center; font-size: 11px; -webkit-print-color-adjust: exact;}
+            
+            .print-summary-box { border: 2px solid #000; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 12px; background: #eee !important; -webkit-print-color-adjust: exact;}
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <header class="app-header">
+        <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="header-title">Bharti Jewellers</div>
+    </header>
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="daybook.html" class="active"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="top-controls">
+            <div class="date-picker-group">
+                <label for="daybookDate"><i class="fas fa-calendar-alt"></i> Select Date:</label>
+                <input type="date" id="daybookDate" class="date-input" onchange="renderDaybook()">
+            </div>
+            <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Print Full Daybook</button>
+        </div>
+
+        <div class="monthly-stats-container">
+            <div class="m-stat-card sales">
+                <div class="m-stat-title">Monthly Sales & Receipts</div>
+                <div class="m-stat-value" id="mStatSales">₹0</div>
+                <div class="m-stat-sub">
+                    <span><i class="fas fa-hand-holding-usd"></i> Cash Recv: <b id="mStatRecv" style="color:#a7f3d0;">₹0</b></span>
+                </div>
+            </div>
+            <div class="m-stat-card udhari">
+                <div class="m-stat-title">Monthly Udhari Given</div>
+                <div class="m-stat-value" id="mStatUdhari" style="color:#fde047;">₹0</div>
+                <div class="m-stat-sub">
+                    <span>Active Market Credit for Month</span>
+                </div>
+            </div>
+            <div class="m-stat-card metal">
+                <div class="m-stat-title">Monthly Net Metal Flow</div>
+                <div class="m-stat-sub" style="margin-top:2px; border-top:none; padding-top:0;">
+                    <span style="font-size:1.1rem; color:#fde047;">Gold: <b id="mStatGold">0.000g</b></span>
+                </div>
+                <div class="m-stat-sub" style="margin-top:4px; border-top:none; padding-top:0;">
+                    <span style="font-size:1.1rem; color:#e2e8f0;">Silver: <b id="mStatSilver">0.000g</b></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="daybook-grid">
+            <div class="db-column db-col-in">
+                <div class="db-header in-title">JAMA (MONEY IN)</div>
+                
+                <div class="bal-box">
+                    <div class="bal-top">
+                        <div class="bal-lbl">Opening Balance <small>From Previous Day</small></div>
+                        <div class="bal-val-total" id="uiOpeningBalTotal">₹0</div>
+                    </div>
+                    <div class="bal-split">
+                        <div class="bal-split-item">
+                            <span><i class="fas fa-money-bill-wave"></i> Hard Cash</span>
+                            <strong id="uiOpeningBalCash">₹0</strong>
+                        </div>
+                        <div class="bal-split-item">
+                            <span><i class="fas fa-university"></i> Bank/UPI</span>
+                            <strong id="uiOpeningBalBank">₹0</strong>
+                        </div>
+                        <div class="bal-split-item">
+                            <span><i class="fas fa-cubes"></i> Metal (Net)</span>
+                            <strong id="uiOpeningBalMetal">0.000 g</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="inCardsContainer"></div>
+
+                <div class="total-box total-in">
+                    <span>Total IN (Jama):</span>
+                    <span id="uiTotalIn">₹0</span>
+                </div>
+            </div>
+
+            <div class="db-column db-col-out">
+                <div class="db-header out-title">NAMA (MONEY OUT)</div>
+                
+                <div id="outCardsContainer"></div>
+
+                <div class="total-box total-out">
+                    <span>Total OUT (Nama):</span>
+                    <span id="uiTotalOut">₹0</span>
+                </div>
+
+                <div class="bal-box closing">
+                    <div class="bal-top">
+                        <div class="bal-lbl">Closing Balance <small>End of Day Status</small></div>
+                        <div class="bal-val-total" id="uiClosingBalTotal">₹0</div>
+                    </div>
+                    <div class="bal-split">
+                        <div class="bal-split-item">
+                            <span><i class="fas fa-money-bill-wave"></i> Hard Cash</span>
+                            <strong id="uiClosingBalCash">₹0</strong>
+                        </div>
+                        <div class="bal-split-item">
+                            <span><i class="fas fa-university"></i> Bank/UPI</span>
+                            <strong id="uiClosingBalBank">₹0</strong>
+                        </div>
+                        <div class="bal-split-item">
+                            <span><i class="fas fa-cubes"></i> Metal (Net)</span>
+                            <strong id="uiClosingBalMetal">0.000 g</strong>
+                        </div>
+                    </div>
+                    
+                    <div style="border-top:1px dashed rgba(255,255,255,0.2); margin-top:15px; padding-top:15px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                        <div class="bal-split-item">
+                            <span style="color:#ffcc80; display:flex; align-items:center; gap:5px;"><i class="fas fa-hand-holding-usd"></i> Market Udhari (Due)</span>
+                            <strong id="uiClosingUdhari" style="color:#ffcc80; font-size:1.1rem;">₹0</strong>
+                        </div>
+                        <div class="bal-split-item" style="text-align:right;">
+                            <span style="color:#ef9a9a; display:flex; align-items:center; justify-content:flex-end; gap:5px;"><i class="fas fa-truck"></i> Merchant Dues (Payable)</span>
+                            <strong id="uiClosingMerchantDue" style="color:#ef9a9a; font-size:1.1rem;">₹0</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="printArea">
+            <div class="print-header">
+                <h1>BHARTI JEWELLERS</h1>
+                <p>Daybook (Rojmel) Report for <strong id="printDateHeading"></strong></p>
+            </div>
+            
+            <div class="print-split">
+                <div class="print-col" id="printColLeft"></div>
+                <div class="print-col" id="printColRight"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width:1100px;">
+            <div class="modal-header">
+                <div>
+                    <h3 class="modal-title" id="modalTitle"><i class="fas fa-list"></i> Category Details</h3>
+                    <div class="modal-subtitle" id="modalDate">Transactions for Date</div>
+                </div>
+                <button class="close-btn" onclick="closeModal('detailsModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Time / Ref</th>
+                                <th style="width: 15%;">Party Info</th>
+                                <th style="width: 30%;">Transaction Details</th>
+                                <th style="width: 10%; text-align:center;">Mode</th>
+                                <th style="text-align:right; width: 15%;">Metal Flow</th>
+                                <th style="text-align:right; width: 15%;">Cash Flow</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalTbody"></tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="4" style="text-align:right;">CATEGORY TOTAL:</th>
+                                <th style="text-align:right;" id="modalTotalMetal">0.000 g</th>
+                                <th style="text-align:right;" id="modalTotalCash">₹0</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="db.js?v=69"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        const setInner = (id, text) => { 
+            const el = document.getElementById(id); 
+            if(el) el.innerText = text; 
+        };
+
+        const getSafeDate = (d) => {
+            if (!d) return '';
+            let raw = String(d).split('T')[0].split(' ')[0];
+            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(raw)) {
+                const parts = raw.split(/[\/\-]/);
+                raw = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            }
+            try {
+                const dateObj = new Date(raw);
+                if (!isNaN(dateObj.getTime())) {
+                    const year = dateObj.getFullYear();
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+            } catch(e) {}
+            return raw;
+        };
+
+        const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
+        
+        function getMoneyType(modeStr) {
+            if(!modeStr) return 'cash';
+            let m = String(modeStr).toLowerCase();
+            if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online') || m.includes('transfer')) return 'bank';
+            if (m.includes('metal') || m.includes('system') || m.includes('wallet') || m.includes('-')) return 'none';
+            return 'cash'; 
+        }
+
+        function getSafeNet(i) {
+            let n = getSafeNum(i.netWt);
+            if(n > 0) return n;
+            let g = getSafeNum(i.grossWt);
+            let s = getSafeNum(i.stoneWt);
+            if (g > 0) return g - s;
+            let f = getSafeNum(i.fineWt);
+            if (f > 0) return f;
+            return getSafeNum(i.weight);
+        }
+
+        function getTime(dateStr) {
+            if(!dateStr) return '-';
+            try { return new Date(dateStr).toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'}); }
+            catch(e){ return '-'; }
+        }
+
+        function isSilver(purityOrCat) {
+            if (!purityOrCat) return false;
+            let str = String(purityOrCat).toLowerCase();
+            return str.includes('sil') || str.includes('92.5') || str.includes('99.9');
+        }
+
+        let currentRojmel = { IN: {}, OUT: {} };
+        let allDayTransactions = []; 
+        let printData = {}; 
+
+        window.onload = async function() {
+            const dp = document.getElementById('daybookDate');
+            if (dp) dp.valueAsDate = new Date();
+            await renderDaybook();
+        };
+
+        function addRojmel(side, id, title, icon, color, cash, metal, txData, mergeByRef = false) {
+            let target = side === 'IN' ? currentRojmel.IN : currentRojmel.OUT;
+            if(!target[id]) {
+                target[id] = { title, icon, color, cash: 0, metal: 0, txs: [] };
+            }
+            
+            target[id].cash += getSafeNum(cash);
+            target[id].metal += getSafeNum(metal);
+            
+            if(txData) {
+                if (mergeByRef && txData.ref) {
+                    let existing = target[id].txs.find(t => t.ref === txData.ref);
+                    if (existing) {
+                        existing.cash += getSafeNum(txData.cash);
+                        existing.metal += getSafeNum(txData.metal);
+                        
+                        if (txData.desc && !existing.desc.includes(txData.desc)) {
+                            const isMetalToSale = (txData.dataType === 'metal' && (existing.dataType === 'sale_full' || existing.dataType === 'purchase_full'));
+                            if (!isMetalToSale) {
+                                if (existing.desc === 'Physical metal movement tracking.') existing.desc = txData.desc;
+                                else existing.desc += `<br><small style="color:#666; margin-top:4px; display:block;"><i class="fas fa-plus"></i> ${txData.desc}</small>`;
+                            }
+                        }
+                        if (txData.mode && txData.mode !== '-' && !existing.mode.includes(txData.mode)) {
+                            existing.mode = existing.mode === '-' ? txData.mode : `${existing.mode}, ${txData.mode}`;
+                        }
+                        return; 
+                    }
+                }
+                
+                let newTx = {...txData, side: side, bucketId: id, bucketTitle: title};
+                target[id].txs.push(newTx);
+                allDayTransactions.push(newTx);
+            }
+        }
+
+        // PHYSICAL CASH TRACKER
+        let actualSyncInCash = 0, actualSyncInBank = 0, actualSyncOutCash = 0, actualSyncOutBank = 0;
+
+        function addPhysicalFlow(amount, mode, type) {
+            let amt = Math.abs(getSafeNum(amount));
+            if (amt === 0) return;
+            let mType = getMoneyType(mode);
+            if (mType === 'none') return;
+
+            if (type === 'IN') {
+                if (mType === 'bank') actualSyncInBank += amt; else actualSyncInCash += amt;
+            } else {
+                if (mType === 'bank') actualSyncOutBank += amt; else actualSyncOutCash += amt;
+            }
+        }
+
+        async function renderDaybook() {
+            const dateInput = document.getElementById('daybookDate');
+            if (!dateInput) return;
+            const selectedDateStr = dateInput.value;
+            if(!selectedDateStr) return;
+
+            setInner('printDateHeading', new Date(selectedDateStr).toLocaleDateString('en-IN', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'}));
+
+            currentRojmel = { IN: {}, OUT: {} };
+            allDayTransactions = [];
+            
+            actualSyncInCash = 0; actualSyncInBank = 0; 
+            actualSyncOutCash = 0; actualSyncOutBank = 0;
+
+            let openHardCash = 0, openBank = 0;
+            let openMetal = 0;
+            let todayMetalNetDB = 0; 
+
+            document.getElementById('inCardsContainer').innerHTML = '';
+            document.getElementById('outCardsContainer').innerHTML = '';
+
+            const [cFlows, sales, purchases, oldGold, loans, mPayments, customers, merchants, schemes, inventory, deposits, orders] = await Promise.all([
+                getAllItems('cashflow').catch(()=>[]),
+                getAllItems('sales').catch(()=>[]),
+                getAllItems('purchases').catch(()=>[]),
+                getAllItems('old_gold').catch(()=>[]),
+                getAllItems('loans').catch(()=>[]),
+                getAllItems('merchant_payments').catch(()=>[]),
+                getAllItems('customers').catch(()=>[]),
+                getAllItems('merchants').catch(()=>[]),
+                getAllItems('schemes').catch(()=>[]),
+                getAllItems('inventory').catch(()=>[]),
+                getAllItems('deposits').catch(()=>[]),
+                getAllItems('orders').catch(()=>[])
+            ]);
+            
+            const getCustName = (id) => { const c = customers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in Customer'; };
+            const getMerchName = (id) => { const m = merchants.find(x => String(x.id) === String(id)); return m ? m.name : 'Merchant / Supplier'; };
+
+            // --- CALCULATE MONTHLY STATS ---
+            const targetMonth = selectedDateStr.substring(0, 7);
+            let mSalesTotal = 0, mSalesRecv = 0, mUdhariTotal = 0;
+            let mGoldIn = 0, mGoldOut = 0, mSilverIn = 0, mSilverOut = 0;
+
+            sales.forEach(s => {
+                if(s.status !== 'cancelled' && String(s.date).startsWith(targetMonth)) {
+                    mSalesTotal += getSafeNum(s.grandTotal);
+                    mSalesRecv += getSafeNum(s.paidAmount);
+                    mUdhariTotal += getSafeNum(s.pendingAmount);
+
+                    (s.items || []).forEach(i => {
+                        let net = getSafeNet(i);
+                        if (i.isOldGold) {
+                            if (isSilver(i.purity || i.category)) mSilverIn += net; else mGoldIn += net;
+                        } else {
+                            if (isSilver(i.purity || i.category)) mSilverOut += net; else mGoldOut += net;
+                        }
+                    });
+                }
+            });
+
+            purchases.forEach(p => {
+                if (String(p.date).startsWith(targetMonth)) {
+                    let minGold = 0, minSilv = 0;
+                    if(p.itemDetails && p.itemDetails.length > 0) {
+                        p.itemDetails.forEach(item => {
+                            let net = getSafeNet(item);
+                            if (isSilver(item.purity || item.category)) minSilv += net; else minGold += net;
+                        });
+                    } else {
+                        minGold = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalFineWeight);
+                    }
+                    mGoldIn += minGold;
+                    mSilverIn += minSilv;
+                }
+            });
+
+            oldGold.forEach(o => {
+                if (o.mode !== 'POS Exchange' && o.type !== 'MELT' && String(o.date).startsWith(targetMonth)) {
+                    if (isSilver(o.purity || o.description)) mSilverIn += getSafeNet(o); else mGoldIn += getSafeNet(o);
+                }
+            });
+
+            mPayments.forEach(mp => {
+                if (mp.goldType !== 'fixed' && String(mp.date).startsWith(targetMonth)) {
+                    let net = getSafeNum(mp.gold);
+                    if (mp.paymentType === 'OUT') mGoldOut += net; else mGoldIn += net;
+                }
+            });
+
+            setInner('mStatSales', "₹" + mSalesTotal.toLocaleString());
+            setInner('mStatRecv', "₹" + mSalesRecv.toLocaleString());
+            setInner('mStatUdhari', "₹" + mUdhariTotal.toLocaleString());
+            
+            let netMGold = mGoldIn - mGoldOut;
+            let netMSilver = mSilverIn - mSilverOut;
+            setInner('mStatGold', (netMGold > 0 ? "+" : "") + netMGold.toFixed(3) + "g");
+            setInner('mStatSilver', (netMSilver > 0 ? "+" : "") + netMSilver.toFixed(3) + "g");
+
+            // --- 1. STRICT CASH FLOW LOGIC ---
+            // NAMA/JAMA Visual Loop (Double Entry for Sales & Purchases)
+            
+            // A. SALES (Includes POS, Custom Orders, and Repairs generated into bills)
+            sales.forEach(s => {
+                const billCreatedToday = (getSafeDate(s.date) === selectedDateStr);
+                const isCancelled = s.status === 'cancelled';
+                let cancelDate = null;
+
+                if (isCancelled) {
+                    const cFlow = cFlows.find(f => f.category && f.category.includes('Cancellation') && String(f.note).includes(s.id));
+                    if (cFlow) cancelDate = getSafeDate(cFlow.date);
+                    else cancelDate = getSafeDate(s.date);
+                }
+
+                if (cancelDate && cancelDate < selectedDateStr) return; 
+
+                const ref = s.invoiceNo || `INV-${s.id}`;
+                const party = getCustName(s.customerId);
+                let txBase = { party, partyType: 'Customer', raw: s };
+                let isOrderBill = s.jobType === 'Repair' || s.jobType === 'Order' || (s.items && s.items.some(i => String(i.id).startsWith('rep_') || String(i.source).startsWith('order_')));
+
+                let pastAdv = 0;
+                let todayPayments = [];
+                let todayRefunds = [];
+                
+                if (s.payments && s.payments.length > 0) {
+                    s.payments.forEach(p => {
+                        let pd = getSafeDate(p.date);
+                        if (pd < selectedDateStr && billCreatedToday) pastAdv += getSafeNum(p.amount);
+                        else if (pd === selectedDateStr && getSafeNum(p.amount) > 0) todayPayments.push(p);
+                        else if (pd === selectedDateStr && getSafeNum(p.amount) < 0) todayRefunds.push(p);
+                    });
+                } else {
+                    if (billCreatedToday && getSafeNum(s.paidAmount) > 0) {
+                        todayPayments.push({ amount: getSafeNum(s.paidAmount), mode: s.mode || 'Cash' });
+                    }
+                }
+
+                let gTotal = getSafeNum(s.grandTotal);
+                let udhari = getSafeNum(s.pendingAmount);
+                let oldVal = getSafeNum(s.oldGoldDeduction || s.oldGoldValue);
+                let netPaid = getSafeNum(s.paidAmount); 
+                
+                // Show GROSS bill amount on the Jama side instead of net
+                let displaySaleIn = gTotal; 
+
+                if (isCancelled) {
+                    todayPayments.forEach(p => {
+                        addRojmel('IN', 'sales_receipts', 'Cancelled Bill Receipts', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, 
+                            { ...txBase, time: getTime(s.date), ref, desc: `Initial Receipt (Bill Cancelled Later)`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true);
+                    });
+
+                    if (cancelDate === selectedDateStr) {
+                        let refundCash = 0;
+                        const cancelFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.category && f.category.includes('Cancellation') && String(f.note).includes(s.id));
+                        let modesOut = [];
+                        cancelFlows.forEach(f => {
+                            if ((f.type === 'OUT' || getSafeNum(f.amount) < 0) && !f.category.includes('Reversal')) {
+                                refundCash += Math.abs(getSafeNum(f.amount));
+                                modesOut.push(f.mode);
+                            }
+                        });
+                        if (refundCash > 0) {
+                            let mStr = [...new Set(modesOut)].join(', ') || 'Cash';
+                            addRojmel('OUT', 'sales_refund', 'Cancelled Bill Refund', 'fas fa-undo', 'var(--out-red)', refundCash, 0, 
+                                { ...txBase, time: getTime(cancelFlows.length > 0 ? cancelFlows[0].date : s.date), ref, desc: `Bill Cancelled. Cash Refunded.`, cash: refundCash, metal: 0, mode: mStr, dataType: 'refund' }, true);
+                        }
+                    }
+                } else if (billCreatedToday) {
+                    
+                    let descHTML = `
+                        <div style="margin-bottom:6px; font-weight:700; color:#1976d2; border-bottom:1px solid #eee; padding-bottom:4px;">Full Bill Breakdown</div>
+                        <div style="font-size:0.85rem; display:flex; justify-content:space-between; margin-bottom:3px;"><span>Gross Bill Amount:</span> <strong>₹${gTotal.toLocaleString()}</strong></div>
+                    `;
+                    if (oldVal > 0) {
+                        descHTML += `<div style="font-size:0.85rem; display:flex; justify-content:space-between; color:var(--old-gold); margin-bottom:3px;"><span>Old Gold Deducted:</span> <strong>-₹${oldVal.toLocaleString()}</strong></div>`;
+                    }
+                    if (udhari > 0) {
+                        descHTML += `<div style="font-size:0.85rem; display:flex; justify-content:space-between; color:var(--out-red); margin-bottom:3px;"><span>Udhari (Due):</span> <strong>-₹${udhari.toLocaleString()}</strong></div>`;
+                    }
+                    descHTML += `<div style="font-size:0.9rem; display:flex; justify-content:space-between; color:var(--in-green); margin-top:6px; border-top:1px dashed #ccc; padding-top:4px;"><span>Net Cash/Bank Paid:</span> <strong>₹${netPaid.toLocaleString()}</strong></div>`;
+
+                    if (displaySaleIn > 0) {
+                        let mStr = [...new Set(todayPayments.map(p => p.mode))].join(', ') || s.mode || 'Cash';
+                        let title = isOrderBill ? 'Custom Order / Repair (Gross Bill)' : 'Customer Sales (Gross Bill)';
+                        addRojmel('IN', 'sales', title, 'fas fa-cash-register', 'var(--in-green)', displaySaleIn, 0, 
+                            { ...txBase, time: getTime(s.date), ref, desc: descHTML, cash: displaySaleIn, metal: 0, mode: mStr, dataType: 'sale_full' }, true);
+                    }
+                    if (oldVal > 0) {
+                        // Offset the gross bill by logging Old Gold deduction to NAMA
+                        addRojmel('OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', oldVal, 0, 
+                            { ...txBase, time: getTime(s.date), ref, desc: `Old Gold Value Deducted from Gross Bill`, cash: oldVal, metal: 0, mode: '-', dataType: 'oldgold_adj' }, true);
+                    }
+                    if (udhari > 0) {
+                        addRojmel('OUT', 'sales_due', 'Customer Udhaari (Credit Given)', 'fas fa-book', '#f57c00', udhari, 0, 
+                            { ...txBase, time: getTime(s.date), ref, desc: `Udhaari for Bill`, cash: udhari, metal: 0, mode: '-', dataType: 'udhari' }, true);
+                    }
+                    if (pastAdv > 0) {
+                        addRojmel('OUT', 'sales_adv_used', 'Past Advance Applied', 'fas fa-history', '#888', pastAdv, 0, 
+                            { ...txBase, time: getTime(s.date), ref, desc: `Past advance adjusted`, cash: pastAdv, metal: 0, mode: '-', dataType: 'offset' }, true);
+                    }
+                    todayRefunds.forEach(p => {
+                        let rAmt = Math.abs(getSafeNum(p.amount));
+                        addRojmel('OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', rAmt, 0, 
+                            { ...txBase, time: getTime(p.date), ref, desc: `Change/Refund given`, cash: rAmt, metal: 0, mode: p.mode, dataType: 'refund' }, true);
+                    });
+                } else {
+                    todayPayments.forEach(p => {
+                        addRojmel('IN', 'sales_receipts', 'Due Payments Received', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, 
+                            { ...txBase, time: getTime(p.date), ref, desc: `Due Payment Received`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true);
+                    });
+                    todayRefunds.forEach(p => {
+                        let rAmt = Math.abs(getSafeNum(p.amount));
+                        addRojmel('OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', rAmt, 0, 
+                            { ...txBase, time: getTime(p.date), ref, desc: `Refund given`, cash: rAmt, metal: 0, mode: p.mode, dataType: 'refund' }, true);
+                    });
+                }
+            });
+
+            // B. PURCHASES
+            purchases.forEach(p => {
+                const billCreatedToday = (getSafeDate(p.date) === selectedDateStr);
+                const ref = `PUR-${p.id}`;
+                const party = getMerchName(p.merchantId);
+                let txBase = { party, partyType: 'Merchant', raw: p };
+
+                let pTotal = getSafeNum(p.totalAmount);
+                let dueAmt = getSafeNum(p.dueAmount);
+                let paidToday = getSafeNum(p.paidAmount);
+
+                if (billCreatedToday) {
+                    if (p.type === 'Fixed' && pTotal > 0) {
+                        // 1. FULL BILL in NAMA
+                        let mStr = p.paymentMode || p.mode || 'Cash';
+                        addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, 0, 
+                            { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: 0, mode: mStr, dataType: 'purchase_full' }, true);
+                        
+                        // 2. MERCHANT DUE in JAMA (Liability taken)
+                        if (dueAmt > 0) {
+                            addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, 
+                                { ...txBase, time: getTime(p.date), ref, desc: `Pending Payment for Bill`, cash: dueAmt, metal: 0, mode: '-', dataType: 'merch_due' });
+                        }
+                    } else if (paidToday > 0) {
+                        // Unfixed purchase advance
+                        addRojmel('OUT', 'purchases', 'Stock Purchases (Advance Paid)', 'fas fa-cart-arrow-down', 'var(--out-red)', paidToday, 0, 
+                            { ...txBase, time: getTime(p.date), ref, desc: `Advance Paid for Unfixed Stock`, cash: paidToday, metal: 0, mode: p.paymentMode || 'Cash', dataType: 'purchase_unfixed' }, true);
+                    }
+                } else {
+                    // Past purchase, find payments made today
+                    const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (f.note.includes(ref) || f.note.includes(`pur-${p.id}`)));
+                    relatedFlows.forEach(f => {
+                        let fAmt = Math.abs(getSafeNum(f.amount));
+                        let fType = f.type || 'OUT';
+                        if (fAmt === 0) return;
+                        if (getSafeNum(f.amount) < 0 && fType === 'IN') fType = 'OUT';
+                        
+                        if (fType === 'OUT') {
+                            addRojmel('OUT', 'purchases_pay', 'Merchant Due Payments', 'fas fa-truck', 'var(--out-red)', fAmt, 0, 
+                                { ...txBase, time: getTime(f.date), ref, desc: `Due Payment Sent`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_due' });
+                        } else {
+                            addRojmel('IN', 'purchases_refund', 'Merchant Refunds', 'fas fa-undo', 'var(--in-green)', fAmt, 0, 
+                                { ...txBase, time: getTime(f.date), ref, desc: `Refund Received`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_full' });
+                        }
+                    });
+                }
+            });
+
+
+            // C. ALL OTHER CASHFLOWS (Manual, Expenses, Deposits, Loans, Schemes, Order Advances Not Billed)
+            cFlows.forEach(f => {
+                let amt = Math.abs(getSafeNum(f.amount));
+                if (amt === 0) return;
+
+                let mType = getMoneyType(f.mode);
+                if (mType === 'none') return; 
+
+                let fType = f.type || 'OUT';
+                if (getSafeNum(f.amount) < 0 && f.type === 'IN') fType = 'OUT';
+
+                let fDate = getSafeDate(f.date);
+
+                // Opening Balance Math (Physical Tracking)
+                if (fDate < selectedDateStr) {
+                    if (fType === 'IN') {
+                        if (mType === 'bank') openBank += amt; else openHardCash += amt;
+                    } else {
+                        if (mType === 'bank') openBank -= amt; else openHardCash -= amt;
+                    }
+                } 
+                // Today's Daybook Math
+                else if (fDate === selectedDateStr) {
+                    
+                    let cat = String(f.category || '').toLowerCase();
+                    let note = String(f.note || '').toLowerCase();
+                    let timeStr = getTime(f.date);
+                    
+                    let isOrder = cat.includes('order') || cat.includes('repair') || note.includes('ord-');
+                    let isSaleFlow = (cat.includes('sale') || cat.includes('pos') || note.includes('inv-') || note.includes('bill'));
+                    let isPurchaseFlow = (cat.includes('purchase') || note.includes('pur-'));
+                    let isCancellationFlow = cat.includes('cancellation') || note.includes('reversal');
+
+                    let linkedSale = sales.find(s => s.invoiceNo && note.includes(s.invoiceNo.toLowerCase()));
+                    let linkedPurchase = purchases.find(p => note.includes(`pur-${p.id}`));
+
+                    // SKIP VISUALS if it is already covered by the Sales/Purchases Double-Entry loop above
+                    if (linkedSale || linkedPurchase || isCancellationFlow || (isSaleFlow && !isOrder) || (isPurchaseFlow && !isOrder)) {
+                        // Do physical drawer math only
+                        if (linkedSale && f.mode && f.mode.includes(',')) {
+                            if(linkedSale.payments && linkedSale.payments.length > 0) {
+                                linkedSale.payments.forEach(p => {
+                                    if (getSafeDate(p.date) === selectedDateStr) addPhysicalFlow(p.amount, p.mode, fType);
+                                });
+                                return; 
+                            }
+                        }
+                        addPhysicalFlow(amt, f.mode, fType);
+                        return;
+                    }
+
+                    // For everything else, add to Physical Flow AND build a Visual Card
+                    addPhysicalFlow(amt, f.mode, fType);
+
+                    let bucketId = 'other_in';
+                    let bucketTitle = 'Other Receipts';
+                    let icon = 'fas fa-wallet';
+                    let color = 'var(--in-green)';
+                    let party = 'Manual Entry';
+                    let ref = `CF-${f.id}`;
+
+                    if (isOrder) {
+                        let m = note.match(/(ord-invr?\d+)/i) || note.match(/#(\d+)/i);
+                        if(m) {
+                            let o = orders.find(x => String(x.id) === m[1] || x.invoiceNo === m[1].toUpperCase());
+                            if(o) {
+                                party = getCustName(o.customerId);
+                                ref = o.invoiceNo || (o.jobType === 'Repair' ? 'ORD-INVR' + String(o.id).padStart(3, '0') : 'ORD-INV' + String(o.id).padStart(3, '0'));
+                            } else {
+                                ref = m[1].toUpperCase().includes('ORD') ? m[1].toUpperCase() : `ORD-${m[1]}`;
+                            }
+                        }
+                        if (fType === 'IN') { 
+                            bucketId = 'order_in'; 
+                            bucketTitle = 'Order/Repair Advances & Payments'; 
+                            icon = 'fas fa-hammer'; 
+                        } else { 
+                            bucketId = 'order_out'; 
+                            bucketTitle = 'Order/Repair Refunds'; 
+                            icon = 'fas fa-undo'; 
+                            color = 'var(--out-red)'; 
+                        }
+                    }
+                    else if (cat.includes('loan')) {
+                        let m = note.match(/ln-(\d+)/i) || note.match(/#(\d+)/i);
+                        if(m) {
+                            let l = loans.find(x => String(x.id) === m[1]);
+                            if(l) party = getCustName(l.customerId);
+                            ref = `LN-${m[1]}`;
+                        }
+                        if (fType === 'IN') { bucketId = 'loan_in'; bucketTitle = 'Gold Loan Repayments'; icon = 'fas fa-coins'; }
+                        else { bucketId = 'loan_out'; bucketTitle = 'Gold Loans Disbursed'; icon = 'fas fa-hand-holding-usd'; color = 'var(--out-red)'; }
+                    }
+                    else if (cat.includes('merch') || cat.includes('rate cut') || note.includes('set-')) {
+                        let m = note.match(/set-(\d+)/i) || note.match(/#(\d+)/i);
+                        if(m) {
+                            let mp = mPayments.find(x => String(x.id) === m[1]);
+                            if(mp) party = getMerchName(mp.merchantId);
+                            ref = `SET-${m[1]}`;
+                        }
+                        if (fType === 'IN') { bucketId = 'merch_in'; bucketTitle = 'Merchant Refunds/Receipts'; icon = 'fas fa-undo'; }
+                        else { bucketId = 'merch_out'; bucketTitle = 'Merchant Payments & Purchases'; icon = 'fas fa-truck'; color = 'var(--out-red)'; }
+                    }
+                    else if (cat.includes('scheme') || note.includes('sch-')) {
+                        let m = note.match(/sch-(\d+)/i) || note.match(/#(\d+)/i);
+                        if(m) {
+                            let s = schemes.find(x => String(x.id) === m[1]);
+                            if(s) party = getCustName(s.customerId);
+                            ref = `SCH-${m[1]}`;
+                        }
+                        if (fType === 'IN') { bucketId = 'scheme_in'; bucketTitle = 'BC Scheme Installments'; icon = 'fas fa-gift'; }
+                        else { bucketId = 'scheme_out'; bucketTitle = 'BC Scheme Payouts'; icon = 'fas fa-hand-holding-heart'; color = 'var(--out-red)'; }
+                    }
+                    else if (cat.includes('old') || note.includes('ur-')) {
+                        let m = note.match(/ur-(\d+)/i) || note.match(/#(\d+)/i);
+                        if(m) {
+                            let og = oldGold.find(x => String(x.id) === m[1]);
+                            if(og) party = getCustName(og.customerId);
+                            ref = `UR-${m[1]}`;
+                        }
+                        if (fType === 'OUT') { bucketId = 'oldgold_out'; bucketTitle = 'Old Metal Purchases'; icon = 'fas fa-ring'; color = 'var(--out-red)'; }
+                    }
+                    else if (cat.includes('deposit') || note.includes('dep-')) {
+                        let m = note.match(/dep-(\d+)/i) || note.match(/#(\d+)/i);
+                        if(m) {
+                            let d = deposits.find(x => String(x.id) === m[1]);
+                            if(d) party = getCustName(d.customerId);
+                            ref = `DEP-${m[1]}`;
+                        }
+                        if (fType === 'IN') { bucketId = 'deposit_in'; bucketTitle = 'Customer Deposits'; icon = 'fas fa-piggy-bank'; }
+                        else { bucketId = 'deposit_out'; bucketTitle = 'Customer Deposit Returns'; icon = 'fas fa-hand-holding-usd'; color = 'var(--out-red)'; }
+                    }
+                    else {
+                        if (fType === 'IN') { bucketId = 'manual_in'; bucketTitle = 'Other Receipts'; icon = 'fas fa-plus-circle'; color = 'var(--in-green)'; }
+                        else {
+                            if (cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
+                                bucketId = 'expense_out'; bucketTitle = 'Shop Expenses'; icon = 'fas fa-file-invoice-dollar'; color = 'var(--out-red)';
+                            } else {
+                                bucketId = 'manual_out'; bucketTitle = 'Other Withdrawals'; icon = 'fas fa-minus-circle'; color = 'var(--out-red)';
+                            }
+                        }
+                    }
+
+                    let tx = { time: timeStr, ref: ref, party: party, partyType: '', desc: f.category || f.note, cash: amt, metal: 0, mode: f.mode, dataType: 'cashflow', raw: f };
+                    addRojmel(fType, bucketId, bucketTitle, icon, color, amt, 0, tx);
+                }
+            });
+
+
+            // --- 2. STRICT METAL FLOW LOGIC ---
+            // Purely tracks physical stock leaving or entering the safe. No cash mixed here.
+            
+            const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive) => {
+                if (amt <= 0) return;
+                let d = getSafeDate(date);
+                let signedAmt = isPositive ? Math.abs(amt) : -Math.abs(amt);
+                
+                if (d < selectedDateStr) {
+                    openMetal += signedAmt;
+                } else if (d === selectedDateStr) {
+                    todayMetalNetDB += signedAmt;
+                    addRojmel(bucketSide, bucketId, bucketTitle, icon, color, 0, signedAmt, { time: getTime(date), ref, party, partyType: '', desc: source, cash: 0, metal: signedAmt, mode: '-', dataType: 'metal', raw: {} }, true /* mergeByRef */);
+                }
+            };
+
+            // Sales (Deduct FULL Metal regardless of payment)
+            sales.forEach(s => {
+                let cancelDate = null;
+                if (s.status === 'cancelled') {
+                    const cFlow = cFlows.find(f => f.category && f.category.includes('Cancellation') && String(f.note).includes(s.id));
+                    if (cFlow) cancelDate = getSafeDate(cFlow.date);
+                    else cancelDate = getSafeDate(s.date); 
+                }
+
+                if (cancelDate && cancelDate < selectedDateStr) return; 
+
+                let isOrderBill = s.jobType === 'Repair' || s.jobType === 'Order' || (s.items && s.items.some(i => String(i.id).startsWith('rep_') || String(i.source).startsWith('order_')));
+                let ref = s.invoiceNo || `INV-${s.id}`;
+                const party = getCustName(s.customerId);
+
+                let metalIn = 0;
+                let metalOut = 0;
+                
+                (s.items || []).forEach(i => {
+                    let net = getSafeNet(i);
+                    if (i.isOldGold) metalIn += net; else metalOut += net;
+                });
+
+                if (getSafeDate(s.date) <= selectedDateStr) {
+                    if (!isOrderBill) {
+                        logMetal(s.date, metalIn, 'IN', 'sales', 'Customer Sales & Receipts', 'fas fa-cash-register', 'var(--in-green)', 'POS Old Gold Exchange', party, ref, true);
+                        logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales & Receipts', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false);
+                    } else {
+                        if (s.jobType === 'Repair') {
+                            if (metalIn > 0) {
+                                logMetal(s.date, metalIn, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Repair Final Bill - Old Gold Exchanged', party, ref, true);
+                            }
+                        } else {
+                            logMetal(s.date, metalOut, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered (Metal Sold)', party, ref, false);
+                            logMetal(s.date, metalIn, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Old Gold Billed', party, ref, true);
+                        }
+                    }
+                }
+
+                if (cancelDate === selectedDateStr) {
+                    if (!isOrderBill) {
+                        logMetal(selectedDateStr, metalIn, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Exchange Returned)', party, ref, false);
+                        logMetal(selectedDateStr, metalOut, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Items Returned)', party, ref, true);
+                    } else {
+                        if (s.jobType !== 'Repair') {
+                            logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled (Items Returned)', party, ref, true);
+                            logMetal(selectedDateStr, metalIn, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Old Gold Cancelled', party, ref, false);
+                        } else if (metalIn > 0) {
+                            logMetal(selectedDateStr, metalIn, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Repair Old Gold Cancelled', party, ref, false);
+                        }
+                    }
+                }
+            });
+
+            orders.forEach(o => {
+                let cancelDate = null;
+                const invoiceNo = o.invoiceNo || (o.jobType === 'Repair' ? 'ORD-INVR' + String(o.id).padStart(3, '0') : 'ORD-INV' + String(o.id).padStart(3, '0'));
+                const partyName = getCustName(o.customerId);
+
+                if (o.status === 'cancelled') {
+                    const cFlow = cFlows.find(f => f.note && f.note.includes(invoiceNo) && f.category.includes('Refund'));
+                    if(cFlow) cancelDate = getSafeDate(cFlow.date);
+                    else cancelDate = getSafeDate(o.orderDate);
+                }
+
+                if (o.jobType === 'Repair') {
+                    let shopIssued = getSafeNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                    let returnedRaw = getSafeNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                    let actualLoss = getSafeNum(o.repairMeta?.actualLoss);
+                    let allowedLoss = getSafeNum(o.repairMeta?.allowedLoss);
+                    let excessLoss = getSafeNum(o.repairMeta?.excessLoss);
+
+                    let issueDate = o.repairMeta?.issuedDate;
+                    if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
+                        if (!cancelDate || cancelDate >= selectedDateStr) {
+                            logMetal(issueDate, shopIssued, 'OUT', 'order_out', 'Repair Metal Flow', 'fas fa-hammer', 'var(--out-red)', `Shop Gold Issued to Karigar`, partyName, invoiceNo, false);
+                        }
+                    }
+
+                    let auditDate = o.repairMeta?.auditDate;
+                    if (returnedRaw > 0 && auditDate && getSafeDate(auditDate) <= selectedDateStr) {
+                        if (!cancelDate || cancelDate >= selectedDateStr) {
+                            let desc = `Raw Metal Returned (Loss: ${actualLoss.toFixed(3)}g | Allowed: ${allowedLoss.toFixed(3)}g | Shortage Due: ${excessLoss.toFixed(3)}g)`;
+                            logMetal(auditDate, returnedRaw, 'IN', 'order_in', 'Repair Metal Flow', 'fas fa-hammer', 'var(--in-green)', desc, partyName, invoiceNo, true);
+                        }
+                    }
+
+                    if (cancelDate === selectedDateStr) {
+                        if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
+                            logMetal(selectedDateStr, shopIssued, 'IN', 'order_in', 'Repair Refunds', 'fas fa-undo', 'var(--in-green)', `Repair Cancelled (Shop Metal Recovered)`, partyName, invoiceNo, true);
+                        }
+                    }
+                } else {
+                    let inWt = getSafeNum(o.oldGoldNet);
+                    if (getSafeDate(o.orderDate) <= selectedDateStr) {
+                        if (!cancelDate || cancelDate >= selectedDateStr) {
+                            logMetal(o.orderDate, inWt, 'IN', 'order_in', 'Order Advances & Payments', 'fas fa-hammer', 'var(--in-green)', `Intake: Order Collateral/Exch`, partyName, invoiceNo, true);
+                        }
+                        if (cancelDate === selectedDateStr) {
+                            logMetal(selectedDateStr, inWt, 'OUT', 'order_out', 'Order Refunds', 'fas fa-undo', 'var(--out-red)', `Order Cancelled (Collateral Returned)`, partyName, invoiceNo, false);
+                        }
+                    }
+                }
+            });
+
+            purchases.forEach(p => {
+                let mIn = 0;
+                if(p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
+                else mIn = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalFineWeight);
+                
+                logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true);
+            });
+
+            oldGold.forEach(o => {
+                if (o.mode !== 'POS Exchange' && o.type !== 'MELT') {
+                    logMetal(o.date, getSafeNet(o), 'OUT', 'oldgold_out', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', 'Direct Old Gold Buy', getCustName(o.customerId), `UR-${o.id}`, true);
+                }
+            });
+
+            loans.forEach(l => {
+                let mWt = getSafeNum(l.weight);
+                if (mWt > 0) {
+                    logMetal(l.date, mWt, 'OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', 'Loan Collateral Received', getCustName(l.customerId), `LN-${l.id}`, true);
+                    
+                    if (l.status === 'closed' && l.closeDate) {
+                        logMetal(l.closeDate, mWt, 'IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', 'Loan Collateral Returned', getCustName(l.customerId), `LN-${l.id}`, false);
+                    }
+                }
+            });
+
+            mPayments.forEach(mp => {
+                if (mp.goldType !== 'fixed') {
+                    let net = getSafeNum(mp.gold);
+                    if (mp.paymentType === 'OUT') {
+                        logMetal(mp.date, net, 'OUT', 'merch_out', 'Merchant Payments & Purchases', 'fas fa-truck', 'var(--out-red)', 'Merchant Metal Paid', getMerchName(mp.merchantId), `SET-${mp.id}`, false);
+                    } else {
+                        logMetal(mp.date, net, 'IN', 'merch_in', 'Merchant Refunds/Receipts', 'fas fa-undo', 'var(--in-green)', 'Merchant Metal Received', getMerchName(mp.merchantId), `SET-${mp.id}`, true);
+                    }
+                }
+            });
+
+
+            // --- CALCULATE CUMULATIVE UDHARI (VISUAL ONLY) ---
+            let c_marketUdhari = 0; 
+            let c_merchantDues = 0;
+            sales.forEach(s => { if (getSafeDate(s.date) <= selectedDateStr && s.status !== 'cancelled') c_marketUdhari += getSafeNum(s.pendingAmount); });
+            purchases.forEach(p => { if (getSafeDate(p.date) <= selectedDateStr && p.type === 'Fixed') c_merchantDues += getSafeNum(p.dueAmount); });
+
+            setInner('uiClosingUdhari', "₹" + c_marketUdhari.toLocaleString());
+            setInner('uiClosingMerchantDue', "₹" + c_merchantDues.toLocaleString());
+
+            // Set Open Balances
+            const openTotalCash = openHardCash + openBank;
+            setInner('uiOpeningBalTotal', "₹" + openTotalCash.toLocaleString());
+            setInner('uiOpeningBalCash', "₹" + openHardCash.toLocaleString());
+            setInner('uiOpeningBalBank', "₹" + openBank.toLocaleString());
+            setInner('uiOpeningBalMetal', openMetal.toFixed(3) + " g");
+
+            // --- RENDER VISUAL UI ---
+            let totalVisualInCash = 0; 
+            let totalVisualOutCash = 0; 
+
+            const renderSide = (sideObj, containerId, isOut) => {
+                let html = '';
+                
+                Object.keys(sideObj).sort().forEach(k => {
+                    const item = sideObj[k];
+                    if(item.cash === 0 && item.metal === 0) return;
+                    
+                    if(isOut) totalVisualOutCash += item.cash;
+                    else totalVisualInCash += item.cash;
+                    
+                    let cashStr = (isOut ? '-' : '+') + "₹" + (item.cash || 0).toLocaleString();
+                    let cashClass = isOut ? 'out-val' : 'in-val';
+                    if (item.cash === 0) { cashStr = '-'; cashClass = ''; }
+                    
+                    let metalStr = '-';
+                    if(item.metal !== 0 && !isNaN(item.metal)) {
+                        metalStr = `Metal: ${item.metal > 0 ? '+' : ''}${Math.abs(item.metal).toFixed(3)}g`;
+                    }
+
+                    html += `
+                        <div class="db-card ${isOut ? 'out-card' : 'in-card'}" onclick="openDetails('${isOut ? 'OUT' : 'IN'}', '${k}')">
+                            <div class="db-card-title">
+                                <span><i class="${item.icon}" style="color:${item.color}; margin-right:8px;"></i> ${item.title}</span>
+                                <i class="fas fa-expand-arrows-alt"></i>
+                            </div>
+                            <div class="db-metrics">
+                                <span class="db-cash ${cashClass}">${cashStr}</span>
+                                <span class="db-metal">${metalStr}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if(html === '') html = `<div class="empty-state">No ${isOut ? 'payments' : 'receipts'} for this date.</div>`;
+                const containerEl = document.getElementById(containerId);
+                if(containerEl) containerEl.innerHTML = html;
+            };
+
+            renderSide(currentRojmel.IN, 'inCardsContainer', false);
+            renderSide(currentRojmel.OUT, 'outCardsContainer', true);
+
+            setInner('uiTotalIn', "₹" + totalVisualInCash.toLocaleString());
+            setInner('uiTotalOut', "₹" + totalVisualOutCash.toLocaleString());
+
+            // --- STRICT PHYSICAL CLOSING BALANCE UPDATE ---
+            const closeHardCash = openHardCash + actualSyncInCash - actualSyncOutCash; 
+            const closeBank = openBank + actualSyncInBank - actualSyncOutBank;
+            const closeTotalCash = closeHardCash + closeBank;
+            const closeMetal = openMetal + todayMetalNetDB;
+
+            setInner('uiClosingBalTotal', "₹" + closeTotalCash.toLocaleString());
+            setInner('uiClosingBalCash', "₹" + closeHardCash.toLocaleString());
+            setInner('uiClosingBalBank', "₹" + closeBank.toLocaleString());
+            setInner('uiClosingBalMetal', (isNaN(closeMetal) ? 0 : closeMetal).toFixed(3) + " g");
+            
+            printData = {
+                opTotal: openTotalCash, opCash: openHardCash, opBank: openBank, opMetal: openMetal,
+                totIn: totalVisualInCash, totOut: totalVisualOutCash,
+                clTotal: closeTotalCash, clCash: closeHardCash, clBank: closeBank, clMetal: closeMetal,
+                marketUdhari: c_marketUdhari, merchantDues: c_merchantDues
+            };
+
+            generatePrintLayout();
+        }
+
+        function getDetailHTML(r) {
+            let html = r.desc.includes('<div') ? r.desc : `<span class="t-desc-title">${r.desc}</span>`;
+            
+            if (r.dataType === 'metal' && !r.desc.includes('<div')) {
+                return `<div class="t-desc-box">${html}<div class="t-desc-detail">Purely tracks physical metal movement to balance stock. No direct cash tied.</div></div>`;
+            }
+            if (r.raw && r.raw.note) {
+                html += `<div class="t-desc-detail"><b>Note:</b> ${r.raw.note}</div>`;
+            }
+            return `<div class="t-desc-box">${html}</div>`;
+        }
+
+        function generatePrintLayout() {
+            const leftCol = document.getElementById('printColLeft');
+            const rightCol = document.getElementById('printColRight');
+            if(!leftCol || !rightCol) return;
+
+            let leftHTML = `
+                <div class="print-bal-box">
+                    <div class="print-bal-title">Opening Balance (JAMA)</div>
+                    <div class="print-bal-row"><span>Hard Cash:</span> <span>₹${(printData.opCash||0).toLocaleString()}</span></div>
+                    <div class="print-bal-row"><span>Bank / UPI:</span> <span>₹${(printData.opBank||0).toLocaleString()}</span></div>
+                    <div class="print-bal-row"><span>Metal (Net):</span> <span>${(printData.opMetal||0).toFixed(3)} g</span></div>
+                    <div class="print-bal-total"><span>Total Cash:</span> <span>₹${(printData.opTotal||0).toLocaleString()}</span></div>
+                </div>
+            `;
+
+            const groupedIn = {};
+            const groupedOut = {};
+            
+            allDayTransactions.forEach(tx => {
+                if(tx.side === 'IN') {
+                    if(!groupedIn[tx.bucketId]) groupedIn[tx.bucketId] = { title: tx.bucketTitle, txs: [] };
+                    groupedIn[tx.bucketId].txs.push(tx);
+                } else {
+                    if(!groupedOut[tx.bucketId]) groupedOut[tx.bucketId] = { title: tx.bucketTitle, txs: [] };
+                    groupedOut[tx.bucketId].txs.push(tx);
+                }
+            });
+
+            const buildPrintTableHTML = (groupTitle, isOut, txs) => {
+                let html = `
+                    <table class="print-table">
+                        <thead>
+                            <tr><th colspan="5" class="section-row">${groupTitle} (${isOut ? 'NAMA' : 'JAMA'})</th></tr>
+                            <tr>
+                                <th style="width:15%;">Time/Party</th>
+                                <th style="width:35%;">Details</th>
+                                <th style="width:15%; text-align:center;">Mode</th>
+                                <th class="text-right" style="width:15%;">Metal (g)</th>
+                                <th class="text-right" style="width:20%;">Cash (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                let sCash = 0, sMetal = 0;
+                txs.forEach(tx => {
+                    let displayCash = tx.cash;
+                    sCash += displayCash;
+                    
+                    let mVal = 0;
+                    if(tx.metal !== '-' && tx.metal !== 0 && !isNaN(tx.metal)) {
+                        mVal = parseFloat(String(tx.metal).replace(/[+g-]/g, ''));
+                        if(String(tx.metal).includes('-')) mVal = -mVal;
+                        sMetal += mVal;
+                    }
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = getDetailHTML(tx);
+                    let cleanDesc = tempDiv.innerText.trim().replace(/\n+/g, ' | ');
+
+                    html += `
+                        <tr>
+                            <td><b>${tx.time}</b><br>${tx.party}</td>
+                            <td>${cleanDesc}</td>
+                            <td style="text-align:center;"><b>${tx.mode}</b></td>
+                            <td class="text-right">${mVal !== 0 ? mVal.toFixed(3) : '-'}</td>
+                            <td class="text-right">${displayCash > 0 ? displayCash.toLocaleString() : '-'}</td>
+                        </tr>
+                    `;
+                });
+                html += `
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-right">TOTAL:</th>
+                                <th class="text-right">${sMetal !== 0 ? sMetal.toFixed(3) : '-'}</th>
+                                <th class="text-right">₹${sCash.toLocaleString()}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                `;
+                return html;
+            };
+
+            Object.values(groupedIn).forEach(group => {
+                leftHTML += buildPrintTableHTML(group.title, false, group.txs);
+            });
+
+            leftHTML += `
+                <div class="print-summary-box">
+                    <span>TOTAL IN (JAMA):</span>
+                    <span>₹${(printData.totIn||0).toLocaleString()}</span>
+                </div>
+            `;
+
+            let rightHTML = '';
+            Object.values(groupedOut).forEach(group => {
+                rightHTML += buildPrintTableHTML(group.title, true, group.txs);
+            });
+
+            rightHTML += `
+                <div class="print-summary-box">
+                    <span>TOTAL OUT (NAMA):</span>
+                    <span>₹${(printData.totOut||0).toLocaleString()}</span>
+                </div>
+            `;
+
+            rightHTML += `
+                <div class="print-bal-box" style="margin-bottom:10px;">
+                    <div class="print-bal-title">Closing Balance (NAMA)</div>
+                    <div class="print-bal-row"><span>Hard Cash:</span> <span>₹${(printData.clCash||0).toLocaleString()}</span></div>
+                    <div class="print-bal-row"><span>Bank / UPI:</span> <span>₹${(printData.clBank||0).toLocaleString()}</span></div>
+                    <div class="print-bal-row"><span>Metal (Net):</span> <span>${(printData.clMetal||0).toFixed(3)} g</span></div>
+                    <div class="print-bal-total"><span>Total Cash:</span> <span>₹${(printData.clTotal||0).toLocaleString()}</span></div>
+                </div>
+                <div class="print-bal-box" style="background:#fff3e0 !important;">
+                    <div class="print-bal-row"><span>Market Udhari (Due):</span> <span>₹${(printData.marketUdhari||0).toLocaleString()}</span></div>
+                    <div class="print-bal-row"><span>Merchant Dues (Payable):</span> <span>₹${(printData.merchantDues||0).toLocaleString()}</span></div>
+                </div>
+            `;
+
+            leftCol.innerHTML = leftHTML;
+            rightCol.innerHTML = rightHTML;
+        }
+
+        function openDetails(side, key) {
+            const group = currentRojmel[side][key];
+            if(!group) return;
+
+            setInner('modalTitle', group.title);
+            
+            const dateStr = document.getElementById('daybookDate').value;
+            const fDate = new Date(dateStr).toLocaleDateString('en-IN', {weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'});
+            setInner('modalDate', `Transactions for ${fDate}`);
+
+            const tbody = document.getElementById('modalTbody');
+            if(tbody) tbody.innerHTML = '';
+
+            let catTotalCash = 0;
+            let catTotalMetal = 0;
+
+            if (group.txs.length === 0) {
+                if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:40px; color:#888;">No detailed transactions found.</td></tr>';
+            } else {
+                group.txs.sort((a,b) => a.time.localeCompare(b.time)).forEach(r => {
+                    const tr = document.createElement('tr');
+                    
+                    let displayCash = r.cash;
+                    catTotalCash += displayCash;
+                    
+                    let mVal = 0;
+                    if(r.metal !== '-' && !isNaN(r.metal)) {
+                        mVal = parseFloat(String(r.metal).replace(/[+g-]/g, ''));
+                        if(String(r.metal).includes('-')) mVal = -mVal;
+                        catTotalMetal += mVal;
+                    }
+
+                    let isOut = (side === 'OUT');
+                    
+                    let cashStr = displayCash > 0 ? `₹${displayCash.toLocaleString()}` : '-';
+                    let cashClass = displayCash > 0 ? (isOut ? 'neg' : 'pos') : '';
+                    let cashPrefix = displayCash > 0 ? (isOut ? '-' : '+') : '';
+
+                    let metalStr = mVal !== 0 ? `${Math.abs(mVal).toFixed(3)}g` : '-';
+                    let metalClass = mVal !== 0 ? (mVal > 0 ? 'pos' : 'neg') : '';
+                    let metalPrefix = mVal !== 0 ? (mVal > 0 ? '+' : '-') : '';
+
+                    const detailBlock = getDetailHTML(r);
+
+                    tr.innerHTML = `
+                        <td style="vertical-align:top;">
+                            <span class="t-time">${r.time}</span>
+                            <span class="t-ref">${r.ref}</span>
+                        </td>
+                        <td style="vertical-align:top;">
+                            <span class="t-party">${r.party}</span>
+                            <span class="t-party-badge">${r.partyType}</span>
+                        </td>
+                        <td style="padding-right:15px; vertical-align:top;">
+                            ${detailBlock}
+                        </td>
+                        <td style="vertical-align:top; text-align:center;">
+                            <span class="t-mode">${r.mode}</span>
+                        </td>
+                        <td class="t-metal ${metalClass}" style="vertical-align:top;">${metalPrefix}${metalStr}</td>
+                        <td class="t-cash ${cashClass}" style="vertical-align:top;">${cashPrefix}${cashStr}</td>
+                    `;
+                    if(tbody) tbody.appendChild(tr);
+                });
+            }
+
+            const isOutCat = (side === 'OUT');
+            const mtEl = document.getElementById('modalTotalMetal');
+            if(mtEl) {
+                mtEl.innerText = `${catTotalMetal >= 0 ? '+' : ''}${catTotalMetal.toFixed(3)} g`;
+                mtEl.style.color = catTotalMetal > 0 ? 'var(--in-green)' : (catTotalMetal < 0 ? 'var(--out-red)' : '#333');
+            }
+            
+            const mcEl = document.getElementById('modalTotalCash');
+            if(mcEl) {
+                mcEl.innerText = `${isOutCat ? '-' : (catTotalCash > 0 ? '+' : '')}₹${catTotalCash.toLocaleString()}`;
+                mcEl.style.color = isOutCat ? 'var(--out-red)' : 'var(--in-green)';
+            }
+
+            openModal('detailsModal');
+        }
+
+        window.addEventListener('popstate', function(event) {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open'); 
+                overlay.classList.remove('show');
+            }
+
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(m => {
+                m.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

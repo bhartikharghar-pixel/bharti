@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics & Reports - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; 
+            --sidebar-bg: #111111; 
+            --theme-primary: #ff7e00;
+            --theme-secondary: #d83a00;
+            --theme-grad: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+            --active-red: #D32F2F; 
+            --bg-light: #f4f6f9; 
+            --white: #ffffff;
+            --border-color: #2a2a2a; 
+            --whatsapp: #25D366; 
+            --exchange-purple: #8e24aa;
+            --in-green: #2e7d32; 
+            --out-red: #c62828; 
+            --info-blue: #1976d2;
+        }
+
+        /* --- 1. GLOBAL & RESET --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; color: #333; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent;}
+        a { text-decoration: none; color: inherit; }
+
+        /* --- 2. HEADER & SIDEBAR --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--theme-primary); justify-content: space-between;}
+        .header-title { color: var(--theme-primary); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, rgba(255,126,0,0.15), transparent); color: var(--theme-primary); border-left: 4px solid var(--theme-primary); }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- 3. DASHBOARD LAYOUT --- */
+        .app-container { padding: 20px; max-width: 1300px; margin: 0 auto; }
+
+        /* Tab Navigation */
+        .report-nav { display: flex; gap: 10px; overflow-x: auto; margin-bottom: 20px; padding-bottom: 5px; scrollbar-width: none; }
+        .nav-item { 
+            padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; color: #555; background: #fff; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; white-space: nowrap; border: 1px solid #eee;
+        }
+        .nav-item.active { background: var(--theme-grad); color: #fff; border-color: var(--theme-secondary); box-shadow: 0 4px 10px rgba(216,58,0,0.3); }
+
+        /* Sections */
+        .report-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .report-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Sub-Tabs (For Inventory) */
+        .sub-tabs { display: flex; background: #e0e0e0; border-radius: 8px; padding: 4px; gap: 5px; flex-wrap: wrap; margin-bottom: 20px;}
+        .s-tab { flex: 1; min-width: 120px; text-align: center; padding: 8px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
+        .s-tab.active { background: white; color: var(--theme-secondary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .s-panel { display: none; }
+        .s-panel.active { display: block; animation: fadeIn 0.2s; }
+
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); position: relative; overflow: hidden; display: flex; flex-direction: column;}
+        .stat-card i.bg-icon { position: absolute; right: -10px; bottom: -15px; font-size: 6rem; opacity: 0.04; color: #000; pointer-events: none; }
+        .stat-val { font-size: 1.8rem; font-weight: 700; color: #333; margin-bottom: 5px; z-index: 1;}
+        .stat-lbl { font-size: 0.9rem; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; z-index: 1;}
+        .stat-trend { font-size: 0.8rem; margin-top: 5px; display: block; color: #888; z-index: 1;}
+        
+        .c-green { color: var(--in-green); } .bg-green { border-left: 5px solid var(--in-green); }
+        .c-red { color: var(--out-red); } .bg-red { border-left: 5px solid var(--out-red); }
+        .c-blue { color: var(--info-blue); } .bg-blue { border-left: 5px solid var(--info-blue); }
+        .c-gold { color: var(--theme-primary); } .bg-gold { border-left: 5px solid var(--theme-primary); }
+        .c-purple { color: var(--exchange-purple); } .bg-purple { border-left: 5px solid var(--exchange-purple); }
+
+        /* Filters */
+        .filter-bar { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee;}
+        .date-input { border: 1px solid #ddd; padding: 10px 12px; border-radius: 6px; font-size: 0.9rem; outline: none; background: #fafafa;}
+        .date-input:focus { border-color: var(--theme-primary); }
+        .btn-filter { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; transition: 0.2s;}
+        .btn-filter:hover { background: #000; }
+        
+        /* Data Tables */
+        .card { background: white; border-radius: 12px; padding: 0; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+        .card-title { font-weight: 700; font-size: 1.1rem; color: #333; margin: 0; display: flex; align-items: center; gap: 8px;}
+        
+        .table-responsive { overflow-x: auto; width: 100%; }
+        .r-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 950px; }
+        .r-table th { background: #f8f9fa; color: #555; padding: 12px 15px; text-align: left; font-weight: 600; border-bottom: 2px solid #eee; text-transform: uppercase; font-size: 0.75rem;}
+        .r-table td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: middle; }
+        .r-table tr:hover { background: #fdfdfd; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;}
+        
+        .b-stock { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .b-sold { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+        .b-source { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+        .b-cut { background: #f3e8ff; color: #a855f7;}
+        .b-pay { background: #dcfce7; color: #15803d;}
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .filter-bar > * { width: 100%; margin-left: 0 !important; }
+        }
+
+        /* Print */
+        @media print {
+            @page { size: A4 landscape; margin: 10mm; }
+            .app-header, .sidebar-drawer, .report-nav, .filter-bar, .btn-print, .sidebar-overlay, .sub-tabs { display: none !important; }
+            body { background: white; padding: 0; color: #000; }
+            .app-container { max-width: 100%; padding: 0; margin: 0; }
+            .table-responsive { overflow: visible !important; width: 100% !important; border: none !important; }
+            .r-table { min-width: auto !important; width: 100% !important; font-size: 11px !important; border-collapse: collapse !important; }
+            .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 20px; border-radius: 0;}
+            .card-header { padding: 10px; background: #f0f0f0 !important; -webkit-print-color-adjust: exact; border-bottom: 1px solid #ccc;}
+            .r-table th, .r-table td { padding: 6px !important; white-space: normal !important; word-wrap: break-word; border: 1px solid #e0e0e0; }
+            .r-table th { background: #eee !important; -webkit-print-color-adjust: exact; color: #000;}
+            .s-panel { display: block !important; margin-bottom: 30px; } 
+            .stats-grid { display: flex !important; flex-wrap: wrap !important; gap: 10px !important; margin-bottom: 15px !important;}
+            .stat-card { flex: 1; min-width: 200px; padding: 10px !important; box-shadow: none !important; border: 1px solid #ccc !important; border-radius: 4px !important;}
+            .stat-val { font-size: 1.2rem !important; }
+            .bg-icon { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+    
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html" class="active"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="report-nav">
+            <div class="nav-item active" onclick="switchTab('overview', this)"><i class="fas fa-chart-pie"></i> Business Overview</div>
+            <div class="nav-item" onclick="switchTab('stock', this)"><i class="fas fa-boxes"></i> Master Metal Ledger (Stock Flow)</div>
+            <div class="nav-item" onclick="switchTab('health', this)"><i class="fas fa-balance-scale"></i> Financial Health</div>
+            <div class="nav-item" onclick="switchTab('merchant', this)"><i class="fas fa-truck-loading"></i> Merchant Ledger</div>
+        </div>
+
+        <div id="tab-overview" class="report-section active">
+            <div class="filter-bar">
+                <span style="font-weight:600; color:#555;"><i class="fas fa-filter"></i> Date Range:</span>
+                <input type="date" id="ovFrom" class="date-input">
+                <span style="color:#888;">to</span>
+                <input type="date" id="ovTo" class="date-input">
+                <button class="btn-filter" onclick="loadOverview()"><i class="fas fa-sync"></i> Apply Filter</button>
+                <button class="btn-filter btn-print" style="background:var(--theme-grad); color:#fff; margin-left:auto; border:none;" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card bg-green">
+                    <i class="fas fa-chart-line bg-icon"></i>
+                    <span class="stat-val c-green" id="ov-revenue">₹0</span>
+                    <span class="stat-lbl">Gross Revenue</span>
+                    <span class="stat-trend">Sales + Orders (Inc. GST)</span>
+                </div>
+                <div class="stat-card bg-purple">
+                    <i class="fas fa-ring bg-icon"></i>
+                    <span class="stat-val c-purple" id="ov-old-gold">0.000 g</span>
+                    <span class="stat-lbl">Old Gold Sourced</span>
+                    <span class="stat-trend" id="ov-old-gold-val">Value: ₹0</span>
+                </div>
+                <div class="stat-card bg-red">
+                    <i class="fas fa-shopping-cart bg-icon"></i>
+                    <span class="stat-val c-red" id="ov-expense">₹0</span>
+                    <span class="stat-lbl">Stock Purchases</span>
+                    <span class="stat-trend">Wholesale Cost (Fixed)</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-receipt"></i> Recent Business Activity</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="r-table">
+                        <thead><tr><th>Date</th><th>Type</th><th>Ref #</th><th>Customer / Details</th><th class="text-right">Amount</th></tr></thead>
+                        <tbody id="ov-activity-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-stock" class="report-section">
+            <div class="filter-bar">
+                <span style="font-weight:600; color:#555;"><i class="fas fa-calendar-alt"></i> Date Range Filter:</span>
+                <input type="date" id="stFrom" class="date-input">
+                <span style="color:#888;">to</span>
+                <input type="date" id="stTo" class="date-input">
+                <button class="btn-filter" onclick="loadStockReport()"><i class="fas fa-sync"></i> Refresh Ledger</button>
+                <button class="btn-filter btn-print" style="background:var(--theme-grad); color:#fff; margin-left:auto; border:none;" onclick="window.print()"><i class="fas fa-print"></i> Print Ledger</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card bg-gold">
+                    <i class="fas fa-boxes bg-icon"></i>
+                    <span class="stat-val c-gold" id="st-total-wt">0.000 g</span>
+                    <span class="stat-lbl">Total Gold (Closing Stock Net Wt)</span>
+                    <span class="stat-trend" id="st-total-val" style="color:#333; font-weight:bold; font-size:1rem;">Est. Value: ₹0</span>
+                </div>
+                <div class="stat-card bg-blue">
+                    <i class="fas fa-check-circle bg-icon"></i>
+                    <span class="stat-val c-blue" id="st-sold-wt">0.000 g</span>
+                    <span class="stat-lbl">Total Gold Sold (Filtered Period)</span>
+                    <span class="stat-trend" id="st-sold-val" style="color:#333; font-weight:bold; font-size:1rem;">Value: ₹0</span>
+                </div>
+            </div>
+
+            <div class="sub-tabs">
+                <button class="s-tab active" onclick="switchStockTab('summary', this)"><i class="fas fa-chart-bar"></i> Master Metal Ledger (Summary)</button>
+                <button class="s-tab" onclick="switchStockTab('flow', this)"><i class="fas fa-barcode"></i> Detailed Item Activity Log</button>
+                <button class="s-tab" onclick="switchStockTab('oldgold', this)"><i class="fas fa-sync-alt"></i> Old Gold Acquisitions</button>
+            </div>
+
+            <div id="sp-summary" class="s-panel active">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title"><i class="fas fa-th-list"></i> Stock & Flow Analysis</h3></div>
+                    <div class="table-responsive">
+                        <table class="r-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="vertical-align:middle; font-size:0.9rem; color:#333;">Category</th>
+                                    <th colspan="2" class="text-center" style="border-left:2px solid #eee; background:#fafafa;">Opening Balance</th>
+                                    <th colspan="2" class="text-center" style="border-left:2px solid #eee; background:#e8f5e9; color:var(--in-green);">+ Added (In)</th>
+                                    <th colspan="2" class="text-center" style="border-left:2px solid #eee; background:#fff3e0; color:#ef6c00;">+/- Tagged (Internal)</th>
+                                    <th colspan="2" class="text-center" style="border-left:2px solid #eee; background:#ffebee; color:var(--out-red);">- Issued/Sold (Out)</th>
+                                    <th colspan="2" class="text-center" style="border-left:2px solid #eee; background:#e3f2fd; color:var(--info-blue);">Closing Balance</th>
+                                </tr>
+                                <tr>
+                                    <th class="text-right" style="border-left:2px solid #eee; padding-top:5px; padding-bottom:5px;">Pcs</th>
+                                    <th class="text-right" style="padding-top:5px; padding-bottom:5px;">Net Wt</th>
+                                    <th class="text-right" style="border-left:2px solid #eee; padding-top:5px; padding-bottom:5px;">Pcs</th>
+                                    <th class="text-right" style="padding-top:5px; padding-bottom:5px;">Net Wt</th>
+                                    <th class="text-right" style="border-left:2px solid #eee; padding-top:5px; padding-bottom:5px;">Pcs</th>
+                                    <th class="text-right" style="padding-top:5px; padding-bottom:5px;">Net Wt</th>
+                                    <th class="text-right" style="border-left:2px solid #eee; padding-top:5px; padding-bottom:5px;">Pcs</th>
+                                    <th class="text-right" style="padding-top:5px; padding-bottom:5px;">Net Wt</th>
+                                    <th class="text-right" style="border-left:2px solid #eee; padding-top:5px; padding-bottom:5px;">Pcs</th>
+                                    <th class="text-right" style="padding-top:5px; padding-bottom:5px;">Net Wt</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-summary-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sp-flow" class="s-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-barcode"></i> Individual Item Flow (Filtered Dates)</h3>
+                        <span style="font-size:0.8rem; color:#888;">Shows items added or sold in selected period.</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="r-table">
+                            <thead>
+                                <tr>
+                                    <th>Barcode / Item</th>
+                                    <th>Purity</th>
+                                    <th class="text-right">Fine Wt</th>
+                                    <th>Origin / Purchased From</th>
+                                    <th>Destination / Sold To</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-flow-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sp-oldgold" class="s-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title" style="color:var(--theme-primary);"><i class="fas fa-sync-alt"></i> Old Gold Acquisitions (Filtered Dates)</h3>
+                        <span style="font-size:0.8rem; color:#888;">Includes Direct Buys, POS Exchanges & Order Advances.</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="r-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Source / Module</th>
+                                    <th>Customer</th>
+                                    <th>Purity</th>
+                                    <th class="text-right">Gross Wt</th>
+                                    <th class="text-right">Est. Fine Wt</th>
+                                    <th class="text-right" style="color:var(--theme-primary);">Assigned Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-oldgold-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-health" class="report-section">
+            <div class="filter-bar" style="background:#e3f2fd; border:1px solid #bbdefb; color:#1565c0;">
+                <i class="fas fa-info-circle"></i> This dashboard shows real-time macro financial health. It does not depend on date filters.
+                <button class="btn-filter btn-print" style="background:#1565c0; color:#fff; margin-left:auto;" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+            </div>
+
+            <h3 style="margin-top:0; color:#333;"><i class="fas fa-arrow-up" style="color:var(--in-green);"></i> Shop Assets (Market Value & Cash Out)</h3>
+            <div class="stats-grid">
+                <div class="stat-card bg-blue">
+                    <i class="fas fa-wallet bg-icon"></i>
+                    <span class="stat-val c-blue" id="fh-cash">₹0</span>
+                    <span class="stat-lbl">Liquid Cash Balance</span>
+                    <span class="stat-trend">Total Cashbook Funds</span>
+                </div>
+                <div class="stat-card bg-gold">
+                    <i class="fas fa-gem bg-icon"></i>
+                    <span class="stat-val c-gold" id="fh-stock">₹0</span>
+                    <span class="stat-lbl">Inventory Valuation</span>
+                    <span class="stat-trend">Based on Today's Live Rate</span>
+                </div>
+                <div class="stat-card bg-green">
+                    <i class="fas fa-hand-holding-usd bg-icon"></i>
+                    <span class="stat-val c-green" id="fh-loans">₹0</span>
+                    <span class="stat-lbl">Active Gold Loans</span>
+                    <span class="stat-trend">Outstanding Principal Owed to You</span>
+                </div>
+            </div>
+
+            <h3 style="margin-top:30px; color:#333;"><i class="fas fa-arrow-down" style="color:var(--out-red);"></i> Shop Liabilities (Money Owed/Held)</h3>
+            <div class="stats-grid">
+                <div class="stat-card bg-red">
+                    <i class="fas fa-piggy-bank bg-icon"></i>
+                    <span class="stat-val c-red" id="fh-deposits">₹0</span>
+                    <span class="stat-lbl">Customer Deposits Held</span>
+                    <span class="stat-trend">Jama Kharchi Owed Back</span>
+                </div>
+                <div class="stat-card bg-purple">
+                    <i class="fas fa-heart bg-icon"></i>
+                    <span class="stat-val c-purple" id="fh-schemes">₹0</span>
+                    <span class="stat-lbl">BC Scheme Funds</span>
+                    <span class="stat-trend">Liability for Active 11+1 Schemes</span>
+                </div>
+                <div class="stat-card bg-red" style="border-left-color:#f57f17;">
+                    <i class="fas fa-truck bg-icon"></i>
+                    <span class="stat-val" style="color:#f57f17;" id="fh-merchants">₹0</span>
+                    <span class="stat-lbl">Merchant Dues</span>
+                    <span class="stat-trend">Pending Payments to Suppliers</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-merchant" class="report-section">
+            
+            <div class="stats-grid" id="mrSummaryCards" style="display:none;">
+                <div class="stat-card bg-gold" style="border-top-color: #333;">
+                    <span class="stat-val" id="mrTotalGold" style="color:#333;">0.000 g</span>
+                    <span class="stat-lbl">Overall Gold Due</span>
+                    <span class="stat-trend">All-Time Metal Balance</span>
+                </div>
+                <div class="stat-card bg-red" style="border-top-color: #333;">
+                    <span class="stat-val" id="mrTotalCash" style="color:#333;">₹0</span>
+                    <span class="stat-lbl">Overall Cash Due</span>
+                    <span class="stat-trend">All-Time Rupee Balance</span>
+                </div>
+            </div>
+
+            <div class="filter-bar">
+                <select id="rptMerchantSelect" class="date-input" style="min-width:200px;" onchange="loadMerchantReport()">
+                    <option value="">-- Select Merchant / Karigar --</option>
+                </select>
+                <span style="font-weight:600; color:#555; margin-left:10px;"><i class="fas fa-calendar-alt"></i> From:</span>
+                <input type="date" id="mrFrom" class="date-input" onchange="loadMerchantReport()">
+                <span style="font-weight:600; color:#555;">To:</span>
+                <input type="date" id="mrTo" class="date-input" onchange="loadMerchantReport()">
+                
+                <button class="btn-filter" style="background:var(--in-green); margin-left:auto;" onclick="downloadMerchantCSV()"><i class="fas fa-file-csv"></i> Export CSV</button>
+                <button class="btn-filter btn-print" style="background:#333; color:#fff;" onclick="window.print()"><i class="fas fa-print"></i> Print Ledger</button>
+            </div>
+
+            <div id="merchantReportContent" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-book"></i> Statement of Account</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="r-table" id="mrTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:12%;">Date</th>
+                                    <th style="width:15%;">Type</th>
+                                    <th style="width:35%;">Description</th>
+                                    <th class="text-right" style="width:12%;">Gold Flow (g)</th>
+                                    <th class="text-right" style="width:12%;">Silver Flow (g)</th>
+                                    <th class="text-right" style="width:14%;">Cash Flow (₹)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mrBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="font-size:0.8rem; color:#888; text-align:center; padding-bottom: 20px;">
+                    *Positive (+) values indicate Shop Liability (We owe Merchant). Negative (-) values indicate Shop Asset (Merchant owes us).
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="db.js?v=35"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+
+        let goldRates = { rate24k: 0, rate22k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+
+        function getPurityFactor(key) {
+            if (!key) return 1.0;
+            if (key === '24K' || key === 'Silver') return 1.000;
+            if (key === '22K') return 0.9166;
+            if (key === '18K') return 0.7500;
+            if (key === 'Silver 92.5%') return 0.925;
+            
+            const customG = goldRates.customPurities?.find(cp => cp.name === key);
+            if (customG) return customG.pct / 100;
+            
+            const customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
+            if (customS) return customS.pct / 100;
+            
+            return 1.0; 
+        }
+
+        const parseDate = (d) => {
+            if (!d) return '1970-01-01';
+            try {
+                const dateObj = new Date(d);
+                if (isNaN(dateObj.getTime())) return '1970-01-01';
+                return dateObj.toISOString().split('T')[0];
+            } catch(e) {
+                return '1970-01-01';
+            }
+        };
+
+        window.onload = async function() {
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const strToday = today.toISOString().split('T')[0];
+            const strFirst = firstDay.toISOString().split('T')[0];
+
+            document.getElementById('ovTo').value = strToday;
+            document.getElementById('ovFrom').value = strFirst;
+            
+            document.getElementById('stTo').value = strToday;
+            document.getElementById('stFrom').value = strFirst;
+
+            document.getElementById('mrTo').value = strToday;
+            document.getElementById('mrFrom').value = strFirst;
+
+            const r = await getSetting('gold_rates');
+            if(r) goldRates = r;
+
+            await populateDropdowns();
+            loadOverview();
+        };
+
+        function switchTab(tab, btn) {
+            document.querySelectorAll('.report-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            btn.classList.add('active');
+
+            if(tab === 'overview') loadOverview();
+            if(tab === 'stock') loadStockReport();
+            if(tab === 'health') loadFinancials();
+            if(tab === 'merchant') loadMerchantReport();
+        }
+
+        function switchStockTab(tabName, btn) {
+            document.querySelectorAll('.s-panel').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.s-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('sp-' + tabName).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        async function populateDropdowns() {
+            const merchants = await getAllItems('merchants').catch(() => []);
+            const mSel = document.getElementById('rptMerchantSelect');
+            mSel.innerHTML = '<option value="">-- Select Merchant / Karigar --</option>';
+            merchants.sort((a,b)=>a.name.localeCompare(b.name)).forEach(m => {
+                mSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+        }
+
+        // --- 1. OVERVIEW LOGIC ---
+        async function loadOverview() {
+            const from = document.getElementById('ovFrom').value;
+            const to = document.getElementById('ovTo').value;
+            
+            const sales = await getAllItems('sales').catch(() => []);
+            const orders = await getAllItems('orders').catch(() => []);
+            const purchases = await getAllItems('purchases').catch(() => []);
+            
+            let oldGold = await getAllItems('oldgold').catch(() => []);
+            if (oldGold.length === 0) {
+                 oldGold = await getAllItems('old_gold').catch(() => []); 
+            }
+            
+            const customers = await getAllItems('customers').catch(() => []);
+
+            const fSales = sales.filter(s => { const d = parseDate(s.date); return d >= from && d <= to && s.status !== 'cancelled'; });
+            const fOrders = orders.filter(o => { const d = parseDate(o.orderDate || o.date); return d >= from && d <= to && o.status !== 'cancelled'; });
+            const fPurch = purchases.filter(p => { const d = parseDate(p.date); return d >= from && d <= to; });
+            const fOldGold = oldGold.filter(g => { const d = parseDate(g.date); return d >= from && d <= to; });
+
+            const revenueSales = fSales.reduce((acc, s) => acc + (s.grandTotal || 0), 0);
+            const revenueOrders = fOrders.reduce((acc, o) => acc + (o.grandTotal || o.estAmount || 0), 0);
+            const expense = fPurch.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+            
+            let ogWt = 0; let ogVal = 0;
+            fSales.forEach(s => {
+                if(s.oldGoldDeduction > 0) {
+                    ogVal += s.oldGoldDeduction;
+                    s.items.forEach(i => { if(i.isOldGold) ogWt += (i.fineWt || i.weight); });
+                }
+            });
+            fOldGold.forEach(g => { ogWt += (g.fineWt || g.netWt || 0); ogVal += g.amount || 0; });
+            
+            fOrders.forEach(o => {
+                if(o.oldGoldValue > 0) {
+                    ogVal += o.oldGoldValue;
+                    ogWt += (o.oldGoldFine || o.oldGoldNet || 0);
+                }
+            });
+
+            document.getElementById('ov-revenue').innerText = "₹" + (revenueSales + revenueOrders).toLocaleString();
+            document.getElementById('ov-expense').innerText = "₹" + expense.toLocaleString();
+            document.getElementById('ov-old-gold').innerText = ogWt.toFixed(3) + " g";
+            document.getElementById('ov-old-gold-val').innerText = "Value: ₹" + ogVal.toLocaleString();
+
+            const activityList = [];
+            fSales.forEach(s => {
+                const c = customers.find(x => x.id == s.customerId);
+                activityList.push({ date: s.date, type: 'POS Sale', ref: `#${s.id}`, desc: c ? c.name : 'Walk-in', amount: s.grandTotal });
+            });
+            fOrders.forEach(o => {
+                const c = customers.find(x => x.id == o.customerId);
+                activityList.push({ date: o.orderDate || o.date, type: 'Custom Order', ref: `ORD-${o.id}`, desc: c ? c.name : 'Walk-in', amount: o.grandTotal || o.estAmount });
+            });
+
+            activityList.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+            const tbody = document.getElementById('ov-activity-list');
+            tbody.innerHTML = '';
+            
+            if(activityList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999; padding:20px;">No activity in this period.</td></tr>';
+            } else {
+                activityList.slice(0, 20).forEach(act => {
+                    const badgeClass = act.type === 'POS Sale' ? 'background:#e3f2fd; color:#1565c0;' : 'background:#fff3e0; color:#ef6c00;';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="color:#555;">${new Date(act.date).toLocaleDateString()}</td>
+                            <td><span style="${badgeClass} padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold;">${act.type}</span></td>
+                            <td style="font-family:monospace; font-weight:600;">${act.ref}</td>
+                            <td style="font-weight:500;">${act.desc}</td>
+                            <td class="text-right" style="font-weight:bold; color:#333;">₹${act.amount.toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // --- 2. INVENTORY VALUATION & FLOW ENGINE (MASTER METAL LEDGER) ---
+        async function loadStockReport() {
+            const from = document.getElementById('stFrom').value;
+            const to = document.getElementById('stTo').value;
+
+            const purchases = await getAllItems('purchases').catch(() => []);
+            const inventory = await getAllItems('inventory').catch(() => []);
+            const sales = await getAllItems('sales').catch(() => []);
+            const orders = await getAllItems('orders').catch(() => []);
+            
+            let oldGold = await getAllItems('oldgold').catch(() => []);
+            if(oldGold.length === 0) oldGold = await getAllItems('old_gold').catch(() => []);
+
+            const customers = await getAllItems('customers').catch(() => []);
+            const merchants = await getAllItems('merchants').catch(() => []);
+
+            const custMap = {}; customers.forEach(c => custMap[c.id] = c.name);
+            const merchMap = {}; merchants.forEach(m => merchMap[m.id] = m.name);
+            
+            const barcodeToSale = {};
+            sales.forEach(s => {
+                if(s.status !== 'cancelled') {
+                    const sDate = parseDate(s.date);
+                    s.items.forEach(i => {
+                        if(!i.isOldGold && i.barcode) { 
+                            barcodeToSale[i.barcode] = { date: sDate, custName: custMap[s.customerId] || 'Walk-in', saleId: s.id, val: i.total };
+                        }
+                    });
+                }
+            });
+
+            const r24k = parseFloat(goldRates.rate24k) || 0;
+            const rSil = parseFloat(goldRates.rateSilver) || 0;
+
+            const catStats = {}; 
+            const detailedFlow = []; 
+            
+            let totalSoldValFilter = 0; let totalSoldNetWtFilter = 0;
+
+            // STEP A: LOG MERCHANT BULK PURCHASES (RAW METAL)
+            purchases.forEach(p => {
+                const pDate = parseDate(p.date);
+                let isSilv = false;
+                if (p.itemDetails && p.itemDetails.length > 0) {
+                     isSilv = p.itemDetails[0].purity.toUpperCase().includes('SIL') || p.itemDetails[0].purity.includes('92.5');
+                } else if (p.category && p.category.toUpperCase().includes('SILVER')) {
+                     isSilv = true;
+                }
+                
+                let wt = parseFloat(p.netWeight || p.totalWeight || p.totalFineWeight || 0);
+                if (wt > 0) {
+                    const targetCat = isSilv ? 'RAW METAL / BULK (SILVER)' : 'RAW METAL / BULK (GOLD)';
+                    if (!catStats[targetCat]) {
+                        catStats[targetCat] = { op: {pcs:0, wt:0, val:0}, in: {pcs:0, wt:0, val:0}, tagged: {pcs:0, wt:0, val:0}, out: {pcs:0, wt:0, val:0}, cl: {pcs:0, wt:0, val:0}, isSilver: isSilv, isSpecial: true };
+                    }
+                    
+                    const estVal = isSilv ? (wt * (rSil/1000)) : (wt * (getPurityFactor('24K') * (r24k/10)));
+
+                    if (pDate < from) { catStats[targetCat].op.pcs += 1; catStats[targetCat].op.wt += wt; catStats[targetCat].op.val += estVal;}
+                    if (pDate >= from && pDate <= to) { catStats[targetCat].in.pcs += 1; catStats[targetCat].in.wt += wt; catStats[targetCat].in.val += estVal;}
+                    if (pDate <= to) { catStats[targetCat].cl.pcs += 1; catStats[targetCat].cl.wt += wt; catStats[targetCat].cl.val += estVal;}
+                }
+            });
+
+            // STEP B: PROCESS INVENTORY (BARCODED ITEMS FROM BULK)
+            inventory.forEach(inv => {
+                const cat = inv.category || 'UNTAGGED / MIX';
+                const isSilver = (inv.purity && inv.purity.toLowerCase().includes('silver'));
+                
+                const netWt = parseFloat(inv.netWt || inv.grossWt || inv.weight || 0);
+                const factor = getPurityFactor(inv.purity);
+                const fineWt = isSilver ? netWt : (netWt * factor); 
+                const estValue = isSilver ? (fineWt * (rSil / 1000)) : (fineWt * (r24k / 10));
+
+                const aDate = inv.addedDate ? parseDate(inv.addedDate) : parseDate(inv.date);
+                let sDate = '9999-12-31';
+                let saleData = inv.barcode ? barcodeToSale[inv.barcode] : null;
+                let isSold = false;
+
+                if (inv.status === 'sold' || inv.soldDate) {
+                    isSold = true;
+                    if (saleData) sDate = saleData.date;
+                    else if (inv.soldDate) sDate = parseDate(inv.soldDate);
+                    else sDate = aDate; 
+                }
+
+                if (!catStats[cat]) {
+                    catStats[cat] = { op: {pcs:0, wt:0, val:0}, in: {pcs:0, wt:0, val:0}, tagged: {pcs:0, wt:0, val:0}, out: {pcs:0, wt:0, val:0}, cl: {pcs:0, wt:0, val:0}, isSilver: isSilver };
+                }
+                
+                const rawCat = isSilver ? 'RAW METAL / BULK (SILVER)' : 'RAW METAL / BULK (GOLD)';
+                if (!catStats[rawCat]) {
+                    catStats[rawCat] = { op: {pcs:0, wt:0, val:0}, in: {pcs:0, wt:0, val:0}, tagged: {pcs:0, wt:0, val:0}, out: {pcs:0, wt:0, val:0}, cl: {pcs:0, wt:0, val:0}, isSilver: isSilver, isSpecial: true };
+                }
+
+                const pcs = parseInt(inv.pieces) || 1;
+                const val = saleData ? (saleData.val || estValue) : estValue;
+                const stats = catStats[cat];
+                const rawStats = catStats[rawCat];
+
+                if (aDate < from && sDate >= from) { 
+                    stats.op.pcs += pcs; stats.op.wt += netWt; stats.op.val += estValue; 
+                    rawStats.op.pcs -= pcs; rawStats.op.wt -= netWt; rawStats.op.val -= estValue;
+                }
+                if (aDate >= from && aDate <= to) { 
+                    // Item tagged INTO specific category, OUT of Raw Metal
+                    stats.tagged.pcs += pcs; stats.tagged.wt += netWt; stats.tagged.val += estValue;
+                    rawStats.tagged.pcs -= pcs; rawStats.tagged.wt -= netWt; rawStats.tagged.val -= estValue;
+                }
+                if (sDate >= from && sDate <= to) { 
+                    stats.out.pcs += pcs; stats.out.wt += netWt; stats.out.val += val; 
+                }
+                if (aDate <= to && sDate > to) { 
+                    stats.cl.pcs += pcs; stats.cl.wt += netWt; stats.cl.val += estValue; 
+                    rawStats.cl.pcs -= pcs; rawStats.cl.wt -= netWt; rawStats.cl.val -= estValue;
+                }
+
+                if (sDate >= from && sDate <= to) {
+                    if(!isSilver) totalSoldNetWtFilter += netWt;
+                    totalSoldValFilter += val;
+                }
+
+                if ((aDate >= from && aDate <= to) || (sDate >= from && sDate <= to)) {
+                    let destStr = `<span class="badge b-stock"><i class="fas fa-box"></i> In Stock</span>`;
+                    if(isSold) destStr = saleData ? `<span class="badge" style="background:#ffebee; color:#c62828;"><i class="fas fa-user"></i> Sold: ${saleData.custName}</span>` : `<span class="badge" style="background:#fff3e0; color:#ef6c00;"><i class="fas fa-truck"></i> Transferred</span>`;
+
+                    let sourceStr = '<span class="badge b-source">Direct Entry / Tagged</span>';
+                    if (inv.merchantId) sourceStr = `<span class="badge b-source"><i class="fas fa-truck"></i> ${merchMap[inv.merchantId] || 'Merchant'}</span>`;
+                    else if (inv.source && inv.source.startsWith('order_')) sourceStr = `<span class="badge b-source" style="background:#e3f2fd; color:#1565c0;"><i class="fas fa-hammer"></i> Karigar Return</span>`;
+
+                    detailedFlow.push({
+                        dateForSort: isSold && (sDate >= from && sDate <= to) ? sDate : aDate,
+                        barcode: inv.barcode || 'N/A', category: cat, purity: inv.purity,
+                        displayWt: netWt, isSilver: isSilver, source: sourceStr, dest: destStr
+                    });
+                }
+            });
+
+            // STEP C: Add Karigar Flow
+            let kStats = { op: {pcs:0, wt:0, val:0}, in: {pcs:0, wt:0, val:0}, tagged: {pcs:0, wt:0, val:0}, out: {pcs:0, wt:0, val:0}, cl: {pcs:0, wt:0, val:0}, isSpecial: true, isSilver: false };
+            orders.forEach(o => {
+                if(o.status === 'cancelled') return;
+                const issuedWt = parseFloat(o.issuedNetWt || o.issuedWeight || o.issuedGrossWt || o.issuedFineWt || 0);
+                if (issuedWt > 0 && o.merchantId) {
+                    const iDate = parseDate(o.orderDate || o.date);
+                    let rDate = '9999-12-31';
+                    if (['ready', 'completed', 'billed', 'delivered'].includes(o.status)) {
+                        rDate = parseDate(o.soldDate || o.orderDate || o.date);
+                    }
+                    
+                    const estFine = parseFloat(o.issuedFineWt || issuedWt);
+                    const estVal = estFine * (r24k / 10);
+                    
+                    if (iDate < from && rDate >= from) { kStats.op.pcs += 1; kStats.op.wt += issuedWt; kStats.op.val += estVal;}
+                    if (iDate >= from && iDate <= to) { kStats.in.pcs += 1; kStats.in.wt += issuedWt; kStats.in.val += estVal;}
+                    if (rDate >= from && rDate <= to) { kStats.out.pcs += 1; kStats.out.wt += issuedWt; kStats.out.val += estVal;}
+                    if (iDate <= to && rDate > to) { kStats.cl.pcs += 1; kStats.cl.wt += issuedWt; kStats.cl.val += estVal;}
+                }
+            });
+            if (kStats.in.pcs > 0 || kStats.op.pcs > 0 || kStats.out.pcs > 0) catStats['WITH KARIGAR (JOBWORK)'] = kStats;
+
+            // STEP D: Old Gold Log
+            const oldGoldList = [];
+            let ogStats = { op: {pcs:0, wt:0, val:0}, in: {pcs:0, wt:0, val:0}, tagged: {pcs:0, wt:0, val:0}, out: {pcs:0, wt:0, val:0}, cl: {pcs:0, wt:0, val:0}, isSpecial: true, isSilver: false };
+
+            oldGold.forEach(g => {
+                const aDate = parseDate(g.date);
+                const sDate = '9999-12-31'; 
+                const net = parseFloat(g.netWt || g.grossWt || 0); 
+                const factor = getPurityFactor(g.purity);
+                const fine = net * factor;
+                const val = parseFloat(g.amount) || 0;
+                
+                if (aDate >= from && aDate <= to) {
+                    oldGoldList.push({
+                        date: g.date, module: '<span class="badge" style="background:#fce4ec; color:#8e24aa;">Direct Buy</span>',
+                        cust: custMap[g.customerId] || 'Walk-in',
+                        purity: g.purity, gross: g.grossWt || g.netWt, fine: fine, value: val
+                    });
+                }
+                
+                if (aDate < from && sDate >= from) { ogStats.op.pcs += 1; ogStats.op.wt += net; ogStats.op.val += val; }
+                if (aDate >= from && aDate <= to) { ogStats.in.pcs += 1; ogStats.in.wt += net; ogStats.in.val += val; }
+                if (sDate >= from && sDate <= to) { ogStats.out.pcs += 1; ogStats.out.wt += net; ogStats.out.val += val; }
+                if (aDate <= to && sDate > to) { ogStats.cl.pcs += 1; ogStats.cl.wt += net; ogStats.cl.val += val; }
+            });
+
+            sales.forEach(s => {
+                if(s.status === 'cancelled') return;
+                const aDate = parseDate(s.date);
+                const sDate = '9999-12-31';
+
+                if(aDate >= from && aDate <= to) {
+                    s.items.forEach(i => {
+                        if(i.isOldGold) {
+                            const factor = getPurityFactor(i.purity);
+                            const net = parseFloat(i.netWt || i.weight || 0);
+                            const fine = net * factor;
+                            oldGoldList.push({
+                                date: s.date, module: '<span class="badge" style="background:#e3f2fd; color:#1565c0;">POS Exchange</span>',
+                                cust: custMap[s.customerId] || 'Walk-in',
+                                purity: i.purity, gross: i.grossWt || i.weight, fine: fine, value: Math.abs(i.total)
+                            });
+                        }
+                    });
+                }
+                
+                s.items.forEach(i => {
+                    if(i.isOldGold) {
+                        const net = parseFloat(i.netWt || i.weight || 0);
+                        const val = Math.abs(i.total);
+                        if (aDate < from && sDate >= from) { ogStats.op.pcs += 1; ogStats.op.wt += net; ogStats.op.val += val; }
+                        if (aDate >= from && aDate <= to) { ogStats.in.pcs += 1; ogStats.in.wt += net; ogStats.in.val += val; }
+                        if (sDate >= from && sDate <= to) { ogStats.out.pcs += 1; ogStats.out.wt += net; ogStats.out.val += val; }
+                        if (aDate <= to && sDate > to) { ogStats.cl.pcs += 1; ogStats.cl.wt += net; ogStats.cl.val += val; }
+                    }
+                });
+            });
+
+            orders.forEach(o => {
+                if(o.status === 'cancelled') return;
+                if(o.oldGoldValue > 0) {
+                    const aDate = parseDate(o.orderDate || o.date);
+                    const sDate = '9999-12-31';
+                    
+                    if(aDate >= from && aDate <= to) {
+                        oldGoldList.push({
+                            date: o.orderDate || o.date, module: '<span class="badge" style="background:#fff3e0; color:#ef6c00;">Order Advance</span>',
+                            cust: custMap[o.customerId] || 'Walk-in',
+                            purity: o.oldGoldPurity, gross: o.oldGoldGross || o.oldGoldNet, fine: o.oldGoldFine || o.oldGoldNet, value: o.oldGoldValue
+                        });
+                    }
+                    
+                    const net = parseFloat(o.oldGoldNet || o.oldGoldGross || o.oldGoldFine) || 0;
+                    const val = parseFloat(o.oldGoldValue) || 0;
+                    if (aDate < from && sDate >= from) { ogStats.op.pcs += 1; ogStats.op.wt += net; ogStats.op.val += val; }
+                    if (aDate >= from && aDate <= to) { ogStats.in.pcs += 1; ogStats.in.wt += net; ogStats.in.val += val; }
+                    if (sDate >= from && sDate <= to) { ogStats.out.pcs += 1; ogStats.out.wt += net; ogStats.out.val += val; }
+                    if (aDate <= to && sDate > to) { ogStats.cl.pcs += 1; ogStats.cl.wt += net; ogStats.cl.val += val; }
+                }
+            });
+            
+            if (ogStats.in.pcs > 0 || ogStats.op.pcs > 0) catStats['OLD GOLD (UR BOX)'] = ogStats;
+
+            // RENDER HTML PANELS
+            let finalTotalGoldWt = 0;
+            let finalTotalGoldVal = 0;
+
+            Object.keys(catStats).forEach(cKey => {
+                const d = catStats[cKey];
+                if (!d.isSilver && !cKey.includes('KARIGAR') && !cKey.includes('OLD GOLD')) {
+                    finalTotalGoldWt += d.cl.wt;
+                    finalTotalGoldVal += d.cl.val;
+                }
+            });
+
+            document.getElementById('st-total-wt').innerText = finalTotalGoldWt.toFixed(3) + " g";
+            document.getElementById('st-total-val').innerText = "Est. Value: ₹" + Math.round(finalTotalGoldVal).toLocaleString();
+            document.getElementById('st-sold-wt').innerText = totalSoldNetWtFilter.toFixed(3) + " g";
+            
+            const sumBody = document.getElementById('stock-summary-body');
+            sumBody.innerHTML = '';
+            let hasSummary = false;
+            
+            Object.keys(catStats).sort().forEach(cat => {
+                const d = catStats[cat];
+                if(d.op.pcs === 0 && d.op.wt === 0 && d.in.pcs === 0 && d.in.wt === 0 && d.tagged.pcs === 0 && d.tagged.wt === 0 && d.out.pcs === 0 && d.out.wt === 0 && d.cl.pcs === 0 && d.cl.wt === 0) return;
+                hasSummary = true;
+                
+                let rowStyle = '';
+                let catNameDisplay = cat;
+                if (d.isSpecial) {
+                    rowStyle = 'background:#fafafa; border-top:2px solid #ddd;';
+                    if (cat.includes('RAW METAL')) catNameDisplay = `<i class="fas fa-cubes" style="color:#d83a00;"></i> <strong style="color:#d83a00;">${cat}</strong>`;
+                    if (cat.includes('KARIGAR')) catNameDisplay = `<i class="fas fa-hammer" style="color:#8e24aa;"></i> ${cat}`;
+                    if (cat.includes('OLD GOLD')) catNameDisplay = `<i class="fas fa-sync-alt" style="color:#1565c0;"></i> ${cat}`;
+                } else if (cat === 'UNTAGGED / MIX') {
+                    rowStyle = 'background:#fffbf1;';
+                    catNameDisplay = `<i class="fas fa-boxes" style="color:var(--theme-primary);"></i> UNTAGGED / MIX`;
+                }
+
+                const formatCell = (pcs, wt, isTagged = false) => {
+                    if (pcs === 0 && wt === 0) return `<td class="text-right" style="color:#aaa;">-</td><td class="text-right" style="color:#aaa;">-</td>`;
+                    let pStr = pcs !== 0 ? pcs : '';
+                    let prefix = '';
+                    let color = '#555';
+                    if (isTagged) {
+                        prefix = wt > 0 ? '+' : '';
+                        color = wt > 0 ? '#ef6c00' : '#c62828';
+                        if (wt < 0) pStr = `-${Math.abs(pcs)}`;
+                        else pStr = `+${pcs}`;
+                    }
+                    return `<td class="text-right" style="font-weight:600; color:${color};">${pStr}</td><td class="text-right" style="font-weight:bold; color:${color};">${prefix}${wt.toFixed(3)}g</td>`;
+                };
+
+                sumBody.innerHTML += `
+                    <tr style="${rowStyle}">
+                        <td style="font-weight:700; color:#333;">${catNameDisplay}</td>
+                        ${formatCell(d.op.pcs, d.op.wt)}
+                        ${formatCell(d.in.pcs, d.in.wt)}
+                        ${formatCell(d.tagged.pcs, d.tagged.wt, true)}
+                        ${formatCell(d.out.pcs, d.out.wt)}
+                        ${formatCell(d.cl.pcs, d.cl.wt)}
+                    </tr>
+                `;
+            });
+            if(!hasSummary) sumBody.innerHTML = '<tr><td colspan="11" class="text-center" style="padding:20px; color:#999;">No inventory data available for this period.</td></tr>';
+
+            detailedFlow.sort((a,b) => new Date(b.dateForSort) - new Date(a.dateForSort));
+            const flowBody = document.getElementById('stock-flow-body');
+            flowBody.innerHTML = '';
+            if(detailedFlow.length === 0) {
+                flowBody.innerHTML = '<tr><td colspan="5" class="text-center" style="padding:30px; color:#999;">No items added or sold in selected period.</td></tr>';
+            } else {
+                detailedFlow.forEach(f => {
+                    const wtDisplay = f.isSilver ? `<span style="color:#757575;">${f.displayWt.toFixed(3)}g (Sil)</span>` : `${f.displayWt.toFixed(3)}g`;
+                    flowBody.innerHTML += `
+                        <tr>
+                            <td><strong style="font-family:monospace; color:#1976d2;">${f.barcode}</strong><br><span style="font-size:0.75rem; color:#888;">${f.category}</span></td>
+                            <td>${f.purity}</td>
+                            <td class="text-right" style="font-weight:600;">${wtDisplay}</td>
+                            <td>${f.source}</td>
+                            <td>${f.dest}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            oldGoldList.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+            const ogBody = document.getElementById('stock-oldgold-body');
+            ogBody.innerHTML = '';
+            if(oldGoldList.length === 0) {
+                ogBody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding:30px; color:#999;">No old gold received in selected period.</td></tr>';
+            } else {
+                oldGoldList.forEach(g => {
+                    ogBody.innerHTML += `
+                        <tr>
+                            <td style="font-size:0.8rem; color:#555;">${new Date(g.date).toLocaleDateString()}</td>
+                            <td>${g.module}</td>
+                            <td style="font-weight:600;">${g.cust}</td>
+                            <td>${g.purity}</td>
+                            <td class="text-right">${parseFloat(g.gross||0).toFixed(3)}g</td>
+                            <td class="text-right" style="font-weight:600;">${parseFloat(g.fine||0).toFixed(3)}g</td>
+                            <td class="text-right" style="color:var(--theme-primary); font-weight:bold;">₹${parseFloat(g.value||0).toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // --- 3. FINANCIAL HEALTH LOGIC ---
+        async function loadFinancials() {
+            const flows = await getAllItems('cashflow').catch(() => []);
+            const loans = await getAllItems('loans').catch(() => []);
+            const merchants = await getAllItems('merchants').catch(() => []);
+            let deposits = await getAllItems('deposits').catch(() => []); 
+            let schemes = await getAllItems('schemes').catch(() => []); 
+
+            let tCash = 0;
+            flows.forEach(f => {
+                if(f.type === 'IN') tCash += parseFloat(f.amount);
+                if(f.type === 'OUT') tCash -= parseFloat(f.amount);
+            });
+            document.getElementById('fh-cash').innerText = "₹" + tCash.toLocaleString();
+
+            let loanPrin = 0;
+            loans.filter(l => l.status === 'active').forEach(l => {
+                if(l.ledger && l.ledger.length > 0) loanPrin += l.ledger[l.ledger.length-1].closingPrincipal;
+                else loanPrin += l.amount;
+            });
+            document.getElementById('fh-loans').innerText = "₹" + loanPrin.toLocaleString();
+
+            let depBal = 0;
+            deposits.forEach(d => {
+                if(d.type === 'IN') depBal += d.amount;
+                if(d.type === 'OUT') depBal -= d.amount;
+            });
+            document.getElementById('fh-deposits').innerText = "₹" + depBal.toLocaleString();
+
+            let schemeBal = 0;
+            schemes.filter(s => s.status === 'active').forEach(s => {
+                s.ledger.forEach(m => { if(m.status === 'paid') schemeBal += s.amount; });
+            });
+            document.getElementById('fh-schemes').innerText = "₹" + schemeBal.toLocaleString();
+
+            let mDues = 0;
+            merchants.forEach(m => mDues += (m.balance || 0));
+            document.getElementById('fh-merchants').innerText = "₹" + mDues.toLocaleString();
+        }
+
+        // --- 4. MERCHANT REPORT LOGIC ---
+        let currentLedgerData = [];
+        let currentMerchantName = "";
+
+        async function loadMerchantReport() {
+            const mId = document.getElementById('rptMerchantSelect').value;
+            if(!mId) {
+                document.getElementById('merchantReportContent').style.display = 'none';
+                document.getElementById('mrSummaryCards').style.display = 'none';
+                return;
+            }
+
+            const fromDate = document.getElementById('mrFrom').value;
+            const toDate = document.getElementById('mrTo').value;
+
+            const merchant = await getItem('merchants', parseInt(mId)).catch(() => ({}));
+            currentMerchantName = merchant.name || 'Unknown';
+            const purchases = await getAllItems('purchases').catch(() => []);
+            const cuts = await getAllItems('rate_cuts').catch(() => []);
+            let payments = await getAllItems('merchant_payments').catch(() => []);
+            const orders = await getAllItems('orders').catch(() => []);
+
+            let totalCashBal = parseFloat(merchant.balance) || 0;
+            let totalGoldBal = parseFloat(merchant.goldBalance) || 0;
+            let totalSilverBal = parseFloat(merchant.silverBalance) || 0;
+
+            const pendingOrders = orders.filter(o => o.merchantId == mId && o.status === 'in_progress');
+            pendingOrders.forEach(o => {
+                const isSilv = (o.issuedPurity && (o.issuedPurity.toUpperCase().includes('SIL') || o.issuedPurity.includes('92.5')));
+                const fw = parseFloat(o.issuedFineWt) || 0;
+                if(isSilv) totalSilverBal -= fw;
+                else totalGoldBal -= fw;
+            });
+
+            document.getElementById('mrSummaryCards').style.display = 'grid';
+            
+            const formatBal = (val, symbol) => {
+                if(val === 0) return `<span style="color:#64748b;">Settled</span>`;
+                if(val > 0) return `<span style="color:var(--active-red);">${symbol}${Math.abs(val).toLocaleString()} (We Owe)</span>`;
+                return `<span style="color:var(--in-green);">${symbol}${Math.abs(val).toLocaleString()} (Adv/Due)</span>`;
+            };
+
+            document.getElementById('mrTotalGold').innerHTML = formatBal(totalGoldBal, '') + ' g';
+            document.getElementById('mrTotalCash').innerHTML = formatBal(totalCashBal, '₹');
+            document.getElementById('merchantReportContent').style.display = 'block';
+
+            let allTxs = [];
+            
+            purchases.filter(p => p.merchantId == mId).forEach(p => {
+                let g = 0, s = 0, c = 0;
+                let desc = `Purchase - ${p.category}`;
+                const isSilv = p.itemDetails && p.itemDetails[0] && (p.itemDetails[0].purity.toUpperCase().includes('SIL') || p.itemDetails[0].purity.includes('92.5'));
+
+                if(p.type === 'Fixed') { 
+                    c = parseFloat(p.dueAmount) || 0; 
+                    desc += ` (Fixed Bill)`; 
+                } else { 
+                    if(isSilv) s = parseFloat(p.totalFineWeight) || 0;
+                    else g = parseFloat(p.totalFineWeight) || 0;
+                    c = -(parseFloat(p.paidAmount) || 0); 
+                    desc += ` (Unfixed Metal)`; 
+                }
+                allTxs.push({ date: p.date, type: 'Purchase', desc: desc, gold: g, silver: s, cash: c, raw: p });
+            });
+
+            cuts.filter(c => c.merchantId == mId).forEach(c => {
+                allTxs.push({ date: c.date, type: 'Rate Cut', desc: `Fix ${c.weight}g @ ₹${c.rate}`, gold: -parseFloat(c.weight), silver: 0, cash: parseFloat(c.amount), raw: c });
+            });
+
+            payments.filter(p => p.merchantId == mId).forEach(p => {
+                let d = [];
+                let mult = p.paymentType === 'IN' ? 1 : -1;
+                let c = (parseFloat(p.amount) || 0) * mult;
+                let g = 0, s = 0;
+
+                if(p.amount > 0) d.push(`Cash ₹${p.amount}`);
+                if(p.gold > 0) {
+                    if (p.goldType === 'fixed') {
+                        let fVal = p.gold * p.rate;
+                        c += (fVal * mult);
+                        d.push(`Fixed ${p.metal || 'Gold'} ${p.gold}g`);
+                    } else {
+                        if(p.metal === 'Silver') s = (parseFloat(p.gold) || 0) * mult;
+                        else g = (parseFloat(p.gold) || 0) * mult;
+                        d.push(`Metal ${p.gold}g`);
+                    }
+                }
+                
+                allTxs.push({ 
+                    date: p.date, 
+                    type: p.goldType === 'fixed' ? 'Rate Cut/Set' : 'Settlement', 
+                    desc: d.join(' + '), 
+                    gold: g, silver: s, cash: c, raw: p 
+                });
+            });
+
+            orders.filter(o => o.merchantId == mId).forEach(o => {
+                const isSilv = (o.issuedPurity && (o.issuedPurity.toUpperCase().includes('SIL') || o.issuedPurity.includes('92.5')));
+                let iw = parseFloat(o.issuedFineWt) || 0;
+                
+                if (o.orderDate || o.date) {
+                    allTxs.push({
+                        date: o.orderDate || o.date, type: 'Jobwork Issued',
+                        desc: `Assigned ORD-${o.id}`,
+                        gold: isSilv ? 0 : -iw, silver: isSilv ? -iw : 0, cash: 0, raw: o
+                    });
+                }
+                
+                if (o.status === 'completed' || o.status === 'billed') {
+                    allTxs.push({
+                        date: o.soldDate || o.orderDate || o.date, type: 'Jobwork Returned',
+                        desc: `Metal offset for ORD-${o.id}`,
+                        gold: isSilv ? 0 : iw, silver: isSilv ? iw : 0, cash: 0, raw: o
+                    });
+                }
+            });
+
+            allTxs.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            let opCash = 0, opGold = 0, opSilver = 0;
+            let displayTxs = [];
+
+            allTxs.forEach(t => {
+                const txDate = parseDate(t.date);
+                if (txDate < fromDate) {
+                    opCash += t.cash;
+                    opGold += t.gold;
+                    opSilver += t.silver;
+                } else if (txDate >= fromDate && txDate <= toDate) {
+                    displayTxs.push(t);
+                }
+            });
+
+            displayTxs.sort((a,b) => new Date(b.date) - new Date(a.date));
+            currentLedgerData = displayTxs; 
+
+            const tbody = document.getElementById('mrBody');
+            tbody.innerHTML = '';
+
+            const formatVal = (v, suffix='') => {
+                if(v === 0) return '-';
+                const prefix = v > 0 ? '+' : '';
+                return `<span class="${v > 0 ? 'c-red' : 'c-green'}">${prefix}${Math.abs(v).toLocaleString()}${suffix}</span>`;
+            };
+
+            tbody.innerHTML += `
+                <tr style="background:#fffde7; font-weight:700;">
+                    <td colspan="3" class="text-right" style="color:#f57f17;">OPENING BALANCE:</td>
+                    <td class="text-right">${formatVal(opGold, 'g')}</td>
+                    <td class="text-right">${formatVal(opSilver, 'g')}</td>
+                    <td class="text-right">${formatVal(opCash)}</td>
+                </tr>
+            `;
+
+            if(displayTxs.length === 0) {
+                tbody.innerHTML += '<tr><td colspan="6" style="text-align:center; padding:30px; color:#94a3b8;">No transactions found in this date range.</td></tr>';
+            } else {
+                let rCash = opCash, rGold = opGold, rSilver = opSilver;
+                
+                displayTxs.slice().reverse().forEach(t => {
+                    rCash += t.cash; rGold += t.gold; rSilver += t.silver;
+                }); 
+                
+                displayTxs.forEach(t => {
+                    const badgeClass = t.type.includes('Purchase') ? 'b-fix' : (t.type.includes('Jobwork') ? 'b-unfix' : (t.type.includes('Rate Cut') ? 'b-cut' : 'b-pay'));
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-size:0.8rem; color:#666;">${new Date(t.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'})}</td>
+                            <td><span class="badge ${badgeClass}">${t.type}</span></td>
+                            <td style="color:#334155; font-weight:500;">${t.desc}</td>
+                            <td class="text-right" style="font-weight:600;">${formatVal(t.gold, 'g')}</td>
+                            <td class="text-right" style="font-weight:600;">${formatVal(t.silver, 'g')}</td>
+                            <td class="text-right" style="font-weight:600;">${formatVal(t.cash)}</td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML += `
+                    <tr style="background:#f1f5f9; font-weight:700; border-top:2px solid #cbd5e1;">
+                        <td colspan="3" class="text-right" style="color:#0f172a;">CLOSING BALANCE:</td>
+                        <td class="text-right">${formatVal(rGold, 'g')}</td>
+                        <td class="text-right">${formatVal(rSilver, 'g')}</td>
+                        <td class="text-right">${formatVal(rCash)}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function downloadMerchantCSV() {
+            if(currentLedgerData.length === 0) return alert("No data to export");
+            
+            const fromDate = document.getElementById('mrFrom').value;
+            const toDate = document.getElementById('mrTo').value;
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += `Merchant Ledger: ${currentMerchantName}\n`;
+            csvContent += `Period: ${fromDate} to ${toDate}\n\n`;
+            csvContent += "Date,Type,Description,Gold Impact (g),Silver Impact (g),Cash Impact (INR)\n";
+
+            currentLedgerData.forEach(row => {
+                let rowStr = `${new Date(row.date).toLocaleString()},${row.type},"${row.desc}",${row.gold || 0},${row.silver || 0},${row.cash || 0}`;
+                csvContent += rowStr + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Ledger_${currentMerchantName.replace(/\s+/g, '_')}_${fromDate}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

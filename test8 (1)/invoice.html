@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* --- 1. GLOBAL & APP STYLES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: #f4f4f4; padding-top: 60px; }
+        
+        /* Sidebar & Header */
+        .app-header {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+            background: #000; display: flex; align-items: center; padding: 0 15px;
+            z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            border-bottom: 2px solid #C5A059;
+        }
+
+        .header-title {
+            color: #C5A059; font-size: 1.2rem; font-weight: 700;
+            margin-left: 15px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .menu-toggle {
+            background: none; border: none; color: white;
+            font-size: 1.5rem; cursor: pointer; padding: 5px;
+        }
+
+        .sidebar-drawer {
+            position: fixed; top: 60px; left: -280px;
+            width: 280px; height: calc(100vh - 60px);
+            background: #111; z-index: 1999;
+            transition: left 0.3s ease-in-out;
+            border-right: 1px solid #333; display: flex; flex-direction: column;
+        }
+        .sidebar-drawer.open { left: 0; }
+
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        .sidebar-menu li a {
+            display: flex; align-items: center; padding: 15px 20px;
+            color: #ccc; text-decoration: none; border-bottom: 1px solid #222;
+        }
+        .sidebar-menu li a i { width: 35px; color: #C5A059; text-align: center; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; transition: 0.2s; }
+        
+        .sidebar-menu li a.active {
+            background: linear-gradient(90deg, #D32F2F, transparent);
+            color: white; border-left: 5px solid #D32F2F;
+        }
+
+        .sidebar-overlay {
+            position: fixed; top: 60px; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1500; display: none;
+        }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- 2. INVOICE SPECIFIC STYLES --- */
+        .invoice-container { padding: 20px; display: flex; flex-direction: column; align-items: center; }
+
+        .invoice-box {
+            max-width: 400px; width: 100%; margin: auto;
+            background: #fff; padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+        h2 { margin: 5px 0; text-transform: uppercase; }
+        .meta { font-size: 0.9rem; display: flex; justify-content: space-between; margin-bottom: 5px; }
+        
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.9rem; }
+        th { text-align: left; border-bottom: 1px solid #000; }
+        td { padding: 5px 0; }
+        .text-right { text-align: right; }
+        
+        .totals { border-top: 2px dashed #000; padding-top: 10px; margin-top: 10px; }
+        .total-row { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; }
+        
+        .footer { text-align: center; margin-top: 20px; font-size: 0.8rem; }
+        
+        /* --- 3. PRINT MEDIA QUERY --- */
+        @media print {
+            body { background: white; padding-top: 0; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .menu-toggle, .no-print { display: none !important; }
+            .invoice-box { box-shadow: none; max-width: 100%; margin: 0; padding: 0; }
+            .invoice-container { padding: 0; display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <header class="app-header">
+        <button class="menu-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="header-title">Bharti Jewellers</div>
+    </header>
+
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html" class="active"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+                        <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+        <div style="margin-top:auto; padding:20px; text-align:center; color:#666; font-size:0.8rem; border-top:1px solid #333;">
+            Offline App v1.0 <br> <span style="color:#C5A059">● Active</span>
+        </div>
+    </aside>
+
+    <div class="invoice-container">
+        
+        <div class="invoice-box">
+            <div class="header">
+                <h2>Bharti Jewellers</h2>
+                <p>Main Market, City Center</p>
+                <p>Ph: 9876543210</p>
+            </div>
+
+            <div class="meta">
+                <span>Bill No: <b id="bill-id">...</b></span>
+                <span id="bill-date">...</span>
+            </div>
+            <div class="meta">
+                <span>Customer: <b id="cust-name">...</b></span>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Wt</th>
+                        <th>Rate</th>
+                        <th class="text-right">Amt</th>
+                    </tr>
+                </thead>
+                <tbody id="items-rows">
+                    </tbody>
+            </table>
+
+            <div class="totals">
+                <div class="total-row">
+                    <span>Sub Total</span>
+                    <span id="p-sub">0</span>
+                </div>
+                <div class="total-row">
+                    <span>GST</span>
+                    <span id="p-gst">0</span>
+                </div>
+                <div class="total-row" style="font-size:1.2rem;">
+                    <span>GRAND TOTAL</span>
+                    <span id="p-grand">0</span>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>Thank you for visiting!</p>
+                <p>Goods once sold cannot be returned.</p>
+            </div>
+        </div>
+
+        <div class="no-print" style="text-align:center; margin-top:20px; display:flex; gap:10px;">
+            <button onclick="window.print()" style="padding:12px 25px; background:#000; color:white; border:none; cursor:pointer; font-weight:bold; border-radius:5px;">
+                <i class="fas fa-print"></i> PRINT INVOICE
+            </button>
+            <button onclick="window.location.href='index.html'" style="padding:12px 25px; background:#ddd; border:none; cursor:pointer; font-weight:bold; border-radius:5px;">
+                HOME
+            </button>
+        </div>
+
+    </div>
+
+<script src="db.js?v=35"></script>
+    <script>
+        // --- 1. Sidebar Toggle ---
+        function toggleSidebar() {
+            const sb = document.getElementById('app-sidebar');
+            const ov = document.getElementById('sidebar-overlay');
+            if(sb.classList.contains('open')) {
+                sb.classList.remove('open');
+                ov.classList.remove('show');
+            } else {
+                sb.classList.add('open');
+                ov.classList.add('show');
+            }
+        }
+
+        // --- 2. Invoice Data Loading ---
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const saleId = parseInt(urlParams.get('id'));
+
+            if(!saleId) { 
+                document.querySelector('.invoice-container').innerHTML = "<h3 style='text-align:center; margin-top:50px;'>Invalid Bill ID</h3>"; 
+                return; 
+            }
+
+            // Fetch Sale
+            const db = await dbPromise;
+            const tx = db.transaction(['sales', 'customers'], 'readonly');
+            
+            // Get Sale Data
+            const saleReq = tx.objectStore('sales').get(saleId);
+            
+            saleReq.onsuccess = async () => {
+                const sale = saleReq.result;
+                if(!sale) return;
+
+                // Get Customer Name manually
+                const custReq = tx.objectStore('customers').get(parseInt(sale.customerId));
+                
+                custReq.onsuccess = () => {
+                    const cust = custReq.result;
+                    document.getElementById('cust-name').innerText = cust ? cust.name : "Unknown";
+                };
+
+                // Fill UI
+                document.getElementById('bill-id').innerText = sale.id;
+                document.getElementById('bill-date').innerText = new Date(sale.date).toLocaleDateString();
+                document.getElementById('p-sub').innerText = sale.subTotal;
+                document.getElementById('p-gst').innerText = sale.gstAmount;
+                document.getElementById('p-grand').innerText = sale.grandTotal;
+
+                const tbody = document.getElementById('items-rows');
+                sale.items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${item.category} (${item.purity})</td>
+                        <td>${item.weight}g</td>
+                        <td>${item.rateApplied}</td>
+                        <td class="text-right">${item.finalPrice}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            };
+        };
+    </script>
+</body>
+</html>

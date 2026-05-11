@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; 
+            --accent-gold: #C5A059; --accent-silver: #9e9e9e;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a;
+            --whatsapp: #25D366; --success-green: #2e7d32;
+        }
+
+        /* --- GLOBAL & APP STYLES --- */
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; color: #333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- SIDEBAR & HEADER --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- SETTINGS CONTENT --- */
+        .app-container { padding: 20px; max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;}
+        @media (max-width: 900px) { .app-container { grid-template-columns: 1fr; } }
+        
+        .card {
+            background: white; border-radius: 12px; padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+            margin-bottom: 20px;
+        }
+
+        .card.gold-zone { border-top: 4px solid var(--accent-gold); }
+        .card.silver-zone { border-top: 4px solid var(--accent-silver); }
+        .card.danger-zone { border-top: 4px solid #d32f2f; background: #fff5f5; }
+        .card.backup-zone { border-top: 4px solid #1976d2; }
+        .card.defaults-zone { border-top: 4px solid #388e3c; }
+
+        h2 { margin-top: 0; color: #333; display: flex; align-items: center; gap: 10px; grid-column: 1 / -1; margin-bottom: 5px;}
+        h3 { margin-top: 0; color: #111; border-bottom: 1px solid #eee; padding-bottom: 10px; font-size: 1.15rem; display: flex; align-items: center; gap: 10px;}
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #555; font-weight: 600;}
+        
+        input[type="number"], input[type="text"] {
+            width: 100%; padding: 12px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 1rem; transition: 0.2s; background: #fafafa; font-family: inherit;
+        }
+        input:focus { border-color: var(--accent-gold); outline: none; background: white;}
+        input[readonly] { background: #eee; color: #555; font-weight: bold; border-color: #ccc;}
+        
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-primary { background: #333; color: #fff; }
+        .btn-primary:hover { background: #000; }
+        .btn-gold { background: var(--accent-gold); color: #000; }
+        .btn-gold:hover { background: #b08d4a; }
+        .btn-silver { background: var(--accent-silver); color: #000; }
+        .btn-silver:hover { background: #757575; color:#fff; }
+        .btn-outline { background: transparent; border: 2px solid #1976d2; color: #1976d2; margin-bottom: 15px; }
+        .btn-outline:hover { background: #1976d2; color: white; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-danger:hover { background: #b71c1c; }
+
+        .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 0.9rem; color: #333; background: #fff8e1; padding: 10px; border-radius: 8px; border: 1px solid #ffe082;}
+        .checkbox-wrapper input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent-gold); cursor: pointer;}
+        
+        .checkbox-wrapper-silver { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 0.9rem; color: #333; background: #f5f5f5; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;}
+        .checkbox-wrapper-silver input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent-silver); cursor: pointer;}
+
+        /* Custom Purities List */
+        .cp-item { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+        .cp-item strong { color: #222; font-size: 1.05rem;}
+        .cp-item span { color: #666; font-size: 0.85rem; background: #f0f0f0; padding: 3px 8px; border-radius: 6px; margin-left: 8px; font-weight: 600;}
+        .cp-rate { font-weight: 700; color: var(--active-red); }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Toast Notifications */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+            text-align: center; border-radius: 8px; padding: 16px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: var(--success-green); }
+        #toast.error { background-color: var(--active-red); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; padding: 30px; width: 95%; max-width: 600px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out;}
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+    </style>
+</head>
+<body>
+
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<header class="app-header">
+    <div class="header-title">
+        <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+    </div>
+</header>
+
+<aside id="app-sidebar" class="sidebar-drawer">
+    <ul class="sidebar-menu">
+        <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+        <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+        <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+        <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+        <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+        <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+        <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+        <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+        <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+        <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+        <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+        <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+        <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+        <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+        <li><a href="settings.html" class="active"><i class="fas fa-cog"></i> Settings</a></li>
+    </ul>
+</aside>
+
+<div class="app-container">
+    <h2><i class="fas fa-cog" style="color:#C5A059"></i> System Settings</h2>
+
+    <div class="col-left">
+        <div class="card gold-zone">
+            <h3 style="color:#b08d4a;"><i class="fas fa-chart-line"></i> Daily Gold Rates (Per 10g)</h3>
+
+            <div class="form-group">
+                <label>Master Gold 24K Rate (₹)</label>
+                <input type="number" id="rate24k" placeholder="140000" oninput="autoCalculateGold()" style="font-weight:bold; font-size:1.2rem; color:var(--active-red);">
+            </div>
+
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="autoCalcGold" checked onchange="toggleAutoCalcGold()">
+                <label for="autoCalcGold" style="margin:0; font-weight:600; cursor:pointer;">Auto-calculate Sub-Purity Rates</label>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Standard 22K <span style="color:#C5A059;">(91.66%)</span></label>
+                    <input type="number" id="rate22k" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Standard 18K <span style="color:#C5A059;">(75.00%)</span></label>
+                    <input type="number" id="rate18k" readonly>
+                </div>
+            </div>
+
+            <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
+                <h4 style="margin:0 0 5px 0; color:#333;"><i class="fas fa-percent"></i> Custom Gold Purities</h4>
+                <p style="font-size:0.8rem; color:#666; margin-top:0; margin-bottom:15px;">Define local purities (e.g., 20K = 83.3%).</p>
+
+                <div id="customGoldList"></div>
+
+                <div class="form-grid" style="margin-top: 15px; align-items: end; background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #eee;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Name (e.g. 20K)</label>
+                        <input type="text" id="newGoldName" placeholder="Name">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Value (%)</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" id="newGoldPct" placeholder="83.3" style="flex:1;" step="0.1">
+                            <button class="btn btn-gold" style="margin:0; width:50px; padding:10px;" onclick="addCustomPurity('gold')" title="Add Gold Purity"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card silver-zone">
+            <h3 style="color:#757575;"><i class="fas fa-weight-hanging"></i> Daily Silver Rates (Per 1kg)</h3>
+
+            <div class="form-group">
+                <label>Master Silver 99.9% Rate (₹)</label>
+                <input type="number" id="rateSilver" placeholder="85000" oninput="autoCalculateSilver()" style="font-weight:bold; font-size:1.2rem; color:#455a64;">
+            </div>
+
+            <div class="checkbox-wrapper-silver">
+                <input type="checkbox" id="autoCalcSilver" checked onchange="toggleAutoCalcSilver()">
+                <label for="autoCalcSilver" style="margin:0; font-weight:600; cursor:pointer;">Auto-calculate Sterling Rate</label>
+            </div>
+
+            <div class="form-group">
+                <label>Sterling Silver <span style="color:#757575;">(92.5%)</span></label>
+                <input type="number" id="rateSilver925" readonly>
+            </div>
+
+            <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:15px;">
+                <h4 style="margin:0 0 5px 0; color:#333;"><i class="fas fa-percent"></i> Custom Silver Purities</h4>
+                <p style="font-size:0.8rem; color:#666; margin-top:0; margin-bottom:15px;">Define local purities (e.g., Payal = 70%).</p>
+
+                <div id="customSilverList"></div>
+
+                <div class="form-grid" style="margin-top: 15px; align-items: end; background:#f9f9f9; padding:10px; border-radius:8px; border:1px solid #eee;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Name (e.g. 70%)</label>
+                        <input type="text" id="newSilverName" placeholder="Name">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Value (%)</label>
+                        <div style="display:flex; gap:5px;">
+                            <input type="number" id="newSilverPct" placeholder="70.0" style="flex:1;" step="0.1">
+                            <button class="btn btn-silver" style="margin:0; width:50px; padding:10px;" onclick="addCustomPurity('silver')" title="Add Silver Purity"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveRates()" style="margin-bottom: 20px;"><i class="fas fa-save"></i> Save All Metal Rates</button>
+    </div>
+
+    <div class="col-right">
+        <div class="card defaults-zone">
+            <h3 style="color:#2e7d32;"><i class="fas fa-file-invoice"></i> Billing Defaults</h3>
+            <p style="font-size:0.85rem; color:#555; margin-top:-5px;">These percentages will auto-fill in Sales and Custom Orders to save you time.</p>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Default GST (%)</label>
+                    <input type="number" id="defaultGst" value="3" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Default Making Charge (%)</label>
+                    <input type="number" id="defaultMakingPct" value="0" step="0.1">
+                </div>
+            </div>
+
+            <button class="btn btn-success" onclick="saveDefaults()" style="width:100%; padding:14px; background:#2e7d32; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;"><i class="fas fa-check"></i> Save Defaults</button>
+        </div>
+
+        <div class="card backup-zone">
+            <h3 style="color:#1976d2;"><i class="fas fa-database"></i> Backup & Restore</h3>
+            <p style="font-size:0.85rem; color:#555; margin-bottom:20px;">Download a secure offline copy of your entire database. This includes ALL modules (Sales, Orders, Old Gold, Cashbook, etc.).</p>
+
+            <button class="btn btn-outline" onclick="exportData()">
+                <i class="fas fa-download"></i> Export Data File (.json)
+            </button>
+
+            <button class="btn btn-outline" style="border-color: #555; color: #555; margin-bottom:0;" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-upload"></i> Restore from File
+            </button>
+            <input type="file" id="fileInput" style="display:none" accept=".json" onchange="importData(this)">
+        </div>
+
+        <div class="card danger-zone">
+            <h3 style="color:#d32f2f;"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
+            <p style="font-size:0.85rem; color:#b71c1c; font-weight:500;">
+                Warning: This action will permanently delete all software data. Only do this if you are completely resetting the device or have exported a backup.
+            </p>
+
+            <div class="form-group">
+                <label style="color:#c62828;">Type "DELETE" to enable reset</label>
+                <input type="text" id="deleteConfirm" placeholder="Type here..." onkeyup="checkDeleteSafe()">
+            </div>
+
+            <button class="btn btn-danger" id="btnReset" disabled style="opacity: 0.5; cursor: not-allowed;" onclick="resetDB()">
+                <i class="fas fa-trash-alt"></i> FACTORY RESET APP
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="customConfirmModal" class="modal" style="z-index: 9999;">
+    <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+        <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-question-circle" style="color:var(--info-blue); font-size: 2rem; display:block; margin-bottom: 10px;"></i> Confirm</h3>
+        <p id="customConfirmMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+        <div style="display:flex; gap:10px; margin-top:25px;">
+            <button class="btn-secondary" style="flex:1; padding: 12px; border-radius: 8px; font-weight: bold; cursor:pointer;" onclick="resolveCustomConfirm(false)">Cancel</button>
+            <button class="btn-primary" style="flex:1; margin-top:0;" onclick="resolveCustomConfirm(true)">Proceed</button>
+        </div>
+    </div>
+</div>
+
+<div id="customAlertModal" class="modal" style="z-index: 9999;">
+    <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+        <h3 style="margin-top:0; color:var(--active-red); font-size: 1.4rem;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; display:block; margin-bottom: 10px;"></i> Notice</h3>
+        <p id="customAlertMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+        <button class="btn-primary" style="margin-top:25px;" onclick="closeModal('customAlertModal')">OK</button>
+    </div>
+</div>
+
+<div id="toast">Message Saved!</div>
+
+<script src="db.js?v=35"></script>
+
+<script>
+    // --- MODAL UTILITIES ---
+    function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function showToast(msg, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.className = 'show ' + type;
+        setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+    }
+
+    let confirmResolver = null;
+    
+    function appAlert(msg) {
+        document.getElementById('customAlertMessage').innerText = msg;
+        openModal('customAlertModal');
+    }
+
+    function appConfirm(msg) {
+        document.getElementById('customConfirmMessage').innerText = msg;
+        openModal('customConfirmModal');
+        return new Promise(resolve => {
+            confirmResolver = resolve;
+        });
+    }
+
+    function resolveCustomConfirm(result) {
+        closeModal('customConfirmModal');
+        if (confirmResolver) {
+            confirmResolver(result);
+            confirmResolver = null;
+        }
+    }
+
+    let customGoldPurities = [];
+    let customSilverPurities = [];
+
+    // --- Init Logic ---
+    window.onload = async function() {
+        // Load Rates
+        const rates = await getSetting('gold_rates');
+        if(rates) {
+            document.getElementById('rate24k').value = rates.rate24k || 140000;
+            document.getElementById('rate22k').value = rates.rate22k || 0;
+            document.getElementById('rate18k').value = rates.rate18k || 0;
+
+            document.getElementById('rateSilver').value = rates.rateSilver || 85000;
+            document.getElementById('rateSilver925').value = rates.rateSilver925 || 0;
+
+            if(rates.customPurities && Array.isArray(rates.customPurities)) {
+                customGoldPurities = rates.customPurities;
+            }
+            if(rates.customSilverPurities && Array.isArray(rates.customSilverPurities)) {
+                customSilverPurities = rates.customSilverPurities;
+            }
+        } else {
+            document.getElementById('rate24k').value = 140000;
+            document.getElementById('rateSilver').value = 85000;
+        }
+
+        renderCustomPurities('gold');
+        renderCustomPurities('silver');
+        autoCalculateGold();
+        autoCalculateSilver();
+
+        // Load Defaults
+        const defaults = await getSetting('billing_defaults');
+        if(defaults) {
+            document.getElementById('defaultGst').value = defaults.gst || 3;
+            document.getElementById('defaultMakingPct').value = defaults.makingPct || 0;
+        }
+    };
+
+    // --- Auto Calculate Logic ---
+    function toggleAutoCalcGold() {
+        const isAuto = document.getElementById('autoCalcGold').checked;
+        const f22 = document.getElementById('rate22k');
+        const f18 = document.getElementById('rate18k');
+        if(isAuto) {
+            f22.setAttribute('readonly', true); f18.setAttribute('readonly', true);
+            autoCalculateGold();
+        } else {
+            f22.removeAttribute('readonly'); f18.removeAttribute('readonly');
+        }
+    }
+
+    function toggleAutoCalcSilver() {
+        const isAuto = document.getElementById('autoCalcSilver').checked;
+        const f925 = document.getElementById('rateSilver925');
+        if(isAuto) {
+            f925.setAttribute('readonly', true);
+            autoCalculateSilver();
+        } else {
+            f925.removeAttribute('readonly');
+        }
+    }
+
+    function autoCalculateGold() {
+        if(!document.getElementById('autoCalcGold').checked) return;
+        const r24 = parseFloat(document.getElementById('rate24k').value);
+        if(r24) {
+            document.getElementById('rate22k').value = Math.round(r24 * 0.9166);
+            document.getElementById('rate18k').value = Math.round(r24 * 0.75);
+            renderCustomPurities('gold');
+        }
+    }
+
+    function autoCalculateSilver() {
+        if(!document.getElementById('autoCalcSilver').checked) return;
+        const rSil = parseFloat(document.getElementById('rateSilver').value);
+        if(rSil) {
+            document.getElementById('rateSilver925').value = Math.round(rSil * 0.925);
+            renderCustomPurities('silver');
+        }
+    }
+
+    function renderCustomPurities(type) {
+        const isGold = type === 'gold';
+        const listEl = document.getElementById(isGold ? 'customGoldList' : 'customSilverList');
+        const puritiesArray = isGold ? customGoldPurities : customSilverPurities;
+        const baseRate = parseFloat(document.getElementById(isGold ? 'rate24k' : 'rateSilver').value) || 0;
+
+        listEl.innerHTML = '';
+
+        if (puritiesArray.length === 0) {
+            listEl.innerHTML = '<div style="font-size:0.85rem; color:#999; font-style:italic; padding:10px 0;">No custom purities added yet.</div>';
+            return;
+        }
+
+        puritiesArray.forEach((cp, idx) => {
+            const calculatedRate = Math.round(baseRate * (cp.pct / 100));
+            listEl.innerHTML += `
+                <div class="cp-item">
+                    <div>
+                        <strong>${cp.name}</strong> <span>${cp.pct}%</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <span class="cp-rate" style="color:${isGold ? 'var(--active-red)' : '#455a64'}">₹${calculatedRate.toLocaleString()}</span>
+                        <i class="fas fa-trash" style="color:#e57373; cursor:pointer; font-size:1rem;" title="Delete" onclick="removeCustomPurity('${type}', ${idx})"></i>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function addCustomPurity(type) {
+        const isGold = type === 'gold';
+        const nameEl = document.getElementById(isGold ? 'newGoldName' : 'newSilverName');
+        const pctEl = document.getElementById(isGold ? 'newGoldPct' : 'newSilverPct');
+
+        let name = nameEl.value.trim().toUpperCase();
+        const pct = parseFloat(pctEl.value);
+
+        if (!name || !pct) return showToast("Please enter both Name and Value (%)", "error");
+        if (pct <= 0 || pct > 100) return showToast("Percentage must be between 1 and 100", "error");
+
+        const puritiesArray = isGold ? customGoldPurities : customSilverPurities;
+
+        if (puritiesArray.find(x => x.name === name)) {
+            return showToast("A purity with this name already exists!", "error");
+        }
+
+        puritiesArray.push({ name: name, pct: pct });
+
+        nameEl.value = '';
+        pctEl.value = '';
+
+        renderCustomPurities(type);
+        saveRates(true); // Silent Auto-Save
+        showToast(`${name} added to ${type} dropdowns!`, 'success');
+    }
+
+    async function removeCustomPurity(type, idx) {
+        const puritiesArray = type === 'gold' ? customGoldPurities : customSilverPurities;
+        const proceed = await appConfirm(`Are you sure you want to remove ${puritiesArray[idx].name}?`);
+        if(proceed) {
+            puritiesArray.splice(idx, 1);
+            renderCustomPurities(type);
+            saveRates(true); // Silent Auto-Save
+        }
+    }
+
+    async function saveRates(isSilent = false) {
+        const data = {
+            key: 'gold_rates',
+            value: {
+                rate24k: document.getElementById('rate24k').value,
+                rate22k: document.getElementById('rate22k').value,
+                rate18k: document.getElementById('rate18k').value,
+                rateSilver: document.getElementById('rateSilver').value,
+                rateSilver925: document.getElementById('rateSilver925').value,
+                customPurities: customGoldPurities,
+                customSilverPurities: customSilverPurities,
+                updatedAt: new Date().toISOString()
+            }
+        };
+        await updateItem('settings', data);
+        if(!isSilent) {
+            showToast('All Metal Rates & Purities Saved!');
+        }
+    }
+
+    async function saveDefaults() {
+         const data = {
+            key: 'billing_defaults',
+            value: {
+                gst: document.getElementById('defaultGst').value,
+                makingPct: document.getElementById('defaultMakingPct').value
+            }
+        };
+        await updateItem('settings', data);
+        showToast('Billing Defaults Saved!');
+    }
+
+    // --- DANGER: RESET DB ---
+    function checkDeleteSafe() {
+        const input = document.getElementById('deleteConfirm').value;
+        const btn = document.getElementById('btnReset');
+        if(input === "DELETE") {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        } else {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+    }
+
+    async function resetDB() {
+        if(document.getElementById('deleteConfirm').value !== "DELETE") return;
+
+        const proceed = await appConfirm("⚠️ FINAL WARNING: You are about to permanently delete all customers, sales, inventory, and accounting data.\n\nPress OK to wipe everything and restart.");
+        if(proceed) {
+            const req = indexedDB.deleteDatabase('BhartiJewellersDB');
+            req.onsuccess = () => {
+                appAlert("System Reset Complete. Reloading...");
+                setTimeout(() => { window.location.reload(); }, 1500);
+            };
+            req.onerror = () => {
+                appAlert("Error deleting database. Please clear browser data manually.");
+            };
+        }
+    }
+
+    // --- Export / Import (Updated for Android Native Bridge) ---
+    const STORE_NAMES = [
+        'settings', 'merchants', 'customers', 'inventory', 'sales',
+        'loans', 'purchases', 'rate_cuts', 'merchant_payments',
+        'orders', 'karigars', 'schemes', 'deposits', 'cashflow', 'old_gold'
+    ];
+
+    async function exportData() {
+        const exportObj = {};
+        for (const storeName of STORE_NAMES) {
+            try {
+                exportObj[storeName] = await getAllItems(storeName);
+            } catch(e) { console.log(`Skipping empty/missing store: ${storeName}`); }
+        }
+
+        const dataStr = JSON.stringify(exportObj);
+        const exportFileDefaultName = 'BhartiJewellers_FullBackup_' + new Date().toISOString().slice(0,10) + '.json';
+
+        // --- NATIVE ANDROID BRIDGE FOR SAVING ---
+        if (typeof AndroidInterface !== "undefined" && AndroidInterface.downloadBackup) {
+            AndroidInterface.downloadBackup(dataStr, exportFileDefaultName);
+        } else {
+            // Fallback for standard web browsers
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', url);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            window.URL.revokeObjectURL(url);
+            showToast("Backup Download Triggered!");
+        }
+    }
+
+    function importData(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                const proceed = await appConfirm("⚠️ Warning: This will OVERWRITE all current data with the backup file. Proceed?");
+                
+                if(!proceed) {
+                    input.value = "";
+                    return;
+                }
+
+                const db = await dbPromise;
+
+                for (const storeName of STORE_NAMES) {
+                    if (data[storeName]) {
+                        const tx = db.transaction(storeName, 'readwrite');
+                        const store = tx.objectStore(storeName);
+                        store.clear();
+                        data[storeName].forEach(item => store.put(item));
+                    }
+                }
+
+                appAlert("Data Restored Successfully! The system will now reload.");
+                setTimeout(() => { window.location.reload(); }, 2000);
+            } catch (err) {
+                appAlert("Error importing file. It might be corrupted or in the wrong format.\nDetails: " + err);
+            }
+        };
+        reader.readAsText(file);
+    }
+</script>
+</body>
+</html>
