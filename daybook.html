@@ -1167,6 +1167,7 @@
                         }
                     }
                 } else {
+                    // 1. Old Gold Received from Customer
                     let inWt = getSafeNum(o.oldGoldNet);
                     if (getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
@@ -1174,6 +1175,18 @@
                         }
                         if (cancelDate === selectedDateStr) {
                             logMetal(selectedDateStr, inWt, 'OUT', 'order_out', 'Order Refunds', 'fas fa-undo', 'var(--out-red)', `Order Cancelled (Collateral Returned)`, partyName, invoiceNo, false, 'OLD');
+                        }
+                    }
+
+                    // 2. Mix Metal Issued to Karigar / Merchant -> NAMA (OUT)
+                    let karigarIssuedWt = getSafeNum(o.assignedWt || o.assignedWeight || o.issuedWt || o.issuedWeight || o.karigarWt || o.mixMetalWt);
+                    
+                    if (karigarIssuedWt > 0 && getSafeDate(o.orderDate) <= selectedDateStr) {
+                        if (!cancelDate || cancelDate >= selectedDateStr) {
+                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', 'Mix Metal Issued (Karigar)', 'fas fa-truck', 'var(--out-red)', `Mix Metal Assigned to Karigar for Custom Order`, partyName, invoiceNo, false, 'MIX');
+                        }
+                        if (cancelDate === selectedDateStr) {
+                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Mix Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (Mix Metal Recovered from Karigar)`, partyName, invoiceNo, true, 'MIX');
                         }
                     }
                 }
