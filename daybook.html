@@ -1163,27 +1163,29 @@
                         }
                     }
 
-                    // 2. Metal Issued to Karigar -> NAMA (LESS)
-                    // We extract 'issuedGrossWt' precisely as saved in orders.html 
+                    // 2. Metal Issued to Karigar -> NAMA (LESS) - FIXED MIX METAL/INVENTORY LOGIC
                     let karigarIssuedWt = getSafeNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                    
+                    // NEW LOGIC: Check if it came from Inventory (NET) or Melted Slab (MIX)
+                    let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
+                    let issueTitle = o.sourceStockId ? 'Inv Metal Issued (Karigar)' : 'Mix Metal Issued (Karigar)';
+                    let issueDesc = o.sourceStockId ? 'Inventory Metal Assigned to Karigar' : 'Mix Metal / Melted Slab Assigned to Karigar';
                     
                     if (karigarIssuedWt > 0 && getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            // isPositive = false means it subtracts (LESS) from Net Wt. bucketSide 'OUT' puts it in NAMA
-                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', 'Metal Issued (Karigar)', 'fas fa-truck', 'var(--out-red)', `Inventory Metal Assigned to Karigar`, partyName, invoiceNo, false, 'NET');
+                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', issueTitle, 'fas fa-truck', 'var(--out-red)', issueDesc, partyName, invoiceNo, false, issueCategory);
                         }
                         if (cancelDate === selectedDateStr) {
-                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (Metal Recovered)`, partyName, invoiceNo, true, 'NET');
+                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (${issueCategory === 'NET' ? 'Inventory Metal' : 'Mix Metal'} Recovered)`, partyName, invoiceNo, true, issueCategory);
                         }
                     }
 
-                    // 3. Metal Received Back from Karigar -> JAMA (ADD)
-                    // When order is ready/billed, physical metal is received back from Karigar before selling
+                    // 3. Metal Received Back from Karigar -> JAMA (ADD) - ALWAYS GOES TO NET INVENTORY
                     let receivedFromKarigarWt = getSafeNum(o.finalNet);
                     if (receivedFromKarigarWt > 0 && (o.status === 'completed' || o.status === 'ready' || o.status === 'billed' || o.status === 'delivered')) {
                         if (getSafeDate(o.orderDate) <= selectedDateStr && (!cancelDate || cancelDate >= selectedDateStr)) {
-                            // isPositive = true means it adds back to Net Wt. bucketSide 'IN' puts it in JAMA
-                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'order_in_karigar_recv', 'Metal Received (Karigar)', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar`, partyName, invoiceNo, true, 'NET');
+                            // When received, it is a ready item, so it adds back to 'NET' (Inv)
+                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'order_in_karigar_recv', 'Metal Received (Karigar)', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar into Stock`, partyName, invoiceNo, true, 'NET');
                         }
                     }
                 }
