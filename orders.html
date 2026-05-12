@@ -459,7 +459,7 @@
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <button class="btn-primary btn-outline" style="margin-top:0;" id="btnWhatsApp" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Send Status</button>
+                <button class="btn-primary btn-outline" style="margin-top:0;" id="btnWhatsApp" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Send Status Update</button>
                 <button class="btn-primary btn-outline" style="margin-top:0;" id="btnPrintCustomerReceipt" onclick="printReceiptEngine()"><i class="fas fa-print"></i> Print Receipt</button>
                 
                 <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
@@ -726,6 +726,47 @@
         let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
         let billingPayments = []; 
         let activeJobData = null; 
+
+        // ==========================================
+        // NEW: SMART WHATSAPP AUTOMATION ENGINE
+        // ==========================================
+        function autoWhatsApp(orderData, stage) {
+            if (!orderData.custMobile) {
+                showToast("No mobile number found for this customer.", "error");
+                return;
+            }
+            
+            let phone = orderData.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+
+            let msg = '';
+            let invoiceNo = orderData.invoiceNo || 'ORD-INV' + String(orderData.id).padStart(3, '0');
+            let desc = orderData.description || 'Jewelry';
+            let name = orderData.custName || 'Customer';
+
+            if (stage === 'intake') {
+                let estTotal = orderData.estAmount || orderData.grandTotal || 0;
+                let adv = orderData.advancePaid || 0;
+                msg = `*Bharti Jewellers - Order Confirmation*\n\nHello ${name} ji,\nWe have successfully received your custom order for *${desc}* (Ref: ${invoiceNo}).\n\nEstimated Total: Rs. ${Math.round(estTotal).toLocaleString()}\nAdvance Paid: Rs. ${Math.round(adv).toLocaleString()}\n\nYour order is now moving into processing. We will notify you when it goes to our karigar!\n\nThank you for choosing us.`;
+            } else if (stage === 'karigar') {
+                msg = `*Bharti Jewellers - Order Update*\n\nHello ${name} ji,\nAn update on your order for *${desc}* (Ref: ${invoiceNo}):\n\nIt has been assigned to our Karigar (Craftsman) for manufacturing today. We are carefully crafting your jewelry and will notify you exactly when it is ready for delivery!\n\nThank you,\nBharti Jewellers`;
+            } else if (stage === 'ready') {
+                let finalGross = orderData.finalGross || 0;
+                let grandTotal = orderData.grandTotal || 0;
+                let adv = orderData.advancePaid || 0;
+                let oldGold = orderData.oldGoldValue || 0;
+                let netDue = grandTotal - adv - oldGold;
+                
+                msg = `*Bharti Jewellers - Order Ready!*\n\nHello ${name} ji,\nGreat news! Your custom order for *${desc}* (Ref: ${invoiceNo}) is now READY for pickup.\n\n*Final Details:*\nWeight: ${finalGross}g\nTotal Amount: Rs. ${Math.round(grandTotal).toLocaleString()}\nLess Advance/Old Gold: -Rs. ${Math.round(adv + oldGold).toLocaleString()}\n----------------\n*Net Pending: Rs. ${Math.round(netDue).toLocaleString()}*\n\nPlease visit the store to collect your jewelry.\nWe look forward to serving you!`;
+            }
+
+            if (msg) {
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            }
+        }
+        // ==========================================
 
         window.onload = async function() {
             const d = new Date(); d.setDate(d.getDate() + 10);
@@ -1105,6 +1146,7 @@
             const db = await dbPromise;
             const tx = db.transaction('orders', 'readwrite');
             const req = tx.objectStore('orders').get(orderId);
+            
             req.onsuccess = async (e) => {
                 let o = e.target.result;
                 o.invoiceNo = invoiceNo;
@@ -1114,9 +1156,19 @@
                     await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
                 }
                 
+                // Get customer data for WhatsApp Notification
+                const c = allCustomers.find(x => x.id == jobObj.customerId);
+                o.custName = c ? c.name : 'Customer';
+                o.custMobile = c ? c.mobile : '';
+
                 showToast(`Order Logged Successfully!`, "success"); 
                 closeModal('newJobModal'); 
                 loadOrders();
+
+                // STAGE 1: TRIGGER INTAKE WHATSAPP
+                if(confirm("Order Saved Successfully!\n\nDo you want to send a WhatsApp Confirmation message to the customer?")) {
+                    autoWhatsApp(o, 'intake');
+                }
             };
         }
 
@@ -1415,7 +1467,16 @@
             }
             
             tx.onerror = (e) => { showToast("Error processing assignment.", "error"); };
-            tx.oncomplete = () => { showToast("Assigned to Karigar!", "success"); closeModal('assignModal'); loadOrders(); };
+            tx.oncomplete = () => { 
+                showToast("Assigned to Karigar!", "success"); 
+                closeModal('assignModal'); 
+                loadOrders(); 
+
+                // STAGE 2: TRIGGER KARIGAR WHATSAPP
+                if(confirm("Order Assigned to Karigar!\n\nSend an update to the customer on WhatsApp that processing has started?")) {
+                    autoWhatsApp(activeJobData, 'karigar');
+                }
+            };
         }
 
         function openReceiveModal() {
@@ -1584,7 +1645,16 @@
                 tx.objectStore('purchases').add({ merchantId: o.merchantId, date: now, type: 'Unfixed', category: `Jobwork Liability (Ord #${o.id})`, totalFineWeight: metalDiffToKarigar, paidAmount: 0, dueAmount: 0, totalAmount: 0 });
             }
 
-            tx.oncomplete = () => { showToast("Order Received to Stock!", "success"); closeModal('receiveModal'); loadOrders(); };
+            tx.oncomplete = () => { 
+                showToast("Order Received to Stock!", "success"); 
+                closeModal('receiveModal'); 
+                loadOrders(); 
+
+                // STAGE 3: TRIGGER READY WHATSAPP
+                if(confirm("Order is now Ready in Stock!\n\nSend a final WhatsApp message to the customer with Weight and Pending Amount details?")) {
+                    autoWhatsApp(activeJobData, 'ready');
+                }
+            };
         }
 
         function openBillingModal() {
