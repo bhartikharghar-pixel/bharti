@@ -107,7 +107,7 @@
         .metal-table td:first-child { text-align: left; }
         .metal-table tbody tr:hover { background: #f8fafc; }
         .metal-title-main { font-weight: 700; color: #1e293b; font-size: 1.05rem; margin-bottom: 4px; }
-        .metal-title-sub { font-size: 0.8rem; color: #64748b; }
+        .metal-title-sub { font-size: 0.85rem; color: #64748b; margin-bottom: 4px;}
         .m-val-pos { color: var(--in-green); font-weight: 700; background: #e8f5e9; padding: 4px 8px; border-radius: 6px; display: inline-block; }
         .m-val-neg { color: var(--out-red); font-weight: 700; background: #ffebee; padding: 4px 8px; border-radius: 6px; display: inline-block; }
         
@@ -616,7 +616,7 @@
         let allDayTransactions = []; 
         let printData = {}; 
         
-        // NEW: Array to explicitly feed the Metal Table
+        // Array to explicitly feed the Metal Table
         let metalLedgerData = [];
 
         window.onload = async function() {
@@ -686,13 +686,12 @@
 
             currentRojmel = { IN: {}, OUT: {} };
             allDayTransactions = [];
-            metalLedgerData = []; // Clear metal tracking array
+            metalLedgerData = []; 
             
             actualSyncInCash = 0; actualSyncInBank = 0; 
             actualSyncOutCash = 0; actualSyncOutBank = 0;
 
             let openHardCash = 0, openBank = 0;
-            
             let openMetal = 0; 
             let openOldGold = 0; 
             let openMixMetal = 0; 
@@ -753,7 +752,6 @@
             purchases.forEach(p => {
                 if (String(p.date).startsWith(targetMonth)) {
                     let minGold = 0, minSilv = 0;
-                    
                     let rootNet = getSafeNum(p.totalNetWeight || p.totalNetWt || p.netWt || p.netWeight);
                     let rootGross = getSafeNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight || p.totalWeight || p.weight);
                     let rootStone = getSafeNum(p.totalStoneWeight || p.stoneWt || p.stoneWeight);
@@ -1134,20 +1132,20 @@
                         else todayMetalOut += Math.abs(signedAmt);
                     }
 
-                    // --- NEW LOGIC: Push exactly to Metal Ledger Array for the Table ---
+                    // --- EXPLICIT PUSH TO METAL TABLE ARRAY ---
                     metalLedgerData.push({
                         time: getTime(date),
                         title: bucketTitle,
                         desc: source,
                         party: party,
                         ref: ref,
-                        side: bucketSide, // 'IN' or 'OUT'
-                        category: metalCategory, // 'NET', 'MIX', 'OLD'
+                        side: bucketSide, 
+                        category: metalCategory, 
                         amount: signedAmt
                     });
 
-                    // Keep existing addRojmel for backward compatibility / total calculations
-                    addRojmel(bucketSide, bucketId, bucketTitle, icon, color, 0, signedAmt, { time: getTime(date), ref, party, partyType: '', desc: source, cash: 0, metal: signedAmt, mode: '-', dataType: 'metal', raw: { metalCategory } }, true /* mergeByRef */);
+                    // Backward compatibility for Cash Daybook Metal Tooltips
+                    addRojmel(bucketSide, bucketId, bucketTitle, icon, color, 0, signedAmt, { time: getTime(date), ref, party, partyType: '', desc: source, cash: 0, metal: signedAmt, mode: '-', dataType: 'metal', raw: { metalCategory } }, true);
                 }
             };
 
@@ -1213,7 +1211,10 @@
             orders.forEach(o => {
                 let cancelDate = null;
                 const invoiceNo = o.invoiceNo || (o.jobType === 'Repair' ? 'ORD-INVR' + String(o.id).padStart(3, '0') : 'ORD-INV' + String(o.id).padStart(3, '0'));
+                
+                // Get Both Party Names
                 const partyName = getCustName(o.customerId);
+                const karigarDisplay = o.merchantId ? getMerchName(o.merchantId) : 'Karigar (Unassigned)';
 
                 if (o.status === 'cancelled') {
                     const cFlow = cFlows.find(f => f.note && f.note.includes(invoiceNo) && f.category.includes('Refund'));
@@ -1231,57 +1232,56 @@
                     let issueDate = o.repairMeta?.issuedDate;
                     if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            logMetal(issueDate, shopIssued, 'OUT', 'order_out', 'Repair Metal Flow', 'fas fa-hammer', 'var(--out-red)', `Shop Gold Issued to Karigar`, partyName, invoiceNo, false, 'NET');
+                            logMetal(issueDate, shopIssued, 'OUT', 'order_out', 'Repair Metal Flow', 'fas fa-hammer', 'var(--out-red)', `Shop Gold Issued to Karigar (For ${partyName})`, karigarDisplay, invoiceNo, false, 'NET');
                         }
                     }
 
                     let auditDate = o.repairMeta?.auditDate;
                     if (returnedRaw > 0 && auditDate && getSafeDate(auditDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            let desc = `Raw Metal Returned (Loss: ${actualLoss.toFixed(3)}g | Allowed: ${allowedLoss.toFixed(3)}g | Shortage Due: ${excessLoss.toFixed(3)}g)`;
-                            logMetal(auditDate, returnedRaw, 'IN', 'order_in', 'Repair Metal Flow', 'fas fa-hammer', 'var(--in-green)', desc, partyName, invoiceNo, true, 'NET');
+                            let desc = `Raw Metal Returned by Karigar (For ${partyName}) | Loss: ${actualLoss.toFixed(3)}g`;
+                            logMetal(auditDate, returnedRaw, 'IN', 'order_in', 'Repair Metal Flow', 'fas fa-hammer', 'var(--in-green)', desc, karigarDisplay, invoiceNo, true, 'NET');
                         }
                     }
 
                     if (cancelDate === selectedDateStr) {
                         if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
-                            logMetal(selectedDateStr, shopIssued, 'IN', 'order_in', 'Repair Refunds', 'fas fa-undo', 'var(--in-green)', `Repair Cancelled (Shop Metal Recovered)`, partyName, invoiceNo, true, 'NET');
+                            logMetal(selectedDateStr, shopIssued, 'IN', 'order_in', 'Repair Refunds', 'fas fa-undo', 'var(--in-green)', `Repair Cancelled (Shop Metal Recovered from Karigar)`, karigarDisplay, invoiceNo, true, 'NET');
                         }
                     }
                 } else {
-                    // 1. Old Gold Received from Customer -> JAMA
+                    // 1. Old Gold Received from Customer -> JAMA (Customer)
                     let inWt = getSafeNum(o.oldGoldNet);
                     if (getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
                             logMetal(o.orderDate, inWt, 'IN', 'order_in', 'Order Advances & Payments', 'fas fa-hammer', 'var(--in-green)', `Intake: Order Collateral/Exch`, partyName, invoiceNo, true, 'OLD');
                         }
                         if (cancelDate === selectedDateStr) {
-                            logMetal(selectedDateStr, inWt, 'OUT', 'order_out', 'Order Refunds', 'fas fa-undo', 'var(--out-red)', `Order Cancelled (Collateral Returned)`, partyName, invoiceNo, false, 'OLD');
+                            logMetal(selectedDateStr, inWt, 'OUT', 'order_out', 'Order Refunds', 'fas fa-undo', 'var(--out-red)', `Order Cancelled (Collateral Returned to Customer)`, partyName, invoiceNo, false, 'OLD');
                         }
                     }
 
-                    // 2. Metal Issued to Karigar -> NAMA (LESS) - FIXED MIX METAL/INVENTORY LOGIC
+                    // 2. Metal Issued to Karigar -> NAMA (Karigar)
                     let karigarIssuedWt = getSafeNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
                     
                     let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
                     let issueTitle = o.sourceStockId ? 'Inv Metal Issued (Karigar)' : 'Mix Metal Issued (Karigar)';
-                    let issueDesc = o.sourceStockId ? 'Inventory Metal Assigned to Karigar' : 'Mix Metal / Melted Slab Assigned to Karigar';
+                    let issueDesc = o.sourceStockId ? `Inventory Metal Assigned to Karigar (For ${partyName})` : `Mix Metal / Melted Slab Assigned to Karigar (For ${partyName})`;
                     
                     if (karigarIssuedWt > 0 && getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', issueTitle, 'fas fa-truck', 'var(--out-red)', issueDesc, partyName, invoiceNo, false, issueCategory);
+                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', issueTitle, 'fas fa-truck', 'var(--out-red)', issueDesc, karigarDisplay, invoiceNo, false, issueCategory);
                         }
                         if (cancelDate === selectedDateStr) {
-                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (${issueCategory === 'NET' ? 'Inventory Metal' : 'Mix Metal'} Recovered)`, partyName, invoiceNo, true, issueCategory);
+                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (${issueCategory === 'NET' ? 'Inventory Metal' : 'Mix Metal'} Recovered from Karigar)`, karigarDisplay, invoiceNo, true, issueCategory);
                         }
                     }
 
-                    // 3. Metal Received Back from Karigar -> JAMA (ADD) - ALWAYS GOES TO NET INVENTORY
+                    // 3. Metal Received Back from Karigar -> JAMA (Karigar)
                     let receivedFromKarigarWt = getSafeNum(o.finalNet);
                     if (receivedFromKarigarWt > 0 && (o.status === 'completed' || o.status === 'ready' || o.status === 'billed' || o.status === 'delivered')) {
                         if (getSafeDate(o.orderDate) <= selectedDateStr && (!cancelDate || cancelDate >= selectedDateStr)) {
-                            // When received, it is a ready item, so it adds back to 'NET' (Inv)
-                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'order_in_karigar_recv', 'Metal Received (Karigar)', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar into Stock`, partyName, invoiceNo, true, 'NET');
+                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'order_in_karigar_recv', 'Metal Received (Karigar)', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar into Stock (For ${partyName})`, karigarDisplay, invoiceNo, true, 'NET');
                         }
                     }
                 }
@@ -1471,7 +1471,7 @@
             generatePrintLayout();
         }
 
-        // --- NEW FUNCTION TO RENDER THE METAL TABLE ---
+        // --- NEW FUNCTION TO RENDER THE METAL TABLE WITH KARIGAR DETAILS ---
         function renderMetalTable(opFine, opMix, opOld, clFine, clMix, clOld) {
             const tbody = document.getElementById('metalLedgerBody');
             
@@ -1487,7 +1487,6 @@
                 </tr>
             `;
 
-            // Sort transactions chronologically
             metalLedgerData.sort((a, b) => a.time.localeCompare(b.time)).forEach(tx => {
                 let mVal = tx.amount;
                 if(mVal === 0 || isNaN(mVal)) return;
@@ -1503,7 +1502,8 @@
                     <tr>
                         <td style="text-align:left;">
                             <div class="metal-title-main">${tx.title}</div>
-                            <div class="metal-title-sub">${tx.party} | Ref: ${tx.ref}</div>
+                            <div class="metal-title-sub"><strong style="color:var(--info-blue);">${tx.party}</strong> | Ref: ${tx.ref}</div>
+                            <div style="font-size:0.8rem; color:#666; margin-top:4px;">${tx.desc}</div>
                         </td>
                         <td>${fineCol}</td>
                         <td>${mixCol}</td>
