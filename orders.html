@@ -1,4 +1,4 @@
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -210,9 +210,7 @@
     </div>
 
     <!-- NEW JOB MODAL -->
-    <!-- (Existing code intact) -->
     <div id="newJobModal" class="modal">
-        <!-- ... omitted for brevity as it remains entirely same ... -->
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
             <h3 style="margin-top:0;"><i class="fas fa-hammer"></i> New Custom Order</h3>
@@ -387,7 +385,6 @@
     </div>
 
     <!-- VIEW JOB MODAL -->
-    <!-- (Existing code intact) -->
     <div id="viewJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('viewJobModal')">&times;</button>
@@ -480,8 +477,7 @@
         </div>
     </div>
 
-    <!-- NEW ASSIGN MODAL & RECEIVE MODAL -->
-    <!-- (Omitted to keep answer length within limits, it remains identical to your code) -->
+    <!-- NEW ASSIGN MODAL -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
@@ -693,7 +689,6 @@
     </div>
 
     <!-- CANCEL MODAL -->
-    <!-- (Existing code intact) -->
     <div id="cancelModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
@@ -723,7 +718,6 @@
 
     <script src="db.js?v=35"></script> 
     <script>
-        // (Helper functions and existing JS code exactly as provided, with new updates below)
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -743,8 +737,6 @@
         let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
         let billingPayments = []; 
         let activeJobData = null; 
-
-        // [All other existing functions logic remains intact here. E.g. onload, loadMerchants, loadOrders, filterOrders, renderOrders, openNewJobModal, getPurityFactor, autoFillRate, etc...]
         
         window.onload = async function() {
             const d = new Date(); d.setDate(d.getDate() + 10);
@@ -893,27 +885,718 @@
             });
         }
 
-        function searchCustomer(inputId, resultsId, hiddenId, displayId) { /* Omitted to save space, unchanged */ }
-        function resetCustSearch(inputId = 'custSearchInput', hiddenId = 'selectedCustId', displayId = 'selectedCustDisplay') { /* Omitted */ }
-        function openNewJobModal() { /* Omitted */ }
-        function getPurityFactor(key) { /* Omitted */ return 1.0; }
-        function autoFillRate() { /* Omitted */ }
-        function autoFillOldRate() { /* Omitted */ }
-        function calcOrderTotal() { /* Omitted */ }
-        async function saveJob() { /* Omitted */ }
-        function openViewModal(id) { /* Omitted */ }
-        function updateDueUI(pending, status) { /* Omitted */ }
-        async function addAdvance() { /* Omitted */ }
-        function openAssignModal() { /* Omitted */ }
-        function toggleShopGoldSection() { /* Omitted */ }
-        async function populateAssignSourceDropdown() { /* Omitted */ }
-        function autoFillAssignSource() { /* Omitted */ }
-        function calcAssignFine() { /* Omitted */ }
-        async function confirmAssignOrder() { /* Omitted */ }
-        function openReceiveModal() { /* Omitted */ }
-        function autoFillFinalGross() { /* Omitted */ }
-        function calcReceiveTotals() { /* Omitted */ }
-        async function confirmReceiveOrder() { /* Omitted */ }
+        function searchCustomer(inputId, resultsId, hiddenId, displayId) {
+            const term = document.getElementById(inputId).value.toLowerCase();
+            const resultsDiv = document.getElementById(resultsId);
+            resultsDiv.innerHTML = '';
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    div.onclick = () => {
+                        document.getElementById(hiddenId).value = c.id;
+                        document.getElementById(inputId).value = c.name;
+                        resultsDiv.style.display = 'none';
+                        document.getElementById(inputId).style.display = 'none';
+                        const disp = document.getElementById(displayId);
+                        disp.style.display = 'flex';
+                        if(displayId === 'selectedCustDisplay') {
+                             disp.innerHTML = `<span><i class="fas fa-check-circle"></i> Selected: ${c.name}</span> <button class="btn-outline" style="margin:0; padding:2px 6px; font-size:0.8rem; border:none; background:white;" onclick="resetCustSearch('${inputId}', '${hiddenId}', '${displayId}')">Change</button>`;
+                        } else {
+                             document.getElementById('billCustNameText').innerHTML = `${c.name} (${c.mobile})`;
+                        }
+                    };
+                    resultsDiv.appendChild(div);
+                });
+            } else { resultsDiv.style.display = 'none'; }
+        }
+
+        function resetCustSearch(inputId = 'custSearchInput', hiddenId = 'selectedCustId', displayId = 'selectedCustDisplay') {
+            document.getElementById(hiddenId).value = '';
+            document.getElementById(inputId).value = '';
+            document.getElementById(inputId).style.display = 'block';
+            document.getElementById(displayId).style.display = 'none';
+            document.getElementById(inputId).focus();
+        }
+
+        function openNewJobModal() { 
+            openModal('newJobModal');
+            resetCustSearch();
+            document.getElementById('oDesc').value = ''; 
+            document.getElementById('oGrossWt').value = '';
+            document.getElementById('oStoneWt').value = 0; 
+            
+            document.getElementById('oOldGrossWt').value = 0; document.getElementById('oOldStoneWt').value = 0;
+            document.getElementById('oOldNetWt').value = 0; document.getElementById('oOldFineWt').value = 0;
+            document.getElementById('oOldExchangePct').value = 100; 
+            
+            document.getElementById('oMakingInput').value = '';
+            document.getElementById('oMakingType').value = 'pct';
+            document.getElementById('oApplyGST').checked = false;
+            
+            document.getElementById('oAdv').value = '';
+            autoFillRate();
+        }
+
+        function getPurityFactor(key) {
+            if(!key) return 1.0;
+            if (key === '24K') return 1.000;
+            if (key === '22K') return 0.9166;
+            if (key === '18K') return 0.7500;
+            
+            const custom = goldRates.customPurities?.find(cp => cp.name === key);
+            if (custom) return custom.pct / 100;
+            
+            if(key.toString().includes('%')) {
+                const val = parseFloat(key.toString().replace('%', ''));
+                if(!isNaN(val)) return val / 100;
+            }
+            return 1.0;
+        }
+
+        function autoFillRate() {
+            const purity = document.getElementById('oPurity').value;
+            let rate = 0;
+            if(purity === '22K') rate = goldRates.rate22k;
+            else if(purity === '24K') rate = goldRates.rate24k;
+            else if(purity === '18K') rate = goldRates.rate18k || (goldRates.rate22k * 0.82); 
+            else {
+                const factor = getPurityFactor(purity);
+                rate = goldRates.rate24k * factor;
+            }
+            document.getElementById('oRate').value = Math.round(rate / 10);
+            if (!document.getElementById('oOldGoldRate').value || document.getElementById('oOldGoldRate').value == 0) {
+                 document.getElementById('oOldGoldRate').value = Math.round((goldRates.rate24k / 10)); 
+            }
+            calcOrderTotal();
+        }
+        
+        function autoFillOldRate() {
+            document.getElementById('oOldGoldRate').value = Math.round((goldRates.rate24k / 10));
+            calcOrderTotal();
+        }
+
+        function calcOrderTotal() {
+            const gross = parseFloat(document.getElementById('oGrossWt').value) || 0;
+            const stone = parseFloat(document.getElementById('oStoneWt').value) || 0;
+            const net = Math.max(0, gross - stone);
+            document.getElementById('oNetWt').value = net.toFixed(3);
+
+            const purityFactor = getPurityFactor(document.getElementById('oPurity').value);
+            const finalFineWt = net * purityFactor;
+            document.getElementById('oFineWtVal').value = finalFineWt;
+
+            const oldGross = parseFloat(document.getElementById('oOldGrossWt').value) || 0;
+            const oldStone = parseFloat(document.getElementById('oOldStoneWt').value) || 0;
+            const oldNet = Math.max(0, oldGross - oldStone);
+            document.getElementById('oOldNetWt').value = oldNet.toFixed(3);
+
+            const oldFactor = getPurityFactor(document.getElementById('oOldPurity').value);
+            const oldFine = oldNet * oldFactor;
+            document.getElementById('oOldFineWt').value = oldFine.toFixed(3);
+
+            const oldRate = parseFloat(document.getElementById('oOldGoldRate').value) || 0;
+            const oldPct = parseFloat(document.getElementById('oOldExchangePct').value) || 100;
+            const oldGoldVal = Math.round(oldFine * oldRate * (oldPct / 100));
+            
+            document.getElementById('oOldGoldValueDisplay').innerText = "₹" + oldGoldVal.toLocaleString();
+            
+            if(oldGoldVal > 0) {
+                document.getElementById('oOldGoldSummaryRow').style.display = 'flex';
+                document.getElementById('oOldGoldTotalDisplay').innerText = "-₹" + oldGoldVal.toLocaleString();
+            } else {
+                document.getElementById('oOldGoldSummaryRow').style.display = 'none';
+            }
+
+            const rate = parseFloat(document.getElementById('oRate').value) || 0;
+            const goldValue = net * rate;
+            
+            const makingInput = parseFloat(document.getElementById('oMakingInput').value) || 0;
+            const makingType = document.getElementById('oMakingType').value;
+            let making = 0;
+            
+            if(makingType === 'pct') {
+                making = goldValue * (makingInput / 100);
+            } else {
+                making = net * makingInput; 
+            }
+            
+            document.getElementById('oMaking').value = Math.round(making);
+            document.getElementById('oMakingDisplay').innerText = "+ ₹" + Math.round(making).toLocaleString() + " Making";
+            
+            const baseTotal = Math.round(goldValue + making);
+            document.getElementById('oBaseTotalDisplay').innerText = "₹" + baseTotal.toLocaleString();
+            
+            const applyGST = document.getElementById('oApplyGST').checked;
+            let gstAmount = 0;
+            if(applyGST) {
+                gstAmount = Math.round(baseTotal * 0.03);
+                document.getElementById('oGSTSummaryRow').style.display = 'flex';
+                document.getElementById('oGSTTotalDisplay').innerText = "+₹" + gstAmount.toLocaleString();
+            } else {
+                document.getElementById('oGSTSummaryRow').style.display = 'none';
+            }
+            document.getElementById('oGstAmountVal').value = gstAmount;
+
+            const grandTotal = baseTotal + gstAmount;
+
+            document.getElementById('oGrossTotalDisplay').innerText = "₹" + grandTotal.toLocaleString();
+            document.getElementById('oBaseAmountVal').value = baseTotal;
+            document.getElementById('oGrandTotalVal').value = grandTotal;
+
+            const adv = parseFloat(document.getElementById('oAdv').value) || 0;
+            const pending = grandTotal - oldGoldVal - adv;
+            
+            const pendingEl = document.getElementById('oPendingDisplay');
+            if(pending < 0) {
+                pendingEl.innerText = "₹" + Math.abs(pending).toLocaleString() + " (Refund)";
+                pendingEl.style.color = "var(--old-gold)";
+                document.getElementById('oPendingLabel').innerText = "Est. Refund Due:";
+            } else {
+                pendingEl.innerText = "₹" + pending.toLocaleString();
+                pendingEl.style.color = "#d32f2f";
+                document.getElementById('oPendingLabel').innerText = "Est. Net Payable:";
+            }
+        }
+
+        async function saveJob() {
+            const custId = document.getElementById('selectedCustId').value;
+            const desc = document.getElementById('oDesc').value;
+            const grossWt = parseFloat(document.getElementById('oGrossWt').value) || 0;
+            
+            if(!custId) return showToast("Select a Customer", "error");
+            if(!desc) return showToast("Enter Description", "error");
+            if(grossWt <= 0) return showToast("Enter Est. Gross Weight", "error");
+
+            let jobObj = {
+                jobType: 'Order',
+                customerId: parseInt(custId),
+                orderDate: new Date().toISOString(),
+                dueDate: new Date(document.getElementById('oDue').value).toISOString(),
+                description: desc, 
+                category: document.getElementById('oCat').value, 
+                status: 'pending', 
+                advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
+                payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
+                
+                purity: document.getElementById('oPurity').value,
+                grossWt: grossWt, stoneWt: parseFloat(document.getElementById('oStoneWt').value) || 0,
+                netWt: parseFloat(document.getElementById('oNetWt').value) || 0,
+                fineWt: parseFloat(document.getElementById('oFineWtVal').value) || 0,
+                
+                oldGoldPurity: document.getElementById('oOldPurity').value,
+                oldGoldGross: parseFloat(document.getElementById('oOldGrossWt').value) || 0,
+                oldGoldStone: parseFloat(document.getElementById('oOldStoneWt').value) || 0,
+                oldGoldNet: parseFloat(document.getElementById('oOldNetWt').value) || 0,
+                oldGoldFine: parseFloat(document.getElementById('oOldFineWt').value) || 0,
+                oldGoldPct: parseFloat(document.getElementById('oOldExchangePct').value) || 100,
+                oldGoldRate: parseFloat(document.getElementById('oOldGoldRate').value) || 0,
+                oldGoldValue: Math.round(parseFloat(document.getElementById('oOldFineWt').value||0) * parseFloat(document.getElementById('oOldGoldRate').value||0) * (parseFloat(document.getElementById('oOldExchangePct').value||100)/100)),
+                
+                lockedRate: parseFloat(document.getElementById('oRate').value) || 0,
+                
+                makingValInput: parseFloat(document.getElementById('oMakingInput').value) || 0,
+                makingTypeInput: document.getElementById('oMakingType').value,
+                makingCharge: parseFloat(document.getElementById('oMaking').value) || 0,
+                gstAmount: parseFloat(document.getElementById('oGstAmountVal').value) || 0,
+                
+                baseAmount: parseFloat(document.getElementById('oBaseAmountVal').value) || 0,
+                grandTotal: parseFloat(document.getElementById('oGrandTotalVal').value) || 0, 
+                estAmount: parseFloat(document.getElementById('oGrandTotalVal').value) || 0
+            };
+
+            const orderId = await addItem('orders', jobObj);
+            const invoiceNo = 'ORD-INV' + String(orderId).padStart(3, '0');
+            
+            const db = await dbPromise;
+            const tx = db.transaction('orders', 'readwrite');
+            const req = tx.objectStore('orders').get(orderId);
+            req.onsuccess = async (e) => {
+                let o = e.target.result;
+                o.invoiceNo = invoiceNo;
+                tx.objectStore('orders').put(o);
+                
+                if(jobObj.advancePaid > 0) {
+                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
+                }
+                
+                showToast(`Order Logged Successfully!`, "success"); 
+                closeModal('newJobModal'); 
+                loadOrders();
+            };
+        }
+
+        function openViewModal(id) {
+            const o = allOrders.find(x => x.id === id);
+            if(!o) return;
+            activeJobData = o;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+            document.getElementById('vId').value = o.id;
+            setText('vOrderId', `${invoiceNo}`);
+            setText('vCustName', o.custName);
+            setText('vDesc', `${o.category} - ${o.description}`);
+            
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
+            
+            const badge = document.getElementById('vStatusBadge');
+            if (badge) {
+                if(o.status === 'billed' || o.status === 'delivered') { 
+                    badge.className = 'badge b-billed'; badge.innerText = 'Delivered'; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('done'); document.getElementById('step4').classList.add('done');
+                } else if(o.status === 'completed' || o.status === 'ready') { 
+                    badge.className = 'badge b-completed'; badge.innerText = 'Ready'; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('active'); 
+                } else if(o.status === 'cancelled') { 
+                    badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
+                } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
+                    const mId = o.merchantId;
+                    const m = allMerchants.find(x => x.id == mId); 
+                    badge.className = 'badge b-assigned'; badge.innerHTML = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`; 
+                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('active');
+                } else { 
+                    badge.className = 'badge b-pending'; badge.innerText = 'Intake'; 
+                    document.getElementById('step1').classList.add('active');
+                }
+            }
+
+            setText('vGross', o.finalGross ? `${o.finalGross}g (F)` : `${o.grossWt}g (E)`);
+            setText('vMaking', o.finalMaking ? `₹${o.finalMaking} (F)` : `₹${o.makingCharge} (E)`);
+            setText('vRate', `₹${o.lockedRate}/g`);
+
+            if(o.barcode) {
+                toggleDisplay('vFinalBarcodeDiv', 'block');
+                setText('vFinalBarcode', o.barcode);
+            } else {
+                toggleDisplay('vFinalBarcodeDiv', 'none');
+            }
+
+            const baseTotal = o.baseAmount || o.estAmount || 0;
+            const grandTotal = o.grandTotal || o.estAmount || 0;
+            const adv = o.advancePaid || 0;
+            const oldVal = o.oldGoldValue || 0;
+
+            setText('vTotalLabel', (o.status === 'completed' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered') ? "Final Gross Total:" : "Est. Gross Total:");
+            setText('vGrandTotal', "₹" + grandTotal.toLocaleString());
+            setText('vAdv', "-₹" + adv.toLocaleString());
+            
+            if (oldVal > 0) {
+                toggleDisplay('vOldGoldWrapper', 'flex');
+                setText('vOldGold', "-₹" + oldVal.toLocaleString());
+                toggleDisplay('vOldGoldDetailsBox', 'block');
+                setText('vOldPurity', o.oldGoldPurity);
+                setText('vOldNet', (o.oldGoldFine || o.oldGoldNet) + "g"); 
+                setText('vOldValDetail', "₹" + oldVal.toLocaleString());
+            } else {
+                toggleDisplay('vOldGoldWrapper', 'none');
+                toggleDisplay('vOldGoldDetailsBox', 'none');
+            }
+
+            let pending = grandTotal - oldVal - adv;
+            if (o.status === 'billed' || o.status === 'delivered') pending = 0; 
+            updateDueUI(pending, o.status);
+
+            const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
+            
+            toggleDisplay('addPaySection', isDone ? 'none' : 'block');
+            toggleDisplay('btnCancel', isDone ? 'none' : 'block');
+            
+            if (isDone) {
+                toggleDisplay('btnForwardMerchant', 'none');
+                toggleDisplay('btnPrintKarigarSlip', 'none');
+                toggleDisplay('btnReceiveMerchant', 'none');
+                toggleDisplay('btnGoToSales', (o.status === 'completed' || o.status === 'ready') ? 'flex' : 'none');
+            } else {
+                toggleDisplay('btnGoToSales', 'none');
+                if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                    toggleDisplay('btnForwardMerchant', 'none');
+                    toggleDisplay('btnPrintKarigarSlip', 'block');
+                    toggleDisplay('btnReceiveMerchant', 'block');
+                } else {
+                    toggleDisplay('btnForwardMerchant', 'block');
+                    toggleDisplay('btnPrintKarigarSlip', 'none');
+                    toggleDisplay('btnReceiveMerchant', 'none');
+                }
+            }
+
+            openModal('viewJobModal');
+        }
+
+        function updateDueUI(pending, status) {
+            const vDueLabel = document.getElementById('vDueLabel');
+            const vDue = document.getElementById('vDue');
+            if (pending < 0) {
+                vDueLabel.innerText = "Refund Due:";
+                vDue.innerText = "₹" + Math.abs(pending).toLocaleString();
+                vDue.style.color = "var(--old-gold)";
+            } else if (pending === 0 && (status === 'billed' || status === 'delivered')) {
+                vDueLabel.innerText = "Settled:";
+                vDue.innerText = "₹0";
+                vDue.style.color = "var(--receive-green)";
+            } else {
+                vDueLabel.innerText = "Net Due:";
+                vDue.innerText = "₹" + Math.round(pending).toLocaleString();
+                vDue.style.color = "#d32f2f";
+            }
+        }
+
+        async function addAdvance() {
+            const id = parseInt(document.getElementById('vId').value);
+            const amt = parseFloat(document.getElementById('vNewPay').value);
+            const mode = document.getElementById('vNewPayMode').value;
+            if(!amt || amt <= 0) return showToast("Enter valid amount", "error");
+
+            const db = await dbPromise;
+            const tx = db.transaction('orders', 'readwrite');
+            const store = tx.objectStore('orders');
+
+            store.get(id).onsuccess = async (e) => {
+                const o = e.target.result;
+                const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+                o.advancePaid = (o.advancePaid || 0) + amt;
+                if(!o.payments) o.payments = [];
+                o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
+                store.put(o);
+
+                await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: mode, category: 'Order Payment', amount: amt, note: `Payment for ${invoiceNo}` });
+                showToast("Advance Added!", "success"); document.getElementById('vNewPay').value = ''; closeModal('viewJobModal'); loadOrders();
+            };
+        }
+
+        function openAssignModal() {
+            const o = activeJobData;
+            document.getElementById('aOrderId').value = o.id;
+
+            document.getElementById('aProvideShopGold').checked = false;
+            
+            toggleShopGoldSection();
+            populateAssignSourceDropdown(); 
+            closeModal('viewJobModal'); openModal('assignModal');
+        }
+
+        function toggleShopGoldSection() {
+            const isChecked = document.getElementById('aProvideShopGold').checked;
+            document.getElementById('aShopGoldSection').style.display = isChecked ? 'block' : 'none';
+            
+            if(!isChecked) {
+                document.getElementById('aRepSourceSelect').value = '';
+                document.getElementById('aIssuedPurity').disabled = false;
+                document.getElementById('aIssuedPurity').style.background = '#fafafa';
+                document.getElementById('aIssuedWt').value = '';
+                document.getElementById('aIssuedFineWt').value = '0.000';
+            } else {
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '24K';
+            }
+        }
+
+        async function populateAssignSourceDropdown() {
+            const sel = document.getElementById('aRepSourceSelect');
+            if(!sel) return;
+            
+            sel.innerHTML = `<option value="">-- Manual Entry (No Barcode / Raw Metal) --</option>`; 
+            
+            const inventory = await getAllItems('inventory');
+            const availableStock = inventory.filter(i => i.status === 'stock' && i.netWt > 0);
+
+            if(availableStock.length === 0) {
+                sel.innerHTML += `<option value="" disabled>No inventory stock found!</option>`;
+            } else {
+                availableStock.forEach(i => {
+                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity} | ${i.name || i.category}</option>`;
+                });
+            }
+        }
+
+        function autoFillAssignSource() {
+            const sel = document.getElementById('aRepSourceSelect');
+            if(sel.selectedIndex > 0) {
+                const opt = sel.options[sel.selectedIndex];
+                const max = opt.getAttribute('data-max');
+                const purity = opt.getAttribute('data-purity');
+                
+                const puritySelect = document.getElementById('aIssuedPurity');
+                let found = false;
+                for(let i=0; i<puritySelect.options.length; i++) {
+                    if(puritySelect.options[i].value === purity) { found = true; break; }
+                }
+                if(!found) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = purity;
+                    newOpt.text = purity;
+                    puritySelect.add(newOpt);
+                }
+
+                puritySelect.value = purity;
+                puritySelect.disabled = true;
+                puritySelect.style.background = '#eee';
+                
+                document.getElementById('aIssuedWt').value = max;
+                document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
+                
+                calcAssignFine();
+            } else { 
+                document.getElementById('aIssuedWt').value = '';
+                document.getElementById('aIssuedWt').placeholder = `e.g. 15.000`;
+                
+                const puritySelect = document.getElementById('aIssuedPurity');
+                puritySelect.disabled = false;
+                puritySelect.style.background = '#fafafa';
+                puritySelect.value = activeJobData ? activeJobData.purity : '24K';
+                
+                document.getElementById('aIssuedFineWt').value = '0.000';
+            }
+        }
+
+        function calcAssignFine() {
+            const grossWt = parseFloat(document.getElementById('aIssuedWt').value) || 0;
+            const purity = document.getElementById('aIssuedPurity').value;
+            if(!purity) return;
+            const factor = getPurityFactor(purity);
+            const fineWt = grossWt * factor;
+            document.getElementById('aIssuedFineWt').value = fineWt.toFixed(3);
+        }
+
+        async function confirmAssignOrder() {
+            const oId = parseInt(document.getElementById('aOrderId').value);
+            const mId = document.getElementById('aMerchantSelect').value;
+            
+            if(!mId) return showToast("Select a Karigar", "error");
+
+            const provideShopGold = document.getElementById('aProvideShopGold').checked;
+            
+            const stockId = document.getElementById('aRepSourceSelect').value;
+            const issuedGrossWt = parseFloat(document.getElementById('aIssuedWt').value) || 0;
+            const issuedPurity = document.getElementById('aIssuedPurity').value;
+            const issuedFineWt = parseFloat(document.getElementById('aIssuedFineWt').value) || 0;
+
+            if (provideShopGold) {
+                if(issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
+            }
+
+            const o = activeJobData;
+            o.status = 'in_progress';
+            
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'inventory', 'purchases'], 'readwrite');
+
+            if (provideShopGold && stockId) {
+                let invReq = tx.objectStore('inventory').get(parseInt(stockId));
+                invReq.onsuccess = (e) => {
+                    let item = e.target.result;
+                    if(!item || item.netWt < issuedGrossWt) {
+                        tx.abort();
+                        showToast("Insufficient stock in the selected source!", "error");
+                        return;
+                    }
+
+                    item.netWt -= issuedGrossWt;
+                    item.grossWt -= issuedGrossWt;
+                    item.weight = item.netWt;
+                    if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; } 
+                    tx.objectStore('inventory').put(item);
+
+                    o.merchantId = mId;
+                    o.sourceStockId = parseInt(stockId);
+                    o.issuedGrossWt = issuedGrossWt;
+                    o.issuedPurity = issuedPurity; 
+                    o.issuedFineWt = issuedFineWt; 
+                    tx.objectStore('orders').put(o);
+                };
+            } else if (provideShopGold && !stockId) {
+                o.merchantId = mId;
+                o.sourceStockId = null;
+                o.issuedGrossWt = issuedGrossWt;
+                o.issuedPurity = issuedPurity; 
+                o.issuedFineWt = issuedFineWt; 
+                tx.objectStore('orders').put(o);
+            } else {
+                o.merchantId = mId;
+                o.sourceStockId = null;
+                o.issuedGrossWt = 0;
+                o.issuedPurity = 'N/A'; 
+                o.issuedFineWt = 0; 
+                tx.objectStore('orders').put(o);
+            }
+            
+            tx.onerror = (e) => { showToast("Error processing assignment.", "error"); };
+            tx.oncomplete = () => { showToast("Assigned to Karigar!", "success"); closeModal('assignModal'); loadOrders(); };
+        }
+
+        function openReceiveModal() {
+            const o = activeJobData;
+            document.getElementById('rOrderId').value = o.id;
+            
+            const issuedFine = (o.issuedFineWt || 0).toFixed(3);
+            document.getElementById('rIssuedGrossDisplay').innerText = `${o.issuedGrossWt || 0}g (${o.issuedPurity || '-'})`;
+            document.getElementById('rIssuedWtDisplay').innerText = `${issuedFine} g`;
+            
+            document.getElementById('rFinalGross').value = '';
+            document.getElementById('rFinalGross').placeholder = `Est: ${o.grossWt}g`;
+            document.getElementById('rFinalStone').value = o.stoneWt || 0;
+            
+            document.getElementById('rWastageVal').value = o.wastageVal || 0;
+            document.getElementById('rWastageMode').value = o.wastageMode || 'pct';
+            
+            document.getElementById('rActualMakingInput').value = o.makingValInput || 0;
+            document.getElementById('rActualMakingType').value = o.makingTypeInput || 'pct';
+            document.getElementById('rApplyGST').checked = (o.gstAmount > 0);
+            
+            document.getElementById('rActualOther').value = o.otherCharge || 0;
+            
+            calcReceiveTotals(); 
+            closeModal('viewJobModal'); openModal('receiveModal');
+        }
+
+        function autoFillFinalGross() {
+            if(activeJobData) {
+                document.getElementById('rFinalGross').value = activeJobData.grossWt || 0;
+                calcReceiveTotals();
+            }
+        }
+
+        function calcReceiveTotals() {
+            const o = activeJobData;
+            const issuedFine = o.issuedFineWt || 0;
+            const finalGross = parseFloat(document.getElementById('rFinalGross').value) || 0;
+            const finalStone = parseFloat(document.getElementById('rFinalStone').value) || 0;
+            const finalNet = Math.max(0, finalGross - finalStone);
+            document.getElementById('rFinalNet').value = finalNet.toFixed(3);
+
+            const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
+            const wastageMode = document.getElementById('rWastageMode').value;
+            let wastageWt = 0;
+            if (wastageMode === 'pct') {
+                wastageWt = finalNet * (wastageVal / 100);
+            } else {
+                wastageWt = wastageVal;
+            }
+            const netWithWastage = finalNet + wastageWt;
+
+            const purityFactor = getPurityFactor(o.purity);
+            const finalFineWt = netWithWastage * purityFactor; 
+            document.getElementById('rFinalFine').value = finalFineWt.toFixed(3);
+
+            const diff = finalFineWt - issuedFine;
+            const diffEl = document.getElementById('rWtDiff');
+            if (diff > 0) { diffEl.value = `+${diff.toFixed(3)} g (Karigar Added / Owes Karigar)`; diffEl.style.color = "var(--active-red)"; } 
+            else if (diff < 0) { diffEl.value = `${diff.toFixed(3)} g (Karigar Returned / Karigar Owes)`; diffEl.style.color = "var(--receive-green)"; } 
+            else { diffEl.value = "0.000 g (No Difference)"; diffEl.style.color = "#333"; }
+
+            const rate = o.lockedRate || 0;
+            const goldValue = netWithWastage * rate;
+            
+            const actualMakingInput = parseFloat(document.getElementById('rActualMakingInput').value) || 0;
+            const actualMakingType = document.getElementById('rActualMakingType').value;
+            let actualMaking = 0;
+            
+            if(actualMakingType === 'pct') {
+                actualMaking = goldValue * (actualMakingInput / 100);
+            } else {
+                actualMaking = netWithWastage * actualMakingInput;
+            }
+            
+            document.getElementById('rActualMaking').value = Math.round(actualMaking);
+            document.getElementById('rActualMakingDisplay').innerText = "+ ₹" + Math.round(actualMaking).toLocaleString() + " Making";
+
+            const otherCharges = parseFloat(document.getElementById('rActualOther').value) || 0;
+            const baseTotal = Math.round(goldValue + actualMaking + otherCharges);
+
+            const applyGST = document.getElementById('rApplyGST').checked;
+            let gstAmount = 0;
+            if(applyGST) {
+                gstAmount = Math.round(baseTotal * 0.03);
+            }
+            document.getElementById('rGstAmountVal').value = gstAmount;
+
+            const newGrand = baseTotal + gstAmount; 
+
+            document.getElementById('rNewGrandTotal').innerText = "₹" + newGrand.toLocaleString() + (applyGST ? " (Inc. GST)" : "");
+            document.getElementById('rNewBaseVal').value = baseTotal;
+            document.getElementById('rNewGrandTotalVal').value = newGrand;
+        }
+
+        async function confirmReceiveOrder() {
+            const o = activeJobData;
+            
+            const fGross = parseFloat(document.getElementById('rFinalGross').value) || 0;
+            const fStone = parseFloat(document.getElementById('rFinalStone').value) || 0;
+            const fNet = parseFloat(document.getElementById('rFinalNet').value) || 0;
+            
+            const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
+            const wastageMode = document.getElementById('rWastageMode').value;
+            let wastageWt = (wastageMode === 'pct') ? fNet * (wastageVal / 100) : wastageVal;
+            const netWithWastage = fNet + wastageWt;
+
+            const fFine = parseFloat(document.getElementById('rFinalFine').value) || 0;
+            
+            const makingInputVal = parseFloat(document.getElementById('rActualMakingInput').value) || 0;
+            const makingInputType = document.getElementById('rActualMakingType').value;
+            const fMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
+            const fGstAmt = parseFloat(document.getElementById('rGstAmountVal').value) || 0;
+            
+            const fOther = parseFloat(document.getElementById('rActualOther').value) || 0;
+            const fBase = parseFloat(document.getElementById('rNewBaseVal').value) || 0;
+            const fGrand = parseFloat(document.getElementById('rNewGrandTotalVal').value) || 0;
+
+            if(fGross <= 0) return showToast("Enter valid Final Weight", "error");
+
+            let catPrefix = 'ITM'; 
+            if (o.category && o.category.length >= 3) catPrefix = o.category.substring(0, 3).toUpperCase();
+            const barcode = await generateBarcode('ORD-' + catPrefix);
+
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'purchases', 'inventory', 'merchant_payments'], 'readwrite');
+
+            const issuedFine = o.issuedFineWt || 0;
+            const metalDiffToKarigar = fFine - issuedFine; 
+
+            tx.objectStore('inventory').add({
+                barcode: barcode, category: o.category, name: `Custom: ${o.description}`, purity: o.purity, 
+                grossWt: fGross, stoneWt: fStone, netWt: fNet, weight: fGross, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
+            });
+
+            o.status = 'completed'; 
+            o.barcode = barcode; 
+            o.finalGross = fGross; 
+            o.finalStone = fStone; 
+            o.finalNet = fNet;
+            o.wastageVal = wastageVal;
+            o.wastageMode = wastageMode;
+            o.finalNetWithWastage = netWithWastage;
+            o.finalFineWt = fFine; 
+            
+            o.makingValInput = makingInputVal;
+            o.makingTypeInput = makingInputType;
+            o.finalMaking = fMaking;
+            o.gstAmount = fGstAmt;
+            
+            o.otherCharge = fOther;
+            o.baseAmount = fBase; 
+            o.grandTotal = fGrand;
+            
+            tx.objectStore('orders').put(o);
+
+            if(o.merchantId && metalDiffToKarigar !== 0) {
+                let mReq = tx.objectStore('merchants').get(parseInt(o.merchantId));
+                mReq.onsuccess = (e) => {
+                    const m = e.target.result;
+                    m.goldBalance = (parseFloat(m.goldBalance)||0) + metalDiffToKarigar;
+                    tx.objectStore('merchants').put(m);
+                };
+
+                const now = new Date().toISOString();
+                tx.objectStore('purchases').add({ merchantId: o.merchantId, date: now, type: 'Unfixed', category: `Jobwork Liability (Ord #${o.id})`, totalFineWeight: metalDiffToKarigar, paidAmount: 0, dueAmount: 0, totalAmount: 0 });
+            }
+
+            tx.oncomplete = () => { showToast("Order Received to Stock!", "success"); closeModal('receiveModal'); loadOrders(); };
+        }
 
         // --- BILLING LOGIC WITH NEW ADJUSTMENTS ---
 
@@ -949,47 +1632,38 @@
             calcBillingAdjustment();
         }
 
-        // NEW FUNCTION: Dynamically calculate adjustment in Billing Modal
         function calcBillingAdjustment() {
             const o = activeJobData;
             if(!o) return;
 
-            // We must use final weights if available, else fallback to est. weight
             const finalWeightToUse = o.finalNetWithWastage || o.finalNet || o.netWt || 0; 
             
-            // 1. Calculate New Gold Value
             const newRate = parseFloat(document.getElementById('billFinalRate').value) || 0;
             const goldValue = finalWeightToUse * newRate;
 
-            // 2. Calculate New Making
             const newMakingInput = parseFloat(document.getElementById('billMakingInput').value) || 0;
             const newMakingType = document.getElementById('billMakingType').value;
             let actualMaking = 0;
             
             if(newMakingType === 'pct') {
                 actualMaking = goldValue * (newMakingInput / 100);
-            } else { // per_gram
+            } else { 
                 actualMaking = finalWeightToUse * newMakingInput;
             }
 
-            // 3. Calculate New Other Charges & Base
             const newOtherCharge = parseFloat(document.getElementById('billOtherCharge').value) || 0;
             const newBaseTotal = Math.round(goldValue + actualMaking + newOtherCharge);
 
-            // 4. Calculate New GST
             const applyGST = document.getElementById('billApplyGST').checked;
             const newGSTAmount = applyGST ? Math.round(newBaseTotal * 0.03) : 0;
 
-            // 5. Final Grand Total
             const newGrandTotal = newBaseTotal + newGSTAmount;
 
-            // Store in Hidden inputs for saving
             document.getElementById('billUpdatedGrandTotal').value = newGrandTotal;
             document.getElementById('billUpdatedBaseAmount').value = newBaseTotal;
             document.getElementById('billUpdatedMaking').value = actualMaking;
             document.getElementById('billUpdatedGST').value = newGSTAmount;
 
-            // Update UI
             const adv = o.advancePaid || 0;
             const oldVal = o.oldGoldValue || 0;
             const netDue = newGrandTotal - oldVal - adv;
@@ -997,7 +1671,6 @@
             document.getElementById('bOrdGross').innerText = "₹" + newGrandTotal.toLocaleString();
             document.getElementById('bOrdNet').innerText = "₹" + Math.max(0, netDue).toLocaleString();
 
-            // Refresh Payments List so Balance updates based on new Net Due
             renderBillPayments();
         }
 
@@ -1022,7 +1695,6 @@
             });
 
             const o = activeJobData;
-            // Fetch dynamically updated Grand Total
             const adjustedGrandTotal = parseFloat(document.getElementById('billUpdatedGrandTotal').value) || 0;
             let netDue = adjustedGrandTotal - (o.oldGoldValue||0) - (o.advancePaid||0);
             
@@ -1034,7 +1706,6 @@
             const finalCustId = document.getElementById('billCustId').value;
             if(!finalCustId) return showToast("Select customer.", "error");
 
-            // Overwrite Order Object details with the final adjusted details before saving
             o.lockedRate = parseFloat(document.getElementById('billFinalRate').value) || 0;
             o.makingValInput = parseFloat(document.getElementById('billMakingInput').value) || 0;
             o.makingTypeInput = document.getElementById('billMakingType').value;
@@ -1097,12 +1768,171 @@
             tx.oncomplete = () => { showToast("Order Billed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders(); };
         }
 
-        // --- CANCELLATION ---
-        function openCancelModal() { /* Omitted to save space */ }
-        async function confirmCancelOrder() { /* Omitted to save space */ }
-        function printReceiptEngine(targetId = null) { /* Omitted to save space */ }
-        function printKarigarSlip() { /* Omitted to save space */ }
-        function sendWhatsApp() { /* Omitted to save space */ }
+        function openCancelModal() {
+            const o = activeJobData;
+            document.getElementById('cOrderId').value = o.id;
+            document.getElementById('cOrderAdv').innerText = "₹" + (o.advancePaid || 0).toLocaleString();
+            document.getElementById('cRefundAmt').value = o.advancePaid || 0;
+            
+            if(o.oldGoldValue > 0) {
+                document.getElementById('cOrderOldGoldDiv').style.display = 'flex';
+                document.getElementById('cOrderOldGold').innerText = `${o.oldGoldNet}g (${o.oldGoldPurity}) - ₹${o.oldGoldValue.toLocaleString()}`;
+            } else { document.getElementById('cOrderOldGoldDiv').style.display = 'none'; }
+            
+            closeModal('viewJobModal'); openModal('cancelModal');
+        }
+
+        async function confirmCancelOrder() {
+            const o = activeJobData;
+            const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            
+            const oldStatus = o.status; 
+
+            const db = await dbPromise;
+            const tx = db.transaction(['orders', 'merchants', 'purchases', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
+            
+            o.status = 'cancelled'; 
+            o.refundedAmount = refundAmt;
+            tx.objectStore('orders').put(o);
+            
+            if(refundAmt > 0) {
+                tx.objectStore('cashflow').add({ 
+                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', 
+                    amount: refundAmt, note: `Refund for ${invoiceNo} (Job #${o.id})` 
+                });
+            }
+            
+            if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && o.sourceStockId) {
+                let invReq = tx.objectStore('inventory').get(parseInt(o.sourceStockId));
+                invReq.onsuccess = (ev) => {
+                    let item = ev.target.result;
+                    if(item) {
+                        item.netWt += o.issuedGrossWt;
+                        item.grossWt += o.issuedGrossWt;
+                        item.weight = item.netWt;
+                        item.status = 'stock'; 
+                        tx.objectStore('inventory').put(item);
+                    }
+                }
+            }
+
+            const returnOldGold = document.getElementById('cReturnOldGold').checked;
+            if(returnOldGold && (o.oldGoldValue > 0)) {
+                const allOGReq = tx.objectStore('old_gold').getAll();
+                allOGReq.onsuccess = (e) => {
+                    const allOG = e.target.result || [];
+                    const linkedOG = allOG.filter(g => g.saleId === o.id || g.orderId === o.id);
+                    for(const og of linkedOG) {
+                        tx.objectStore('old_gold').delete(og.id);
+                    }
+                };
+            }
+
+            tx.oncomplete = () => { 
+                showToast("Order Cancelled & Refunded!", "success"); 
+                closeModal('cancelModal'); 
+                loadOrders(); 
+            };
+        }
+
+        function printReceiptEngine(targetId = null) {
+            const o = targetId ? allOrders.find(x => x.id === targetId) : activeJobData;
+            if(!o) return;
+            const isFinal = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered');
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+            let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 400px; margin: 0 auto; font-family:monospace;">
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0;">BHARTI JEWELLERS</h2>
+                    <h3 style="margin:5px 0 0 0;">${isFinal ? 'TAX INVOICE' : 'ESTIMATE'} (ORDER)</h3>
+                    <div style="font-size:15px; margin-top:6px; font-weight:bold; color:#1565c0;">Invoice No: ${invoiceNo}</div>
+                </div>
+                <b>Customer:</b> ${o.custName}<br><b>Item:</b> ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
+            
+            const wVal = isFinal ? (o.finalNetWithWastage || o.finalNet || o.finalGross) : o.grossWt;
+            const base = o.baseAmount || o.estAmount || 0;
+            html += `<table style="width:100%; margin-top:15px;">
+                <tr><td>${o.category} (${o.purity})</td><td style="text-align:right">${wVal}g</td></tr>
+            </table><hr>
+            <div style="display:flex; justify-content:space-between;"><b>Base Value (Inc. Making):</b><b>₹${base}</b></div>`;
+            
+            if(o.gstAmount > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
+            }
+            if(o.oldGoldValue > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            }
+            
+            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000; padding-top:5px;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
+            
+            html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
+            document.getElementById('invoice-area').innerHTML = html;
+            window.print();
+        }
+
+        function printKarigarSlip() {
+            const o = activeJobData;
+            if(!o) return;
+            const mId = o.merchantId;
+            const m = allMerchants.find(x => x.id == mId);
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            
+            document.getElementById('chKarigarName').innerText = m ? m.name : 'Unknown';
+            document.getElementById('chDate').innerText = new Date().toLocaleDateString();
+            document.getElementById('chOrderId').innerText = invoiceNo;
+            document.getElementById('chDueDate').innerText = new Date(o.dueDate).toLocaleDateString();
+            
+            document.getElementById('chItemBody').innerHTML = `
+                <tr>
+                    <td style="border: 1px solid #000; padding: 8px;"><b>${o.category}</b><br><small>${o.description}</small></td>
+                    <td style="border: 1px solid #000; padding: 8px;">${o.purity}</td>
+                    <td style="border: 1px solid #000; padding: 8px;">${o.grossWt}g</td>
+                </tr>
+            `;
+            
+            if(o.issuedGrossWt > 0) {
+                document.getElementById('chIssuedGross').innerText = o.issuedGrossWt.toFixed(3);
+                document.getElementById('chIssuedPurity').innerText = o.issuedPurity || 'N/A';
+                document.getElementById('chIssuedWt').innerText = (o.issuedFineWt || 0).toFixed(3);
+            } else {
+                document.getElementById('chIssuedGross').innerText = "0.000";
+                document.getElementById('chIssuedPurity').innerText = "-";
+                document.getElementById('chIssuedWt').innerText = "0.000 (Pure Labor / Metal by Karigar)";
+            }
+            
+            window.print();
+        }
+
+        function sendWhatsApp() {
+            const o = activeJobData;
+            if(!o || !o.custMobile) return showToast("No mobile number found for this customer.", "error");
+            
+            let grandTotal = o.grandTotal || o.estAmount || 0;
+            const oldVal = o.oldGoldValue || 0;
+            const adv = o.advancePaid || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            
+            let netDue = grandTotal - oldVal - adv;
+            if (o.status === 'billed' || o.status === 'delivered') netDue = 0;
+
+            let msg = `Hello ${o.custName},\n\nYour custom order for *${o.description}* (Ref: ${invoiceNo}) is ${o.status === 'pending' || o.status === 'in_progress' ? 'currently being processed' : 'Ready for pickup!'}.\n\n`;
+            msg += `Order Total: Rs. ${Math.round(grandTotal).toLocaleString()}\n`;
+            if (oldVal > 0) msg += `Old Gold Deducted: -Rs. ${oldVal.toLocaleString()}\n`;
+            if (adv > 0) msg += `Advance Paid: -Rs. ${adv.toLocaleString()}\n`;
+            msg += `---------------------\n`;
+            if (netDue < 0) msg += `*Refund Due: Rs. ${Math.abs(netDue).toLocaleString()}*\n\n`;
+            else if (netDue === 0 && (o.status === 'billed' || o.status === 'delivered')) msg += `*Bill fully paid.*\n\n`;
+            else msg += `*Pending Balance: Rs. ${Math.round(netDue).toLocaleString()}*\n\n`;
+            msg += `Thank you,\n*Bharti Jewellers*`;
+            
+            let phone = o.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
     </script>
 </body>
 </html>
