@@ -507,15 +507,18 @@
             return 'cash'; 
         }
 
+        // --- UPDATED: getSafeNet enforces explicit Net Weight checking before falling back ---
         function getSafeNet(i) {
-            let n = getSafeNum(i.netWt);
+            let n = getSafeNum(i.netWt || i.netWeight);
             if(n > 0) return n;
-            let g = getSafeNum(i.grossWt);
-            let s = getSafeNum(i.stoneWt);
+            let g = getSafeNum(i.grossWt || i.grossWeight);
+            let s = getSafeNum(i.stoneWt || i.stoneWeight);
             if (g > 0) return g - s;
-            let f = getSafeNum(i.fineWt);
+            let w = getSafeNum(i.weight || i.totalWeight);
+            if (w > 0) return w;
+            let f = getSafeNum(i.fineWt || i.fineWeight);
             if (f > 0) return f;
-            return getSafeNum(i.weight);
+            return 0;
         }
 
         function getTime(dateStr) {
@@ -676,7 +679,8 @@
                             if (isSilver(item.purity || item.category)) minSilv += net; else minGold += net;
                         });
                     } else {
-                        minGold = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalFineWeight);
+                        // --- UPDATED: Allow general totalWeight checking first in Monthly Stats ---
+                        minGold = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalWeight || p.totalGrossWeight) || getSafeNum(p.totalFineWeight);
                     }
                     mGoldIn += minGold;
                     mSilverIn += minSilv;
@@ -1156,10 +1160,14 @@
                 }
             });
 
+            // --- UPDATED: Main Purchase Iteration logic for Daybook Cards ---
             purchases.forEach(p => {
                 let mIn = 0;
-                if(p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
-                else mIn = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalFineWeight);
+                if(p.itemDetails && p.itemDetails.length > 0) {
+                    p.itemDetails.forEach(i => mIn += getSafeNet(i));
+                } else {
+                    mIn = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalWeight || p.totalGrossWeight) || getSafeNum(p.totalFineWeight);
+                }
                 
                 logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true, 'FINE');
             });
