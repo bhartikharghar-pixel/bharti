@@ -507,7 +507,7 @@
                 <div class="form-grid">
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Issued Purity</label>
-                        <!-- CHANGED TO DROPDOWN SO ANY METAL CAN BE SELECTED -->
+                        <!-- DROPDOWN FOR ANY METAL -->
                         <select id="aIssuedPurity" onchange="calcAssignFine()" style="font-weight:bold; color:#333; text-align:center; padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%;"></select>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
@@ -714,7 +714,8 @@
             }
             if(document.getElementById('oPurity')) document.getElementById('oPurity').innerHTML = opts;
             if(document.getElementById('oOldPurity')) document.getElementById('oOldPurity').innerHTML = opts;
-            // NEW: Add same options to Assign Purity dropdown
+            
+            // Add options to Assign Purity dropdown
             if(document.getElementById('aIssuedPurity')) document.getElementById('aIssuedPurity').innerHTML = opts;
 
             await loadMerchants(); await loadCustomers(); await loadOrders();
@@ -910,11 +911,19 @@
         }
 
         function getPurityFactor(key) {
+            if(!key) return 1.0;
             if (key === '24K') return 1.000;
             if (key === '22K') return 0.9166;
             if (key === '18K') return 0.7500;
+            
             const custom = goldRates.customPurities?.find(cp => cp.name === key);
             if (custom) return custom.pct / 100;
+            
+            // NEW: Agar purity percentage me hai (jaise "80%"), to usko calculate karega
+            if(key.toString().includes('%')) {
+                const val = parseFloat(key.toString().replace('%', ''));
+                if(!isNaN(val)) return val / 100;
+            }
             return 1.0;
         }
 
@@ -1288,21 +1297,39 @@
                 const opt = sel.options[sel.selectedIndex];
                 const max = opt.getAttribute('data-max');
                 const purity = opt.getAttribute('data-purity');
-                document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
                 
+                // NEW: Agar purity dropdown me nahi hai, to usko automatically add kar do
+                const puritySelect = document.getElementById('aIssuedPurity');
+                let found = false;
+                for(let i=0; i<puritySelect.options.length; i++) {
+                    if(puritySelect.options[i].value === purity) { found = true; break; }
+                }
+                if(!found) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = purity;
+                    newOpt.text = purity;
+                    puritySelect.add(newOpt);
+                }
+
                 // Auto fill purity and lock it
-                document.getElementById('aIssuedPurity').value = purity;
-                document.getElementById('aIssuedPurity').disabled = true;
-                document.getElementById('aIssuedPurity').style.background = '#eee';
+                puritySelect.value = purity;
+                puritySelect.disabled = true;
+                puritySelect.style.background = '#eee';
+                
+                // NEW: Weight box ko auto-fill kar dega taaki type na karna pade
+                document.getElementById('aIssuedWt').value = max;
+                document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
                 
                 calcAssignFine();
             } else { // If manual entry is selected
+                document.getElementById('aIssuedWt').value = '';
                 document.getElementById('aIssuedWt').placeholder = `e.g. 15.000`;
                 
                 // Unlock purity so user can pick 24K, 22K, etc. manually
-                document.getElementById('aIssuedPurity').disabled = false;
-                document.getElementById('aIssuedPurity').style.background = '#fafafa';
-                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '24K';
+                const puritySelect = document.getElementById('aIssuedPurity');
+                puritySelect.disabled = false;
+                puritySelect.style.background = '#fafafa';
+                puritySelect.value = activeJobData ? activeJobData.purity : '24K';
                 
                 document.getElementById('aIssuedFineWt').value = '0.000';
             }
