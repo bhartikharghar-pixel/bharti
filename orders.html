@@ -208,6 +208,7 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
+    <!-- NEW JOB MODAL -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -319,14 +320,39 @@
                         <label>Locked Gold Rate (₹/g)</label>
                         <input type="number" id="oRate" oninput="calcOrderTotal()" style="border-color:#fbc02d; font-weight:bold;">
                     </div>
+                    
+                    <!-- NEW MAKING CHARGE LOGIC -->
                     <div class="form-group">
-                        <label>Est. Making Charge (₹)</label>
-                        <input type="number" id="oMaking" value="0" oninput="calcOrderTotal()">
+                        <label>Making Charge Logic</label>
+                        <div class="input-group">
+                            <input type="number" id="oMakingInput" value="0" oninput="calcOrderTotal()" placeholder="0">
+                            <select id="oMakingType" onchange="calcOrderTotal()">
+                                <option value="pct">%</option>
+                                <option value="per_gram">₹/g</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="oMaking" value="0">
+                        <div style="font-size:0.8rem; color:var(--accent-gold); margin-top:4px; font-weight:bold; text-align:right;" id="oMakingDisplay">₹0 Making</div>
                     </div>
                 </div>
+                
+                <!-- NEW GST CHECKBOX -->
+                <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9;">
+                    <input type="checkbox" id="oApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcOrderTotal()">
+                    <label for="oApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Total</label>
+                </div>
+                <input type="hidden" id="oGstAmountVal" value="0">
 
                 <div class="summary-highlight">
                     <div class="summary-row">
+                        <span>Base Total (Gold + Making):</span>
+                        <span class="summary-val" id="oBaseTotalDisplay">₹0</span>
+                    </div>
+                    <div class="summary-row" id="oGSTSummaryRow" style="display:none; color:#64b5f6;">
+                        <span>GST (3%):</span>
+                        <span class="summary-val" id="oGSTTotalDisplay">+₹0</span>
+                    </div>
+                    <div class="summary-row" style="border-top:1px dashed #555; padding-top:5px; margin-top:5px;">
                         <span>Gross Order Total:</span>
                         <span class="summary-val" id="oGrossTotalDisplay" style="color:var(--accent-gold);">₹0</span>
                     </div>
@@ -359,6 +385,7 @@
         </div>
     </div>
 
+    <!-- VIEW JOB MODAL -->
     <div id="viewJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('viewJobModal')">&times;</button>
@@ -439,7 +466,7 @@
                 <button class="btn-primary btn-outline" style="margin-top:0;" id="btnWhatsApp" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Send Status</button>
                 <button class="btn-primary btn-outline" style="margin-top:0;" id="btnPrintCustomerReceipt" onclick="printReceiptEngine()"><i class="fas fa-print"></i> Print Receipt</button>
                 
-                <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign Mix Metal to Karigar</button>
+                <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
                 <button class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print Karigar Issue Slip</button>
                 
                 <button class="btn-primary" style="background:var(--receive-green); margin-top:0; grid-column: span 2;" id="btnReceiveMerchant" onclick="openReceiveModal()"><i class="fas fa-box-open"></i> Receive from Karigar</button>
@@ -451,10 +478,11 @@
         </div>
     </div>
 
+    <!-- NEW ASSIGN MODAL (UPDATED) -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
-            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-layer-group"></i> Issue Mix Metal to Karigar</h3>
+            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-truck-loading"></i> Issue to Karigar</h3>
             
             <input type="hidden" id="aOrderId">
             
@@ -463,20 +491,24 @@
                 <select id="aMerchantSelect"></select>
             </div>
 
-            <div class="form-group" style="background: #fffaf0; padding: 10px; border-radius: 6px; border-left: 4px solid var(--merchant-orange); margin-bottom: 15px;">
-                <label id="aSourceLabel" style="color:#d32f2f; margin-bottom: 8px;"><i class="fas fa-layer-group"></i> Select Mix Metal / Slab Source</label>
-                <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
+            <div class="form-group" style="margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 6px; border: 1px solid #90caf9;">
+                <label style="display: flex; align-items: center; gap: 8px; margin: 0; color: #1565c0; font-weight: bold; cursor: pointer;">
+                    <input type="checkbox" id="aProvideShopGold" style="width: 18px; height: 18px; accent-color: #1976d2;" onchange="toggleShopGoldSection()">
+                    Issue Metal to Karigar (Check if providing metal)
+                </label>
             </div>
 
-            <div style="border-left: 4px solid #333; padding: 10px 15px; background: #f9f9f9; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
+            <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Inventory Source (Optional)</label>
+                    <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
+                </div>
+
                 <div class="form-grid">
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Issued Purity</label>
-                        <select id="aIssuedPurity" onchange="calcAssignFine()">
-                            <option value="24K">24K (Fine)</option>
-                            <option value="22K">22K</option>
-                            <option value="18K">18K</option>
-                        </select>
+                        <!-- DROPDOWN FOR ANY METAL -->
+                        <select id="aIssuedPurity" onchange="calcAssignFine()" style="font-weight:bold; color:#333; text-align:center; padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%;"></select>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Weight to Issue (g)</label>
@@ -489,10 +521,11 @@
                 </div>
             </div>
 
-            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:10px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
+            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
         </div>
     </div>
 
+    <!-- RECEIVE MODAL -->
     <div id="receiveModal" class="modal">
         <div class="modal-content" style="max-width:550px;">
             <button class="close-btn" onclick="closeModal('receiveModal')">&times;</button>
@@ -536,9 +569,27 @@
             <div class="form-section">
                 <div class="form-section-title">Final Costing</div>
                 <div class="form-grid">
-                    <div class="form-group"><label>Actual Making Chg (₹)</label><input type="number" id="rActualMaking" oninput="calcReceiveTotals()"></div>
+                    <div class="form-group">
+                        <label>Actual Making Chg Logic</label>
+                        <div class="input-group">
+                            <input type="number" id="rActualMakingInput" oninput="calcReceiveTotals()" placeholder="0">
+                            <select id="rActualMakingType" onchange="calcReceiveTotals()">
+                                <option value="pct">%</option>
+                                <option value="per_gram">₹/g</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="rActualMaking" value="0">
+                        <div style="font-size:0.8rem; color:var(--accent-gold); margin-top:4px; font-weight:bold; text-align:right;" id="rActualMakingDisplay">₹0</div>
+                    </div>
+                    
                     <div class="form-group"><label>Other Charges (₹)</label><input type="number" id="rActualOther" value="0" oninput="calcReceiveTotals()"></div>
                 </div>
+
+                <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9; margin-top:10px;">
+                    <input type="checkbox" id="rApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcReceiveTotals()">
+                    <label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Total</label>
+                </div>
+                <input type="hidden" id="rGstAmountVal" value="0">
             </div>
 
             <div class="summary-highlight">
@@ -552,6 +603,7 @@
         </div>
     </div>
 
+    <!-- BILLING MODAL -->
     <div id="billingModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
@@ -600,6 +652,7 @@
         </div>
     </div>
 
+    <!-- CANCEL MODAL -->
     <div id="cancelModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
@@ -661,6 +714,8 @@
             }
             if(document.getElementById('oPurity')) document.getElementById('oPurity').innerHTML = opts;
             if(document.getElementById('oOldPurity')) document.getElementById('oOldPurity').innerHTML = opts;
+            
+            // Add options to Assign Purity dropdown
             if(document.getElementById('aIssuedPurity')) document.getElementById('aIssuedPurity').innerHTML = opts;
 
             await loadMerchants(); await loadCustomers(); await loadOrders();
@@ -845,17 +900,30 @@
             document.getElementById('oOldGrossWt').value = 0; document.getElementById('oOldStoneWt').value = 0;
             document.getElementById('oOldNetWt').value = 0; document.getElementById('oOldFineWt').value = 0;
             document.getElementById('oOldExchangePct').value = 100; 
-            document.getElementById('oMaking').value = 0;
+            
+            // Reset new fields
+            document.getElementById('oMakingInput').value = '';
+            document.getElementById('oMakingType').value = 'pct';
+            document.getElementById('oApplyGST').checked = false;
+            
             document.getElementById('oAdv').value = '';
             autoFillRate();
         }
 
         function getPurityFactor(key) {
+            if(!key) return 1.0;
             if (key === '24K') return 1.000;
             if (key === '22K') return 0.9166;
             if (key === '18K') return 0.7500;
+            
             const custom = goldRates.customPurities?.find(cp => cp.name === key);
             if (custom) return custom.pct / 100;
+            
+            // NEW: Agar purity percentage me hai (jaise "80%"), to usko calculate karega
+            if(key.toString().includes('%')) {
+                const val = parseFloat(key.toString().replace('%', ''));
+                if(!isNaN(val)) return val / 100;
+            }
             return 1.0;
         }
 
@@ -881,6 +949,7 @@
             calcOrderTotal();
         }
 
+        // UPDATED CALCULATION LOGIC
         function calcOrderTotal() {
             const gross = parseFloat(document.getElementById('oGrossWt').value) || 0;
             const stone = parseFloat(document.getElementById('oStoneWt').value) || 0;
@@ -891,7 +960,7 @@
             const finalFineWt = net * purityFactor;
             document.getElementById('oFineWtVal').value = finalFineWt;
 
-            // Old Gold
+            // Old Gold Logic
             const oldGross = parseFloat(document.getElementById('oOldGrossWt').value) || 0;
             const oldStone = parseFloat(document.getElementById('oOldStoneWt').value) || 0;
             const oldNet = Math.max(0, oldGross - oldStone);
@@ -914,13 +983,41 @@
                 document.getElementById('oOldGoldSummaryRow').style.display = 'none';
             }
 
-            // Costing (Making Charges Re-Added)
+            // --- Costing Logic (Gold + Making) ---
             const rate = parseFloat(document.getElementById('oRate').value) || 0;
-            const making = parseFloat(document.getElementById('oMaking').value) || 0;
+            const goldValue = net * rate;
             
-            const baseTotal = Math.round((net * rate) + making);
-            const grandTotal = baseTotal;
+            const makingInput = parseFloat(document.getElementById('oMakingInput').value) || 0;
+            const makingType = document.getElementById('oMakingType').value;
+            let making = 0;
+            
+            if(makingType === 'pct') {
+                making = goldValue * (makingInput / 100);
+            } else {
+                making = net * makingInput; // Per Gram Logic
+            }
+            
+            document.getElementById('oMaking').value = Math.round(making);
+            document.getElementById('oMakingDisplay').innerText = "+ ₹" + Math.round(making).toLocaleString() + " Making";
+            
+            const baseTotal = Math.round(goldValue + making);
+            document.getElementById('oBaseTotalDisplay').innerText = "₹" + baseTotal.toLocaleString();
+            
+            // --- GST Logic ---
+            const applyGST = document.getElementById('oApplyGST').checked;
+            let gstAmount = 0;
+            if(applyGST) {
+                gstAmount = Math.round(baseTotal * 0.03);
+                document.getElementById('oGSTSummaryRow').style.display = 'flex';
+                document.getElementById('oGSTTotalDisplay').innerText = "+₹" + gstAmount.toLocaleString();
+            } else {
+                document.getElementById('oGSTSummaryRow').style.display = 'none';
+            }
+            document.getElementById('oGstAmountVal').value = gstAmount;
 
+            const grandTotal = baseTotal + gstAmount;
+
+            // --- UI Update ---
             document.getElementById('oGrossTotalDisplay').innerText = "₹" + grandTotal.toLocaleString();
             document.getElementById('oBaseAmountVal').value = baseTotal;
             document.getElementById('oGrandTotalVal').value = grandTotal;
@@ -975,7 +1072,12 @@
                 oldGoldValue: Math.round(parseFloat(document.getElementById('oOldFineWt').value||0) * parseFloat(document.getElementById('oOldGoldRate').value||0) * (parseFloat(document.getElementById('oOldExchangePct').value||100)/100)),
                 
                 lockedRate: parseFloat(document.getElementById('oRate').value) || 0,
+                
+                // Saving Making & GST data
+                makingValInput: parseFloat(document.getElementById('oMakingInput').value) || 0,
+                makingTypeInput: document.getElementById('oMakingType').value,
                 makingCharge: parseFloat(document.getElementById('oMaking').value) || 0,
+                gstAmount: parseFloat(document.getElementById('oGstAmountVal').value) || 0,
                 
                 baseAmount: parseFloat(document.getElementById('oBaseAmountVal').value) || 0,
                 grandTotal: parseFloat(document.getElementById('oGrandTotalVal').value) || 0, 
@@ -1142,64 +1244,94 @@
             };
         }
 
-        // --- ASSIGN MIX METAL TO KARIGAR ---
+        // --- ASSIGN TO KARIGAR ---
         function openAssignModal() {
             const o = activeJobData;
             document.getElementById('aOrderId').value = o.id;
 
-            const pSelect = document.getElementById('aIssuedPurity');
-            if (pSelect) pSelect.value = o.purity;
-
-            document.getElementById('aIssuedWt').value = '';
-            document.getElementById('aIssuedFineWt').value = '0.000';
-
+            document.getElementById('aProvideShopGold').checked = false;
+            
+            toggleShopGoldSection();
             populateAssignSourceDropdown(); 
             closeModal('viewJobModal'); openModal('assignModal');
+        }
+
+        function toggleShopGoldSection() {
+            const isChecked = document.getElementById('aProvideShopGold').checked;
+            document.getElementById('aShopGoldSection').style.display = isChecked ? 'block' : 'none';
+            
+            if(!isChecked) {
+                document.getElementById('aRepSourceSelect').value = '';
+                document.getElementById('aIssuedPurity').disabled = false;
+                document.getElementById('aIssuedPurity').style.background = '#fafafa';
+                document.getElementById('aIssuedWt').value = '';
+                document.getElementById('aIssuedFineWt').value = '0.000';
+            } else {
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '24K';
+            }
         }
 
         async function populateAssignSourceDropdown() {
             const sel = document.getElementById('aRepSourceSelect');
             if(!sel) return;
             
-            sel.innerHTML = `<option value="">-- Direct Mix Metal Balance (No specific slab) --</option>`; 
+            sel.innerHTML = `<option value="">-- Manual Entry (No Barcode / Raw Metal) --</option>`; 
             
             const inventory = await getAllItems('inventory');
             
-            // Only fetch Mix Metal / Melted Slab from inventory
-            const availableStock = inventory.filter(i => 
-                i.status === 'stock' && 
-                i.netWt > 0 && 
-                (
-                    String(i.category).toLowerCase().includes('mix') || 
-                    String(i.category).toLowerCase().includes('melt') || 
-                    String(i.category).toLowerCase().includes('slab') || 
-                    String(i.category).toLowerCase().includes('raw') ||
-                    String(i.name).toLowerCase().includes('mix') || 
-                    String(i.name).toLowerCase().includes('melt') || 
-                    String(i.name).toLowerCase().includes('slab')
-                )
-            );
+            // Show all items currently in stock, regardless of category.
+            const availableStock = inventory.filter(i => i.status === 'stock' && i.netWt > 0);
 
-            if(availableStock.length > 0) {
+            if(availableStock.length === 0) {
+                sel.innerHTML += `<option value="" disabled>No inventory stock found!</option>`;
+            } else {
                 availableStock.forEach(i => {
-                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.name || i.category} | ${i.netWt}g | ${i.purity}</option>`;
+                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity} | ${i.name || i.category}</option>`;
                 });
             }
         }
 
         function autoFillAssignSource() {
             const sel = document.getElementById('aRepSourceSelect');
-            if(sel.selectedIndex > 0) {
+            if(sel.selectedIndex > 0) { // If an inventory item is selected
                 const opt = sel.options[sel.selectedIndex];
                 const max = opt.getAttribute('data-max');
                 const purity = opt.getAttribute('data-purity');
+                
+                // NEW: Agar purity dropdown me nahi hai, to usko automatically add kar do
+                const puritySelect = document.getElementById('aIssuedPurity');
+                let found = false;
+                for(let i=0; i<puritySelect.options.length; i++) {
+                    if(puritySelect.options[i].value === purity) { found = true; break; }
+                }
+                if(!found) {
+                    const newOpt = document.createElement('option');
+                    newOpt.value = purity;
+                    newOpt.text = purity;
+                    puritySelect.add(newOpt);
+                }
+
+                // Auto fill purity and lock it
+                puritySelect.value = purity;
+                puritySelect.disabled = true;
+                puritySelect.style.background = '#eee';
+                
+                // NEW: Weight box ko auto-fill kar dega taaki type na karna pade
+                document.getElementById('aIssuedWt').value = max;
                 document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
-                document.getElementById('aIssuedPurity').value = purity || '22K';
+                
                 calcAssignFine();
-            } else {
+            } else { // If manual entry is selected
+                document.getElementById('aIssuedWt').value = '';
                 document.getElementById('aIssuedWt').placeholder = `e.g. 15.000`;
-                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '22K';
-                calcAssignFine();
+                
+                // Unlock purity so user can pick 24K, 22K, etc. manually
+                const puritySelect = document.getElementById('aIssuedPurity');
+                puritySelect.disabled = false;
+                puritySelect.style.background = '#fafafa';
+                puritySelect.value = activeJobData ? activeJobData.purity : '24K';
+                
+                document.getElementById('aIssuedFineWt').value = '0.000';
             }
         }
 
@@ -1218,13 +1350,16 @@
             
             if(!mId) return showToast("Select a Karigar", "error");
 
-            const stockId = document.getElementById('aRepSourceSelect').value;
+            const provideShopGold = document.getElementById('aProvideShopGold').checked;
             
+            const stockId = document.getElementById('aRepSourceSelect').value;
             const issuedGrossWt = parseFloat(document.getElementById('aIssuedWt').value) || 0;
             const issuedPurity = document.getElementById('aIssuedPurity').value;
             const issuedFineWt = parseFloat(document.getElementById('aIssuedFineWt').value) || 0;
 
-            if (issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
+            if (provideShopGold) {
+                if(issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
+            }
 
             const o = activeJobData;
             o.status = 'in_progress';
@@ -1232,13 +1367,14 @@
             const db = await dbPromise;
             const tx = db.transaction(['orders', 'merchants', 'inventory', 'purchases'], 'readwrite');
 
-            if (stockId) {
+            if (provideShopGold && stockId) {
+                // Deduct from Inventory
                 let invReq = tx.objectStore('inventory').get(parseInt(stockId));
                 invReq.onsuccess = (e) => {
                     let item = e.target.result;
                     if(!item || item.netWt < issuedGrossWt) {
                         tx.abort();
-                        showToast("Insufficient stock in the selected Mix Metal slab!", "error");
+                        showToast("Insufficient stock in the selected source!", "error");
                         return;
                     }
 
@@ -1249,20 +1385,27 @@
                     tx.objectStore('inventory').put(item);
 
                     o.merchantId = mId;
-                    o.mixMetalStockId = parseInt(stockId); // Use a new property to avoid Daybook Inventory (NET) deduction
-                    o.sourceStockId = null; // Explicitly null so Daybook treats it as MIX
+                    o.sourceStockId = parseInt(stockId);
                     o.issuedGrossWt = issuedGrossWt;
                     o.issuedPurity = issuedPurity; 
                     o.issuedFineWt = issuedFineWt; 
                     tx.objectStore('orders').put(o);
                 };
-            } else {
+            } else if (provideShopGold && !stockId) {
+                // Manual Entry Issue (No Inventory Deduction, but adds Karigar liability)
                 o.merchantId = mId;
-                o.mixMetalStockId = null;
                 o.sourceStockId = null;
                 o.issuedGrossWt = issuedGrossWt;
                 o.issuedPurity = issuedPurity; 
                 o.issuedFineWt = issuedFineWt; 
+                tx.objectStore('orders').put(o);
+            } else {
+                // Not issuing any metal to Karigar
+                o.merchantId = mId;
+                o.sourceStockId = null;
+                o.issuedGrossWt = 0;
+                o.issuedPurity = 'N/A'; 
+                o.issuedFineWt = 0; 
                 tx.objectStore('orders').put(o);
             }
             
@@ -1286,7 +1429,11 @@
             document.getElementById('rWastageVal').value = o.wastageVal || 0;
             document.getElementById('rWastageMode').value = o.wastageMode || 'pct';
             
-            document.getElementById('rActualMaking').value = o.makingCharge || 0;
+            // Populate making charge logic from initial creation
+            document.getElementById('rActualMakingInput').value = o.makingValInput || 0;
+            document.getElementById('rActualMakingType').value = o.makingTypeInput || 'pct';
+            document.getElementById('rApplyGST').checked = (o.gstAmount > 0);
+            
             document.getElementById('rActualOther').value = o.otherCharge || 0;
             
             calcReceiveTotals(); 
@@ -1308,6 +1455,7 @@
             const finalNet = Math.max(0, finalGross - finalStone);
             document.getElementById('rFinalNet').value = finalNet.toFixed(3);
 
+            // Calculate Wastage Weight
             const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
             const wastageMode = document.getElementById('rWastageMode').value;
             let wastageWt = 0;
@@ -1328,13 +1476,36 @@
             else if (diff < 0) { diffEl.value = `${diff.toFixed(3)} g (Karigar Returned / Karigar Owes)`; diffEl.style.color = "var(--receive-green)"; } 
             else { diffEl.value = "0.000 g (No Difference)"; diffEl.style.color = "#333"; }
 
-            const actualMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
-            const otherCharges = parseFloat(document.getElementById('rActualOther').value) || 0;
+            // Costing Logic (Gold + Updated Making)
+            const rate = o.lockedRate || 0;
+            const goldValue = netWithWastage * rate;
             
-            const baseTotal = Math.round((netWithWastage * (o.lockedRate || 0)) + actualMaking + otherCharges);
-            const newGrand = baseTotal; 
+            const actualMakingInput = parseFloat(document.getElementById('rActualMakingInput').value) || 0;
+            const actualMakingType = document.getElementById('rActualMakingType').value;
+            let actualMaking = 0;
+            
+            if(actualMakingType === 'pct') {
+                actualMaking = goldValue * (actualMakingInput / 100);
+            } else {
+                actualMaking = netWithWastage * actualMakingInput;
+            }
+            
+            document.getElementById('rActualMaking').value = Math.round(actualMaking);
+            document.getElementById('rActualMakingDisplay').innerText = "+ ₹" + Math.round(actualMaking).toLocaleString() + " Making";
 
-            document.getElementById('rNewGrandTotal').innerText = "₹" + newGrand.toLocaleString();
+            const otherCharges = parseFloat(document.getElementById('rActualOther').value) || 0;
+            const baseTotal = Math.round(goldValue + actualMaking + otherCharges);
+
+            const applyGST = document.getElementById('rApplyGST').checked;
+            let gstAmount = 0;
+            if(applyGST) {
+                gstAmount = Math.round(baseTotal * 0.03);
+            }
+            document.getElementById('rGstAmountVal').value = gstAmount;
+
+            const newGrand = baseTotal + gstAmount; 
+
+            document.getElementById('rNewGrandTotal').innerText = "₹" + newGrand.toLocaleString() + (applyGST ? " (Inc. GST)" : "");
             document.getElementById('rNewBaseVal').value = baseTotal;
             document.getElementById('rNewGrandTotalVal').value = newGrand;
         }
@@ -1352,9 +1523,14 @@
             const netWithWastage = fNet + wastageWt;
 
             const fFine = parseFloat(document.getElementById('rFinalFine').value) || 0;
-            const fMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
-            const fOther = parseFloat(document.getElementById('rActualOther').value) || 0;
             
+            // Captured from new UI
+            const makingInputVal = parseFloat(document.getElementById('rActualMakingInput').value) || 0;
+            const makingInputType = document.getElementById('rActualMakingType').value;
+            const fMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
+            const fGstAmt = parseFloat(document.getElementById('rGstAmountVal').value) || 0;
+            
+            const fOther = parseFloat(document.getElementById('rActualOther').value) || 0;
             const fBase = parseFloat(document.getElementById('rNewBaseVal').value) || 0;
             const fGrand = parseFloat(document.getElementById('rNewGrandTotalVal').value) || 0;
 
@@ -1382,9 +1558,14 @@
             o.finalNet = fNet;
             o.wastageVal = wastageVal;
             o.wastageMode = wastageMode;
-            o.finalNetWithWastage = netWithWastage; 
+            o.finalNetWithWastage = netWithWastage;
             o.finalFineWt = fFine; 
+            
+            o.makingValInput = makingInputVal;
+            o.makingTypeInput = makingInputType;
             o.finalMaking = fMaking;
+            o.gstAmount = fGstAmt;
+            
             o.otherCharge = fOther;
             o.baseAmount = fBase; 
             o.grandTotal = fGrand;
@@ -1550,9 +1731,8 @@
                 });
             }
             
-            const stockToRefund = o.mixMetalStockId; // Recover Mix Metal back to inventory if applicable
-            if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && stockToRefund) {
-                let invReq = tx.objectStore('inventory').get(parseInt(stockToRefund));
+            if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && o.sourceStockId) {
+                let invReq = tx.objectStore('inventory').get(parseInt(o.sourceStockId));
                 invReq.onsuccess = (ev) => {
                     let item = ev.target.result;
                     if(item) {
@@ -1604,9 +1784,16 @@
             html += `<table style="width:100%; margin-top:15px;">
                 <tr><td>${o.category} (${o.purity})</td><td style="text-align:right">${wVal}g</td></tr>
             </table><hr>
-            <div style="display:flex; justify-content:space-between;"><b>Item Value:</b><b>₹${base}</b></div>`;
-            if(o.oldGoldValue > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
-            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
+            <div style="display:flex; justify-content:space-between;"><b>Base Value (Inc. Making):</b><b>₹${base}</b></div>`;
+            
+            if(o.gstAmount > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
+            }
+            if(o.oldGoldValue > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            }
+            
+            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000; padding-top:5px;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
             
             html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
             document.getElementById('invoice-area').innerHTML = html;
