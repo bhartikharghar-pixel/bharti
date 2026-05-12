@@ -478,7 +478,7 @@
         </div>
     </div>
 
-    <!-- ASSIGN MODAL -->
+    <!-- NEW ASSIGN MODAL (UPDATED) -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
@@ -494,20 +494,21 @@
             <div class="form-group" style="margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 6px; border: 1px solid #90caf9;">
                 <label style="display: flex; align-items: center; gap: 8px; margin: 0; color: #1565c0; font-weight: bold; cursor: pointer;">
                     <input type="checkbox" id="aProvideShopGold" style="width: 18px; height: 18px; accent-color: #1976d2;" onchange="toggleShopGoldSection()">
-                    Provide Gold from Shop Inventory
+                    Issue Metal to Karigar (Check if providing metal)
                 </label>
             </div>
 
             <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Unfixed/Untagged Gold Source (Fine/Melting etc.)</label>
+                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Inventory Source (Optional)</label>
                     <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
                 </div>
 
                 <div class="form-grid">
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Issued Purity</label>
-                        <input type="text" id="aIssuedPurity" readonly style="background:#eee; font-weight:bold; color:#333; text-align:center;">
+                        <!-- CHANGED TO DROPDOWN SO ANY METAL CAN BE SELECTED -->
+                        <select id="aIssuedPurity" onchange="calcAssignFine()" style="font-weight:bold; color:#333; text-align:center; padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%;"></select>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Weight to Issue (g)</label>
@@ -568,7 +569,6 @@
             <div class="form-section">
                 <div class="form-section-title">Final Costing</div>
                 <div class="form-grid">
-                    <!-- UPDATED: FINAL MAKING CHARGE -->
                     <div class="form-group">
                         <label>Actual Making Chg Logic</label>
                         <div class="input-group">
@@ -714,6 +714,8 @@
             }
             if(document.getElementById('oPurity')) document.getElementById('oPurity').innerHTML = opts;
             if(document.getElementById('oOldPurity')) document.getElementById('oOldPurity').innerHTML = opts;
+            // NEW: Add same options to Assign Purity dropdown
+            if(document.getElementById('aIssuedPurity')) document.getElementById('aIssuedPurity').innerHTML = opts;
 
             await loadMerchants(); await loadCustomers(); await loadOrders();
         };
@@ -1239,13 +1241,7 @@
             document.getElementById('aOrderId').value = o.id;
 
             document.getElementById('aProvideShopGold').checked = false;
-
-            const sourceLabel = document.getElementById('aSourceLabel');
-            if(sourceLabel) {
-                // Label se specific purity hata kar generic kar diya hai
-                sourceLabel.innerHTML = `<i class="fas fa-boxes"></i> Select Unfixed/Untagged Gold Source (Fine/Melting etc.)`;
-            }
-
+            
             toggleShopGoldSection();
             populateAssignSourceDropdown(); 
             closeModal('viewJobModal'); openModal('assignModal');
@@ -1257,11 +1253,12 @@
             
             if(!isChecked) {
                 document.getElementById('aRepSourceSelect').value = '';
-                document.getElementById('aIssuedPurity').value = '';
+                document.getElementById('aIssuedPurity').disabled = false;
+                document.getElementById('aIssuedPurity').style.background = '#fafafa';
                 document.getElementById('aIssuedWt').value = '';
                 document.getElementById('aIssuedFineWt').value = '0.000';
             } else {
-                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '';
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '24K';
             }
         }
 
@@ -1269,39 +1266,44 @@
             const sel = document.getElementById('aRepSourceSelect');
             if(!sel) return;
             
-            // Purity specific text hata diya gaya hai
-            sel.innerHTML = `<option value="">-- Select Inventory Source (Fine/Raw/Melting) --</option>`; 
+            sel.innerHTML = `<option value="">-- Manual Entry (No Barcode / Raw Metal) --</option>`; 
             
             const inventory = await getAllItems('inventory');
             
-            const availableStock = inventory.filter(i => 
-                i.status === 'stock' && 
-                i.netWt > 0 && 
-                // Yahan se orderPurity wali condition hata di hai taaki 24K aur baki melting slab bhi dikhe
-                (!i.category || i.category.toLowerCase().includes('fine') || i.category.toLowerCase().includes('raw') || i.category.toLowerCase().includes('unfixed') || i.category.toLowerCase().includes('melting'))
-            );
+            // Show all items currently in stock, regardless of category.
+            const availableStock = inventory.filter(i => i.status === 'stock' && i.netWt > 0);
 
             if(availableStock.length === 0) {
-                sel.innerHTML += `<option value="" disabled>No unfixed/fine/raw gold found in stock!</option>`;
+                sel.innerHTML += `<option value="" disabled>No inventory stock found!</option>`;
             } else {
                 availableStock.forEach(i => {
-                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity}</option>`;
+                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity} | ${i.name || i.category}</option>`;
                 });
             }
         }
 
         function autoFillAssignSource() {
             const sel = document.getElementById('aRepSourceSelect');
-            if(sel.selectedIndex > 0) {
+            if(sel.selectedIndex > 0) { // If an inventory item is selected
                 const opt = sel.options[sel.selectedIndex];
                 const max = opt.getAttribute('data-max');
                 const purity = opt.getAttribute('data-purity');
                 document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
+                
+                // Auto fill purity and lock it
                 document.getElementById('aIssuedPurity').value = purity;
+                document.getElementById('aIssuedPurity').disabled = true;
+                document.getElementById('aIssuedPurity').style.background = '#eee';
+                
                 calcAssignFine();
-            } else {
+            } else { // If manual entry is selected
                 document.getElementById('aIssuedWt').placeholder = `e.g. 15.000`;
-                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '';
+                
+                // Unlock purity so user can pick 24K, 22K, etc. manually
+                document.getElementById('aIssuedPurity').disabled = false;
+                document.getElementById('aIssuedPurity').style.background = '#fafafa';
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '24K';
+                
                 document.getElementById('aIssuedFineWt').value = '0.000';
             }
         }
@@ -1329,7 +1331,6 @@
             const issuedFineWt = parseFloat(document.getElementById('aIssuedFineWt').value) || 0;
 
             if (provideShopGold) {
-                if(!stockId) return showToast("Select Gold Source from Inventory", "error");
                 if(issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
             }
 
@@ -1339,7 +1340,8 @@
             const db = await dbPromise;
             const tx = db.transaction(['orders', 'merchants', 'inventory', 'purchases'], 'readwrite');
 
-            if (provideShopGold) {
+            if (provideShopGold && stockId) {
+                // Deduct from Inventory
                 let invReq = tx.objectStore('inventory').get(parseInt(stockId));
                 invReq.onsuccess = (e) => {
                     let item = e.target.result;
@@ -1362,7 +1364,16 @@
                     o.issuedFineWt = issuedFineWt; 
                     tx.objectStore('orders').put(o);
                 };
+            } else if (provideShopGold && !stockId) {
+                // Manual Entry Issue (No Inventory Deduction, but adds Karigar liability)
+                o.merchantId = mId;
+                o.sourceStockId = null;
+                o.issuedGrossWt = issuedGrossWt;
+                o.issuedPurity = issuedPurity; 
+                o.issuedFineWt = issuedFineWt; 
+                tx.objectStore('orders').put(o);
             } else {
+                // Not issuing any metal to Karigar
                 o.merchantId = mId;
                 o.sourceStockId = null;
                 o.issuedGrossWt = 0;
