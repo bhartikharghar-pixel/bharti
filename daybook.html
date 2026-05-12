@@ -507,8 +507,6 @@
             return 'cash'; 
         }
 
-        // --- LAYER 1: STRICT NET WEIGHT EXTRACTOR ---
-        // This function will ONLY return Physical/Net Weight. Fine weight is fully ignored to prevent stock mismatch.
         function getSafeNet(i) {
             if (!i) return 0;
             let n = getSafeNum(i.netWt || i.netWeight || i.net_wt || i.net);
@@ -520,8 +518,7 @@
             if (w > 0) return w;
             let o = getSafeNum(i.oldGoldWeight || i.oldGoldWt || i.oldGoldNet);
             if (o > 0) return o;
-            
-            return 0; // Purely physical Net Weight. No Fine Weight fallback allowed.
+            return 0; 
         }
 
         function getTime(dateStr) {
@@ -582,7 +579,6 @@
             }
         }
 
-        // PHYSICAL CASH TRACKER
         let actualSyncInCash = 0, actualSyncInBank = 0, actualSyncOutCash = 0, actualSyncOutBank = 0;
 
         function addPhysicalFlow(amount, mode, type) {
@@ -614,14 +610,13 @@
 
             let openHardCash = 0, openBank = 0;
             
-            // Separated Metal Tracking
-            let openMetal = 0; // Fine Metal (Inventory) -> Now renamed to Net Wt
-            let openOldGold = 0; // Old Gold
-            let openMixMetal = 0; // Mix Metal (Melted Slab)
+            let openMetal = 0; 
+            let openOldGold = 0; 
+            let openMixMetal = 0; 
             
             let todayMetalNetDB = 0; 
-            let todayMetalIn = 0; // Fine/Inv Gold In -> Now Net Gold
-            let todayMetalOut = 0; // Fine/Inv Gold Out -> Now Net Gold
+            let todayMetalIn = 0; 
+            let todayMetalOut = 0; 
             
             let todayOldGoldIn = 0;
             let todayOldGoldOut = 0;
@@ -651,7 +646,6 @@
             const getCustName = (id) => { const c = customers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in Customer'; };
             const getMerchName = (id) => { const m = merchants.find(x => String(x.id) === String(id)); return m ? m.name : 'Merchant / Supplier'; };
 
-            // --- CALCULATE MONTHLY STATS ---
             const targetMonth = selectedDateStr.substring(0, 7);
             let mSalesTotal = 0, mSalesRecv = 0, mUdhariTotal = 0;
             let mGoldIn = 0, mGoldOut = 0, mSilverIn = 0, mSilverOut = 0;
@@ -673,7 +667,6 @@
                 }
             });
 
-            // --- LAYER 2: ROOT LEVEL PURCHASE CHECKING (Monthly Stats) ---
             purchases.forEach(p => {
                 if (String(p.date).startsWith(targetMonth)) {
                     let minGold = 0, minSilv = 0;
@@ -704,7 +697,7 @@
                 if (String(o.date).startsWith(targetMonth)) {
                     if (o.mode !== 'POS Exchange') {
                         if (o.type === 'MELT') {
-                            let recv = getSafeNum(o.receivedWt || o.meltedWt || o.netWt); // Excluded fineWt/pureWt
+                            let recv = getSafeNum(o.receivedWt || o.meltedWt || o.netWt);
                             if (recv > 0) {
                                 if (isSilver(o.purity || o.description)) mSilverIn += recv; 
                                 else mGoldIn += recv;
@@ -732,8 +725,6 @@
             setInner('mStatGold', (netMGold > 0 ? "+" : "") + netMGold.toFixed(3) + "g");
             setInner('mStatSilver', (netMSilver > 0 ? "+" : "") + netMSilver.toFixed(3) + "g");
 
-            // --- 1. STRICT CASH FLOW LOGIC ---
-            // A. SALES
             sales.forEach(s => {
                 const billCreatedToday = (getSafeDate(s.date) === selectedDateStr);
                 const isCancelled = s.status === 'cancelled';
@@ -848,19 +839,16 @@
                 }
             });
 
-            // B. PURCHASES
             purchases.forEach(p => {
                 const billCreatedToday = (getSafeDate(p.date) === selectedDateStr);
                 const ref = `PUR-${p.id}`;
                 const party = getMerchName(p.merchantId);
                 let txBase = { party, partyType: 'Merchant', raw: p };
 
-                // FIX: Added fallbacks (grandTotal, pendingAmount, etc.) incase DB field names changed
                 let pTotal = getSafeNum(p.totalAmount || p.grandTotal || p.total);
                 let dueAmt = getSafeNum(p.dueAmount || p.pendingAmount);
                 let paidToday = getSafeNum(p.paidAmount || p.advanceAmount);
 
-                // FIX: Case insensitive check for 'fixed' and handling empty types
                 let pType = String(p.type || '').toLowerCase();
                 let isFixed = (pType === 'fixed' || pType === '' || pType === 'undefined');
 
@@ -879,7 +867,6 @@
                             { ...txBase, time: getTime(p.date), ref, desc: `Advance Paid for Unfixed Stock`, cash: paidToday, metal: 0, mode: p.paymentMode || 'Cash', dataType: 'purchase_unfixed' }, true);
                     }
                 } else {
-                    // FIX: Made reference check case-insensitive 
                     const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (String(f.note).toUpperCase().includes(ref) || String(f.note).toUpperCase().includes(`PUR-${p.id}`)));
                     relatedFlows.forEach(f => {
                         let fAmt = Math.abs(getSafeNum(f.amount));
@@ -898,7 +885,6 @@
                 }
             });
 
-            // C. ALL OTHER CASHFLOWS
             cFlows.forEach(f => {
                 let amt = Math.abs(getSafeNum(f.amount));
                 if (amt === 0) return;
@@ -1041,8 +1027,6 @@
                 }
             });
 
-            // --- 2. STRICT METAL FLOW LOGIC ---
-            // Ab default metalCategory 'NET' pass ho rahi hai 'FINE' ki jagah
             const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive, metalCategory = 'NET') => {
                 if (amt <= 0) return;
                 let d = getSafeDate(date);
@@ -1070,7 +1054,6 @@
                 }
             };
 
-            // Sales Metal Flow
             sales.forEach(s => {
                 let cancelDate = null;
                 if (s.status === 'cancelled') {
@@ -1127,7 +1110,9 @@
                 }
             });
 
-            // Orders Metal Flow
+            // ==========================================
+            // ORDERS METAL FLOW (KARIGAR ASSIGN/RECEIVE)
+            // ==========================================
             orders.forEach(o => {
                 let cancelDate = null;
                 const invoiceNo = o.invoiceNo || (o.jobType === 'Repair' ? 'ORD-INVR' + String(o.id).padStart(3, '0') : 'ORD-INV' + String(o.id).padStart(3, '0'));
@@ -1167,7 +1152,7 @@
                         }
                     }
                 } else {
-                    // 1. Old Gold Received from Customer
+                    // 1. Old Gold Received from Customer -> JAMA
                     let inWt = getSafeNum(o.oldGoldNet);
                     if (getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
@@ -1178,21 +1163,32 @@
                         }
                     }
 
-                    // 2. Mix Metal Issued to Karigar / Merchant -> NAMA (OUT)
-                    let karigarIssuedWt = getSafeNum(o.assignedWt || o.assignedWeight || o.issuedWt || o.issuedWeight || o.karigarWt || o.mixMetalWt);
+                    // 2. Metal Issued to Karigar -> NAMA (LESS)
+                    // We extract 'issuedGrossWt' precisely as saved in orders.html 
+                    let karigarIssuedWt = getSafeNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
                     
                     if (karigarIssuedWt > 0 && getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', 'Mix Metal Issued (Karigar)', 'fas fa-truck', 'var(--out-red)', `Mix Metal Assigned to Karigar for Custom Order`, partyName, invoiceNo, false, 'MIX');
+                            // isPositive = false means it subtracts (LESS) from Net Wt. bucketSide 'OUT' puts it in NAMA
+                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', 'Metal Issued (Karigar)', 'fas fa-truck', 'var(--out-red)', `Inventory Metal Assigned to Karigar`, partyName, invoiceNo, false, 'NET');
                         }
                         if (cancelDate === selectedDateStr) {
-                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Mix Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (Mix Metal Recovered from Karigar)`, partyName, invoiceNo, true, 'MIX');
+                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (Metal Recovered)`, partyName, invoiceNo, true, 'NET');
+                        }
+                    }
+
+                    // 3. Metal Received Back from Karigar -> JAMA (ADD)
+                    // When order is ready/billed, physical metal is received back from Karigar before selling
+                    let receivedFromKarigarWt = getSafeNum(o.finalNet);
+                    if (receivedFromKarigarWt > 0 && (o.status === 'completed' || o.status === 'ready' || o.status === 'billed' || o.status === 'delivered')) {
+                        if (getSafeDate(o.orderDate) <= selectedDateStr && (!cancelDate || cancelDate >= selectedDateStr)) {
+                            // isPositive = true means it adds back to Net Wt. bucketSide 'IN' puts it in JAMA
+                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'order_in_karigar_recv', 'Metal Received (Karigar)', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar`, partyName, invoiceNo, true, 'NET');
                         }
                     }
                 }
             });
 
-            // --- LAYER 3: ROOT LEVEL PURCHASE CHECKING (Daybook Cards) ---
             purchases.forEach(p => {
                 let mIn = 0;
                 
@@ -1207,13 +1203,12 @@
                 } else if(p.itemDetails && p.itemDetails.length > 0) {
                     p.itemDetails.forEach(i => mIn += getSafeNet(i));
                 } else {
-                    mIn = getSafeNum(p.totalWeight || p.weight); // Strictly physical fallback
+                    mIn = getSafeNum(p.totalWeight || p.weight); 
                 }
                 
                 logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true, 'NET');
             });
 
-            // --- OLD GOLD & MELTING LOGIC (REFINED) ---
             oldGold.forEach(o => {
                 if (o.mode !== 'POS Exchange') {
                     let isMelt = String(o.type || '').toUpperCase().includes('MELT') || 
@@ -1222,7 +1217,7 @@
 
                     if (isMelt) {
                         let sent = getSafeNum(o.sentWt || o.issuedWt || o.grossWt || o.weight) || getSafeNet(o);
-                        let recv = getSafeNum(o.receivedWt || o.meltedWt || o.netWt); // Excluded fineWt/pureWt
+                        let recv = getSafeNum(o.receivedWt || o.meltedWt || o.netWt);
                         let loss = getSafeNum(o.lossWt);
                         
                         if (recv > 0 && loss === 0) loss = sent - recv;
@@ -1272,7 +1267,6 @@
                 }
             });
 
-            // --- CALCULATE CUMULATIVE UDHARI ---
             let c_marketUdhari = 0; 
             let c_merchantDues = 0;
             sales.forEach(s => { if (getSafeDate(s.date) <= selectedDateStr && s.status !== 'cancelled') c_marketUdhari += getSafeNum(s.pendingAmount); });
@@ -1281,7 +1275,6 @@
             setInner('uiClosingUdhari', "₹" + c_marketUdhari.toLocaleString());
             setInner('uiClosingMerchantDue', "₹" + c_merchantDues.toLocaleString());
 
-            // Set Open Balances
             const openTotalCash = openHardCash + openBank;
             setInner('uiOpeningBalTotal', "₹" + openTotalCash.toLocaleString());
             setInner('uiOpeningBalCash', "₹" + openHardCash.toLocaleString());
@@ -1290,7 +1283,6 @@
             setInner('uiOpeningBalOldGold', openOldGold.toFixed(3) + " g");
             setInner('uiOpeningBalMixMetal', openMixMetal.toFixed(3) + " g");
 
-            // --- RENDER VISUAL UI ---
             let totalVisualInCash = 0; 
             let totalVisualOutCash = 0; 
 
@@ -1338,7 +1330,6 @@
             setInner('uiTotalIn', "₹" + totalVisualInCash.toLocaleString());
             setInner('uiTotalOut', "₹" + totalVisualOutCash.toLocaleString());
 
-            // --- STRICT PHYSICAL CLOSING BALANCE UPDATE ---
             const derivedClosingCash = openTotalCash + totalVisualInCash - totalVisualOutCash;
             const finalCloseCash = derivedClosingCash;
 
@@ -1357,14 +1348,11 @@
             setInner('uiClosingBalOldGold', (isNaN(closeOldGold) ? 0 : closeOldGold).toFixed(3) + " g");
             setInner('uiClosingBalMixMetal', (isNaN(closeMixMetal) ? 0 : closeMixMetal).toFixed(3) + " g");
             
-            // --- GRAND TOTAL CALCULATION ---
-            // JAMA Grand Totals
             const grandTotalJamaCash = openTotalCash + totalVisualInCash;
             const grandTotalJamaOldGold = openOldGold + todayOldGoldIn;
             const grandTotalJamaMixMetal = openMixMetal + todayMixMetalIn;
             const grandTotalJamaMetal = openMetal + todayMetalIn;
 
-            // NAMA Grand Totals
             const grandTotalNamaCash = totalVisualOutCash + finalCloseCash;
             const grandTotalNamaOldGold = todayOldGoldOut + closeOldGold;
             const grandTotalNamaMixMetal = todayMixMetalOut + closeMixMetal;
