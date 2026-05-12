@@ -439,7 +439,7 @@
                 <button class="btn-primary btn-outline" style="margin-top:0;" id="btnWhatsApp" onclick="sendWhatsApp()"><i class="fab fa-whatsapp"></i> Send Status</button>
                 <button class="btn-primary btn-outline" style="margin-top:0;" id="btnPrintCustomerReceipt" onclick="printReceiptEngine()"><i class="fas fa-print"></i> Print Receipt</button>
                 
-                <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
+                <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign Mix Metal to Karigar</button>
                 <button class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print Karigar Issue Slip</button>
                 
                 <button class="btn-primary" style="background:var(--receive-green); margin-top:0; grid-column: span 2;" id="btnReceiveMerchant" onclick="openReceiveModal()"><i class="fas fa-box-open"></i> Receive from Karigar</button>
@@ -454,7 +454,7 @@
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
-            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-truck-loading"></i> Issue to Karigar</h3>
+            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-layer-group"></i> Issue Mix Metal to Karigar</h3>
             
             <input type="hidden" id="aOrderId">
             
@@ -463,18 +463,9 @@
                 <select id="aMerchantSelect"></select>
             </div>
 
-            <div class="form-group" style="margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 6px; border: 1px solid #90caf9;">
-                <label style="display: flex; align-items: center; gap: 8px; margin: 0; color: #1565c0; font-weight: bold; cursor: pointer;">
-                    <input type="checkbox" id="aProvideShopGold" style="width: 18px; height: 18px; accent-color: #1976d2;" onchange="toggleShopGoldSection()">
-                    Select Specific Gold from Inventory (Uncheck to use Mix Metal)
-                </label>
-            </div>
-
-            <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Inventory Item</label>
-                    <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
-                </div>
+            <div class="form-group" style="background: #fffaf0; padding: 10px; border-radius: 6px; border-left: 4px solid var(--merchant-orange); margin-bottom: 15px;">
+                <label id="aSourceLabel" style="color:#d32f2f; margin-bottom: 8px;"><i class="fas fa-layer-group"></i> Select Mix Metal / Slab Source</label>
+                <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
             </div>
 
             <div style="border-left: 4px solid #333; padding: 10px 15px; background: #f9f9f9; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
@@ -670,7 +661,7 @@
             }
             if(document.getElementById('oPurity')) document.getElementById('oPurity').innerHTML = opts;
             if(document.getElementById('oOldPurity')) document.getElementById('oOldPurity').innerHTML = opts;
-            if(document.getElementById('aIssuedPurity')) document.getElementById('aIssuedPurity').innerHTML = opts; // POPULATE ASSIGN PURITY
+            if(document.getElementById('aIssuedPurity')) document.getElementById('aIssuedPurity').innerHTML = opts;
 
             await loadMerchants(); await loadCustomers(); await loadOrders();
         };
@@ -1151,58 +1142,47 @@
             };
         }
 
-        // --- ASSIGN TO KARIGAR ---
+        // --- ASSIGN MIX METAL TO KARIGAR ---
         function openAssignModal() {
             const o = activeJobData;
             document.getElementById('aOrderId').value = o.id;
 
-            document.getElementById('aProvideShopGold').checked = false;
-            
             const pSelect = document.getElementById('aIssuedPurity');
             if (pSelect) pSelect.value = o.purity;
 
             document.getElementById('aIssuedWt').value = '';
             document.getElementById('aIssuedFineWt').value = '0.000';
 
-            const sourceLabel = document.getElementById('aSourceLabel');
-            if(sourceLabel) {
-                sourceLabel.innerHTML = `<i class="fas fa-boxes"></i> Select ${o.purity} Inventory Source`;
-            }
-
-            toggleShopGoldSection();
             populateAssignSourceDropdown(); 
             closeModal('viewJobModal'); openModal('assignModal');
-        }
-
-        function toggleShopGoldSection() {
-            const isChecked = document.getElementById('aProvideShopGold').checked;
-            document.getElementById('aShopGoldSection').style.display = isChecked ? 'block' : 'none';
-            if(!isChecked) {
-                document.getElementById('aRepSourceSelect').value = '';
-            }
         }
 
         async function populateAssignSourceDropdown() {
             const sel = document.getElementById('aRepSourceSelect');
             if(!sel) return;
             
-            const orderPurity = activeJobData ? activeJobData.purity : '';
-            sel.innerHTML = `<option value="">-- Select ${orderPurity} Inventory Source --</option>`; 
+            sel.innerHTML = `<option value="">-- Direct Mix Metal Balance (No specific slab) --</option>`; 
             
             const inventory = await getAllItems('inventory');
             
+            // Only fetch Mix Metal / Melted Slab from inventory
             const availableStock = inventory.filter(i => 
                 i.status === 'stock' && 
                 i.netWt > 0 && 
-                i.purity === orderPurity && 
-                (!i.category || i.category.toLowerCase().includes('fine') || i.category.toLowerCase().includes('raw') || i.category.toLowerCase().includes('unfixed'))
+                (
+                    String(i.category).toLowerCase().includes('mix') || 
+                    String(i.category).toLowerCase().includes('melt') || 
+                    String(i.category).toLowerCase().includes('slab') || 
+                    String(i.category).toLowerCase().includes('raw') ||
+                    String(i.name).toLowerCase().includes('mix') || 
+                    String(i.name).toLowerCase().includes('melt') || 
+                    String(i.name).toLowerCase().includes('slab')
+                )
             );
 
-            if(availableStock.length === 0) {
-                sel.innerHTML += `<option value="" disabled>No ${orderPurity} unfixed gold found in stock!</option>`;
-            } else {
+            if(availableStock.length > 0) {
                 availableStock.forEach(i => {
-                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity}</option>`;
+                    sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.name || i.category} | ${i.netWt}g | ${i.purity}</option>`;
                 });
             }
         }
@@ -1214,11 +1194,11 @@
                 const max = opt.getAttribute('data-max');
                 const purity = opt.getAttribute('data-purity');
                 document.getElementById('aIssuedWt').placeholder = `Max available: ${max}g`;
-                document.getElementById('aIssuedPurity').value = purity;
+                document.getElementById('aIssuedPurity').value = purity || '22K';
                 calcAssignFine();
             } else {
                 document.getElementById('aIssuedWt').placeholder = `e.g. 15.000`;
-                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '';
+                document.getElementById('aIssuedPurity').value = activeJobData ? activeJobData.purity : '22K';
                 calcAssignFine();
             }
         }
@@ -1238,7 +1218,6 @@
             
             if(!mId) return showToast("Select a Karigar", "error");
 
-            const provideShopGold = document.getElementById('aProvideShopGold').checked;
             const stockId = document.getElementById('aRepSourceSelect').value;
             
             const issuedGrossWt = parseFloat(document.getElementById('aIssuedWt').value) || 0;
@@ -1247,23 +1226,19 @@
 
             if (issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
 
-            if (provideShopGold && !stockId) {
-                return showToast("Select Gold Source from Inventory", "error");
-            }
-
             const o = activeJobData;
             o.status = 'in_progress';
             
             const db = await dbPromise;
             const tx = db.transaction(['orders', 'merchants', 'inventory', 'purchases'], 'readwrite');
 
-            if (provideShopGold) {
+            if (stockId) {
                 let invReq = tx.objectStore('inventory').get(parseInt(stockId));
                 invReq.onsuccess = (e) => {
                     let item = e.target.result;
                     if(!item || item.netWt < issuedGrossWt) {
                         tx.abort();
-                        showToast("Insufficient stock in the selected source!", "error");
+                        showToast("Insufficient stock in the selected Mix Metal slab!", "error");
                         return;
                     }
 
@@ -1274,7 +1249,8 @@
                     tx.objectStore('inventory').put(item);
 
                     o.merchantId = mId;
-                    o.sourceStockId = parseInt(stockId);
+                    o.mixMetalStockId = parseInt(stockId); // Use a new property to avoid Daybook Inventory (NET) deduction
+                    o.sourceStockId = null; // Explicitly null so Daybook treats it as MIX
                     o.issuedGrossWt = issuedGrossWt;
                     o.issuedPurity = issuedPurity; 
                     o.issuedFineWt = issuedFineWt; 
@@ -1282,7 +1258,8 @@
                 };
             } else {
                 o.merchantId = mId;
-                o.sourceStockId = null; // THIS ENSURES DAYBOOK SEES IT AS MIX METAL
+                o.mixMetalStockId = null;
+                o.sourceStockId = null;
                 o.issuedGrossWt = issuedGrossWt;
                 o.issuedPurity = issuedPurity; 
                 o.issuedFineWt = issuedFineWt; 
@@ -1309,7 +1286,6 @@
             document.getElementById('rWastageVal').value = o.wastageVal || 0;
             document.getElementById('rWastageMode').value = o.wastageMode || 'pct';
             
-            // Populate making charge from the initial order creation
             document.getElementById('rActualMaking').value = o.makingCharge || 0;
             document.getElementById('rActualOther').value = o.otherCharge || 0;
             
@@ -1332,7 +1308,6 @@
             const finalNet = Math.max(0, finalGross - finalStone);
             document.getElementById('rFinalNet').value = finalNet.toFixed(3);
 
-            // Calculate Wastage Weight
             const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
             const wastageMode = document.getElementById('rWastageMode').value;
             let wastageWt = 0;
@@ -1353,7 +1328,6 @@
             else if (diff < 0) { diffEl.value = `${diff.toFixed(3)} g (Karigar Returned / Karigar Owes)`; diffEl.style.color = "var(--receive-green)"; } 
             else { diffEl.value = "0.000 g (No Difference)"; diffEl.style.color = "#333"; }
 
-            // Costing (Making Charges Included)
             const actualMaking = parseFloat(document.getElementById('rActualMaking').value) || 0;
             const otherCharges = parseFloat(document.getElementById('rActualOther').value) || 0;
             
@@ -1576,8 +1550,9 @@
                 });
             }
             
-            if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && o.sourceStockId) {
-                let invReq = tx.objectStore('inventory').get(parseInt(o.sourceStockId));
+            const stockToRefund = o.mixMetalStockId; // Recover Mix Metal back to inventory if applicable
+            if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && stockToRefund) {
+                let invReq = tx.objectStore('inventory').get(parseInt(stockToRefund));
                 invReq.onsuccess = (ev) => {
                     let item = ev.target.result;
                     if(item) {
