@@ -1075,31 +1075,30 @@
                 });
 
                 if (getSafeDate(s.date) <= selectedDateStr) {
+                    // FIX: Route POS Old Gold IN metal to the 'sales_oldgold' bucket on the OUT side so it explicitly displays with the NAMA Cash deduction card UI.
+                    if (metalIn > 0) {
+                        logMetal(s.date, metalIn, 'OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', 'POS Old Gold Exchange / Exchanged in Bill', party, ref, true, 'OLD');
+                    }
+
                     if (!isOrderBill) {
-                        logMetal(s.date, metalIn, 'IN', 'sales', 'Customer Sales & Receipts', 'fas fa-cash-register', 'var(--in-green)', 'POS Old Gold Exchange', party, ref, true, 'OLD');
                         logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales & Receipts', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'FINE');
                     } else {
-                        if (s.jobType === 'Repair') {
-                            if (metalIn > 0) {
-                                logMetal(s.date, metalIn, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Repair Final Bill - Old Gold Exchanged', party, ref, true, 'OLD');
-                            }
-                        } else {
+                        if (s.jobType !== 'Repair') {
                             logMetal(s.date, metalOut, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered (Metal Sold)', party, ref, false, 'FINE');
-                            logMetal(s.date, metalIn, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Old Gold Billed', party, ref, true, 'OLD');
                         }
                     }
                 }
 
                 if (cancelDate === selectedDateStr) {
+                    if (metalIn > 0) {
+                        logMetal(selectedDateStr, metalIn, 'IN', 'sales_oldgold_cancel', 'Old Gold Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', 'Sale Cancelled (Exchange Returned)', party, ref, false, 'OLD');
+                    }
+
                     if (!isOrderBill) {
-                        logMetal(selectedDateStr, metalIn, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Exchange Returned)', party, ref, false, 'OLD');
                         logMetal(selectedDateStr, metalOut, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Items Returned)', party, ref, true, 'FINE');
                     } else {
                         if (s.jobType !== 'Repair') {
                             logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled (Items Returned)', party, ref, true, 'FINE');
-                            logMetal(selectedDateStr, metalIn, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Old Gold Cancelled', party, ref, false, 'OLD');
-                        } else if (metalIn > 0) {
-                            logMetal(selectedDateStr, metalIn, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Repair Old Gold Cancelled', party, ref, false, 'OLD');
                         }
                     }
                 }
