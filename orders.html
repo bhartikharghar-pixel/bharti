@@ -500,7 +500,7 @@
 
             <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Unfixed/Untagged Gold Source</label>
+                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Unfixed/Untagged Gold Source (Fine/Melting etc.)</label>
                     <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
                 </div>
 
@@ -1242,7 +1242,8 @@
 
             const sourceLabel = document.getElementById('aSourceLabel');
             if(sourceLabel) {
-                sourceLabel.innerHTML = `<i class="fas fa-boxes"></i> Select ${o.purity} Unfixed/Untagged Gold Source`;
+                // Label se specific purity hata kar generic kar diya hai
+                sourceLabel.innerHTML = `<i class="fas fa-boxes"></i> Select Unfixed/Untagged Gold Source (Fine/Melting etc.)`;
             }
 
             toggleShopGoldSection();
@@ -1268,20 +1269,20 @@
             const sel = document.getElementById('aRepSourceSelect');
             if(!sel) return;
             
-            const orderPurity = activeJobData ? activeJobData.purity : '';
-            sel.innerHTML = `<option value="">-- Select ${orderPurity} Inventory Source --</option>`; 
+            // Purity specific text hata diya gaya hai
+            sel.innerHTML = `<option value="">-- Select Inventory Source (Fine/Raw/Melting) --</option>`; 
             
             const inventory = await getAllItems('inventory');
             
             const availableStock = inventory.filter(i => 
                 i.status === 'stock' && 
                 i.netWt > 0 && 
-                i.purity === orderPurity && 
-                (!i.category || i.category.toLowerCase().includes('fine') || i.category.toLowerCase().includes('raw') || i.category.toLowerCase().includes('unfixed'))
+                // Yahan se orderPurity wali condition hata di hai taaki 24K aur baki melting slab bhi dikhe
+                (!i.category || i.category.toLowerCase().includes('fine') || i.category.toLowerCase().includes('raw') || i.category.toLowerCase().includes('unfixed') || i.category.toLowerCase().includes('melting'))
             );
 
             if(availableStock.length === 0) {
-                sel.innerHTML += `<option value="" disabled>No ${orderPurity} unfixed gold found in stock!</option>`;
+                sel.innerHTML += `<option value="" disabled>No unfixed/fine/raw gold found in stock!</option>`;
             } else {
                 availableStock.forEach(i => {
                     sel.innerHTML += `<option value="${i.id}" data-max="${i.netWt}" data-purity="${i.purity}">${i.barcode} | ${i.netWt}g | ${i.purity}</option>`;
