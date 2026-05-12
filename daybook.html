@@ -855,12 +855,17 @@
                 const party = getMerchName(p.merchantId);
                 let txBase = { party, partyType: 'Merchant', raw: p };
 
-                let pTotal = getSafeNum(p.totalAmount);
-                let dueAmt = getSafeNum(p.dueAmount);
-                let paidToday = getSafeNum(p.paidAmount);
+                // FIX: Added fallbacks (grandTotal, pendingAmount, etc.) incase DB field names changed
+                let pTotal = getSafeNum(p.totalAmount || p.grandTotal || p.total);
+                let dueAmt = getSafeNum(p.dueAmount || p.pendingAmount);
+                let paidToday = getSafeNum(p.paidAmount || p.advanceAmount);
+
+                // FIX: Case insensitive check for 'fixed' and handling empty types
+                let pType = String(p.type || '').toLowerCase();
+                let isFixed = (pType === 'fixed' || pType === '' || pType === 'undefined');
 
                 if (billCreatedToday) {
-                    if (p.type === 'Fixed' && pTotal > 0) {
+                    if (isFixed && pTotal > 0) {
                         let mStr = p.paymentMode || p.mode || 'Cash';
                         addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, 0, 
                             { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: 0, mode: mStr, dataType: 'purchase_full' }, true);
@@ -874,7 +879,8 @@
                             { ...txBase, time: getTime(p.date), ref, desc: `Advance Paid for Unfixed Stock`, cash: paidToday, metal: 0, mode: p.paymentMode || 'Cash', dataType: 'purchase_unfixed' }, true);
                     }
                 } else {
-                    const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (f.note.includes(ref) || f.note.includes(`pur-${p.id}`)));
+                    // FIX: Made reference check case-insensitive 
+                    const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (String(f.note).toUpperCase().includes(ref) || String(f.note).toUpperCase().includes(`PUR-${p.id}`)));
                     relatedFlows.forEach(f => {
                         let fAmt = Math.abs(getSafeNum(f.amount));
                         let fType = f.type || 'OUT';
