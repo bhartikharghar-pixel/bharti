@@ -334,7 +334,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=40"></script>
+    <script src="db.js?v=41"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
 
@@ -540,13 +540,16 @@
 
         function filterLoansList() { renderLoans(); }
 
-        function openCustomerLoans(custId) {
-            currentCustomerViewId = custId;
-            const custLoans = allLoans.filter(l => String(l.customerId) === String(custId));
+        function openCustomerLoans(passedCustId) {
+            // BULLETPROOF: Get actual customer ID type directly from loaded objects
+            const foundCust = allCustomers.find(c => String(c.id) === String(passedCustId));
+            if(!foundCust) return alert("Customer not found.");
+            
+            currentCustomerViewId = foundCust.id;
+            const custLoans = allLoans.filter(l => String(l.customerId) === String(currentCustomerViewId));
             if(!custLoans.length) return;
             
-            const custName = custLoans[0].custName;
-            document.getElementById('custListTitle').innerText = `${custName}'s Loans`;
+            document.getElementById('custListTitle').innerText = `${foundCust.name}'s Loans`;
             
             const container = document.getElementById('customerLoansContainer');
             container.innerHTML = '';
@@ -697,10 +700,13 @@
         // --- T-LEDGER VIEW LOGIC ---
         let currentLoanId = null;
 
-        async function openLedger(id) {
-            // FIX: Convert string ID to Integer for IndexedDB query
-            currentLoanId = parseInt(id); 
+        async function openLedger(passedLoanId) {
+            // BULLETPROOF: Find exact ID type from memory
+            const foundLoan = allLoans.find(x => String(x.id) === String(passedLoanId));
+            if(!foundLoan) return alert("Error: Loan not found in memory!");
             
+            currentLoanId = foundLoan.id;
+
             try {
                 const db = await dbPromise;
                 const tx = db.transaction('loans', 'readonly');
@@ -708,7 +714,7 @@
                 
                 store.get(currentLoanId).onsuccess = (e) => {
                     const l = e.target.result;
-                    if(!l) return alert("Loan not found");
+                    if(!l) return alert("Error: Loan missing in database!");
 
                     const c = allCustomers.find(x => String(x.id) === String(l.customerId)); 
                     
