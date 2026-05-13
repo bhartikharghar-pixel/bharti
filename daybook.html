@@ -522,7 +522,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=72"></script>
+    <script src="db.js?v=73"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -1474,12 +1474,20 @@
             setInner('uiTotalIn', "₹" + totalVisualInCash.toLocaleString());
             setInner('uiTotalOut', "₹" + totalVisualOutCash.toLocaleString());
 
-            const derivedClosingCash = openTotalCash + totalVisualInCash - totalVisualOutCash;
-            const finalCloseCash = derivedClosingCash;
-
+            // FIX: Closing Balance ab sirf aur sirf asli Cashflow (DB) table se calculate hoga.
+            // Isse kabhi bhi agle din balance change nahi hoga.
             const closeBank = openBank + actualSyncInBank - actualSyncOutBank;
             const closeHardCash = openHardCash + actualSyncInCash - actualSyncOutCash;
-            const finalCloseHardCash = closeHardCash + (finalCloseCash - (closeHardCash + closeBank));
+
+            const finalCloseCash = closeBank + closeHardCash;
+            const finalCloseHardCash = closeHardCash;
+
+            // Debugging ke liye: Agar aapke banaye gaye Bills aur asli Cashbook mein mismatch hoga to console me batayega
+            let visualNet = totalVisualInCash - totalVisualOutCash;
+            let dbNet = (actualSyncInBank + actualSyncInCash) - (actualSyncOutBank + actualSyncOutCash);
+            if (visualNet !== dbNet) {
+                console.warn("WARNING: Aaj ke Bills ka total aur Cashbook ke total me ₹" + Math.abs(visualNet - dbNet) + " ka difference hai. Please Cashbook entries check karein.");
+            }
 
             const closeMetal = openMetal + todayMetalNetDB;
             const closeOldGold = openOldGold + todayOldGoldIn - todayOldGoldOut;
