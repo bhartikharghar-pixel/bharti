@@ -7,24 +7,19 @@
     <link rel="stylesheet" href="style.css">
     <style>
         .master-container { padding: 15px; max-width: 600px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        /* Live Balance Card */
         .balance-board { display: flex; justify-content: space-between; background: #1a1a1a; color: #d4af37; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: center;}
         .balance-item { flex: 1; }
         .balance-item span { display: block; font-size: 0.8rem; color: #ccc; margin-bottom: 5px; }
         .balance-item div { font-size: 1.2rem; }
-        
         .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
         .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; font-weight: bold; transition: 0.3s; }
         .tab-btn.active { background: #d4af37; color: white; border-color: #d4af37; }
-        
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .form-group { margin-bottom: 10px; }
         .full-width { grid-column: span 2; }
-        
         label { font-size: 0.85rem; color: #555; font-weight: bold; }
         input, select { width: 100%; padding: 8px; margin-top: 4px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
         input[readonly] { background: #e9ecef; color: #555; font-weight: bold; }
-        
         .save-btn { width: 100%; background: #28a745; color: white; font-size: 1.1rem; border: none; padding: 12px; border-radius: 5px; margin-top: 15px; cursor: pointer; font-weight: bold; }
         .save-btn:hover { background: #218838; }
     </style>
@@ -32,8 +27,6 @@
 <body>
 
 <div class="master-container">
-    
-    <!-- Live Balance Board -->
     <div class="balance-board">
         <div class="balance-item">
             <span>Today's Cash (In)</span>
@@ -49,7 +42,6 @@
         </div>
     </div>
 
-    <!-- Tabs -->
     <div class="action-tabs">
         <div id="tab-sales" class="tab-btn active" onclick="switchAction('sales', 'SL-')">Sale (Bikri)</div>
         <div id="tab-orders" class="tab-btn" onclick="switchAction('orders', 'OR-')">New Order</div>
@@ -58,8 +50,6 @@
 
     <form id="quickForm">
         <div class="form-grid">
-            
-            <!-- Barcode & Date -->
             <div class="form-group">
                 <label>Barcode / ID (Auto)</label>
                 <input type="text" id="barcode" readonly>
@@ -69,17 +59,19 @@
                 <input type="date" id="entryDate" required>
             </div>
 
-            <!-- Customer Details -->
             <div class="form-group full-width">
                 <label>Customer Name</label>
                 <input type="text" id="custName" list="customerList" placeholder="Search or Type Name..." required>
+                <!-- Customer List -->
                 <datalist id="customerList"></datalist>
             </div>
 
-            <!-- Item & Metal -->
             <div class="form-group">
                 <label id="mainLabel">Item Name</label>
-                <input type="text" id="itemDetail" placeholder="E.g. Gold Chain" required>
+                <!-- Item Auto-suggest list yaha link ho gaya -->
+                <input type="text" id="itemDetail" list="itemList" placeholder="Search Inventory..." required>
+                <!-- Inventory List -->
+                <datalist id="itemList"></datalist>
             </div>
             <div class="form-group">
                 <label>Metal</label>
@@ -89,7 +81,6 @@
                 </select>
             </div>
 
-            <!-- Weight, Rate & Amount -->
             <div class="form-group">
                 <label>Net Weight (g)</label>
                 <input type="number" id="weight" step="0.001" placeholder="0.000" oninput="calculateAmount()" required>
@@ -101,44 +92,67 @@
             
             <div class="form-group full-width">
                 <label id="amountLabel">Total Amount (₹)</label>
-                <!-- Ye readonly nahi rakha taki agar bargaining ho to manually edit kar sakein -->
                 <input type="number" id="amount" placeholder="Total ₹" required style="font-size: 1.2rem; font-weight: bold; color: #d4af37;">
             </div>
-
         </div>
 
         <button type="button" class="save-btn" onclick="handleSave()">💾 Save Entry</button>
     </form>
 </div>
 
+<!-- Aapki Database file -->
 <script src="db.js"></script>
 
 <script>
     let currentStore = 'sales';
     let currentPrefix = 'SL-';
 
-    // 1. Page Load Initialization
+    // 1. Page Load hote hi sabse pehle Data layenge
     window.onload = async function() {
         document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
-        await loadCustomers();
+        await loadAllData(); // Customer aur Inventory dono fetch karega
         await updateStats();
-        await generateNewBarcode('SL-'); // Default Sale
+        await generateNewBarcode('SL-');
     };
 
-    // 2. Fetch Customers for Auto-suggest
-    async function loadCustomers() {
+    // 2. Fetch Customers aur Inventory (Auto-suggest ke liye)
+    async function loadAllData() {
         try {
+            // A. Customer Data Load
             const customers = await getAllItems('customers');
-            const datalist = document.getElementById('customerList');
-            datalist.innerHTML = ''; // clear old
+            const custList = document.getElementById('customerList');
+            custList.innerHTML = ''; 
             customers.forEach(cust => {
                 if(cust.name) {
                     let option = document.createElement('option');
-                    option.value = cust.name;
-                    datalist.appendChild(option);
+                    // Mobile number bhi dikhayega taaki same naam ke customer pehchane jayein
+                    option.value = cust.name + (cust.mobile ? ` - ${cust.mobile}` : '');
+                    custList.appendChild(option);
                 }
             });
-        } catch (error) { console.error("Customer fetch error:", error); }
+
+            // B. Inventory Data Load (Item Names)
+            const inventory = await getAllItems('inventory');
+            const itemList = document.getElementById('itemList');
+            itemList.innerHTML = '';
+            
+            // Unique Set banayenge taaki ek hi item ka naam baar-baar list me na aaye
+            let uniqueItems = new Set();
+            inventory.forEach(item => {
+                // Aapke db.js ke mutabiq item 'category' me save hota hoga, agar 'name' me hai to wo bhi chalega
+                let itemName = item.category || item.name || item.item; 
+                if(itemName && !uniqueItems.has(itemName)) {
+                    uniqueItems.add(itemName);
+                    let option = document.createElement('option');
+                    option.value = itemName;
+                    itemList.appendChild(option);
+                }
+            });
+            console.log("Customers and Inventory Loaded Successfully.");
+
+        } catch (error) { 
+            console.error("Data fetch me error aaya:", error); 
+        }
     }
 
     // 3. Tab Switch Logic
@@ -163,19 +177,17 @@
         await generateNewBarcode(prefix);
     }
 
-    // 4. Auto Barcode Generation
+    // 4. Barcode Generate
     async function generateNewBarcode(prefix) {
         try {
-            // db.js ka function call kar rahe hain
             const newCode = await generateBarcode(prefix);
             document.getElementById('barcode').value = newCode;
         } catch(e) {
-            // Failsafe if db function gives error
             document.getElementById('barcode').value = prefix + Date.now().toString().slice(-4);
         }
     }
 
-    // 5. Auto Calculate Amount (Weight x Rate)
+    // 5. Amount Calculate
     function calculateAmount() {
         let weight = parseFloat(document.getElementById('weight').value) || 0;
         let rate = parseFloat(document.getElementById('rate').value) || 0;
@@ -186,18 +198,22 @@
         }
     }
 
-    // 6. Save Data
+    // 6. Data Save Karna
     async function handleSave() {
+        // Customer ka naam agar "Rahul - 9876543210" hai, to sirf naam ("Rahul") uthane ke liye
+        let rawCustName = document.getElementById('custName').value;
+        let cleanCustName = rawCustName.split(' - ')[0]; 
+
         const data = {
             barcode: document.getElementById('barcode').value,
             date: document.getElementById('entryDate').value,
-            customerName: document.getElementById('custName').value,
+            customerName: cleanCustName,
             item: document.getElementById('itemDetail').value,
             metal: document.getElementById('metalType').value,
             weight: parseFloat(document.getElementById('weight').value),
             rate: parseFloat(document.getElementById('rate').value),
             amount: parseFloat(document.getElementById('amount').value),
-            status: 'active'
+            status: 'active' // Orders ya Loans ke liye default status
         };
 
         if(!data.customerName || !data.amount) {
@@ -209,32 +225,27 @@
             await addItem(currentStore, data);
             alert("✅ Entry Saved Successfully!");
             
-            // Form clear aur nayi entry ke liye taiyar
             document.getElementById('itemDetail').value = '';
             document.getElementById('weight').value = '';
             document.getElementById('amount').value = '';
+            document.getElementById('custName').value = '';
             
-            await updateStats(); // Stats update karo
-            await generateNewBarcode(currentPrefix); // Naya barcode lao
+            await updateStats();
+            await generateNewBarcode(currentPrefix);
         } catch (error) {
             console.error("Save Error:", error);
             alert("❌ Error: Data save nahi hua.");
         }
     }
 
-    // 7. Live Dashboard Stats (Today's Opening/Closing summary)
+    // 7. Live Dashboard Stats Update
     async function updateStats() {
         let today = new Date().toISOString().split('T')[0];
-        
         try {
             let sales = await getAllItems('sales');
             let loans = await getAllItems('loans');
-            
-            let todayCash = 0;
-            let goldOut = 0;
-            let goldIn = 0;
+            let todayCash = 0, goldOut = 0, goldIn = 0;
 
-            // Calculating Sales (Cash In, Gold Out)
             sales.forEach(sale => {
                 if(sale.date === today) {
                     todayCash += (parseFloat(sale.amount) || 0);
@@ -242,19 +253,16 @@
                 }
             });
 
-            // Calculating Loans/Girvi (Cash Out, Gold In)
-            // Note: Loan amount should technically be Cash OUT. Adjust as per your accounting.
             loans.forEach(loan => {
                 if(loan.date === today) {
-                    todayCash -= (parseFloat(loan.amount) || 0); // Cash given out
-                    if(loan.metal === 'Gold') goldIn += (parseFloat(loan.weight) || 0); // Gold kept as girvi
+                    todayCash -= (parseFloat(loan.amount) || 0);
+                    if(loan.metal === 'Gold') goldIn += (parseFloat(loan.weight) || 0);
                 }
             });
 
             document.getElementById('todayCash').innerText = '₹ ' + todayCash.toLocaleString('en-IN');
             document.getElementById('todayGold').innerText = goldOut.toFixed(3) + ' g';
             document.getElementById('todayGoldIn').innerText = goldIn.toFixed(3) + ' g';
-            
         } catch (e) {
             console.log("Stats update error:", e);
         }
