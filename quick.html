@@ -6,68 +6,131 @@
     <title>Quick Action - Bharti Jewellers</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .master-container { padding: 20px; max-width: 500px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-around; }
-        .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; transition: 0.3s; }
-        .tab-btn.active { background: #d4af37; color: white; border-color: #d4af37; font-weight: bold; }
-        .form-group { margin-bottom: 15px; }
-        label { font-weight: bold; font-size: 0.9rem; color: #333; }
-        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
-        .save-btn { background: #28a745; color: white; font-size: 1.1rem; border: none; margin-top: 20px; cursor: pointer; font-weight: bold; }
+        .master-container { padding: 15px; max-width: 600px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        /* Live Balance Card */
+        .balance-board { display: flex; justify-content: space-between; background: #1a1a1a; color: #d4af37; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: center;}
+        .balance-item { flex: 1; }
+        .balance-item span { display: block; font-size: 0.8rem; color: #ccc; margin-bottom: 5px; }
+        .balance-item div { font-size: 1.2rem; }
+        
+        .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; font-weight: bold; transition: 0.3s; }
+        .tab-btn.active { background: #d4af37; color: white; border-color: #d4af37; }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 10px; }
+        .full-width { grid-column: span 2; }
+        
+        label { font-size: 0.85rem; color: #555; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-top: 4px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        input[readonly] { background: #e9ecef; color: #555; font-weight: bold; }
+        
+        .save-btn { width: 100%; background: #28a745; color: white; font-size: 1.1rem; border: none; padding: 12px; border-radius: 5px; margin-top: 15px; cursor: pointer; font-weight: bold; }
         .save-btn:hover { background: #218838; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
-    <h2 style="text-align: center; color: #d4af37;">⚡ Quick Entry</h2>
     
+    <!-- Live Balance Board -->
+    <div class="balance-board">
+        <div class="balance-item">
+            <span>Today's Cash (In)</span>
+            <div id="todayCash">₹0</div>
+        </div>
+        <div class="balance-item">
+            <span>Gold Out (Sale)</span>
+            <div id="todayGold">0.000 g</div>
+        </div>
+        <div class="balance-item">
+            <span>Gold In (Girvi/Old)</span>
+            <div id="todayGoldIn">0.000 g</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
     <div class="action-tabs">
-        <div id="tab-sales" class="tab-btn active" onclick="switchAction('sales')">Sale</div>
-        <div id="tab-orders" class="tab-btn" onclick="switchAction('orders')">Order</div>
-        <div id="tab-loans" class="tab-btn" onclick="switchAction('loans')">Girvi</div>
+        <div id="tab-sales" class="tab-btn active" onclick="switchAction('sales', 'SL-')">Sale (Bikri)</div>
+        <div id="tab-orders" class="tab-btn" onclick="switchAction('orders', 'OR-')">New Order</div>
+        <div id="tab-loans" class="tab-btn" onclick="switchAction('loans', 'LN-')">Girvi (Loan)</div>
     </div>
 
     <form id="quickForm">
-        <div class="form-group">
-            <label>Customer Name</label>
-            <!-- list="customerList" auto-suggest ke liye hai -->
-            <input type="text" id="custName" list="customerList" placeholder="Customer ka naam type karein..." required>
-            <datalist id="customerList"></datalist>
+        <div class="form-grid">
+            
+            <!-- Barcode & Date -->
+            <div class="form-group">
+                <label>Barcode / ID (Auto)</label>
+                <input type="text" id="barcode" readonly>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="entryDate" required>
+            </div>
+
+            <!-- Customer Details -->
+            <div class="form-group full-width">
+                <label>Customer Name</label>
+                <input type="text" id="custName" list="customerList" placeholder="Search or Type Name..." required>
+                <datalist id="customerList"></datalist>
+            </div>
+
+            <!-- Item & Metal -->
+            <div class="form-group">
+                <label id="mainLabel">Item Name</label>
+                <input type="text" id="itemDetail" placeholder="E.g. Gold Chain" required>
+            </div>
+            <div class="form-group">
+                <label>Metal</label>
+                <select id="metalType">
+                    <option value="Gold">Gold</option>
+                    <option value="Silver">Silver</option>
+                </select>
+            </div>
+
+            <!-- Weight, Rate & Amount -->
+            <div class="form-group">
+                <label>Net Weight (g)</label>
+                <input type="number" id="weight" step="0.001" placeholder="0.000" oninput="calculateAmount()" required>
+            </div>
+            <div class="form-group">
+                <label>Today's Rate (per g)</label>
+                <input type="number" id="rate" placeholder="₹ Rate" oninput="calculateAmount()" required>
+            </div>
+            
+            <div class="form-group full-width">
+                <label id="amountLabel">Total Amount (₹)</label>
+                <!-- Ye readonly nahi rakha taki agar bargaining ho to manually edit kar sakein -->
+                <input type="number" id="amount" placeholder="Total ₹" required style="font-size: 1.2rem; font-weight: bold; color: #d4af37;">
+            </div>
+
         </div>
 
-        <div class="form-group">
-            <label id="mainLabel">Item Details</label>
-            <input type="text" id="itemDetail" placeholder="Kya cheez hai?" required>
-        </div>
-
-        <div class="form-group">
-            <label>Weight (Grams)</label>
-            <input type="number" id="weight" step="0.001" placeholder="0.000" required>
-        </div>
-
-        <div class="form-group">
-            <label id="amountLabel">Total Amount / Loan Amount</label>
-            <input type="number" id="amount" placeholder="Amount ₹" required>
-        </div>
-
-        <button type="button" class="save-btn" onclick="handleSave()">Save Entry</button>
+        <button type="button" class="save-btn" onclick="handleSave()">💾 Save Entry</button>
     </form>
 </div>
 
-<!-- Database Files -->
 <script src="db.js"></script>
 
 <script>
     let currentStore = 'sales';
+    let currentPrefix = 'SL-';
 
-    // 1. Page load hote hi Customers ka data fetch karna
+    // 1. Page Load Initialization
     window.onload = async function() {
+        document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
+        await loadCustomers();
+        await updateStats();
+        await generateNewBarcode('SL-'); // Default Sale
+    };
+
+    // 2. Fetch Customers for Auto-suggest
+    async function loadCustomers() {
         try {
             const customers = await getAllItems('customers');
             const datalist = document.getElementById('customerList');
-            
-            // Har customer ka naam list me daalna
+            datalist.innerHTML = ''; // clear old
             customers.forEach(cust => {
                 if(cust.name) {
                     let option = document.createElement('option');
@@ -75,52 +138,125 @@
                     datalist.appendChild(option);
                 }
             });
-        } catch (error) {
-            console.error("Customers load karne me error:", error);
-        }
-    };
+        } catch (error) { console.error("Customer fetch error:", error); }
+    }
 
-    // 2. Tab Switch Karne ka Function
-    function switchAction(type) {
+    // 3. Tab Switch Logic
+    async function switchAction(type, prefix) {
         currentStore = type;
+        currentPrefix = prefix;
+        
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById('tab-' + type).classList.add('active');
         
         if(type === 'loans') {
-            document.getElementById('mainLabel').innerText = "Girvi Item (Security)";
-            document.getElementById('amountLabel').innerText = "Loan Amount Given";
+            document.getElementById('mainLabel').innerText = "Girvi Item";
+            document.getElementById('amountLabel').innerText = "Loan Given Amount (₹)";
         } else if(type === 'orders') {
             document.getElementById('mainLabel').innerText = "Order Item";
-            document.getElementById('amountLabel').innerText = "Advance/Total Amount";
+            document.getElementById('amountLabel').innerText = "Advance Deposit (₹)";
         } else {
-            document.getElementById('mainLabel').innerText = "Item Details";
-            document.getElementById('amountLabel').innerText = "Total Sale Amount";
+            document.getElementById('mainLabel').innerText = "Item Name";
+            document.getElementById('amountLabel').innerText = "Total Sale Amount (₹)";
+        }
+        
+        await generateNewBarcode(prefix);
+    }
+
+    // 4. Auto Barcode Generation
+    async function generateNewBarcode(prefix) {
+        try {
+            // db.js ka function call kar rahe hain
+            const newCode = await generateBarcode(prefix);
+            document.getElementById('barcode').value = newCode;
+        } catch(e) {
+            // Failsafe if db function gives error
+            document.getElementById('barcode').value = prefix + Date.now().toString().slice(-4);
         }
     }
 
-    // 3. Data Save Karne ka Function
+    // 5. Auto Calculate Amount (Weight x Rate)
+    function calculateAmount() {
+        let weight = parseFloat(document.getElementById('weight').value) || 0;
+        let rate = parseFloat(document.getElementById('rate').value) || 0;
+        
+        if(weight > 0 && rate > 0) {
+            let total = Math.round(weight * rate);
+            document.getElementById('amount').value = total;
+        }
+    }
+
+    // 6. Save Data
     async function handleSave() {
         const data = {
+            barcode: document.getElementById('barcode').value,
+            date: document.getElementById('entryDate').value,
             customerName: document.getElementById('custName').value,
             item: document.getElementById('itemDetail').value,
-            weight: document.getElementById('weight').value,
-            amount: document.getElementById('amount').value,
-            date: new Date().toISOString().split('T')[0],
-            status: 'completed'
+            metal: document.getElementById('metalType').value,
+            weight: parseFloat(document.getElementById('weight').value),
+            rate: parseFloat(document.getElementById('rate').value),
+            amount: parseFloat(document.getElementById('amount').value),
+            status: 'active'
         };
 
         if(!data.customerName || !data.amount) {
-            alert("Kripya Customer ka naam aur Amount zaroor bharein.");
+            alert("Customer Name aur Amount zaroori hai!");
             return;
         }
 
         try {
-            const resultId = await addItem(currentStore, data);
-            alert("Entry Successfully Saved!");
-            document.getElementById('quickForm').reset();
+            await addItem(currentStore, data);
+            alert("✅ Entry Saved Successfully!");
+            
+            // Form clear aur nayi entry ke liye taiyar
+            document.getElementById('itemDetail').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('amount').value = '';
+            
+            await updateStats(); // Stats update karo
+            await generateNewBarcode(currentPrefix); // Naya barcode lao
         } catch (error) {
-            console.error("Save failed:", error);
-            alert("Error: Data save nahi hua.");
+            console.error("Save Error:", error);
+            alert("❌ Error: Data save nahi hua.");
+        }
+    }
+
+    // 7. Live Dashboard Stats (Today's Opening/Closing summary)
+    async function updateStats() {
+        let today = new Date().toISOString().split('T')[0];
+        
+        try {
+            let sales = await getAllItems('sales');
+            let loans = await getAllItems('loans');
+            
+            let todayCash = 0;
+            let goldOut = 0;
+            let goldIn = 0;
+
+            // Calculating Sales (Cash In, Gold Out)
+            sales.forEach(sale => {
+                if(sale.date === today) {
+                    todayCash += (parseFloat(sale.amount) || 0);
+                    if(sale.metal === 'Gold') goldOut += (parseFloat(sale.weight) || 0);
+                }
+            });
+
+            // Calculating Loans/Girvi (Cash Out, Gold In)
+            // Note: Loan amount should technically be Cash OUT. Adjust as per your accounting.
+            loans.forEach(loan => {
+                if(loan.date === today) {
+                    todayCash -= (parseFloat(loan.amount) || 0); // Cash given out
+                    if(loan.metal === 'Gold') goldIn += (parseFloat(loan.weight) || 0); // Gold kept as girvi
+                }
+            });
+
+            document.getElementById('todayCash').innerText = '₹ ' + todayCash.toLocaleString('en-IN');
+            document.getElementById('todayGold').innerText = goldOut.toFixed(3) + ' g';
+            document.getElementById('todayGoldIn').innerText = goldIn.toFixed(3) + ' g';
+            
+        } catch (e) {
+            console.log("Stats update error:", e);
         }
     }
 </script>
