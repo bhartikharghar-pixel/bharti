@@ -148,7 +148,7 @@
                 <div class="stat-val" id="shopBalance" style="color: #1976d2;">₹0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-lbl">Active Loan Accounts</div>
+                <div class="stat-lbl">Active Loan Customers</div>
                 <div class="stat-val" id="totalCustomers">0</div>
             </div>
             <div class="stat-card" style="border-left-color: #2e7d32;">
@@ -160,7 +160,7 @@
         <div class="controls-row">
             <input type="text" id="loanListSearch" class="search-box" placeholder="Search by Customer Name or Mobile..." onkeyup="filterLoansList()">
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('active', this)">Active Loans</button>
+                <button class="tab active" onclick="switchTab('active', this)">Active Customers</button>
                 <button class="tab" onclick="switchTab('closed', this)">History</button>
             </div>
         </div>
@@ -168,6 +168,15 @@
         <div id="loans-list" class="loan-grid"></div>
 
         <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <!-- NEW: Customer Loans Modal -->
+    <div id="customerLoansModal" class="modal" style="z-index: 2150;">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('customerLoansModal')">&times;</button>
+            <h3 id="custListTitle">Customer Loans</h3>
+            <div id="customerLoansContainer" style="margin-top:15px; display:grid; gap:10px; max-height: 60vh; overflow-y: auto; padding-right: 5px;"></div>
+        </div>
     </div>
 
     <div id="createModal" class="modal">
@@ -234,7 +243,8 @@
         </div>
     </div>
 
-    <div id="viewModal" class="modal">
+    <!-- UPDATE: Increased z-index to overlay on top of Customer Loans Modal -->
+    <div id="viewModal" class="modal" style="z-index: 2200;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
             <h3 id="viewTitle" style="display:flex; justify-content:space-between; align-items:center; padding-right:40px;">
@@ -297,6 +307,7 @@
         let allCustomers = [];
         let currentTab = 'active';
         let goldRates = { rate22k: 0 };
+        let currentCustomerViewId = null;
 
         window.onload = async function() {
             const r = await getSetting('gold_rates');
@@ -330,14 +341,12 @@
             allCustomers = await getAllItems('customers');
         }
 
-        // Syncs missing months based on reducing balance
         function syncLoanLedger(l) {
             if (l.status !== 'active') return false; 
             
             const startDate = new Date(l.date);
             const now = new Date();
             
-            // Calculate how many months have passed since the loan started
             let elapsedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
             if (elapsedMonths < 0) elapsedMonths = 0;
             
@@ -352,7 +361,6 @@
                     missingMonthDate.setMonth(startDate.getMonth() + i);
                     const monthStr = missingMonthDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
                     
-                    // Core Reducing Balance Logic: Next month's interest is strictly based on previous month's CLOSING principal
                     const newOpenPrincipal = prevEntry.closingPrincipal;
                     const newInterest = Math.round((newOpenPrincipal * l.ratePercent) / 100);
                     
@@ -362,7 +370,7 @@
                         interestCharged: newInterest,
                         paidInterest: 0,
                         paidPrincipal: 0,
-                        closingPrincipal: newOpenPrincipal, // Remains the same until payment is made
+                        closingPrincipal: newOpenPrincipal, 
                         status: 'active'
                     });
                     updated = true;
@@ -382,7 +390,6 @@
             allLoans = await Promise.all(loans.map(async (l) => {
                 const c = customers.find(x => x.id == l.customerId);
                 
-                // AUTO-SYNC: Generate missing months & interest automatically
                 if (syncLoanLedger(l)) {
                     await updateItem('loans', l); 
                 }
@@ -408,6 +415,11 @@
             document.getElementById('totalOutstanding').innerText = "₹" + totalPrin.toLocaleString();
             document.getElementById('totalCustomers').innerText = activeCustIds.size;
             renderLoans();
+
+            // Refresh Customer Loans Modal if it's currently open
+            if(currentCustomerViewId) {
+                openCustomerLoans(currentCustomerViewId);
+            }
         }
 
         function renderLoans() {
@@ -415,61 +427,69 @@
             container.innerHTML = '';
             
             const term = document.getElementById('loanListSearch').value.toLowerCase();
-            const filtered = allLoans.filter(l => 
-                l.status === currentTab && 
-                (l.custName.toLowerCase().includes(term) || String(l.custMobile).includes(term))
-            );
+            
+            // GROUP LOANS BY CUSTOMER
+            let groups = {};
+            allLoans.forEach(l => {
+                if (!groups[l.customerId]) {
+                    groups[l.customerId] = {
+                        customerId: l.customerId,
+                        custName: l.custName,
+                        custMobile: l.custMobile,
+                        activeCount: 0,
+                        closedCount: 0,
+                        totalActivePrincipal: 0,
+                        loans: []
+                    };
+                }
+                groups[l.customerId].loans.push(l);
+                if (l.status === 'active') {
+                    groups[l.customerId].activeCount++;
+                    groups[l.customerId].totalActivePrincipal += l.currentPrincipal;
+                } else {
+                    groups[l.customerId].closedCount++;
+                }
+            });
 
-            if(filtered.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: span 3;">No ${currentTab} loans found.</div>`;
+            // FILTER GROUPS based on Search and Tabs
+            let filteredGroups = Object.values(groups).filter(g => {
+                let matchesSearch = g.custName.toLowerCase().includes(term) || String(g.custMobile).includes(term);
+                let matchesTab = false;
+                if (currentTab === 'active' && g.activeCount > 0) matchesTab = true;
+                if (currentTab === 'closed' && g.activeCount === 0 && g.closedCount > 0) matchesTab = true;
+                return matchesSearch && matchesTab;
+            });
+
+            if(filteredGroups.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: span 3;">No ${currentTab} customers found.</div>`;
                 return;
             }
 
-            filtered.sort((a,b) => {
-                if (currentTab === 'active') return new Date(a.dueDate) - new Date(b.dueDate);
-                return new Date(b.date) - new Date(a.date);
-            });
+            // SORT: Alphabetical by Name
+            filteredGroups.sort((a,b) => a.custName.localeCompare(b.custName)).forEach(g => {
+                
+                let borderTopColor = g.activeCount > 0 ? '#1976d2' : '#2e7d32';
+                let badgeClass = g.activeCount > 0 ? 'badge-active' : 'badge-closed';
+                let badgeText = g.activeCount > 0 ? `${g.activeCount} Active Loan(s)` : `All Closed`;
 
-            filtered.forEach(l => {
-                const now = new Date();
-                const due = new Date(l.dueDate);
-                let badgeClass = 'badge-active';
-                let badgeText = 'Active';
-
-                if(l.status === 'closed') {
-                    badgeClass = 'badge-closed'; badgeText = 'Closed';
-                } else if(due < now) {
-                    badgeClass = 'badge-overdue'; badgeText = 'Overdue';
-                }
-
-                const div = document.createElement('div');
-                div.className = `loan-card ${l.status}`;
-                div.innerHTML = `
-                    <div class="l-header">
-                        <div>
-                            <span class="l-cust">${l.custName}</span>
-                            <span class="l-sub">#${l.id} • ${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
+                container.innerHTML += `
+                    <div class="loan-card" style="border-top-color: ${borderTopColor};">
+                        <div class="l-header">
+                            <div>
+                                <span class="l-cust">${g.custName}</span>
+                                <span class="l-sub"><i class="fas fa-phone"></i> ${g.custMobile || 'N/A'}</span>
+                            </div>
+                            <span class="l-badge ${badgeClass}">${badgeText}</span>
                         </div>
-                        <span class="l-badge ${badgeClass}">${badgeText}</span>
-                    </div>
-                    
-                    <div class="l-amt">₹${l.currentPrincipal.toLocaleString()}</div>
-                    <div class="l-sub">${l.description}</div>
-                    
-                    <div class="l-meta" style="margin-top: 10px;">
-                         <span class="l-badge" style="background:#eee; color:#555;">${l.weight}g</span>
-                         <span class="l-badge" style="background:#eee; color:#555;">${l.purity}K</span>
-                         <span class="l-badge" style="background:#eee; color:#555;">${l.ratePercent}% Rate</span>
-                    </div>
-
-                    <div class="l-footer">
-                        <span style="font-size:0.8rem; color:${due < now ? '#c62828' : '#666'}; font-weight:bold;">
-                            Due: ${due.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}
-                        </span>
-                        <button class="btn-view" onclick="openLedger(${l.id})">Manage Ledger</button>
+                        
+                        <div class="l-amt">₹${g.totalActivePrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Active Principal</span></div>
+                        
+                        <div class="l-footer">
+                            <span style="font-size:0.85rem; color:#666; font-weight:600;">Total Records: ${g.loans.length}</span>
+                            <button class="btn-view" onclick="openCustomerLoans(${g.customerId})">View Details</button>
+                        </div>
                     </div>
                 `;
-                container.appendChild(div);
             });
         }
 
@@ -482,7 +502,63 @@
 
         function filterLoansList() { renderLoans(); }
 
-        // --- CUSTOMER SEARCH ---
+        // --- NEW: CUSTOMER LOANS MODAL LOGIC ---
+        function openCustomerLoans(custId) {
+            currentCustomerViewId = custId;
+            const custLoans = allLoans.filter(l => l.customerId == custId);
+            if(!custLoans.length) return;
+            
+            const custName = custLoans[0].custName;
+            document.getElementById('custListTitle').innerText = `${custName}'s Loan Portfolio`;
+            
+            const container = document.getElementById('customerLoansContainer');
+            container.innerHTML = '';
+            
+            // Sort: Active first, then Overdue, then Closed.
+            custLoans.sort((a,b) => {
+                if(a.status === 'active' && b.status !== 'active') return -1;
+                if(a.status !== 'active' && b.status === 'active') return 1;
+                return new Date(b.date) - new Date(a.date);
+            }).forEach(l => {
+                const due = new Date(l.dueDate);
+                const now = new Date();
+                let bClass = 'badge-active'; let bText = 'Active';
+                
+                if(l.status === 'closed') { 
+                    bClass = 'badge-closed'; bText = 'Closed'; 
+                } else if (due < now) { 
+                    bClass = 'badge-overdue'; bText = 'Overdue'; 
+                }
+                
+                container.innerHTML += `
+                    <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #e0e0e0; border-left: 4px solid ${l.status === 'active' ? '#1976d2' : '#2e7d32'};">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <strong style="color:#333;">#${l.id} • ${l.description}</strong>
+                            <span class="l-badge ${bClass}">${bText}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#555; margin-bottom:12px;">
+                            <span>Issued: ${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
+                            <span style="font-weight:bold; color:${l.status === 'active' ? '#D32F2F' : '#2e7d32'};">₹${l.currentPrincipal.toLocaleString()}</span>
+                        </div>
+                        <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin-top:0; background:#333;" onclick="openLedger(${l.id})">
+                            <i class="fas fa-book-open"></i> Manage Ledger
+                        </button>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('customerLoansModal').style.display = 'flex';
+        }
+
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if(id === 'customerLoansModal') {
+                currentCustomerViewId = null; // reset if closed completely
+            }
+        }
+
+
+        // --- CUSTOMER SEARCH (FOR CREATING NEW) ---
         function filterSelectableCustomers() {
             const term = document.getElementById('customerSearchInput').value.toLowerCase();
             const resultsDiv = document.getElementById('customerSearchResults');
@@ -521,13 +597,11 @@
             document.getElementById('loanWeight').value = '';
             document.getElementById('lblMaxLoan').innerText = '₹0';
 
-            // Set default date to today (IST logic for inputs)
             const today = new Date();
             const istOffset = 5.5 * 60 * 60 * 1000;
             const istDate = new Date(today.getTime() + istOffset);
             document.getElementById('loanStartDate').value = istDate.toISOString().split('T')[0];
         }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
         function calcMaxLoan() {
             const wt = parseFloat(document.getElementById('loanWeight').value) || 0;
@@ -537,12 +611,12 @@
             let ratePerGram = rate10g / 10; 
 
             let factor = 1.0;
-            if(purity == '18') factor = 0.818; // 18/22
-            if(purity == '24') factor = 1.09;  // 24/22
+            if(purity == '18') factor = 0.818; 
+            if(purity == '24') factor = 1.09;  
 
             const effectiveRate = ratePerGram * factor;
             const marketValue = wt * effectiveRate;
-            const maxLoan = Math.round(marketValue * 0.75); // 75% LTV
+            const maxLoan = Math.round(marketValue * 0.75); 
             
             document.getElementById('lblMaxLoan').innerText = "₹" + maxLoan.toLocaleString();
             
@@ -588,20 +662,18 @@
                 ratePercent: interest,
                 durationVal: durVal,
                 durationUnit: 'Months',
-                date: startDate.toISOString(), // Can be backdated
+                date: startDate.toISOString(), 
                 dueDate: dueDate.toISOString(),
                 status: 'active',
                 ledger: ledger
             };
 
-            // AUTO SYNC immediately for backdated loans so ledger is built up to today
             syncLoanLedger(loan);
 
             const loanId = await addItem('loans', loan);
 
-            // LOG CASHFLOW: Subtract loan amount from shop balance
             await addItem('cashflow', {
-                date: new Date().toISOString(), // The actual cash left the drawer today, or we just log it as today's entry to avoid messing up past rojmel
+                date: new Date().toISOString(), 
                 type: 'OUT',
                 mode: 'Cash',
                 category: 'New Gold Loan',
@@ -695,14 +767,11 @@
             store.get(currentLoanId).onsuccess = async (e) => {
                 const l = e.target.result;
                 
-                // Force sync internally just in case a background update was missed
                 syncLoanLedger(l); 
 
                 let remainingPay = payAmt;
                 let lastEntry = l.ledger[l.ledger.length - 1];
 
-                // 1. DEDUCT PENDING INTEREST FIRST 
-                // We loop through all past months and clear out any unpaid interest
                 let amountToDistribute = remainingPay;
                 for (let i = 0; i < l.ledger.length; i++) {
                     let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
@@ -718,9 +787,6 @@
                     }
                 }
                 
-                // 2. DEDUCT PRINCIPAL 
-                // Any remaining money pays down the principal on the CURRENT month's row.
-                // This guarantees the NEXT month starts with a smaller 'openPrincipal'.
                 let prinPay = amountToDistribute;
                 lastEntry.paidPrincipal += prinPay;
                 lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
@@ -736,7 +802,6 @@
 
                 store.put(l);
 
-                // LOG CASHFLOW
                 await addItem('cashflow', {
                     date: new Date().toISOString(),
                     type: 'IN',
@@ -749,7 +814,7 @@
                 alert("Payment Recorded & Cashbook Updated!");
                 document.getElementById('payAmount').value = '';
                 await loadCashBalance(); 
-                await loadLoans();
+                await loadLoans(); // This will auto refresh the customer list modal too
                 openLedger(currentLoanId); 
             };
         }
@@ -799,7 +864,7 @@
                 alert("Loan Settled & Closed. Cashbook Updated.");
                 closeModal('viewModal');
                 await loadCashBalance(); 
-                await loadLoans();
+                await loadLoans(); // Auto refreshes background data
             };
         }
 
