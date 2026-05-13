@@ -727,9 +727,6 @@
         let billingPayments = []; 
         let activeJobData = null; 
 
-        // ==========================================
-        // NEW: SMART WHATSAPP AUTOMATION ENGINE
-        // ==========================================
         function autoWhatsApp(orderData, stage) {
             if (!orderData.custMobile) {
                 showToast("No mobile number found for this customer.", "error");
@@ -766,7 +763,6 @@
                 window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
             }
         }
-        // ==========================================
 
         window.onload = async function() {
             const d = new Date(); d.setDate(d.getDate() + 10);
@@ -1156,7 +1152,6 @@
                     await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
                 }
                 
-                // Get customer data for WhatsApp Notification
                 const c = allCustomers.find(x => x.id == jobObj.customerId);
                 o.custName = c ? c.name : 'Customer';
                 o.custMobile = c ? c.mobile : '';
@@ -1165,7 +1160,6 @@
                 closeModal('newJobModal'); 
                 loadOrders();
 
-                // STAGE 1: TRIGGER INTAKE WHATSAPP
                 if(confirm("Order Saved Successfully!\n\nDo you want to send a WhatsApp Confirmation message to the customer?")) {
                     autoWhatsApp(o, 'intake');
                 }
@@ -1472,7 +1466,6 @@
                 closeModal('assignModal'); 
                 loadOrders(); 
 
-                // STAGE 2: TRIGGER KARIGAR WHATSAPP
                 if(confirm("Order Assigned to Karigar!\n\nSend an update to the customer on WhatsApp that processing has started?")) {
                     autoWhatsApp(activeJobData, 'karigar');
                 }
@@ -1511,6 +1504,9 @@
             }
         }
 
+        // ==========================================
+        // UPDATED: calcReceiveTotals
+        // ==========================================
         function calcReceiveTotals() {
             const o = activeJobData;
             const issuedFine = o.issuedFineWt || 0;
@@ -1527,8 +1523,8 @@
             } else {
                 wastageWt = wastageVal;
             }
+            
             const netWithWastage = finalNet + wastageWt;
-
             const purityFactor = getPurityFactor(o.purity);
             const finalFineWt = netWithWastage * purityFactor; 
             document.getElementById('rFinalFine').value = finalFineWt.toFixed(3);
@@ -1539,8 +1535,9 @@
             else if (diff < 0) { diffEl.value = `${diff.toFixed(3)} g (Karigar Returned / Karigar Owes)`; diffEl.style.color = "var(--receive-green)"; } 
             else { diffEl.value = "0.000 g (No Difference)"; diffEl.style.color = "#333"; }
 
+            // CUSTOMER COSTING: सिर्फ असल वजन (finalNet) पर कैलकुलेट करें
             const rate = o.lockedRate || 0;
-            const goldValue = netWithWastage * rate;
+            const goldValue = finalNet * rate;
             
             const actualMakingInput = parseFloat(document.getElementById('rActualMakingInput').value) || 0;
             const actualMakingType = document.getElementById('rActualMakingType').value;
@@ -1549,7 +1546,7 @@
             if(actualMakingType === 'pct') {
                 actualMaking = goldValue * (actualMakingInput / 100);
             } else {
-                actualMaking = netWithWastage * actualMakingInput;
+                actualMaking = finalNet * actualMakingInput;
             }
             
             document.getElementById('rActualMaking').value = Math.round(actualMaking);
@@ -1650,7 +1647,6 @@
                 closeModal('receiveModal'); 
                 loadOrders(); 
 
-                // STAGE 3: TRIGGER READY WHATSAPP
                 if(confirm("Order is now Ready in Stock!\n\nSend a final WhatsApp message to the customer with Weight and Pending Amount details?")) {
                     autoWhatsApp(activeJobData, 'ready');
                 }
@@ -1686,11 +1682,14 @@
             calcBillingAdjustment();
         }
 
+        // ==========================================
+        // UPDATED: calcBillingAdjustment
+        // ==========================================
         function calcBillingAdjustment() {
             const o = activeJobData;
             if(!o) return;
 
-            const finalWeightToUse = o.finalNetWithWastage || o.finalNet || o.netWt || 0; 
+            const finalWeightToUse = o.finalNet || o.netWt || 0; 
             
             const newRate = parseFloat(document.getElementById('billFinalRate').value) || 0;
             const goldValue = finalWeightToUse * newRate;
@@ -1755,6 +1754,9 @@
             document.getElementById('billRemainingDue').innerText = "₹" + Math.max(0, netDue - paidNow).toLocaleString();
         }
 
+        // ==========================================
+        // UPDATED: confirmFinalBill
+        // ==========================================
         async function confirmFinalBill() {
             const o = activeJobData;
             const finalCustId = document.getElementById('billCustId').value;
@@ -1790,7 +1792,7 @@
                     barcode: o.barcode, 
                     category: o.category, 
                     purity: o.purity, 
-                    weight: o.finalNetWithWastage || o.finalNet, 
+                    weight: o.finalNet || o.netWt || 0,
                     rate: o.lockedRate, 
                     makingAmount: o.finalMaking || 0, 
                     total: o.grandTotal 
@@ -1890,6 +1892,9 @@
             };
         }
 
+        // ==========================================
+        // UPDATED: printReceiptEngine
+        // ==========================================
         function printReceiptEngine(targetId = null) {
             const o = targetId ? allOrders.find(x => x.id === targetId) : activeJobData;
             if(!o) return;
@@ -1904,7 +1909,8 @@
                 </div>
                 <b>Customer:</b> ${o.custName}<br><b>Item:</b> ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
             
-            const wVal = isFinal ? (o.finalNetWithWastage || o.finalNet || o.finalGross) : o.grossWt;
+            // कस्टमर की रसीद में सिर्फ असली नेट वजन या ग्रॉस वजन जाएगा
+            const wVal = isFinal ? (o.finalNet || o.finalGross) : o.grossWt;
             const base = o.baseAmount || o.estAmount || 0;
             html += `<table style="width:100%; margin-top:15px;">
                 <tr><td>${o.category} (${o.purity})</td><td style="text-align:right">${wVal}g</td></tr>
