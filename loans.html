@@ -269,6 +269,7 @@
             </div>
 
             <input type="hidden" id="viewLoanId">
+            <input type="hidden" id="uiPendingIntAmount"> <!-- Hidden input for auto-split math -->
 
             <!-- JAMA / UDHAR TABLE -->
             <div class="t-ledger-container">
@@ -309,20 +310,35 @@
             <!-- PAYMENT BOX -->
             <div id="paymentBox" style="background:#fff; border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <h4 style="margin:0 0 10px 0; color:#333; font-size:0.95rem;">Receive Payment (Jama)</h4>
-                <div style="display:flex; gap:10px;">
-                    <input type="number" id="payAmount" placeholder="Amount (₹)" style="flex:1;">
+                
+                <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem; margin-bottom:2px;">Cash Amount</label>
+                        <input type="number" id="payCash" placeholder="₹ 0" oninput="calcTotalPay()" style="margin:0;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:0.75rem; margin-bottom:2px;">Bank / UPI Amount</label>
+                        <input type="number" id="payBank" placeholder="₹ 0" oninput="calcTotalPay()" style="margin:0;">
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size: 0.85rem; color: #555;">
+                        Total Received: <strong id="lblTotalPay" style="color:#000; font-size:1.1rem;">₹0</strong>
+                        <div id="paySplitText" style="color:#2e7d32; font-size:0.75rem; margin-top:2px; font-weight:600;"></div>
+                    </div>
                     <button class="btn-primary" style="margin:0; width:auto; background:#2e7d32; padding:10px 20px;" onclick="processPayment()">Record Jama</button>
                 </div>
             </div>
 
             <div style="display: flex; gap: 10px;">
                 <button class="btn-primary" id="btnWaReminder" style="margin:0; background:#25D366; color:#000; flex: 1;" onclick="sendLoanWhatsApp()"><i class="fab fa-whatsapp"></i> Send Reminder</button>
-                <button class="btn-primary" id="btnSettleClose" style="margin:0; background:#c62828; flex: 1;" onclick="closeAccount()">Receive Full & Close</button>
+                <button class="btn-primary" id="btnSettleClose" style="margin:0; background:#c62828; flex: 1;" onclick="fillSettleAmount()">Auto-Fill Settle Amount</button>
             </div>
         </div>
     </div>
 
-    <script src="db.js?v=37"></script>
+    <script src="db.js?v=38"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
 
@@ -347,7 +363,7 @@
                 const flows = await getAllItems('cashflow');
                 let totalCash = 0;
                 flows.forEach(f => {
-                    if (f.mode === 'Cash' || f.mode === 'UPI') { 
+                    if (f.mode === 'Cash' || f.mode === 'UPI' || f.mode === 'Bank') { 
                         if (f.type === 'IN') totalCash += parseFloat(f.amount);
                         if (f.type === 'OUT') totalCash -= parseFloat(f.amount);
                     }
@@ -363,17 +379,21 @@
             allCustomers = await getAllItems('customers');
         }
 
-        // REDUCING BALANCE SYNC (Maintains internal accurate math)
+        // --- DATE TO DATE INTEREST LOGIC ---
         function syncLoanLedger(l) {
             if (l.status !== 'active') return false; 
             
             const startDate = new Date(l.date);
             const now = new Date();
             
+            // Calculate strictly Date-to-Date elapsed months
             let elapsedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+            if (now.getDate() < startDate.getDate()) {
+                elapsedMonths--; // Abhi is mahine ki date nahi aayi hai
+            }
             if (elapsedMonths < 0) elapsedMonths = 0;
             
-            const expectedLedgerLength = elapsedMonths + 1;
+            const expectedLedgerLength = elapsedMonths + 1; // Month 0 (First day) is index 0
             
             if (l.ledger.length < expectedLedgerLength) {
                 let updated = false;
@@ -382,7 +402,7 @@
                     
                     const missingMonthDate = new Date(startDate);
                     missingMonthDate.setMonth(startDate.getMonth() + i);
-                    const monthStr = missingMonthDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+                    const monthStr = missingMonthDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                     
                     const newOpenPrincipal = prevEntry.closingPrincipal;
                     const newInterest = Math.round((newOpenPrincipal * l.ratePercent) / 100);
@@ -627,7 +647,7 @@
             let dueDate = new Date(startDate);
             dueDate.setMonth(dueDate.getMonth() + durVal);
 
-            const monthStr = startDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+            const monthStr = startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
             const firstMonthInterest = Math.round((amount * interest) / 100);
 
             const ledger = [{
@@ -653,7 +673,7 @@
                 dueDate: dueDate.toISOString(),
                 status: 'active',
                 ledger: ledger,
-                payments: [] // New explicit payments array for Jama side
+                payments: [] 
             };
 
             syncLoanLedger(loan);
@@ -670,7 +690,7 @@
             await loadLoans();
         }
 
-        // --- NEW: T-LEDGER VIEW LOGIC ---
+        // --- T-LEDGER VIEW LOGIC ---
         let currentLoanId = null;
 
         async function openLedger(id) {
@@ -690,6 +710,12 @@
                 document.getElementById('vItemDesc').innerText = l.description || 'Gold Item';
                 document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
 
+                // Reset Payment Boxes
+                document.getElementById('payCash').value = '';
+                document.getElementById('payBank').value = '';
+                document.getElementById('lblTotalPay').innerText = '₹0';
+                document.getElementById('paySplitText').innerText = '';
+
                 const uiJama = document.getElementById('uiJamaList');
                 const uiUdhar = document.getElementById('uiUdharList');
                 uiJama.innerHTML = ''; uiUdhar.innerHTML = '';
@@ -697,50 +723,74 @@
                 let totalUdhar = 0;
                 let totalJama = 0;
 
-                // 1. Build UDHAR (Right Side)
-                // First entry is the Initial Principal
+                // --- UDHAR (Right Side) ---
                 const startDateStr = new Date(l.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
                 uiUdhar.innerHTML += `
-                    <li class="ledger-row">
-                        <span>${startDateStr} (Principal)</span>
-                        <span>₹${l.amount.toLocaleString()}</span>
+                    <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
+                        <div style="display:flex; justify-content:space-between; width:100%;">
+                            <span>${startDateStr}</span>
+                            <span style="color:#c62828;">₹${l.amount.toLocaleString()}</span>
+                        </div>
+                        <div style="font-size:0.7rem; color:#666; margin-top:2px;">Principal (Mool)</div>
                     </li>
                 `;
                 totalUdhar += l.amount;
 
-                // Next entries are the Interest charged every month
+                let totalIntCharged = 0;
+                let totalIntPaid = 0;
+
                 l.ledger.forEach(row => {
+                    totalIntCharged += row.interestCharged;
+                    totalIntPaid += row.paidInterest;
+
                     if (row.interestCharged > 0) {
                         uiUdhar.innerHTML += `
-                            <li class="ledger-row">
-                                <span>${row.month} (Int)</span>
-                                <span>₹${row.interestCharged.toLocaleString()}</span>
+                            <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
+                                <div style="display:flex; justify-content:space-between; width:100%;">
+                                    <span>${row.month}</span>
+                                    <span style="color:#c62828;">₹${row.interestCharged.toLocaleString()}</span>
+                                </div>
+                                <div style="font-size:0.7rem; color:#666; margin-top:2px;">Interest (Byaj)</div>
                             </li>
                         `;
                         totalUdhar += row.interestCharged;
                     }
                 });
 
-                // 2. Build JAMA (Left Side)
+                // Calculate pending interest for auto-split math
+                let pendingInt = totalIntCharged - totalIntPaid;
+                document.getElementById('uiPendingIntAmount').value = pendingInt;
+
+                // --- JAMA (Left Side) ---
                 let paymentsList = l.payments || [];
                 paymentsList.forEach(p => {
                     const pDateStr = new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+                    
+                    let modes = [];
+                    if(p.cashAmount > 0) modes.push(`Cash: ${p.cashAmount}`);
+                    if(p.bankAmount > 0) modes.push(`Bank: ${p.bankAmount}`);
+                    
                     uiJama.innerHTML += `
-                        <li class="ledger-row">
-                            <span>${pDateStr} (Paid)</span>
-                            <span>₹${p.amount.toLocaleString()}</span>
+                        <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
+                            <div style="display:flex; justify-content:space-between; width:100%;">
+                                <span>${pDateStr}</span>
+                                <span style="color:#2e7d32;">₹${p.totalAmount.toLocaleString()}</span>
+                            </div>
+                            <div style="font-size:0.7rem; color:#666; margin-top:3px; display:flex; justify-content:space-between; width:100%;">
+                                <span>${modes.join(' | ')}</span>
+                                <span>Int: ${p.interestPaid || 0} | Prin: ${p.principalPaid || 0}</span>
+                            </div>
                         </li>
                     `;
-                    totalJama += p.amount;
+                    totalJama += p.totalAmount;
                 });
 
-                // Set Totals
+                // Totals & Net Payable
                 document.getElementById('uiTotalJama').innerText = `₹${totalJama.toLocaleString()}`;
                 document.getElementById('uiTotalUdhar').innerText = `₹${totalUdhar.toLocaleString()}`;
                 
-                // Set Net Payable
                 let netPayable = totalUdhar - totalJama;
-                if(netPayable < 0) netPayable = 0; // Failsafe
+                if(netPayable < 0) netPayable = 0; 
                 
                 const netUI = document.getElementById('uiNetPayable');
                 netUI.innerText = `₹${netPayable.toLocaleString()}`;
@@ -762,9 +812,47 @@
             };
         }
 
+        // --- PAYMENT & AUTO-SPLIT LOGIC ---
+        function calcTotalPay() {
+            const cash = parseFloat(document.getElementById('payCash').value) || 0;
+            const bank = parseFloat(document.getElementById('payBank').value) || 0;
+            const total = cash + bank;
+            document.getElementById('lblTotalPay').innerText = `₹${total.toLocaleString()}`;
+
+            let pendingInt = parseFloat(document.getElementById('uiPendingIntAmount').value) || 0;
+            let toInt = 0;
+            let toPrin = 0;
+
+            if (total <= pendingInt) {
+                toInt = total;
+            } else {
+                toInt = pendingInt;
+                toPrin = total - pendingInt;
+            }
+
+            if (total > 0) {
+                document.getElementById('paySplitText').innerText = `(Interest Paid: ₹${toInt.toLocaleString()} | Principal Paid: ₹${toPrin.toLocaleString()})`;
+            } else {
+                document.getElementById('paySplitText').innerText = '';
+            }
+        }
+
+        function fillSettleAmount() {
+            const netAmtStr = document.getElementById('uiNetPayable').innerText.replace('₹','').replace(/,/g,'').trim();
+            if(netAmtStr === 'Closed / Settled') return;
+            
+            document.getElementById('payCash').value = parseFloat(netAmtStr);
+            document.getElementById('payBank').value = '';
+            calcTotalPay();
+            alert("Settle amount auto-filled in 'Cash' box.\nYou can adjust Cash/Bank values if needed, then click 'Record Jama' to close the account.");
+        }
+
         async function processPayment() {
-            const payAmt = parseFloat(document.getElementById('payAmount').value);
-            if(!payAmt || payAmt <= 0) return alert("Enter valid Amount");
+            const cashAmt = parseFloat(document.getElementById('payCash').value) || 0;
+            const bankAmt = parseFloat(document.getElementById('payBank').value) || 0;
+            const payAmt = cashAmt + bankAmt;
+
+            if(payAmt <= 0) return alert("Please enter valid Cash or Bank amount.");
 
             const db = await dbPromise;
             const tx = db.transaction('loans', 'readwrite');
@@ -774,15 +862,38 @@
                 const l = e.target.result;
                 syncLoanLedger(l); 
 
-                // Add to new Payments array (JAMA)
+                // Calculate Pending Interest again strictly for safety
+                let totalIntCharged = 0;
+                let totalIntPaid = 0;
+                l.ledger.forEach(r => {
+                    totalIntCharged += r.interestCharged;
+                    totalIntPaid += r.paidInterest;
+                });
+                let pendingInt = totalIntCharged - totalIntPaid;
+
+                let toInt = 0;
+                let toPrin = 0;
+                if (payAmt <= pendingInt) {
+                    toInt = payAmt;
+                    toPrin = 0;
+                } else {
+                    toInt = pendingInt;
+                    toPrin = payAmt - pendingInt;
+                }
+
+                // Add to Payments array (JAMA)
                 if (!l.payments) l.payments = [];
-                l.payments.push({ date: new Date().toISOString(), amount: payAmt, mode: 'Cash' });
+                l.payments.push({ 
+                    date: new Date().toISOString(), 
+                    totalAmount: payAmt, 
+                    cashAmount: cashAmt, 
+                    bankAmount: bankAmt,
+                    interestPaid: toInt,
+                    principalPaid: toPrin
+                });
 
-                // Internal reducing balance math logic
-                let remainingPay = payAmt;
-                let lastEntry = l.ledger[l.ledger.length - 1];
-
-                let amountToDistribute = remainingPay;
+                // Internal reducing balance math distribution
+                let amountToDistribute = payAmt;
                 for (let i = 0; i < l.ledger.length; i++) {
                     let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
                     if (unpaidInt > 0) {
@@ -797,8 +908,8 @@
                     }
                 }
                 
-                let prinPay = amountToDistribute;
-                lastEntry.paidPrincipal += prinPay;
+                let lastEntry = l.ledger[l.ledger.length - 1];
+                lastEntry.paidPrincipal += amountToDistribute;
                 lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
 
                 if (lastEntry.closingPrincipal <= 0) {
@@ -809,61 +920,24 @@
 
                 store.put(l);
 
-                await addItem('cashflow', {
-                    date: new Date().toISOString(), type: 'IN', mode: 'Cash',
-                    category: 'Loan Payment', amount: payAmt, note: `Jama received for Loan #${currentLoanId}`
-                });
-
-                document.getElementById('payAmount').value = '';
-                await loadCashBalance(); 
-                await loadLoans(); 
-                openLedger(currentLoanId); // Refresh UI to show new Jama entry instantly
-            };
-        }
-
-        async function closeAccount() {
-            const settleAmtStr = document.getElementById('uiNetPayable').innerText.replace('₹','').replace(/,/g,'').trim();
-            if(settleAmtStr === 'Closed / Settled') return;
-            const settleAmt = parseFloat(settleAmtStr);
-
-            if(!confirm(`Settle Loan?\n\nCustomer must pay: ₹${settleAmt.toLocaleString()}\n\nThis will record a final Jama of this amount, close the account, and log it in the Cashbook.`)) return;
-
-            const db = await dbPromise;
-            const tx = db.transaction('loans', 'readwrite');
-            const store = tx.objectStore('loans');
-            
-            store.get(currentLoanId).onsuccess = async (e) => {
-                const l = e.target.result;
-                
-                const lastEntry = l.ledger[l.ledger.length - 1];
-                let totalPendingInterest = 0;
-                l.ledger.forEach(r => totalPendingInterest += (r.interestCharged - r.paidInterest));
-                
-                const pendingPrin = lastEntry.closingPrincipal;
-
-                lastEntry.paidInterest += totalPendingInterest;
-                lastEntry.paidPrincipal += pendingPrin;
-                lastEntry.closingPrincipal = 0;
-                
-                l.status = 'closed';
-                l.closeDate = new Date().toISOString();
-                
-                if (!l.payments) l.payments = [];
-                l.payments.push({ date: new Date().toISOString(), amount: settleAmt, mode: 'Cash', type: 'Full Settlement' });
-
-                store.put(l);
-                
-                if (settleAmt > 0) {
+                // Add separate entries to Cashbook for Cash vs Bank to keep Rojmel perfect
+                if(cashAmt > 0) {
                     await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'IN', mode: 'Cash',
-                        category: 'Loan Closed', amount: settleAmt, note: `Final settlement Jama for Loan #${currentLoanId}`
+                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${currentLoanId}`
+                    });
+                }
+                if(bankAmt > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(), type: 'IN', mode: 'Bank',
+                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${currentLoanId}`
                     });
                 }
 
-                alert("Loan Settled & Closed. Cashbook Updated.");
-                closeModal('viewModal');
+                alert("Payment Recorded & Cashbook Updated!");
                 await loadCashBalance(); 
                 await loadLoans(); 
+                openLedger(currentLoanId); // Refresh UI to show new Jama entry instantly
             };
         }
 
@@ -875,13 +949,13 @@
             const totalUdhar = document.getElementById('uiTotalUdhar').innerText;
             const totalJama = document.getElementById('uiTotalJama').innerText;
 
-            let msg = `Hello ${l.custName},\n\nThis is a reminder from *Bharti Jewellers* regarding your Gold Loan (A/C #${l.id}).\n\n`;
+            let msg = `Hello ${l.custName},\n\nThis is a summary of your Gold Loan (A/C #${l.id}) from *Bharti Jewellers*.\n\n`;
             msg += `*Account Summary:*\n`;
-            msg += `• Total Udhar (Principal + Int): ${totalUdhar}\n`;
+            msg += `• Total Udhar (Prin + Int): ${totalUdhar}\n`;
             msg += `• Total Jama (Paid): ${totalJama}\n`;
             msg += `------------------------\n`;
             msg += `*Net Payable Amount: ${settleAmt}*\n\n`;
-            msg += `Please arrange for payment to maintain your account. Ignore if already paid.\n\nRegards,\n*Bharti Jewellers*`;
+            msg += `Please arrange for payment to maintain your account actively. Ignore if already paid.\n\nRegards,\n*Bharti Jewellers*`;
             
             let phone = l.custMobile.toString().replace(/\D/g, ''); 
             if(phone.length === 10) phone = '+91' + phone;
