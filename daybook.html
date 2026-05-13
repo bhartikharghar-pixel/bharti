@@ -799,6 +799,48 @@
             setInner('mStatGold', (netMGold > 0 ? "+" : "") + netMGold.toFixed(3) + "g");
             setInner('mStatSilver', (netMSilver > 0 ? "+" : "") + netMSilver.toFixed(3) + "g");
 
+            // CORE METAL LOGGING FUNCTION
+            const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive, metalCategory = 'NET', skipDaybookUI = false) => {
+                if (amt <= 0) return;
+                let d = getSafeDate(date);
+                let signedAmt = isPositive ? Math.abs(amt) : -Math.abs(amt);
+                
+                if (d < selectedDateStr) {
+                    if (metalCategory === 'OLD') openOldGold += signedAmt;
+                    else if (metalCategory === 'MIX') openMixMetal += signedAmt;
+                    else openMetal += signedAmt;
+                } else if (d === selectedDateStr) {
+                    if (metalCategory === 'OLD') {
+                        if (signedAmt > 0) todayOldGoldIn += Math.abs(signedAmt);
+                        else todayOldGoldOut += Math.abs(signedAmt);
+                    } else if (metalCategory === 'MIX') {
+                        todayMixMetalNetDB += signedAmt;
+                        if (signedAmt > 0) todayMixMetalIn += Math.abs(signedAmt);
+                        else todayMixMetalOut += Math.abs(signedAmt);
+                    } else {
+                        todayMetalNetDB += signedAmt;
+                        if (signedAmt > 0) todayMetalIn += Math.abs(signedAmt);
+                        else todayMetalOut += Math.abs(signedAmt);
+                    }
+
+                    metalLedgerData.push({
+                        time: getTime(date),
+                        title: bucketTitle,
+                        desc: source,
+                        party: party,
+                        ref: ref,
+                        side: bucketSide, 
+                        category: metalCategory, 
+                        amount: signedAmt
+                    });
+
+                    // Agar manually combined card add nahi kar rahe, tabhi standalone metal card show karo
+                    if (!skipDaybookUI) {
+                        addRojmel(bucketSide, bucketId, bucketTitle, icon, color, 0, signedAmt, { time: getTime(date), ref, party, partyType: '', desc: source, cash: 0, metal: signedAmt, mode: '-', dataType: 'metal', raw: { metalCategory } }, true);
+                    }
+                }
+            };
+
             sales.forEach(s => {
                 const billCreatedToday = (getSafeDate(s.date) === selectedDateStr);
                 const isCancelled = s.status === 'cancelled';
@@ -838,19 +880,46 @@
                 let udhari = getSafeNum(s.pendingAmount);
                 
                 let itemOldVal = 0;
+                let metalIn = 0;
+                let metalOut = 0;
+
                 (s.items || []).forEach(i => {
+                    let net = getSafeNet(i);
                     let isItemOld = i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
                     if (isItemOld) {
                         itemOldVal += getSafeNum(i.amount || i.total || i.price || i.value || i.netAmount || i.cash);
+                        metalIn += net; 
+                    } else { 
+                        metalOut += net; 
                     }
                 });
+
+                if (metalIn === 0) metalIn = getSafeNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
+
                 let oldVal = getSafeNum(s.oldGoldDeduction || s.oldGoldValue || s.oldGoldAmount || s.oldGoldAmt || s.exchangeValue);
                 if (oldVal === 0 && itemOldVal > 0) oldVal = itemOldVal;
 
                 let netPaid = getSafeNum(s.paidAmount); 
                 let displaySaleIn = gTotal + oldVal; 
 
+                if (getSafeDate(s.date) <= selectedDateStr) {
+                    if (metalIn > 0) {
+                        logMetal(s.date, metalIn, 'OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', 'POS Old Gold Exchange / Exchanged in Bill', party, ref, true, 'OLD', true);
+                    }
+                    if (!isOrderBill && metalOut > 0) {
+                        logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales (Full Bill)', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'NET', true);
+                    } else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') {
+                        logMetal(s.date, metalOut, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered (Metal Sold)', party, ref, false, 'NET', true);
+                    }
+                }
+
                 if (isCancelled) {
+                    if (cancelDate === selectedDateStr) {
+                        if (metalIn > 0) logMetal(selectedDateStr, metalIn, 'IN', 'sales_oldgold_cancel', 'Old Gold Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', 'Sale Cancelled (Exchange Returned)', party, ref, false, 'OLD', true);
+                        if (!isOrderBill && metalOut > 0) logMetal(selectedDateStr, metalOut, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Items Returned)', party, ref, true, 'NET', true);
+                        else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled (Items Returned)', party, ref, true, 'NET', true);
+                    }
+
                     todayPayments.forEach(p => {
                         addRojmel('IN', 'sales_receipts', 'Cancelled Bill Receipts', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, 
                             { ...txBase, time: getTime(s.date), ref, desc: `Initial Receipt (Bill Cancelled Later)`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true);
@@ -866,10 +935,15 @@
                                 modesOut.push(f.mode);
                             }
                         });
-                        if (refundCash > 0) {
+                        
+                        if (refundCash > 0 || metalOut > 0) {
                             let mStr = [...new Set(modesOut)].join(', ') || 'Cash';
-                            addRojmel('OUT', 'sales_refund', 'Cancelled Bill Refund', 'fas fa-undo', 'var(--out-red)', refundCash, 0, 
-                                { ...txBase, time: getTime(cancelFlows.length > 0 ? cancelFlows[0].date : s.date), ref, desc: `Bill Cancelled. Cash Refunded.`, cash: refundCash, metal: 0, mode: mStr, dataType: 'refund' }, true);
+                            addRojmel('OUT', 'sales_refund', 'Cancelled Bill Refund (Items Returned)', 'fas fa-undo', 'var(--out-red)', refundCash, metalOut, 
+                                { ...txBase, time: getTime(cancelFlows.length > 0 ? cancelFlows[0].date : s.date), ref, desc: `Bill Cancelled. Cash Refunded & Metal Returned.`, cash: refundCash, metal: metalOut, mode: mStr, dataType: 'refund' }, true);
+                        }
+                        if (metalIn > 0) {
+                            addRojmel('IN', 'sales_oldgold_cancel', 'Old Gold Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', 0, -metalIn, 
+                                { ...txBase, time: getTime(s.date), ref, desc: `Sale Cancelled (Old Gold Returned)`, cash: 0, metal: -metalIn, mode: '-', dataType: 'oldgold_cancel' }, true);
                         }
                     }
                 } else if (billCreatedToday) {
@@ -889,12 +963,14 @@
                     if (displaySaleIn > 0) {
                         let mStr = [...new Set(todayPayments.map(p => p.mode))].join(', ') || s.mode || 'Cash';
                         let title = isOrderBill ? 'Custom Order / Repair (Full Gross Bill)' : 'Customer Sales (Full Gross Bill)';
-                        addRojmel('IN', 'sales', title, 'fas fa-cash-register', 'var(--in-green)', displaySaleIn, 0, 
-                            { ...txBase, time: getTime(s.date), ref, desc: descHTML, cash: displaySaleIn, metal: 0, mode: mStr, dataType: 'sale_full' }, true);
+                        // Show negative metal because we are giving metal OUT and getting cash IN
+                        addRojmel('IN', 'sales', title, 'fas fa-cash-register', 'var(--in-green)', displaySaleIn, -metalOut, 
+                            { ...txBase, time: getTime(s.date), ref, desc: descHTML, cash: displaySaleIn, metal: -metalOut, mode: mStr, dataType: 'sale_full' }, true);
                     }
-                    if (oldVal > 0) {
-                        addRojmel('OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', oldVal, 0, 
-                            { ...txBase, time: getTime(s.date), ref, desc: `Old Gold Value Deducted from Gross Bill`, cash: oldVal, metal: 0, mode: '-', dataType: 'oldgold_adj' }, true);
+                    if (oldVal > 0 || metalIn > 0) {
+                        // Discounting the bill (Cash OUT equivalent) and receiving metal (Metal IN)
+                        addRojmel('OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', oldVal, metalIn, 
+                            { ...txBase, time: getTime(s.date), ref, desc: `Old Gold Value Deducted from Gross Bill`, cash: oldVal, metal: metalIn, mode: '-', dataType: 'oldgold_adj' }, true);
                     }
                     if (udhari > 0) {
                         addRojmel('OUT', 'sales_due', 'Customer Udhaari (Credit Given)', 'fas fa-book', '#f57c00', udhari, 0, 
@@ -935,11 +1011,23 @@
                 let pType = String(p.type || '').toLowerCase();
                 let isFixed = (pType === 'fixed' || pType === '' || pType === 'undefined');
 
+                let mIn = 0;
+                let rootNet = getSafeNum(p.totalNetWeight || p.totalNetWt || p.netWt || p.netWeight);
+                let rootGross = getSafeNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight || p.totalWeight || p.weight);
+                let rootStone = getSafeNum(p.totalStoneWeight || p.stoneWt || p.stoneWeight);
+                
+                if (rootNet > 0) mIn = rootNet;
+                else if (rootGross > 0) mIn = rootGross - rootStone;
+                else if(p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
+                else mIn = getSafeNum(p.totalWeight || p.weight); 
+
+                logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', party, ref, true, 'NET', true);
+
                 if (billCreatedToday) {
-                    if (isFixed && pTotal > 0) {
+                    if ((isFixed && pTotal > 0) || mIn > 0) {
                         let mStr = p.paymentMode || p.mode || 'Cash';
-                        addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, 0, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: 0, mode: mStr, dataType: 'purchase_full' }, true);
+                        addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, mIn, 
+                            { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: mIn, mode: mStr, dataType: 'purchase_full' }, true);
                         
                         if (dueAmt > 0) {
                             addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, 
@@ -999,14 +1087,13 @@
                     let isCancellationFlow = cat.includes('cancellation') || note.includes('reversal');
                     
                     let isOldGoldFlow = (cat.includes('old gold') || cat.includes('old') || cat.includes('ur-') || note.includes('ur-'));
-                    let isLoanFlow = (cat.includes('loan') || note.includes('ln-')); // LOAN FLOW RECOGNITION
+                    let isLoanFlow = (cat.includes('loan') || note.includes('ln-'));
 
                     let linkedSale = sales.find(s => s.invoiceNo && note.includes(s.invoiceNo.toLowerCase()));
                     let linkedPurchase = purchases.find(p => note.includes(`pur-${p.id}`));
                     let linkedOldGold = oldGold.find(o => note.includes(`ur-${o.id}`) || note.includes(`melt-${o.id}`));
-                    let linkedLoan = loans.find(l => note.includes(`ln-${l.id}`)); // LINKED LOAN CHECK
+                    let linkedLoan = loans.find(l => note.includes(`ln-${l.id}`));
 
-                    // GUARANTEE: If a loan is officially linked, we drop it from here and handle it directly in loans.forEach to prevent duplicate double counts
                     if (linkedSale || linkedPurchase || linkedOldGold || linkedLoan || isCancellationFlow || (isSaleFlow && !isOrder) || (isPurchaseFlow && !isOrder) || isOldGoldFlow || isLoanFlow) {
                         if (linkedSale && f.mode && f.mode.includes(',')) {
                             if(linkedSale.payments && linkedSale.payments.length > 0) {
@@ -1017,7 +1104,7 @@
                             }
                         }
                         addPhysicalFlow(amt, f.mode, fType);
-                        return; // Skip Daybook UI rendering here
+                        return; // Skip drawing UI here, it's drawn in their specific modules combined
                     }
 
                     addPhysicalFlow(amt, f.mode, fType);
@@ -1097,104 +1184,6 @@
                 }
             });
 
-            // CORE METAL LOGGING FUNCTION
-            const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive, metalCategory = 'NET') => {
-                if (amt <= 0) return;
-                let d = getSafeDate(date);
-                let signedAmt = isPositive ? Math.abs(amt) : -Math.abs(amt);
-                
-                if (d < selectedDateStr) {
-                    if (metalCategory === 'OLD') openOldGold += signedAmt;
-                    else if (metalCategory === 'MIX') openMixMetal += signedAmt;
-                    else openMetal += signedAmt;
-                } else if (d === selectedDateStr) {
-                    if (metalCategory === 'OLD') {
-                        if (signedAmt > 0) todayOldGoldIn += Math.abs(signedAmt);
-                        else todayOldGoldOut += Math.abs(signedAmt);
-                    } else if (metalCategory === 'MIX') {
-                        todayMixMetalNetDB += signedAmt;
-                        if (signedAmt > 0) todayMixMetalIn += Math.abs(signedAmt);
-                        else todayMixMetalOut += Math.abs(signedAmt);
-                    } else {
-                        todayMetalNetDB += signedAmt;
-                        if (signedAmt > 0) todayMetalIn += Math.abs(signedAmt);
-                        else todayMetalOut += Math.abs(signedAmt);
-                    }
-
-                    metalLedgerData.push({
-                        time: getTime(date),
-                        title: bucketTitle,
-                        desc: source,
-                        party: party,
-                        ref: ref,
-                        side: bucketSide, 
-                        category: metalCategory, 
-                        amount: signedAmt
-                    });
-
-                    addRojmel(bucketSide, bucketId, bucketTitle, icon, color, 0, signedAmt, { time: getTime(date), ref, party, partyType: '', desc: source, cash: 0, metal: signedAmt, mode: '-', dataType: 'metal', raw: { metalCategory } }, true);
-                }
-            };
-
-            sales.forEach(s => {
-                let cancelDate = null;
-                if (s.status === 'cancelled') {
-                    const cFlow = cFlows.find(f => f.category && f.category.includes('Cancellation') && String(f.note).includes(s.id));
-                    if (cFlow) cancelDate = getSafeDate(cFlow.date);
-                    else cancelDate = getSafeDate(s.date); 
-                }
-
-                if (cancelDate && cancelDate < selectedDateStr) return; 
-
-                let isOrderBill = s.jobType === 'Repair' || s.jobType === 'Order' || (s.items && s.items.some(i => String(i.id).startsWith('rep_') || String(i.source).startsWith('order_')));
-                let ref = s.invoiceNo || `INV-${s.id}`;
-                const party = getCustName(s.customerId);
-
-                let metalIn = getSafeNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
-                let metalOut = 0;
-                
-                (s.items || []).forEach(i => {
-                    let net = getSafeNet(i);
-                    let isItemOld = i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
-                    if (isItemOld) {
-                        metalIn += net; 
-                    } else { 
-                        metalOut += net; 
-                    }
-                });
-
-                if (getSafeDate(s.date) <= selectedDateStr) {
-                    if (metalIn > 0) {
-                        logMetal(s.date, metalIn, 'OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', 'POS Old Gold Exchange / Exchanged in Bill', party, ref, true, 'OLD');
-                    }
-
-                    if (!isOrderBill) {
-                        logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales (Full Bill)', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'NET');
-                    } else {
-                        if (s.jobType !== 'Repair') {
-                            logMetal(s.date, metalOut, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered (Metal Sold)', party, ref, false, 'NET');
-                        }
-                    }
-                }
-
-                if (cancelDate === selectedDateStr) {
-                    if (metalIn > 0) {
-                        logMetal(selectedDateStr, metalIn, 'IN', 'sales_oldgold_cancel', 'Old Gold Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', 'Sale Cancelled (Exchange Returned)', party, ref, false, 'OLD');
-                    }
-
-                    if (!isOrderBill) {
-                        logMetal(selectedDateStr, metalOut, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Items Returned)', party, ref, true, 'NET');
-                    } else {
-                        if (s.jobType !== 'Repair') {
-                            logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled (Items Returned)', party, ref, true, 'NET');
-                        }
-                    }
-                }
-            });
-
-            // ==========================================
-            // ORDERS METAL FLOW (KARIGAR ASSIGN/RECEIVE)
-            // ==========================================
             orders.forEach(o => {
                 let cancelDate = null;
                 const invoiceNo = o.invoiceNo || (o.jobType === 'Repair' ? 'ORD-INVR' + String(o.id).padStart(3, '0') : 'ORD-INV' + String(o.id).padStart(3, '0'));
@@ -1212,8 +1201,6 @@
                     let shopIssued = getSafeNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
                     let returnedRaw = getSafeNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
                     let actualLoss = getSafeNum(o.repairMeta?.actualLoss);
-                    let allowedLoss = getSafeNum(o.repairMeta?.allowedLoss);
-                    let excessLoss = getSafeNum(o.repairMeta?.excessLoss);
 
                     let issueDate = o.repairMeta?.issuedDate;
                     if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
@@ -1247,7 +1234,6 @@
                     }
 
                     let karigarIssuedWt = getSafeNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
-                    
                     let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
                     let issueTitle = o.sourceStockId ? 'Inv Metal Issued (Karigar)' : 'Mix Metal Issued (Karigar)';
                     let issueDesc = o.sourceStockId ? `Inventory Metal Assigned to Karigar (For ${partyName})` : `Mix Metal / Melted Slab Assigned to Karigar (For ${partyName})`;
@@ -1268,20 +1254,6 @@
                         }
                     }
                 }
-            });
-
-            purchases.forEach(p => {
-                let mIn = 0;
-                let rootNet = getSafeNum(p.totalNetWeight || p.totalNetWt || p.netWt || p.netWeight);
-                let rootGross = getSafeNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight || p.totalWeight || p.weight);
-                let rootStone = getSafeNum(p.totalStoneWeight || p.stoneWt || p.stoneWeight);
-                
-                if (rootNet > 0) mIn = rootNet;
-                else if (rootGross > 0) mIn = rootGross - rootStone;
-                else if(p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
-                else mIn = getSafeNum(p.totalWeight || p.weight); 
-                
-                logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true, 'NET');
             });
 
             oldGold.forEach(o => {
@@ -1318,10 +1290,12 @@
                         let mStr = o.paymentMode || o.mode || 'Cash';
                         let isCreatedToday = getSafeDate(o.date) === selectedDateStr;
 
+                        logMetal(o.date, netWt, 'OUT', 'oldgold_out', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', 'Direct Old Gold Buy', partyName, ref, true, 'OLD', true);
+
                         if (isCreatedToday) {
-                            if (ogAmt > 0) {
-                                addRojmel('OUT', 'oldgold_out', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', ogAmt, 0, 
-                                    { time: getTime(o.date), ref, party: partyName, partyType: 'Customer', desc: 'Direct Old Gold Buy (Cash Paid)', cash: ogAmt, metal: 0, mode: mStr, dataType: 'oldgold_buy', raw: o }, true);
+                            if (ogAmt > 0 || netWt > 0) {
+                                addRojmel('OUT', 'oldgold_out', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', ogAmt, netWt, 
+                                    { time: getTime(o.date), ref, party: partyName, partyType: 'Customer', desc: 'Direct Old Gold Buy (Cash Paid & Metal Received)', cash: ogAmt, metal: netWt, mode: mStr, dataType: 'oldgold_buy', raw: o }, true);
                             }
                         } else {
                             const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
@@ -1334,15 +1308,13 @@
                                 }
                             });
                         }
-
-                        logMetal(o.date, netWt, 'OUT', 'oldgold_out_metal', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', 'Direct Old Gold Buy', partyName, ref, true, 'OLD');
                     }
                 }
             });
 
-            // ==========================================
-            // EXPLICIT GOLD LOAN CASH & METAL HANDLING
-            // ==========================================
+            // =========================================================================
+            // GOLD LOANS - COMBINED CASH & COLLATERAL 
+            // =========================================================================
             loans.forEach(l => {
                 let mWt = getSafeNum(l.weight || l.grossWt || l.netWt);
                 let loanAmt = getSafeNum(l.amount || l.loanAmount || l.principal || l.principalAmount);
@@ -1350,42 +1322,68 @@
                 let ref = `LN-${l.id}`;
                 let mStr = l.paymentMode || l.mode || 'Cash';
                 let isCreatedToday = getSafeDate(l.date) === selectedDateStr;
+                let isClosedToday = l.status === 'closed' && getSafeDate(l.closeDate) === selectedDateStr;
 
-                // 1. Direct Cash Disbursed Today
-                if (isCreatedToday && loanAmt > 0) {
-                    addRojmel('OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', loanAmt, 0, 
-                        { time: getTime(l.date), ref, party: partyName, partyType: 'Customer', desc: 'Loan Principal Disbursed', cash: loanAmt, metal: 0, mode: mStr, dataType: 'loan_out', raw: l }, true);
+                // 1. Metal Log (Skip Daybook UI rendering, we will combine it manually below)
+                if (mWt > 0) {
+                    logMetal(l.date, mWt, 'OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', 'Loan Collateral Received', partyName, ref, true, 'NET', true);
+                    if (l.status === 'closed' && l.closeDate) {
+                        logMetal(l.closeDate, mWt, 'IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', 'Loan Collateral Returned', partyName, ref, false, 'NET', true);
+                    }
                 }
 
-                // 2. Fetch Any Related Cashflows (Repayments / Extra Dues for this specific loan)
-                const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
-                relatedFlows.forEach(f => {
+                // 2. Disbursed Today (Cash OUT, Metal IN)
+                if (isCreatedToday) {
+                    if (loanAmt > 0 || mWt > 0) {
+                        addRojmel('OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', loanAmt, mWt, 
+                            { time: getTime(l.date), ref, party: partyName, partyType: 'Customer', desc: 'Loan Principal Disbursed & Collateral Deposited', cash: loanAmt, metal: mWt, mode: mStr, dataType: 'loan_out', raw: l }, true);
+                    }
+                }
+
+                // 3. Closed Today (Cash IN, Metal OUT)
+                if (isClosedToday) {
+                    let repayAmt = getSafeNum(l.paidAmount || l.repaymentAmount || l.amount || l.loanAmount || l.principal);
+                    
+                    let foundFlowCash = 0;
+                    let flowModes = [];
+                    const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
+                    relatedFlows.forEach(f => {
+                        let fAmt = Math.abs(getSafeNum(f.amount));
+                        let fType = f.type || 'IN';
+                        if (getSafeNum(f.amount) < 0 && f.type === 'IN') fType = 'OUT';
+                        if (fType === 'IN') {
+                            foundFlowCash += fAmt;
+                            flowModes.push(f.mode);
+                        }
+                    });
+
+                    let finalRepayCash = foundFlowCash > 0 ? foundFlowCash : repayAmt;
+                    let finalMode = foundFlowCash > 0 ? [...new Set(flowModes)].join(', ') : mStr;
+
+                    if (finalRepayCash > 0 || mWt > 0) {
+                        // -mWt pass kar rahe hain kyunki ye JAMA (IN) mein red/minus (-) metal weight show karega, jo ki sahi hai.
+                        addRojmel('IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', finalRepayCash, -mWt, 
+                            { time: getTime(l.closeDate), ref, party: partyName, partyType: 'Customer', desc: 'Loan Closed (Principal Repaid & Collateral Returned)', cash: finalRepayCash, metal: -mWt, mode: finalMode, dataType: 'loan_in', raw: l }, true);
+                    }
+                }
+
+                // 4. Any Partial flows (Extra disbursment / partial interest repayment)
+                const otherFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
+                otherFlows.forEach(f => {
                     let fAmt = Math.abs(getSafeNum(f.amount));
                     let fType = f.type || 'IN';
                     if (getSafeNum(f.amount) < 0 && f.type === 'IN') fType = 'OUT';
                     
                     if (fAmt > 0) {
-                        if (fType === 'IN') {
-                            addRojmel('IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', fAmt, 0, 
-                                { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Loan Repayment Received', cash: fAmt, metal: 0, mode: f.mode, dataType: 'loan_in' }, true);
-                        } else {
-                            // Don't double count if initial disbursement was generated as a cflow too
-                            let isInitialDisbFlow = (isCreatedToday && fAmt === loanAmt);
-                            if (!isInitialDisbFlow) {
-                                addRojmel('OUT', 'loan_out_extra', 'Gold Loans Disbursed (Extra)', 'fas fa-hand-holding-usd', 'var(--out-red)', fAmt, 0, 
-                                    { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Additional Loan Cash Disbursed', cash: fAmt, metal: 0, mode: f.mode, dataType: 'loan_out' }, true);
-                            }
+                        if (fType === 'IN' && !isClosedToday) {
+                            addRojmel('IN', 'loan_in_partial', 'Gold Loan Repayments (Partial)', 'fas fa-coins', 'var(--in-green)', fAmt, 0, 
+                                { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Loan Repayment Received', cash: fAmt, metal: 0, mode: f.mode, dataType: 'loan_in_partial' }, true);
+                        } else if (fType === 'OUT' && !isCreatedToday) {
+                            addRojmel('OUT', 'loan_out_extra', 'Gold Loans Disbursed (Extra)', 'fas fa-hand-holding-usd', 'var(--out-red)', fAmt, 0, 
+                                { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Additional Loan Cash Disbursed', cash: fAmt, metal: 0, mode: f.mode, dataType: 'loan_out_extra' }, true);
                         }
                     }
                 });
-
-                // 3. Metal (Collateral) Log
-                if (mWt > 0) {
-                    logMetal(l.date, mWt, 'OUT', 'loan_out_metal', 'Gold Loans (Collateral)', 'fas fa-balance-scale', 'var(--out-red)', 'Loan Collateral Received', partyName, ref, true, 'NET');
-                    if (l.status === 'closed' && l.closeDate) {
-                        logMetal(l.closeDate, mWt, 'IN', 'loan_in_metal', 'Gold Loans (Collateral Out)', 'fas fa-balance-scale', 'var(--in-green)', 'Loan Collateral Returned', partyName, ref, false, 'NET');
-                    }
-                }
             });
 
             mPayments.forEach(mp => {
@@ -1504,7 +1502,6 @@
             setInner('uiGrandTotalMixMetalOut', grandTotalNamaMixMetal.toFixed(3) + " g");
             setInner('uiGrandTotalMetalOut', grandTotalNamaMetal.toFixed(3) + " g");
 
-            // --- POPULATE THE NEW METAL TABLE ---
             renderMetalTable(openMetal, openMixMetal, openOldGold, closeMetal, closeMixMetal, closeOldGold);
 
             printData = {
@@ -1521,7 +1518,6 @@
             generatePrintLayout();
         }
 
-        // --- NEW FUNCTION TO RENDER THE METAL TABLE WITH KARIGAR DETAILS ---
         function renderMetalTable(opFine, opMix, opOld, clFine, clMix, clOld) {
             const tbody = document.getElementById('metalLedgerBody');
             
