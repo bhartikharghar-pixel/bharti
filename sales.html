@@ -537,6 +537,7 @@
         let availableBcBalance = 0;
         let useBcWallet = false;
         let appliedBcAmount = 0;
+        let lockedEditBcAmount = 0; // NEW LOGIC: Lock exactly what was applied
         let pendingMaturedSchemes = [];
         let maturedSchemesTotal = 0;
 
@@ -601,7 +602,6 @@
             if(window.innerWidth < 968) document.getElementById('rightPanel').style.display = v=='pos'?'block':'none';
         }
 
-        // --- CUSTOMER LOGIC WITH BC WALLET SMART DETECTION ---
         async function searchCustomer() {
             const term = document.getElementById('custSearch').value.toLowerCase();
             const box = document.getElementById('custSuggestions');
@@ -656,9 +656,10 @@
             availableBcBalance = 0;
             useBcWallet = false;
             appliedBcAmount = 0;
+            lockedEditBcAmount = 0; // CLEAR LOCK
             pendingMaturedSchemes = [];
             maturedSchemesTotal = 0;
-            deletedPayments = []; // Clear tracking
+            deletedPayments = [];
             document.getElementById('bcWalletPanel').style.display = 'none';
             calcBillSummary();
         }
@@ -672,7 +673,6 @@
             selectCust({id, name, mobile, bcBalance: 0});
         }
 
-        // --- ITEM SEARCH LOGIC (WITH LOOSE STOCK/QUANTITY) ---
         async function searchItem() {
             const term = document.getElementById('itemSearch').value.toUpperCase();
             const box = document.getElementById('itemSuggestions');
@@ -723,7 +723,6 @@
 
             qtyInput.max = availPcs;
 
-            // If it's bulk or has multiple pieces, let them edit qty & weight
             if (availPcs > 1 || isSilv || i.category === 'MIX') {
                 document.getElementById('stockRemainderBox').style.display = 'flex';
                 qtyInput.value = 1;
@@ -732,7 +731,6 @@
                 qtyInput.style.background = '#fff';
                 wtInput.style.background = '#fff';
 
-                // Automatically set weight to full weight if it's 1 piece, else clear it to force them to weigh it
                 if (availPcs === 1) {
                     wtInput.value = availWt;
                 } else {
@@ -793,7 +791,6 @@
             if(currentSelectedItem) {
                 const availPcs = parseInt(currentSelectedItem.pieces) || 1;
                 
-                // Only show dynamic remainders for multi-piece or bulk items
                 if(availPcs > 1 || checkIsSilver(currentSelectedItem.purity) || currentSelectedItem.category === 'MIX') {
                     const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.netWt || currentSelectedItem.weight);
                     const sellQty = parseInt(document.getElementById('itemSellQty').value) || 0;
@@ -823,7 +820,6 @@
                 const availPcs = parseInt(currentSelectedItem.pieces) || 1;
                 const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.weight || currentSelectedItem.netWt);
                 
-                // Strict validation before adding
                 if (sellQty > availPcs) return alert(`Cannot sell more pieces than available in stock (${availPcs}).`);
                 if (grossWt > availWt) return alert(`Gross Weight exceeds available stock (${availWt}g).`);
             }
@@ -1066,7 +1062,6 @@
             document.getElementById('manualItemEntry').style.display = 'none';
         }
 
-        // --- CART & BILLING SUMMARY LOGIC ---
         function renderCart() {
             const b = document.getElementById('cartBody'); b.innerHTML = '';
             cart.forEach((i, idx) => {
@@ -1100,6 +1095,9 @@
 
         function toggleBcWallet() {
             useBcWallet = !useBcWallet;
+            if(!useBcWallet) {
+                lockedEditBcAmount = 0; // Agar manually hataya to lock break ho jayega
+            }
             calcBillSummary();
         }
 
@@ -1115,7 +1113,6 @@
             const grandTotalText = document.getElementById('sumGrand').innerText.replace(/₹|,/g,'');
             const currentGrand = parseFloat(grandTotalText) || 0;
             
-            // If paying out a refund, or taking money in
             if (currentGrand < 0) {
                 a = -Math.abs(a); 
             } else {
@@ -1176,8 +1173,17 @@
             let tempTotal = (baseSubtotal + totalGst) - totalOldGold - discAmt;
             appliedBcAmount = 0;
 
-            if (useBcWallet && availableBcBalance > 0) {
-                appliedBcAmount = Math.min(availableBcBalance, Math.max(0, tempTotal));
+            if (useBcWallet && (availableBcBalance > 0 || lockedEditBcAmount > 0)) {
+                // FIXED BC LOGIC: Lock the amount from previous edit, otherwise calculate normal.
+                if (lockedEditBcAmount > 0) {
+                    appliedBcAmount = lockedEditBcAmount;
+                } else {
+                    appliedBcAmount = Math.min(availableBcBalance, Math.max(0, tempTotal));
+                }
+                
+                // Safety check in case the bill total went lower than locked amount somehow
+                appliedBcAmount = Math.min(appliedBcAmount, Math.max(0, tempTotal));
+                
                 tempTotal -= appliedBcAmount;
                 
                 document.getElementById('sumBcWalletRow').style.display = 'flex';
@@ -1251,7 +1257,6 @@
             if(!cid) return alert("Select Customer");
             if(cart.length === 0) return alert("Cart Empty");
 
-            // Aggressively capture un-added payment input
             let pendingPayInput = getSafeNum(document.getElementById('payAmt').value);
             if (pendingPayInput !== 0) {
                 addPayment(); 
@@ -1297,7 +1302,6 @@
             const db = await dbPromise;
             const tx = db.transaction(['sales', 'customers', 'inventory', 'cashflow', 'schemes', 'old_gold'], 'readwrite');
             
-            // --- 1. HANDLE SCHEME MATURITY REDEMPTION ---
             if (appliedBcAmount > 0 || maturedSchemesTotal > 0) {
                 for(let s of pendingMaturedSchemes) {
                     s.status = 'redeemed';
@@ -1311,7 +1315,6 @@
                     });
                 }
 
-                // --- 2. UPDATE CUSTOMER WALLET BALANCE ---
                 let cReq = tx.objectStore('customers').get(parseInt(cid));
                 cReq.onsuccess = (e) => {
                     const cust = e.target.result;
@@ -1328,7 +1331,6 @@
                 };
             }
 
-            // --- 3. SAVE THE SALE RECORD & UPDATE INVENTORY ---
             let sid;
             if(editId) {
                 sid = parseInt(editId);
@@ -1352,7 +1354,6 @@
                 saleData.id = sid; 
             }
 
-            // --- 4. INSERT EXCHANGED OLD METAL INTO UR BOX (old_gold table) ---
             for(const i of cart) {
                 if(i.isOldGold) {
                     tx.objectStore('old_gold').add({
@@ -1375,9 +1376,8 @@
                 }
             }
             
-            // --- 5. LOG REVERSALS FOR DELETED PAYMENTS (Edits) ---
             deletedPayments.forEach(p => {
-                let flowType = p.amount < 0 ? 'IN' : 'OUT'; // Reversing the original direction
+                let flowType = p.amount < 0 ? 'IN' : 'OUT';
                 let flowAmt = Math.abs(p.amount);
                 
                 tx.objectStore('cashflow').add({
@@ -1387,10 +1387,9 @@
                 });
             });
 
-            // --- 6. LOG CASHFLOW FOR NEW/ACTIVE PAYMENTS ---
             let noteSuffix = editId ? ` (Edited)` : '';
             payments.forEach(p => {
-                if (editId && !p.isNew) return; // Ignore old locked payments we didn't touch
+                if (editId && !p.isNew) return; 
                 
                 let flowType = p.amount < 0 ? 'OUT' : 'IN';
                 let flowAmt = Math.abs(p.amount);
@@ -1422,7 +1421,6 @@
             };
         }
 
-        // Dedicated helper to safely restore or deduct items from stock
         function updateStockStatusInternal(tx, items, action) {
             return new Promise((resolve) => {
                 const store = tx.objectStore('inventory');
@@ -1448,7 +1446,6 @@
                             const isSilver = checkIsSilver(item.purity);
 
                             if (action === 'sold') {
-                                // If it is a bulk item (silver or mix) or has multiple pieces, deduct proportionally
                                 if (isSilver || item.category === 'MIX' || item.pieces > 1) {
                                     item.pieces = (parseInt(item.pieces) || 1) - sellQty;
                                     item.grossWt = Math.max(0, (parseFloat(item.grossWt) || 0) - sellGross);
@@ -1457,7 +1454,6 @@
                                     item.weight = item.grossWt; 
                                     item.fineWt = item.netWt * getPurityFactor(item.purity);
 
-                                    // If completely empty or negligible weight left, mark as sold
                                     if (item.pieces <= 0 || item.netWt <= 0.05) {
                                         item.status = 'sold';
                                         item.pieces = 0;
@@ -1470,7 +1466,6 @@
                                         item.status = 'stock';
                                     }
                                 } else {
-                                    // Standard 1-piece item
                                     item.status = 'sold';
                                     item.pieces = 0;
                                     item.netWt = 0;
@@ -1480,7 +1475,6 @@
                                     item.fineWt = 0;
                                 }
                             } else if (action === 'stock') {
-                                // Restoring to stock (for edits or cancellations)
                                 item.status = 'stock';
                                 item.pieces = (parseInt(item.pieces) || 0) + sellQty;
                                 item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
@@ -1506,7 +1500,6 @@
             });
             if(!sale) return;
             
-            // Re-add items back to stock temporarily while editing
             const db = await dbPromise;
             const tx = db.transaction('inventory', 'readwrite');
             await updateStockStatusInternal(tx, sale.items, 'stock');
@@ -1524,9 +1517,11 @@
             });
 
             if(cust) {
+                // FIXED RACE CONDITION & ADDED LOCK
                 cust.bcBalance = (getSafeNum(cust.bcBalance)) + (sale.bcWalletDeduction || 0);
-                selectCust(cust);
+                await selectCust(cust); // Yaha pe await lagana zaruri tha
                 if (sale.bcWalletDeduction > 0) {
+                    lockedEditBcAmount = sale.bcWalletDeduction; // AMOUNT KO LOCK KIYA
                     useBcWallet = true;
                     calcBillSummary();
                 }
@@ -1543,7 +1538,6 @@
             location.reload();
         }
 
-        // --- CANCEL & REFUND BILL ---
         async function openCancelModal(id) {
             const sale = allSalesData.find(s => s.id === id);
             if(!sale) return;
@@ -1626,7 +1620,6 @@
             };
         }
 
-        // --- HISTORY LOGIC ---
         async function loadHistory() {
             const list = await getAllItems('sales');
             allSalesData = list; 
@@ -1726,7 +1719,7 @@
                 db.transaction('customers').objectStore('customers').get(parseInt(sale.customerId)).onsuccess = e => r(e.target.result);
             });
             
-            const isGst = sale.isGstBill !== false; // Default true for legacy bills without the flag
+            const isGst = sale.isGstBill !== false; 
             const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
 
             let html = `
@@ -1766,7 +1759,7 @@
                 if(!i.isOldGold) {
                     mkDisplay = i.makingType === 'pct' ? Math.round(i.rate * i.weight * i.makingRate / 100) : i.makingAmount;
                     gstDisplay = i.gstPct + '%';
-                    if (!isGst) rowTotal = i.baseAmount; // Exclude GST from item total if no GST
+                    if (!isGst) rowTotal = i.baseAmount; 
                 }
                 
                 const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
@@ -1819,9 +1812,11 @@
                 </div>
             `;
 
+            // FIX 1: Moving Due amount block out of Payments Loop so it prints always
+            html += `<div style="margin-top:15px; border-top:1px dashed #000; padding-top:10px; font-size:13px;">`;
+
             if (sale.payments && sale.payments.length > 0) {
                 html += `
-                <div style="margin-top:15px; border-top:1px dashed #000; padding-top:10px; font-size:13px;">
                     <strong style="display:block; margin-bottom:8px;">Payment History:</strong>
                     <table style="width:100%; margin-top:5px; font-size:12px; border-collapse: collapse;">
                         <tbody>
@@ -1833,23 +1828,27 @@
                 html += `
                         </tbody>
                     </table>
-                    <div style="display:flex; justify-content:flex-end; margin-top:10px;">
-                        <table style="width:250px; font-size:14px;">
-                            <tr><td style="padding-top:5px;">Total Paid:</td><td style="text-align:right; padding-top:5px; color:#2e7d32;">₹${Math.abs(sale.paidAmount).toLocaleString()}</td></tr>
-                `;
-                
-                if (sale.pendingAmount < 0) {
-                    html += `<tr style="font-weight:bold; font-size:15px; color:#8e24aa;"><td style="padding-top:5px;">Refund Due:</td><td style="text-align:right; padding-top:5px;">₹${Math.abs(sale.pendingAmount).toLocaleString()}</td></tr>`;
-                } else {
-                    html += `<tr style="font-weight:bold; font-size:15px; color:#d32f2f;"><td style="padding-top:5px;">Remaining Due:</td><td style="text-align:right; padding-top:5px;">₹${sale.pendingAmount.toLocaleString()}</td></tr>`;
-                }
-
-                html += `
-                        </table>
-                    </div>
-                </div>
                 `;
             }
+
+            // Always display Total Paid and Remaining Due
+            html += `
+                <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                    <table style="width:250px; font-size:14px;">
+                        <tr><td style="padding-top:5px;">Total Paid:</td><td style="text-align:right; padding-top:5px; color:#2e7d32;">₹${Math.abs(sale.paidAmount).toLocaleString()}</td></tr>
+            `;
+            
+            if (sale.pendingAmount < 0) {
+                html += `<tr style="font-weight:bold; font-size:15px; color:#8e24aa;"><td style="padding-top:5px;">Refund Due:</td><td style="text-align:right; padding-top:5px;">₹${Math.abs(sale.pendingAmount).toLocaleString()}</td></tr>`;
+            } else {
+                html += `<tr style="font-weight:bold; font-size:15px; color:#d32f2f;"><td style="padding-top:5px;">Remaining Due:</td><td style="text-align:right; padding-top:5px;">₹${sale.pendingAmount.toLocaleString()}</td></tr>`;
+            }
+
+            html += `
+                    </table>
+                </div>
+            </div>
+            `;
 
             html += `
                 <div style="margin-top:40px; text-align:center; font-size:11px; color:#555; border-top:1px dashed #ccc; padding-top:10px;">
@@ -1859,7 +1858,6 @@
 
             document.getElementById('invoice-area').innerHTML = html;
             
-            // Allow DOM to update before sending to print spooler
             setTimeout(() => {
                 triggerPrint();
             }, 300);
