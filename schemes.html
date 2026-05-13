@@ -63,7 +63,7 @@
             opacity: 0.8;
             background: #f9f9f9;
             border-top-color: #757575 !important;
-            overflow: hidden; /* Stamp ko card ke andar rakhne ke liye */
+            overflow: hidden; 
         }
         .redeemed-stamp {
             position: absolute;
@@ -196,9 +196,12 @@
                 <div class="stat-lbl">Total Collection So Far</div>
                 <div class="stat-val" id="statCollected" style="color: #2e7d32;">₹0</div>
             </div>
-            <div class="stat-card" style="border-left-color: #C5A059;">
-                <div class="stat-lbl">Completed/Matured</div>
-                <div class="stat-val" id="statCompleted" style="color: #C5A059;">0</div>
+            <div class="stat-card" style="border-left-color: #C5A059; padding: 15px 20px;">
+                <div class="stat-lbl">Matured & Closed</div>
+                <div class="stat-val" style="font-size: 1.1rem; display: flex; flex-direction: column; gap: 2px; margin-top:5px;">
+                    <span style="color: #C5A059;"><i class="fas fa-trophy"></i> Ready: <span id="statCompleted">0</span></span>
+                    <span style="color: #D32F2F;"><i class="fas fa-check-circle"></i> Closed: <span id="statRedeemed">0</span></span>
+                </div>
             </div>
         </div>
 
@@ -207,7 +210,8 @@
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('active', this)">Active Accounts</button>
                 <button class="tab" onclick="switchTab('overdue', this)">Overdue <span id="overdueCountBadge" style="background:#ff9800; color:white; padding:2px 6px; border-radius:10px; font-size:0.7rem; margin-left:5px;">0</span></button>
-                <button class="tab" onclick="switchTab('completed', this)">Matured / Closed</button>
+                <button class="tab" onclick="switchTab('completed', this)">Matured (Ready)</button>
+                <button class="tab" onclick="switchTab('redeemed', this)">Closed / Redeemed</button>
             </div>
         </div>
 
@@ -314,6 +318,10 @@
             <div id="maturedBox" style="display:none; background:#fff8e1; padding:15px; border-radius:8px; border: 1px solid #ffe082; margin-bottom:15px; text-align:center;">
                 <h4 style="margin:0 0 5px 0; color:#f57f17;"><i class="fas fa-trophy"></i> Scheme Matured!</h4>
                 <p style="font-size:0.85rem; color:#666; margin:0 0 10px 0;">Customer has ₹<span id="vAvailableRedeem"></span> available to spend.</p>
+                <div style="margin-bottom: 12px; text-align: left;">
+                    <label style="font-size: 0.8rem; color:#333;">Invoice No. / Reference (Optional)</label>
+                    <input type="text" id="redeemRefInput" placeholder="e.g. INV-1045 or Wallet Transfer" style="width: 100%; border: 1px solid #ccc;">
+                </div>
                 <button class="btn-primary" style="background:#C5A059; width:100%;" onclick="redeemScheme()"><i class="fas fa-wallet"></i> Redeem & Credit to Customer Wallet</button>
             </div>
 
@@ -372,7 +380,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=35"></script>
+    <script src="db.js?v=36"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -432,6 +440,7 @@
             let activeCount = 0;
             let totalCollected = 0;
             let completedCount = 0;
+            let redeemedCount = 0;
             overdueCount = 0;
 
             allSchemes = schemes.map(s => {
@@ -463,8 +472,10 @@
                 if(s.status === 'active') {
                     activeCount++;
                     totalCollected += cashCollected;
-                } else if(s.status === 'completed' || s.status === 'redeemed') {
+                } else if(s.status === 'completed') {
                     completedCount++;
+                } else if(s.status === 'redeemed') {
+                    redeemedCount++;
                 }
 
                 return { 
@@ -480,6 +491,7 @@
             document.getElementById('statActive').innerText = activeCount;
             document.getElementById('statCollected').innerText = "₹" + totalCollected.toLocaleString();
             document.getElementById('statCompleted').innerText = completedCount;
+            document.getElementById('statRedeemed').innerText = redeemedCount;
             document.getElementById('overdueCountBadge').innerText = overdueCount;
             
             renderSchemes();
@@ -494,7 +506,8 @@
                 let statusMatch = false;
                 if (currentTab === 'active') statusMatch = s.status === 'active' && !s.isOverdue;
                 else if (currentTab === 'overdue') statusMatch = s.status === 'active' && s.isOverdue;
-                else statusMatch = (s.status === 'completed' || s.status === 'redeemed');
+                else if (currentTab === 'completed') statusMatch = s.status === 'completed';
+                else if (currentTab === 'redeemed') statusMatch = s.status === 'redeemed';
 
                 const searchMatch = s.custName.toLowerCase().includes(term) || String(s.custMobile).includes(term);
                 return statusMatch && searchMatch;
@@ -534,6 +547,22 @@
                 
                 // Add the stamp HTML if status is redeemed
                 let stampHtml = s.status === 'redeemed' ? '<div class="redeemed-stamp">CLOSED & REDEEMED</div>' : '';
+                
+                // Add Closed details if redeemed
+                let closedDetailsHtml = '';
+                if(s.status === 'redeemed') {
+                    const rDate = s.redeemDate ? new Date(s.redeemDate).toLocaleDateString() : 'Unknown';
+                    const rRef = s.redeemRef || 'Wallet Transfer';
+                    closedDetailsHtml = `
+                        <div style="background:#fce4e4; border:1px dashed #d32f2f; padding:8px; border-radius:6px; margin-top:10px; font-size:0.8rem; color:#d32f2f;">
+                            <strong style="display:block; margin-bottom:3px;"><i class="fas fa-info-circle"></i> Closed Details:</strong>
+                            <div style="display:flex; justify-content:space-between;">
+                                <span><strong>Date:</strong> ${rDate}</span>
+                                <span><strong>Ref/Inv:</strong> ${rRef}</span>
+                            </div>
+                        </div>
+                    `;
+                }
 
                 container.innerHTML += `
                     <div class="${cardClass}">
@@ -552,9 +581,10 @@
                         </div>
 
                         <div class="prog-container"><div class="${fillClass}" style="width:${pct}%"></div></div>
-                        <div class="month-tracker" style="margin-top:10px;">${blocksHtml}</div>
+                        <div class="month-tracker">${blocksHtml}</div>
+                        ${closedDetailsHtml}
 
-                        <div class="s-footer">
+                        <div class="s-footer" style="margin-top: ${s.status === 'redeemed' ? '10px' : 'auto'};">
                             <span style="font-size:0.75rem; color:#666;">Scheme #${s.id}</span>
                             <button class="btn-view" onclick="openManageModal(${s.id})">Manage Ledger</button>
                         </div>
@@ -667,6 +697,7 @@
             document.getElementById('vBaseEmi').innerText = getSafeNum(s.amount);
             document.getElementById('vMaturityAmt').innerText = "Maturity: ₹" + (getSafeNum(s.amount) * 12).toLocaleString();
             document.getElementById('vAvailableRedeem').innerText = (getSafeNum(s.amount) * 12).toLocaleString();
+            document.getElementById('redeemRefInput').value = ''; // Reset reference input
 
             // Show Undo Button only if there is a paid installment
             const hasPayments = s.ledger.some(m => m.status === 'paid' || m.status === 'bonus_applied');
@@ -873,9 +904,10 @@
 
         // --- REDEEM SCHEME & ADD TO CUSTOMER WALLET ---
         async function redeemScheme() {
-            if(!confirm("Redeem this scheme? This will close the account and add the full maturity value (12 months) to the customer's BC Wallet for future purchases.")) return;
+            if(!confirm("Redeem this scheme? This will close the account and add the full maturity value to the customer's BC Wallet for future purchases.")) return;
             
             const id = parseInt(document.getElementById('viewSchemeId').value);
+            const refVal = document.getElementById('redeemRefInput').value.trim() || 'Wallet Transfer';
             
             const db = await dbPromise;
             const tx = db.transaction(['schemes', 'customers', 'cashflow'], 'readwrite');
@@ -890,6 +922,7 @@
                 // 1. Update Scheme Status
                 s.status = 'redeemed';
                 s.redeemDate = new Date().toISOString();
+                s.redeemRef = refVal; // Save invoice/reference number
                 tx.objectStore('schemes').put(s);
                 
                 // 2. Update Customer Wallet Balance
