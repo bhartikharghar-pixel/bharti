@@ -334,7 +334,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=39"></script>
+    <script src="db.js?v=40"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
 
@@ -507,7 +507,6 @@
                 return;
             }
 
-            // ADDED QUOTES AROUND ID IN ONCLICK TO PREVENT ERROR
             filteredGroups.sort((a,b) => a.custName.localeCompare(b.custName)).forEach(g => {
                 let borderTopColor = g.activeCount > 0 ? '#1976d2' : '#2e7d32';
                 let badgeClass = g.activeCount > 0 ? 'badge-active' : 'badge-closed';
@@ -552,7 +551,6 @@
             const container = document.getElementById('customerLoansContainer');
             container.innerHTML = '';
             
-            // ADDED QUOTES AROUND ID IN ONCLICK TO PREVENT ERROR
             custLoans.sort((a,b) => {
                 if(a.status === 'active' && b.status !== 'active') return -1;
                 if(a.status !== 'active' && b.status === 'active') return 1;
@@ -700,13 +698,15 @@
         let currentLoanId = null;
 
         async function openLedger(id) {
-            currentLoanId = id;
+            // FIX: Convert string ID to Integer for IndexedDB query
+            currentLoanId = parseInt(id); 
+            
             try {
                 const db = await dbPromise;
                 const tx = db.transaction('loans', 'readonly');
                 const store = tx.objectStore('loans');
                 
-                store.get(id).onsuccess = (e) => {
+                store.get(currentLoanId).onsuccess = (e) => {
                     const l = e.target.result;
                     if(!l) return alert("Loan not found");
 
