@@ -12,8 +12,8 @@
         /* Dropdown Style */
         .dropdown-container { position: relative; margin-bottom: 20px; }
         .search-box { width: 100%; padding: 15px; font-size: 1.1rem; border: 2px solid #d4af37; border-radius: 8px; box-sizing: border-box; text-align: center; font-weight: bold; }
-        .dropdown-list { display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .dropdown-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; text-align: center; font-size: 1rem; color: #333; }
+        .dropdown-list { display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 2000; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .dropdown-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; text-align: left; font-size: 0.95rem; color: #333; }
         .dropdown-item:hover { background: #f0f0f0; color: #d4af37; font-weight: bold; }
 
         .action-section { display: none; }
@@ -38,7 +38,7 @@
         .modal-content { background-color: #fff; margin: 15% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; color: #555; }
         
-        .form-group { margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; position: relative; }
         .form-group label { display: block; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #333; }
         .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1rem;}
         .save-btn { width: 100%; padding: 14px; background: #d4af37; color: white; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; }
@@ -49,7 +49,7 @@
 <div class="master-container">
     <!-- Dropdown & Search -->
     <div class="dropdown-container">
-        <input type="text" id="searchCustomer" class="search-box" placeholder="🔍 Select ya Search Customer..." onclick="openDropdown()" oninput="filterDropdown()">
+        <input type="text" id="searchCustomer" class="search-box" placeholder="🔍 Select ya Search Customer..." autocomplete="off" onclick="openDropdown()" oninput="filterDropdown()">
         <div id="dropdownList" class="dropdown-list">
             <!-- Data yahan JS se aayega -->
         </div>
@@ -105,18 +105,19 @@
 
 <script>
     let allCustomers = [];
+    let allInventory = []; // Inventory ka data rakhne ke liye
 
     // 1. Data load at start
     window.onload = async function() {
         try {
             allCustomers = await getAllItems('customers');
-            console.log("Customers loaded:", allCustomers.length);
+            allInventory = await getAllItems('inventory'); // Stock ka data fetch karein
         } catch (error) {
             console.error("Data load failed:", error);
         }
     };
 
-    // 2. Dropdown Logic
+    // 2. Customer Dropdown Logic
     function openDropdown() {
         document.getElementById('dropdownList').style.display = 'block';
         renderDropdown(allCustomers);
@@ -136,13 +137,12 @@
         const div = document.getElementById('dropdownList');
         div.innerHTML = '';
         if(list.length === 0) {
-            div.innerHTML = '<div class="dropdown-item">Naya Customer Add Karein...</div>';
+            div.innerHTML = '<div class="dropdown-item" style="text-align:center;">Naya Customer Add Karein...</div>';
             return;
         }
         list.forEach(c => {
             let item = document.createElement('div');
             item.className = 'dropdown-item';
-            // Naam aur Mobile number dikhayega
             item.innerText = c.name + (c.mobile ? ` - ${c.mobile}` : '');
             item.onclick = function() {
                 selectCustomer(c.name, item.innerText);
@@ -154,17 +154,8 @@
     function selectCustomer(realName, displayTxt) {
         document.getElementById('searchCustomer').value = displayTxt;
         document.getElementById('dropdownList').style.display = 'none';
-        
-        // Action panel dikhao
         document.getElementById('actionPanel').style.display = 'block';
         document.getElementById('displayCustName').innerText = "👤 " + realName;
-    }
-
-    // Dropdown ke bahar click karne pe band ho jaye
-    window.onclick = function(event) {
-        if (!event.target.matches('.search-box')) {
-            document.getElementById('dropdownList').style.display = 'none';
-        }
     }
 
     function resetSearch() {
@@ -172,7 +163,7 @@
         document.getElementById('actionPanel').style.display = 'none';
     }
 
-    // 3. Popup Form Logic (Ab Alert nahi, Asli form khulega!)
+    // 3. Popup Form & Inventory Dropdown Logic
     function openPopup(action) {
         let customer = document.getElementById('displayCustName').innerText.replace('👤 ', '');
         
@@ -184,8 +175,12 @@
 
         if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Rakha' || action === 'Girvi Jama') {
             fieldsHTML = `
-                <div class="form-group"><label>Item Name (Kya hai?)</label><input type="text" id="p_item" required></div>
-                <div class="form-group"><label>Weight (Grams)</label><input type="number" step="0.01" id="p_weight" required></div>
+                <div class="form-group">
+                    <label>Item / Barcode Search</label>
+                    <input type="text" id="p_item" placeholder="Barcode ya Item type karein..." autocomplete="off" onclick="openItemDropdown()" oninput="filterItemDropdown()" required>
+                    <div id="itemDropdownList" class="dropdown-list"></div>
+                </div>
+                <div class="form-group"><label>Weight (Grams)</label><input type="number" step="0.001" id="p_weight" required></div>
                 <div class="form-group"><label>Total Amount (₹)</label><input type="number" id="p_amount" required></div>
             `;
         } else {
@@ -201,6 +196,70 @@
 
     function closePopup() {
         document.getElementById('entryModal').style.display = 'none';
+    }
+
+    // --- Inventory Items ki Dropdown list ke functions ---
+    function openItemDropdown() {
+        renderItemDropdown(allInventory);
+    }
+
+    function filterItemDropdown() {
+        let txt = document.getElementById('p_item').value.toLowerCase();
+        let filtered = allInventory.filter(item => 
+            (item.barcode && item.barcode.toLowerCase().includes(txt)) || 
+            (item.category && item.category.toLowerCase().includes(txt)) ||
+            (item.name && item.name.toLowerCase().includes(txt))
+        );
+        renderItemDropdown(filtered);
+    }
+
+    function renderItemDropdown(list) {
+        const div = document.getElementById('itemDropdownList');
+        if(!div) return;
+        div.style.display = 'block';
+        div.innerHTML = '';
+        
+        if(list.length === 0) {
+            div.innerHTML = '<div class="dropdown-item">Item nahi mila. Manually type karein.</div>';
+            return;
+        }
+
+        list.forEach(item => {
+            let divItem = document.createElement('div');
+            divItem.className = 'dropdown-item';
+            
+            // Format banayenge: "B-001 - Gold Ring (12.500g)"
+            let itemName = item.category || item.name || "Item";
+            let displayTxt = `${item.barcode ? '[' + item.barcode + '] ' : ''}${itemName}`;
+            let wtText = item.weight ? ` - ${item.weight}g` : '';
+            
+            divItem.innerText = displayTxt + wtText;
+            
+            divItem.onclick = function() {
+                // Input box me naam dalenge
+                document.getElementById('p_item').value = displayTxt;
+                
+                // Agar item ka weight database me hai, to weight wale box me automatically daal denge
+                if(item.weight && document.getElementById('p_weight')) {
+                    document.getElementById('p_weight').value = item.weight;
+                }
+                
+                div.style.display = 'none';
+            };
+            div.appendChild(divItem);
+        });
+    }
+
+    // Dropdown ke bahar click karne par band karne ka code
+    window.onclick = function(event) {
+        if (!event.target.matches('#searchCustomer')) {
+            let cList = document.getElementById('dropdownList');
+            if(cList) cList.style.display = 'none';
+        }
+        if (!event.target.matches('#p_item')) {
+            let iList = document.getElementById('itemDropdownList');
+            if(iList) iList.style.display = 'none';
+        }
     }
 
     // 4. Save Entry to db.js
