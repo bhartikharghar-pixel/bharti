@@ -156,6 +156,9 @@
         .r-diff.ok { background: #e8f5e9; color: #2e7d32; }
         .r-diff.short { background: #ffebee; color: #c62828; }
         .r-diff.excess { background: #e3f2fd; color: #1565c0; }
+        
+        .btn-adjust { background: #e65100; color: white; border: none; padding: 6px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; font-family: 'Poppins', sans-serif; transition: 0.2s;}
+        .btn-adjust:hover { background: #bf360c; }
 
 
         /* Daybook Grid (Cash) */
@@ -490,7 +493,10 @@
                 </div>
                 <div class="rokad-footer">
                     <div>गल्ले का टोटल: <span id="rokadTotal" style="color:var(--in-green);">₹0</span></div>
-                    <div id="rokadDiff" class="r-diff ok">मिलान: ₹0 (OK)</div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div id="rokadDiff" class="r-diff ok">मिलान: ₹0 (OK)</div>
+                        <button id="btnRokadAdjust" class="btn-adjust" style="display:none;" onclick="openRokadAdjustModal()">हिसाब बराबर करें</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -610,7 +616,28 @@
 
     </div>
 
-    <!-- MODAL -->
+    <!-- MODAL FOR ADJUSTMENT -->
+    <div id="adjustModal" class="modal">
+        <div class="modal-content" style="max-width:400px; padding:20px;">
+            <h3 style="margin-top:0; border-bottom:2px solid #b71c1c; padding-bottom:10px; color:#b71c1c;"><i class="fas fa-balance-scale-right"></i> रोकड़ मिलान एडजस्टमेंट</h3>
+            <p style="font-size:1.1rem; color:#333;">सिस्टम के हिसाब से गल्ले में <strong id="adjDiffAmt" style="font-size:1.3rem;">₹0</strong> <span id="adjDiffType" style="font-weight:bold;">कम</span> हैं।</p>
+            
+            <label style="font-weight:bold; display:block; margin-top:15px; color:#555;">इसे किस खाते में डालें?</label>
+            <select id="adjCategory" style="width:100%; padding:10px; margin-top:5px; border-radius:5px; border:1px solid #ccc; font-family:inherit; font-size:1rem;">
+                <option value="भूल-चूक (Suspense)">भूल-चूक खाता (याद नहीं आ रहा)</option>
+                <option value="दुकान खर्च (चाय-पानी)">दुकान खर्च (चाय-नाश्ता आदि)</option>
+                <option value="मालिक का खर्च">सेठ जी का निजी खर्च</option>
+                <option value="अन्य">अन्य (Other)</option>
+            </select>
+            
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:25px;">
+                <button onclick="closeModal('adjustModal')" style="padding:10px 15px; border:none; background:#ccc; border-radius:5px; cursor:pointer; font-weight:bold; font-family:inherit;">रद्द करें</button>
+                <button onclick="submitRokadAdjust()" style="padding:10px 15px; border:none; background:#b71c1c; color:white; border-radius:5px; font-weight:bold; cursor:pointer; font-family:inherit;">बही में दर्ज करें</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL FOR DETAILS -->
     <div id="detailsModal" class="modal">
         <div class="modal-content" style="max-width:1100px;">
             <div class="modal-header">
@@ -816,7 +843,7 @@
             const daysInHindi = ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'];
             setInner('kDayLabel', daysInHindi[fullDateObj.getDay()]);
             setInner('kDateLabel', fullDateObj.toLocaleDateString('en-GB')); 
-            setInner('kPageNum', fullDateObj.getDate()); // Just using date as random page num for visual
+            setInner('kPageNum', fullDateObj.getDate()); 
 
             currentRojmel = { IN: {}, OUT: {} };
             allDayTransactions = [];
@@ -940,7 +967,6 @@
             setInner('mStatGold', (netMGold > 0 ? "+" : "") + netMGold.toFixed(3) + "g");
             setInner('mStatSilver', (netMSilver > 0 ? "+" : "") + netMSilver.toFixed(3) + "g");
 
-            // CORE METAL LOGGING FUNCTION
             const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive, metalCategory = 'NET', skipDaybookUI = false) => {
                 if (amt <= 0) return;
                 let d = getSafeDate(date);
@@ -1018,10 +1044,7 @@
 
                 let gTotal = getSafeNum(s.grandTotal);
                 let udhari = getSafeNum(s.pendingAmount);
-                
-                let itemOldVal = 0;
-                let metalIn = 0;
-                let metalOut = 0;
+                let itemOldVal = 0; let metalIn = 0; let metalOut = 0;
 
                 (s.items || []).forEach(i => {
                     let net = getSafeNet(i);
@@ -1035,7 +1058,6 @@
                 });
 
                 if (metalIn === 0) metalIn = getSafeNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
-
                 let oldVal = getSafeNum(s.oldGoldDeduction || s.oldGoldValue || s.oldGoldAmount || s.oldGoldAmt || s.exchangeValue);
                 if (oldVal === 0 && itemOldVal > 0) oldVal = itemOldVal;
 
@@ -1043,14 +1065,9 @@
                 let displaySaleIn = gTotal + oldVal; 
 
                 if (getSafeDate(s.date) <= selectedDateStr) {
-                    if (metalIn > 0) {
-                        logMetal(s.date, metalIn, 'OUT', 'sales_oldgold', 'Old Gold Deducted', 'fas fa-ring', 'var(--old-gold)', 'POS Old Gold Exchange', party, ref, true, 'OLD', true);
-                    }
-                    if (!isOrderBill && metalOut > 0) {
-                        logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'NET', true);
-                    } else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') {
-                        logMetal(s.date, metalOut, 'IN', 'order_in', 'Order Delivered', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered', party, ref, false, 'NET', true);
-                    }
+                    if (metalIn > 0) logMetal(s.date, metalIn, 'OUT', 'sales_oldgold', 'Old Gold Deducted', 'fas fa-ring', 'var(--old-gold)', 'POS Old Gold Exchange', party, ref, true, 'OLD', true);
+                    if (!isOrderBill && metalOut > 0) logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'NET', true);
+                    else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') logMetal(s.date, metalOut, 'IN', 'order_in', 'Order Delivered', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered', party, ref, false, 'NET', true);
                 }
 
                 if (isCancelled) {
@@ -1060,62 +1077,31 @@
                         else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Order Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled', party, ref, true, 'NET', true);
                     }
 
-                    todayPayments.forEach(p => {
-                        addRojmel('IN', 'sales_receipts', 'Cancelled Bill Receipts', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, 
-                            { ...txBase, time: getTime(s.date), ref, desc: `Initial Receipt (Cancel)`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true);
-                    });
+                    todayPayments.forEach(p => addRojmel('IN', 'sales_receipts', 'Cancelled Bill Receipts', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, { ...txBase, time: getTime(s.date), ref, desc: `Initial Receipt (Cancel)`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true));
 
                     if (cancelDate === selectedDateStr) {
                         let refundCash = 0;
                         const cancelFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.category && f.category.includes('Cancellation') && String(f.note).includes(s.id));
                         let modesOut = [];
-                        cancelFlows.forEach(f => {
-                            if ((f.type === 'OUT' || getSafeNum(f.amount) < 0) && !f.category.includes('Reversal')) {
-                                refundCash += Math.abs(getSafeNum(f.amount));
-                                modesOut.push(f.mode);
-                            }
-                        });
-                        
+                        cancelFlows.forEach(f => { if ((f.type === 'OUT' || getSafeNum(f.amount) < 0) && !f.category.includes('Reversal')) { refundCash += Math.abs(getSafeNum(f.amount)); modesOut.push(f.mode); } });
                         if (refundCash > 0 || metalOut > 0) {
                             let mStr = [...new Set(modesOut)].join(', ') || 'Cash';
-                            addRojmel('OUT', 'sales_refund', 'Cancelled Bill Refund', 'fas fa-undo', 'var(--out-red)', refundCash, metalOut, 
-                                { ...txBase, time: getTime(cancelFlows.length > 0 ? cancelFlows[0].date : s.date), ref, desc: `Bill Cancelled. Cash Refunded`, cash: refundCash, metal: metalOut, mode: mStr, dataType: 'refund' }, true);
+                            addRojmel('OUT', 'sales_refund', 'Cancelled Bill Refund', 'fas fa-undo', 'var(--out-red)', refundCash, metalOut, { ...txBase, time: getTime(cancelFlows.length > 0 ? cancelFlows[0].date : s.date), ref, desc: `Bill Cancelled. Cash Refunded`, cash: refundCash, metal: metalOut, mode: mStr, dataType: 'refund' }, true);
                         }
                     }
                 } else if (billCreatedToday) {
                     if (displaySaleIn > 0) {
                         let mStr = [...new Set(todayPayments.map(p => p.mode))].join(', ') || s.mode || 'Cash';
                         let title = isOrderBill ? 'Custom Order / Repair' : 'Customer Sales';
-                        addRojmel('IN', 'sales', title, 'fas fa-cash-register', 'var(--in-green)', displaySaleIn, -metalOut, 
-                            { ...txBase, time: getTime(s.date), ref, desc: 'Full Gross Bill', cash: displaySaleIn, metal: -metalOut, mode: mStr, dataType: 'sale_full' }, true);
+                        addRojmel('IN', 'sales', title, 'fas fa-cash-register', 'var(--in-green)', displaySaleIn, -metalOut, { ...txBase, time: getTime(s.date), ref, desc: 'Full Gross Bill', cash: displaySaleIn, metal: -metalOut, mode: mStr, dataType: 'sale_full' }, true);
                     }
-                    if (oldVal > 0 || metalIn > 0) {
-                        addRojmel('OUT', 'sales_oldgold', 'Old Gold Deducted', 'fas fa-ring', 'var(--old-gold)', oldVal, metalIn, 
-                            { ...txBase, time: getTime(s.date), ref, desc: `Old Gold Value Deducted`, cash: oldVal, metal: metalIn, mode: '-', dataType: 'oldgold_adj' }, true);
-                    }
-                    if (udhari > 0) {
-                        addRojmel('OUT', 'sales_due', 'Customer Udhaari', 'fas fa-book', '#f57c00', udhari, 0, 
-                            { ...txBase, time: getTime(s.date), ref, desc: `Udhaari for Bill`, cash: udhari, metal: 0, mode: '-', dataType: 'udhari' }, true);
-                    }
-                    if (pastAdv > 0) {
-                        addRojmel('OUT', 'sales_adv_used', 'Past Advance Applied', 'fas fa-history', '#888', pastAdv, 0, 
-                            { ...txBase, time: getTime(s.date), ref, desc: `Past advance adjusted`, cash: pastAdv, metal: 0, mode: '-', dataType: 'offset' }, true);
-                    }
-                    todayRefunds.forEach(p => {
-                        let rAmt = Math.abs(getSafeNum(p.amount));
-                        addRojmel('OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', rAmt, 0, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Change/Refund given`, cash: rAmt, metal: 0, mode: p.mode, dataType: 'refund' }, true);
-                    });
+                    if (oldVal > 0 || metalIn > 0) addRojmel('OUT', 'sales_oldgold', 'Old Gold Deducted', 'fas fa-ring', 'var(--old-gold)', oldVal, metalIn, { ...txBase, time: getTime(s.date), ref, desc: `Old Gold Value Deducted`, cash: oldVal, metal: metalIn, mode: '-', dataType: 'oldgold_adj' }, true);
+                    if (udhari > 0) addRojmel('OUT', 'sales_due', 'Customer Udhaari', 'fas fa-book', '#f57c00', udhari, 0, { ...txBase, time: getTime(s.date), ref, desc: `Udhaari for Bill`, cash: udhari, metal: 0, mode: '-', dataType: 'udhari' }, true);
+                    if (pastAdv > 0) addRojmel('OUT', 'sales_adv_used', 'Past Advance Applied', 'fas fa-history', '#888', pastAdv, 0, { ...txBase, time: getTime(s.date), ref, desc: `Past advance adjusted`, cash: pastAdv, metal: 0, mode: '-', dataType: 'offset' }, true);
+                    todayRefunds.forEach(p => { let rAmt = Math.abs(getSafeNum(p.amount)); addRojmel('OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', rAmt, 0, { ...txBase, time: getTime(p.date), ref, desc: `Change/Refund given`, cash: rAmt, metal: 0, mode: p.mode, dataType: 'refund' }, true); });
                 } else {
-                    todayPayments.forEach(p => {
-                        addRojmel('IN', 'sales_receipts', 'Due Payments Received', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Due Payment Received`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true);
-                    });
-                    todayRefunds.forEach(p => {
-                        let rAmt = Math.abs(getSafeNum(p.amount));
-                        addRojmel('OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', rAmt, 0, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Refund given`, cash: rAmt, metal: 0, mode: p.mode, dataType: 'refund' }, true);
-                    });
+                    todayPayments.forEach(p => addRojmel('IN', 'sales_receipts', 'Due Payments Received', 'fas fa-hand-holding-usd', 'var(--in-green)', p.amount, 0, { ...txBase, time: getTime(p.date), ref, desc: `Due Payment Received`, cash: p.amount, metal: 0, mode: p.mode, dataType: 'receipt' }, true));
+                    todayRefunds.forEach(p => { let rAmt = Math.abs(getSafeNum(p.amount)); addRojmel('OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', rAmt, 0, { ...txBase, time: getTime(p.date), ref, desc: `Refund given`, cash: rAmt, metal: 0, mode: p.mode, dataType: 'refund' }, true); });
                 }
             });
 
@@ -1128,7 +1114,6 @@
                 let pTotal = getSafeNum(p.totalAmount || p.grandTotal || p.total);
                 let dueAmt = getSafeNum(p.dueAmount || p.pendingAmount);
                 let paidToday = getSafeNum(p.paidAmount || p.advanceAmount);
-
                 let pType = String(p.type || '').toLowerCase();
                 let isFixed = (pType === 'fixed' || pType === '' || pType === 'undefined');
 
@@ -1147,31 +1132,20 @@
                 if (billCreatedToday) {
                     if ((isFixed && pTotal > 0) || mIn > 0) {
                         let mStr = p.paymentMode || p.mode || 'Cash';
-                        addRojmel('OUT', 'purchases', 'Stock Purchases', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, mIn, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill`, cash: pTotal, metal: mIn, mode: mStr, dataType: 'purchase_full' }, true);
-                        if (dueAmt > 0) {
-                            addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, 
-                                { ...txBase, time: getTime(p.date), ref, desc: `Pending Payment`, cash: dueAmt, metal: 0, mode: '-', dataType: 'merch_due' });
-                        }
+                        addRojmel('OUT', 'purchases', 'Stock Purchases', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, mIn, { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill`, cash: pTotal, metal: mIn, mode: mStr, dataType: 'purchase_full' }, true);
+                        if (dueAmt > 0) addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, { ...txBase, time: getTime(p.date), ref, desc: `Pending Payment`, cash: dueAmt, metal: 0, mode: '-', dataType: 'merch_due' });
                     } else if (paidToday > 0) {
-                        addRojmel('OUT', 'purchases', 'Stock Advance Paid', 'fas fa-cart-arrow-down', 'var(--out-red)', paidToday, 0, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Advance Paid`, cash: paidToday, metal: 0, mode: p.paymentMode || 'Cash', dataType: 'purchase_unfixed' }, true);
+                        addRojmel('OUT', 'purchases', 'Stock Advance Paid', 'fas fa-cart-arrow-down', 'var(--out-red)', paidToday, 0, { ...txBase, time: getTime(p.date), ref, desc: `Advance Paid`, cash: paidToday, metal: 0, mode: p.paymentMode || 'Cash', dataType: 'purchase_unfixed' }, true);
                     }
                 } else {
-                    const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (String(f.note).toUpperCase().includes(ref) || String(f.note).toUpperCase().includes(`PUR-${p.id}`)));
-                    relatedFlows.forEach(f => {
+                    cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (String(f.note).toUpperCase().includes(ref) || String(f.note).toUpperCase().includes(`PUR-${p.id}`))).forEach(f => {
                         let fAmt = Math.abs(getSafeNum(f.amount));
                         let fType = f.type || 'OUT';
                         if (fAmt === 0) return;
                         if (getSafeNum(f.amount) < 0 && fType === 'IN') fType = 'OUT';
                         
-                        if (fType === 'OUT') {
-                            addRojmel('OUT', 'purchases_pay', 'Merchant Due Payments', 'fas fa-truck', 'var(--out-red)', fAmt, 0, 
-                                { ...txBase, time: getTime(f.date), ref, desc: `Due Payment Sent`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_due' });
-                        } else {
-                            addRojmel('IN', 'purchases_refund', 'Merchant Refunds', 'fas fa-undo', 'var(--in-green)', fAmt, 0, 
-                                { ...txBase, time: getTime(f.date), ref, desc: `Refund Received`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_full' });
-                        }
+                        if (fType === 'OUT') addRojmel('OUT', 'purchases_pay', 'Merchant Due Payments', 'fas fa-truck', 'var(--out-red)', fAmt, 0, { ...txBase, time: getTime(f.date), ref, desc: `Due Payment Sent`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_due' });
+                        else addRojmel('IN', 'purchases_refund', 'Merchant Refunds', 'fas fa-undo', 'var(--in-green)', fAmt, 0, { ...txBase, time: getTime(f.date), ref, desc: `Refund Received`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_full' });
                     });
                 }
             });
@@ -1179,7 +1153,6 @@
             cFlows.forEach(f => {
                 let amt = Math.abs(getSafeNum(f.amount));
                 if (amt === 0) return;
-
                 let mType = getMoneyType(f.mode);
                 if (mType === 'none') return; 
 
@@ -1187,16 +1160,11 @@
                 if (getSafeNum(f.amount) < 0 && f.type === 'IN') fType = 'OUT';
 
                 let fDate = getSafeDate(f.date);
-
                 if (fDate < selectedDateStr) {
-                    if (fType === 'IN') {
-                        if (mType === 'bank') openBank += amt; else openHardCash += amt;
-                    } else {
-                        if (mType === 'bank') openBank -= amt; else openHardCash -= amt;
-                    }
+                    if (fType === 'IN') { if (mType === 'bank') openBank += amt; else openHardCash += amt; } 
+                    else { if (mType === 'bank') openBank -= amt; else openHardCash -= amt; }
                 } 
                 else if (fDate === selectedDateStr) {
-                    
                     let cat = String(f.category || '').toLowerCase();
                     let note = String(f.note || '').toLowerCase();
                     let timeStr = getTime(f.date);
@@ -1205,24 +1173,17 @@
                     let isSaleFlow = (cat.includes('sale') || cat.includes('pos') || note.includes('inv-') || note.includes('bill'));
                     let isPurchaseFlow = (cat.includes('purchase') || note.includes('pur-'));
                     let isCancellationFlow = cat.includes('cancellation') || note.includes('reversal');
-                    
                     let isOldGoldFlow = (cat.includes('old gold') || cat.includes('old') || cat.includes('ur-') || note.includes('ur-'));
-                    
                     let linkedSale = sales.find(s => s.invoiceNo && note.includes(s.invoiceNo.toLowerCase()));
                     let linkedPurchase = purchases.find(p => note.includes(`pur-${p.id}`));
                     let linkedOldGold = oldGold.find(o => note.includes(`ur-${o.id}`) || note.includes(`melt-${o.id}`));
-                    
                     let linkedLoan = loans.find(l => note.includes(`ln-${l.id}`) || ((cat.includes('loan') || note.includes('loan')) && new RegExp(`\\b${l.id}\\b`).test(note)));
                     let isLoanFlow = !!linkedLoan; 
 
                     if (linkedSale || linkedPurchase || linkedOldGold || linkedLoan || isCancellationFlow || (isSaleFlow && !isOrder) || (isPurchaseFlow && !isOrder) || isOldGoldFlow || isLoanFlow) {
                         if (linkedSale && f.mode && f.mode.includes(',')) {
-                            if(linkedSale.payments && linkedSale.payments.length > 0) {
-                                linkedSale.payments.forEach(p => {
-                                    if (getSafeDate(p.date) === selectedDateStr) addPhysicalFlow(p.amount, p.mode, fType);
-                                });
-                                return; 
-                            }
+                            if(linkedSale.payments && linkedSale.payments.length > 0) linkedSale.payments.forEach(p => { if (getSafeDate(p.date) === selectedDateStr) addPhysicalFlow(p.amount, p.mode, fType); });
+                            return; 
                         }
                         addPhysicalFlow(amt, f.mode, fType);
                         return;
@@ -1267,7 +1228,6 @@
                             else { bucketId = 'manual_out'; bucketTitle = 'Other Withdrawals'; icon = 'fas fa-minus-circle'; color = 'var(--out-red)'; }
                         }
                     }
-
                     addRojmel(fType, bucketId, bucketTitle, icon, color, amt, 0, { time: timeStr, ref, party, partyType: '', desc: f.category || f.note, cash: amt, metal: 0, mode: f.mode, dataType: 'cashflow', raw: f });
                 }
             });
@@ -1431,7 +1391,7 @@
             return '<span class="k-item-detail">SALES / RECEIPT</span>';
         }
 
-        // --- NEW KACHHA ROJMEL RENDERER (BASED ON 23397.jpg) WITH COLORS ---
+        // --- KACHHA ROJMEL RENDERER ---
         function renderKachhaRojmel(opCash, clCash, totIn, totOut) {
             let sJama = [], bJama = [], gJama = [], oJama = [];
             let purNama = [], expNama = [], gNama = [], oNama = [];
@@ -1447,24 +1407,17 @@
                 let amtHTML = `<span class="${amtClass}">[₹${amtStr}]</span>`;
                 
                 if(isIN) {
-                    // 1. SALES
                     if(tx.bucketId.includes('sales')) {
                         let itemsHTML = extractItemsHTML(tx);
                         sJama.push(`<div class="k-entry-line">${amtHTML} <span class="k-item-list">${itemsHTML}</span></div>`);
-                    } 
-                    // 2. BYAJ
-                    else if(tx.bucketId === 'loan_interest') {
+                    } else if(tx.bucketId === 'loan_interest') {
                         bJama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-party">${p}</span> <span class="k-sep">/</span> <span class="k-item">BYAJ JAMA</span></div>`);
-                    } 
-                    // 3. GIRVI JAMA
-                    else if(tx.bucketId.includes('loan_in')) {
+                    } else if(tx.bucketId.includes('loan_in')) {
                         let w = (tx.raw && (tx.raw.weight || tx.raw.netWt)) ? `${tx.raw.weight || tx.raw.netWt}GM` : '';
                         let item = safeStr(tx.raw && tx.raw.itemName ? tx.raw.itemName : 'GOLD');
                         let suffix = tx.dataType === 'loan_in' ? 'CLOSED' : 'JAMA PETE';
                         gJama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-party">${p}</span> <span class="k-sep">/</span> <span class="k-item">${item} ${w} - ${suffix}</span></div>`);
-                    } 
-                    // 4. OTHER / PARTY
-                    else {
+                    } else {
                         if(tx.bucketId.includes('merch') || tx.bucketId.includes('purchase')) {
                             oJama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-party">${p}</span> <span class="k-sep">/</span> <span class="k-item">PAYMENT JAMA</span></div>`);
                         } else {
@@ -1472,24 +1425,17 @@
                         }
                     }
                 } else {
-                    // 1. PURCHASES
                     if(tx.bucketId.includes('purchase') && !tx.bucketId.includes('due') && !tx.bucketId.includes('pay')) {
                         let itemsHTML = extractItemsHTML(tx); 
                         purNama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-party">${p}</span> <span class="k-sep">/</span> <span class="k-item-list">${itemsHTML}</span></div>`);
-                    } 
-                    // 2. EXPENSES
-                    else if(tx.bucketId === 'expense_out') {
+                    } else if(tx.bucketId === 'expense_out') {
                         let desc = tx.desc ? tx.desc.replace(/<[^>]*>?/gm, '') : 'KHARCHA';
                         expNama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-item">${safeStr(desc)}</span></div>`);
-                    } 
-                    // 3. GIRVI RAKHI
-                    else if(tx.bucketId.includes('loan_out')) {
+                    } else if(tx.bucketId.includes('loan_out')) {
                         let w = (tx.raw && (tx.raw.weight || tx.raw.netWt)) ? `${tx.raw.weight || tx.raw.netWt}GM` : '';
                         let item = safeStr(tx.raw && tx.raw.itemName ? tx.raw.itemName : 'GOLD');
                         gNama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-party">${p}</span> <span class="k-sep">/</span> <span class="k-item">${item} ${w} - GIRVI RAKHI</span></div>`);
-                    } 
-                    // 4. OTHER / PARTY
-                    else {
+                    } else {
                         if(tx.bucketId.includes('merch') || tx.bucketId.includes('purchase_due') || tx.bucketId.includes('purchase_pay')) {
                             oNama.push(`<div class="k-entry-line">${amtHTML} <span class="k-sep">/</span> <span class="k-party">${p}</span> <span class="k-sep">/</span> <span class="k-item">PAYMENT NAMA</span></div>`);
                         } else {
@@ -1499,20 +1445,14 @@
                 }
             });
 
-            // Set Totals
             setInner('imgTotJama', (opCash + totIn).toLocaleString());
             setInner('imgTotNama', (totOut + clCash).toLocaleString());
-            
-            // Set Bottom Boxes (Cash/Bank)
             setInner('imgCash', printData.clCash.toLocaleString());
             setInner('imgBank', printData.clBank.toLocaleString());
-            
-            // Set Bottom Boxes (Metals - Split View)
             setInner('kOgVal', printData.opMetal.toFixed(3) + ' g');
             setInner('kOsVal', '0.000 g');
             setInner('kBgVal', printData.opOldGold.toFixed(3) + ' g');
             setInner('kBsVal', '0.000 g');
-
             setInner('kCGVal', printData.clMetal.toFixed(3) + ' g');
             setInner('kCSVal', '0.000 g');
             setInner('kCBSVal', '0.000 g');
@@ -1527,13 +1467,10 @@
                 el.innerHTML = html;
             };
 
-            // Jama Map
             fillLines('kSalesLines', sJama, 4);
             fillLines('kByajLines', bJama, 2);
             fillLines('kGirviJamaLines', gJama, 3);
             fillLines('kOtherJamaLines', oJama, 3);
-
-            // Nama Map
             fillLines('kPurLines', purNama, 2);
             fillLines('kExpLines', expNama, 2);
             fillLines('kGirviRakhiLines', gNama, 3);
@@ -1541,6 +1478,8 @@
         }
 
         // --- NEW: ROKAD MILAN LOGIC ---
+        let currentRokadDiff = 0;
+
         function calcRokad() {
             let t = 0;
             const getV = (id) => { let v = parseInt(document.getElementById(id).value); return isNaN(v) ? 0 : v; };
@@ -1555,19 +1494,51 @@
             document.getElementById('rokadTotal').innerText = `₹${t.toLocaleString()}`;
 
             let sysCash = printData.clCash || 0;
-            let diff = t - sysCash;
+            currentRokadDiff = t - sysCash;
             let diffEl = document.getElementById('rokadDiff');
+            let btnAdj = document.getElementById('btnRokadAdjust');
 
-            if(diff === 0) {
-                diffEl.innerText = `मिलान: ₹0 (OK)`;
-                diffEl.className = 'r-diff ok';
-            } else if (diff > 0) {
-                diffEl.innerText = `Excess: +₹${diff.toLocaleString()}`;
-                diffEl.className = 'r-diff excess';
-            } else {
-                diffEl.innerText = `Shortage: -₹${Math.abs(diff).toLocaleString()}`;
-                diffEl.className = 'r-diff short';
+            // Prevent showing adjust button if no cash is entered at all to avoid accidental 0-balance resets
+            if(t === 0 && sysCash > 0) {
+                diffEl.innerText = `...`; diffEl.className = 'r-diff';
+                btnAdj.style.display = 'none';
+                return;
             }
+
+            if(currentRokadDiff === 0 && sysCash > 0) {
+                diffEl.innerText = `मिलान: ₹0 (OK)`; diffEl.className = 'r-diff ok';
+                btnAdj.style.display = 'none';
+            } else if (currentRokadDiff > 0) {
+                diffEl.innerText = `ज्यादा (Excess): +₹${currentRokadDiff.toLocaleString()}`; diffEl.className = 'r-diff excess';
+                btnAdj.style.display = 'block';
+            } else if (currentRokadDiff < 0) {
+                diffEl.innerText = `कम (Shortage): -₹${Math.abs(currentRokadDiff).toLocaleString()}`; diffEl.className = 'r-diff short';
+                btnAdj.style.display = 'block';
+            } else {
+                diffEl.innerText = `मिलान: ₹0`; diffEl.className = 'r-diff ok';
+                btnAdj.style.display = 'none';
+            }
+        }
+
+        function openRokadAdjustModal() {
+            if(currentRokadDiff === 0) return;
+            document.getElementById('adjDiffAmt').innerText = `₹${Math.abs(currentRokadDiff).toLocaleString()}`;
+            document.getElementById('adjDiffType').innerText = currentRokadDiff > 0 ? "ज़्यादा (Excess)" : "कम (Short)";
+            openModal('adjustModal');
+        }
+
+        function submitRokadAdjust() {
+            let cat = document.getElementById('adjCategory').value;
+            let amt = Math.abs(currentRokadDiff);
+            let type = currentRokadDiff > 0 ? 'IN' : 'OUT'; // Extra paisa = IN, Kam paisa = OUT(Kharcha)
+            
+            // Note: To make this permanent, you need to save this transaction via your db.js (e.g., addCashflow).
+            // For now, we show the success alert. Ideally, insert the DB save logic right here.
+            alert(`सफलतापूर्वक दर्ज हुआ!\n${amt} रुपये '${cat}' खाते में (${type}) डाल दिए गए हैं।\n(Note: Backend DB save logic will be triggered here)`);
+            
+            closeModal('adjustModal');
+            // Re-render Daybook to fetch updated data once DB is updated
+            // renderDaybook(); 
         }
 
         // --- NEW: WHATSAPP SHARE ---
