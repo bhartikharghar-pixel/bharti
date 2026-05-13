@@ -4,23 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quick Action - Bharti Jewellers</title>
-    <link rel="stylesheet" href="style.css"> <!-- Aapka existing style -->
+    <link rel="stylesheet" href="style.css">
     <style>
-        .master-container { padding: 20px; max-width: 500px; margin: auto; }
+        .master-container { padding: 20px; max-width: 500px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-around; }
-        .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; }
+        .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; transition: 0.3s; }
         .tab-btn.active { background: #d4af37; color: white; border-color: #d4af37; font-weight: bold; }
         .form-group { margin-bottom: 15px; }
-        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ddd; }
-        .save-btn { background: #28a745; color: white; font-size: 1.1rem; border: none; margin-top: 20px; cursor: pointer; }
+        label { font-weight: bold; font-size: 0.9rem; color: #333; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
+        .save-btn { background: #28a745; color: white; font-size: 1.1rem; border: none; margin-top: 20px; cursor: pointer; font-weight: bold; }
+        .save-btn:hover { background: #218838; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
-    <h2>Quick Entry Dashboard</h2>
+    <h2 style="text-align: center; color: #d4af37;">⚡ Quick Entry</h2>
     
-    <!-- Tabs to switch between Sales, Order, and Girvi -->
     <div class="action-tabs">
         <div id="tab-sales" class="tab-btn active" onclick="switchAction('sales')">Sale</div>
         <div id="tab-orders" class="tab-btn" onclick="switchAction('orders')">Order</div>
@@ -30,7 +31,9 @@
     <form id="quickForm">
         <div class="form-group">
             <label>Customer Name</label>
-            <input type="text" id="custName" placeholder="Customer ka naam" required>
+            <!-- list="customerList" auto-suggest ke liye hai -->
+            <input type="text" id="custName" list="customerList" placeholder="Customer ka naam type karein..." required>
+            <datalist id="customerList"></datalist>
         </div>
 
         <div class="form-group">
@@ -52,19 +55,37 @@
     </form>
 </div>
 
-<!-- Database File Link -->
+<!-- Database Files -->
 <script src="db.js"></script>
 
 <script>
     let currentStore = 'sales';
 
+    // 1. Page load hote hi Customers ka data fetch karna
+    window.onload = async function() {
+        try {
+            const customers = await getAllItems('customers');
+            const datalist = document.getElementById('customerList');
+            
+            // Har customer ka naam list me daalna
+            customers.forEach(cust => {
+                if(cust.name) {
+                    let option = document.createElement('option');
+                    option.value = cust.name;
+                    datalist.appendChild(option);
+                }
+            });
+        } catch (error) {
+            console.error("Customers load karne me error:", error);
+        }
+    };
+
+    // 2. Tab Switch Karne ka Function
     function switchAction(type) {
         currentStore = type;
-        // Update Tabs UI
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById('tab-' + type).classList.add('active');
         
-        // Update Labels based on selection
         if(type === 'loans') {
             document.getElementById('mainLabel').innerText = "Girvi Item (Security)";
             document.getElementById('amountLabel').innerText = "Loan Amount Given";
@@ -77,24 +98,29 @@
         }
     }
 
+    // 3. Data Save Karne ka Function
     async function handleSave() {
         const data = {
             customerName: document.getElementById('custName').value,
             item: document.getElementById('itemDetail').value,
             weight: document.getElementById('weight').value,
             amount: document.getElementById('amount').value,
-            date: new Date().toISOString().split('T')[0], // Aaj ki date
+            date: new Date().toISOString().split('T')[0],
             status: 'completed'
         };
 
+        if(!data.customerName || !data.amount) {
+            alert("Kripya Customer ka naam aur Amount zaroor bharein.");
+            return;
+        }
+
         try {
-            // Aapka db.js ka addItem function use ho raha hai
             const resultId = await addItem(currentStore, data);
-            alert("Success! Entry saved in " + currentStore + " with ID: " + resultId);
+            alert("Entry Successfully Saved!");
             document.getElementById('quickForm').reset();
         } catch (error) {
             console.error("Save failed:", error);
-            alert("Kuch error aaya, please check console.");
+            alert("Error: Data save nahi hua.");
         }
     }
 </script>
