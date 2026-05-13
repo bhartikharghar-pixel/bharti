@@ -6,21 +6,20 @@
     <title>Customer Search - Bharti Jewellers</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; }
         .master-container { padding: 20px; max-width: 800px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        /* Search Bar Style */
-        .search-box { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid #d4af37; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; text-align: center;}
+        /* Search Box */
+        .search-box { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid #d4af37; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; text-align: center; font-weight: bold;}
         
-        /* Action Section (Hidden by default) */
         .action-section { display: none; }
         .customer-title { text-align: center; color: #333; margin-bottom: 20px; font-size: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         
-        /* Left & Right Grid */
+        /* Grid */
         .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        
         .column { padding: 15px; border-radius: 8px; }
-        .col-left { background: #e8f5e9; border: 1px solid #c8e6c9; } /* Green tint for IN */
-        .col-right { background: #ffebee; border: 1px solid #ffcdd2; } /* Red tint for OUT */
+        .col-left { background: #e8f5e9; border: 1px solid #c8e6c9; } 
+        .col-right { background: #ffebee; border: 1px solid #ffcdd2; } 
         
         h3 { text-align: center; margin-top: 0; font-size: 1.1rem; }
         .col-left h3 { color: #2e7d32; }
@@ -28,65 +27,83 @@
         
         /* Buttons */
         .action-btn { width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 5px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        
-        /* Left Buttons (Greenish) */
         .btn-in { background: #4caf50; color: white; }
         .btn-in:hover { background: #388e3c; }
-        
-        /* Right Buttons (Reddish) */
         .btn-out { background: #f44336; color: white; }
         .btn-out:hover { background: #d32f2f; }
+        .btn-neutral { background: #2196f3; color: white; margin-top: 20px; width: 100%; }
 
-        /* General Button (Blue) */
-        .btn-neutral { background: #2196f3; color: white; margin-top: 20px; }
+        /* Popup Form (Modal) */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); }
+        .modal-content { background-color: #fff; margin: 10% auto; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; position: relative; }
+        .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; color: #888; }
+        .close-btn:hover { color: #000; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .save-btn { width: 100%; padding: 12px; background: #d4af37; color: white; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
-    
-    <!-- Step 1: Search Bar -->
-    <input type="text" id="searchCustomer" class="search-box" list="customerList" placeholder="🔍 Customer Ka Naam Search Karein..." onchange="showActions()">
+    <!-- Search Bar -->
+    <input type="text" id="searchCustomer" class="search-box" list="customerList" placeholder="🔍 Type/Select Customer Name..." oninput="showActions()">
     <datalist id="customerList"></datalist>
 
-    <!-- Step 2: Action Buttons (Appears after selection) -->
+    <!-- Action Section -->
     <div id="actionPanel" class="action-section">
         <h2 class="customer-title" id="displayCustName">Customer Name</h2>
         
         <div class="action-grid">
-            
-            <!-- LEFT SIDE: IN (Jama / Aaya) -->
+            <!-- IN (Jama) -->
             <div class="column col-left">
-                <h3>⬇️ IN (Jama / Aaya)</h3>
-                <button class="action-btn btn-in" onclick="openForm('Sale')">🛒 Sale (Bikri)</button>
-                <button class="action-btn btn-in" onclick="openForm('Byaaj Jama')">💰 Byaaj Jama</button>
-                <button class="action-btn btn-in" onclick="openForm('Girvi Jama')">💍 Girvi Jama (Purana)</button>
-                <button class="action-btn btn-in" onclick="openForm('Release')">🔓 Release (Chhudana)</button>
-                <button class="action-btn btn-in" onclick="openForm('Payment In')">💵 Other Payment In</button>
+                <h3>⬇️ IN (Aaya / Jama)</h3>
+                <button class="action-btn btn-in" onclick="openPopup('Sale')">🛒 Sale (Bikri)</button>
+                <button class="action-btn btn-in" onclick="openPopup('Byaaj Jama')">💰 Byaaj Jama</button>
+                <button class="action-btn btn-in" onclick="openPopup('Girvi Jama')">💍 Girvi Jama (Purana)</button>
+                <button class="action-btn btn-in" onclick="openPopup('Release')">🔓 Release (Chhudana)</button>
+                <button class="action-btn btn-in" onclick="openPopup('Payment In')">💵 Other Payment In</button>
             </div>
 
-            <!-- RIGHT SIDE: OUT (Karcha / Gaya) -->
+            <!-- OUT (Udhar) -->
             <div class="column col-right">
-                <h3>⬆️ OUT (Udhar / Gaya)</h3>
-                <button class="action-btn btn-out" onclick="openForm('Girvi Rakha')">🏦 Girvi Rakha (Loan Diya)</button>
-                <button class="action-btn btn-out" onclick="openForm('Purchase')">🛍️ Purchase (Khareedi)</button>
-                <button class="action-btn btn-out" onclick="openForm('Payment Diya')">💸 Payment Diya</button>
-                <button class="action-btn btn-out" onclick="openForm('Expense')">📝 Expense (Kharcha)</button>
+                <h3>⬆️ OUT (Gaya / Udhar)</h3>
+                <button class="action-btn btn-out" onclick="openPopup('Girvi Rakha')">🏦 Girvi Rakha (Loan Diya)</button>
+                <button class="action-btn btn-out" onclick="openPopup('Purchase')">🛍️ Purchase (Khareedi)</button>
+                <button class="action-btn btn-out" onclick="openPopup('Payment Diya')">💸 Payment Diya</button>
+                <button class="action-btn btn-out" onclick="openPopup('Expense')">📝 Expense (Kharcha)</button>
             </div>
-            
         </div>
         
-        <!-- Reset Button -->
         <button class="action-btn btn-neutral" onclick="resetSearch()">❌ Cancel / New Search</button>
     </div>
-
 </div>
 
-<!-- Aapki Database file -->
+<!-- POPUP MODAL FORM -->
+<div id="entryModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closePopup()">&times;</span>
+        <h2 id="modalTitle" style="margin-top:0; color:#d4af37;">Entry Form</h2>
+        
+        <form id="dynamicForm">
+            <input type="hidden" id="actionType">
+            <input type="hidden" id="customerHidden">
+            
+            <div id="formFields">
+                <!-- Javascript se form aayega yaha -->
+            </div>
+
+            <button type="button" class="save-btn" onclick="saveEntry()">💾 Save Data</button>
+        </form>
+    </div>
+</div>
+
 <script src="db.js"></script>
 
 <script>
-    // 1. Page load hote hi Customers list me bharo
+    // 1. Data load at start
     window.onload = async function() {
         try {
             const customers = await getAllItems('customers');
@@ -96,41 +113,117 @@
             customers.forEach(cust => {
                 if(cust.name) {
                     let option = document.createElement('option');
-                    option.value = cust.name + (cust.mobile ? ` - ${cust.mobile}` : '');
+                    option.value = cust.name;
                     datalist.appendChild(option);
                 }
             });
+            console.log("Customers loaded:", customers.length);
         } catch (error) {
-            console.error("Customer load nahi hue:", error);
+            console.error("Data load failed:", error);
         }
     };
 
-    // 2. Customer select hone par Actions show karo
+    // 2. Show actions when typing
     function showActions() {
         let inputVal = document.getElementById('searchCustomer').value;
-        
-        if (inputVal.length > 2) { // Kam se kam 3 letter ya selection par
+        if (inputVal.trim().length > 1) { 
             document.getElementById('actionPanel').style.display = 'block';
-            document.getElementById('displayCustName').innerText = "👤 " + inputVal.split(' - ')[0]; // Sirf naam dikhao
+            document.getElementById('displayCustName').innerText = "👤 " + inputVal;
         } else {
             document.getElementById('actionPanel').style.display = 'none';
         }
     }
 
-    // 3. Reset karna wapas search ke liye
     function resetSearch() {
         document.getElementById('searchCustomer').value = '';
         document.getElementById('actionPanel').style.display = 'none';
     }
 
-    // 4. Buttons par click karne par kya hoga?
-    function openForm(actionType) {
-        let customer = document.getElementById('displayCustName').innerText.replace('👤 ', '');
-        
-        // Abhi ke liye alert chalega
-        alert(`Aap ${customer} ke liye "${actionType}" ki entry karna chahte hain.\n\nYahan par hum ek chota popup form khol sakte hain.`);
-        
-        // Yahan aap bataiye kya karna hai!
+    // 3. Open Popup and create specific fields
+    function openPopup(action) {
+        let customer = document.getElementById('searchCustomer').value;
+        if(!customer) { alert("Pehle Customer ka naam likhein!"); return; }
+
+        document.getElementById('modalTitle').innerText = action + " - " + customer;
+        document.getElementById('actionType').value = action;
+        document.getElementById('customerHidden').value = customer;
+
+        let fieldsHTML = '';
+
+        // Sale & Purchase & Girvi fields
+        if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Rakha' || action === 'Girvi Jama') {
+            fieldsHTML = `
+                <div class="form-group"><label>Item Name</label><input type="text" id="p_item" required></div>
+                <div class="form-group"><label>Weight (g)</label><input type="number" step="0.01" id="p_weight" required></div>
+                <div class="form-group"><label>Total Amount (₹)</label><input type="number" id="p_amount" required></div>
+            `;
+        } 
+        // Money Only fields
+        else if(action === 'Byaaj Jama' || action === 'Release' || action === 'Payment In' || action === 'Payment Diya' || action === 'Expense') {
+            fieldsHTML = `
+                <div class="form-group"><label>Amount (₹)</label><input type="number" id="p_amount" required></div>
+                <div class="form-group"><label>Remarks / Notes</label><input type="text" id="p_item" placeholder="Optional"></div>
+            `;
+        }
+
+        document.getElementById('formFields').innerHTML = fieldsHTML;
+        document.getElementById('entryModal').style.display = 'block';
+    }
+
+    function closePopup() {
+        document.getElementById('entryModal').style.display = 'none';
+    }
+
+    // 4. Save data logic
+    async function saveEntry() {
+        let action = document.getElementById('actionType').value;
+        let customer = document.getElementById('customerHidden').value;
+        let amount = document.getElementById('p_amount') ? document.getElementById('p_amount').value : 0;
+        let item = document.getElementById('p_item') ? document.getElementById('p_item').value : '';
+        let weight = document.getElementById('p_weight') ? document.getElementById('p_weight').value : 0;
+
+        if(!amount) { alert("Amount zaroori hai!"); return; }
+
+        let dateToday = new Date().toISOString().split('T')[0];
+        let storeName = '';
+        let finalData = {
+            date: dateToday,
+            customerName: customer,
+            amount: parseFloat(amount),
+            status: 'completed'
+        };
+
+        // Decision logic: Kis table me data jayega?
+        if(action === 'Sale') {
+            storeName = 'sales';
+            finalData.item = item;
+            finalData.weight = parseFloat(weight);
+        } else if(action === 'Girvi Rakha' || action === 'Girvi Jama') {
+            storeName = 'loans';
+            finalData.item = item;
+            finalData.weight = parseFloat(weight);
+            finalData.status = action === 'Girvi Rakha' ? 'active' : 'closed';
+        } else if(action === 'Purchase') {
+            storeName = 'purchases';
+            finalData.item = item;
+            finalData.weight = parseFloat(weight);
+        } else {
+            // Baaki sab cashflow me (Expense, Payment In/Out, Byaaj)
+            storeName = 'cashflow';
+            finalData.mode = action; // 'Expense', 'Byaaj Jama' etc
+            finalData.description = item;
+        }
+
+        try {
+            // Save to database using db.js
+            await addItem(storeName, finalData);
+            alert("✅ Entry Successfully Saved for: " + action);
+            closePopup();
+            resetSearch();
+        } catch(error) {
+            console.error("Save failed", error);
+            alert("❌ Data Save Error. Please try again.");
+        }
     }
 </script>
 
