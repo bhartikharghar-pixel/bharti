@@ -522,7 +522,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=70"></script>
+    <script src="db.js?v=71"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -1313,7 +1313,7 @@
             });
 
             // =========================================================================
-            // GOLD LOANS - COMBINED CASH & COLLATERAL 
+            // GOLD LOANS - COLLATERAL NO LONGER AFFECTS STOCK (Cash Flows Only)
             // =========================================================================
             loans.forEach(l => {
                 let mWt = getSafeNum(l.weight || l.grossWt || l.netWt);
@@ -1323,51 +1323,54 @@
                 let mStr = l.paymentMode || l.mode || 'Cash';
                 let isCreatedToday = getSafeDate(l.date) === selectedDateStr;
                 let isClosedToday = l.status === 'closed' && getSafeDate(l.closeDate) === selectedDateStr;
+                let itemName = l.itemName || l.item || l.description || '';
 
-                // 1. Metal Log (Skip Daybook UI rendering, we will combine it manually below)
-                if (mWt > 0) {
-                    logMetal(l.date, mWt, 'OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', 'Loan Collateral Received', partyName, ref, true, 'NET', true);
-                    if (l.status === 'closed' && l.closeDate) {
-                        logMetal(l.closeDate, mWt, 'IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', 'Loan Collateral Returned', partyName, ref, false, 'NET', true);
-                    }
-                }
-
-                // 2. Disbursed Today (Cash OUT, Metal IN)
                 if (isCreatedToday) {
-                    if (loanAmt > 0 || mWt > 0) {
-                        addRojmel('OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', loanAmt, mWt, 
-                            { time: getTime(l.date), ref, party: partyName, partyType: 'Customer', desc: 'Loan Principal Disbursed & Collateral Deposited', cash: loanAmt, metal: mWt, mode: mStr, dataType: 'loan_out', raw: l }, true);
+                    if (loanAmt > 0) {
+                        addRojmel('OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', loanAmt, 0, 
+                            { time: getTime(l.date), ref, party: partyName, partyType: 'Customer', desc: `Loan Principal Disbursed <br><small style="color:#8e24aa;"><i class="fas fa-ring"></i> Collateral Kept: ${mWt.toFixed(3)}g ${itemName}</small>`, cash: loanAmt, metal: 0, mode: mStr, dataType: 'loan_out', raw: l }, true);
                     }
                 }
 
-                // 3. Closed Today (Cash IN, Metal OUT)
                 if (isClosedToday) {
                     let repayAmt = getSafeNum(l.paidAmount || l.repaymentAmount || l.amount || l.loanAmount || l.principal);
+                    let interestAmt = getSafeNum(l.interestPaid || l.interestAmount || l.interest || 0);
                     
-                    let foundFlowCash = 0;
+                    let foundPrincipalFlow = 0;
+                    let foundInterestFlow = 0;
                     let flowModes = [];
+                    
                     const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
                     relatedFlows.forEach(f => {
                         let fAmt = Math.abs(getSafeNum(f.amount));
                         let fType = f.type || 'IN';
                         if (getSafeNum(f.amount) < 0 && f.type === 'IN') fType = 'OUT';
+                        
                         if (fType === 'IN') {
-                            foundFlowCash += fAmt;
+                            if (String(f.category || '').toLowerCase().includes('interest') || String(f.note || '').toLowerCase().includes('interest')) {
+                                foundInterestFlow += fAmt;
+                            } else {
+                                foundPrincipalFlow += fAmt;
+                            }
                             flowModes.push(f.mode);
                         }
                     });
 
-                    let finalRepayCash = foundFlowCash > 0 ? foundFlowCash : repayAmt;
-                    let finalMode = foundFlowCash > 0 ? [...new Set(flowModes)].join(', ') : mStr;
+                    let finalPrincipalCash = foundPrincipalFlow > 0 ? foundPrincipalFlow : repayAmt;
+                    let finalInterestCash = foundInterestFlow > 0 ? foundInterestFlow : interestAmt;
+                    let finalMode = (flowModes.length > 0) ? [...new Set(flowModes)].join(', ') : mStr;
 
-                    if (finalRepayCash > 0 || mWt > 0) {
-                        // -mWt pass kar rahe hain kyunki ye JAMA (IN) mein red/minus (-) metal weight show karega, jo ki sahi hai.
-                        addRojmel('IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', finalRepayCash, -mWt, 
-                            { time: getTime(l.closeDate), ref, party: partyName, partyType: 'Customer', desc: 'Loan Closed (Principal Repaid & Collateral Returned)', cash: finalRepayCash, metal: -mWt, mode: finalMode, dataType: 'loan_in', raw: l }, true);
+                    if (finalPrincipalCash > 0) {
+                        addRojmel('IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', finalPrincipalCash, 0, 
+                            { time: getTime(l.closeDate), ref, party: partyName, partyType: 'Customer', desc: `Loan Closed (Principal Repaid)<br><small style="color:#8e24aa;"><i class="fas fa-ring"></i> Collateral Returned: ${mWt.toFixed(3)}g ${itemName}</small>`, cash: finalPrincipalCash, metal: 0, mode: finalMode, dataType: 'loan_in', raw: l }, true);
+                    }
+                    
+                    if (finalInterestCash > 0) {
+                        addRojmel('IN', 'loan_interest', 'Gold Loan Interest', 'fas fa-percent', 'var(--info-blue)', finalInterestCash, 0, 
+                            { time: getTime(l.closeDate), ref, party: partyName, partyType: 'Customer', desc: `Interest Received for Loan`, cash: finalInterestCash, metal: 0, mode: finalMode, dataType: 'loan_interest', raw: l }, true);
                     }
                 }
 
-                // 4. Any Partial flows (Extra disbursment / partial interest repayment)
                 const otherFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
                 otherFlows.forEach(f => {
                     let fAmt = Math.abs(getSafeNum(f.amount));
@@ -1376,8 +1379,14 @@
                     
                     if (fAmt > 0) {
                         if (fType === 'IN' && !isClosedToday) {
-                            addRojmel('IN', 'loan_in_partial', 'Gold Loan Repayments (Partial)', 'fas fa-coins', 'var(--in-green)', fAmt, 0, 
-                                { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Loan Repayment Received', cash: fAmt, metal: 0, mode: f.mode, dataType: 'loan_in_partial' }, true);
+                            let isInterest = String(f.category || '').toLowerCase().includes('interest') || String(f.note || '').toLowerCase().includes('interest');
+                            let bId = isInterest ? 'loan_interest' : 'loan_in_partial';
+                            let bTitle = isInterest ? 'Gold Loan Interest' : 'Gold Loan Repayments (Partial)';
+                            let bIcon = isInterest ? 'fas fa-percent' : 'fas fa-coins';
+                            let bColor = isInterest ? 'var(--info-blue)' : 'var(--in-green)';
+
+                            addRojmel('IN', bId, bTitle, bIcon, bColor, fAmt, 0, 
+                                { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Loan Payment Received', cash: fAmt, metal: 0, mode: f.mode, dataType: bId }, true);
                         } else if (fType === 'OUT' && !isCreatedToday) {
                             addRojmel('OUT', 'loan_out_extra', 'Gold Loans Disbursed (Extra)', 'fas fa-hand-holding-usd', 'var(--out-red)', fAmt, 0, 
                                 { time: getTime(f.date), ref, party: partyName, partyType: 'Customer', desc: f.category || 'Additional Loan Cash Disbursed', cash: fAmt, metal: 0, mode: f.mode, dataType: 'loan_out_extra' }, true);
@@ -1385,17 +1394,7 @@
                     }
                 });
             });
-
-            mPayments.forEach(mp => {
-                if (mp.goldType !== 'fixed') {
-                    let net = getSafeNum(mp.gold);
-                    if (mp.paymentType === 'OUT') {
-                        logMetal(mp.date, net, 'OUT', 'merch_out', 'Merchant Payments & Purchases', 'fas fa-truck', 'var(--out-red)', 'Merchant Metal Paid', getMerchName(mp.merchantId), `SET-${mp.id}`, false, 'NET');
-                    } else {
-                        logMetal(mp.date, net, 'IN', 'merch_in', 'Merchant Refunds/Receipts', 'fas fa-undo', 'var(--in-green)', 'Merchant Metal Received', getMerchName(mp.merchantId), `SET-${mp.id}`, true, 'NET');
-                    }
-                }
-            });
+            // =========================================================================
 
             let c_marketUdhari = 0; let c_merchantDues = 0;
             sales.forEach(s => { if (getSafeDate(s.date) <= selectedDateStr && s.status !== 'cancelled') c_marketUdhari += getSafeNum(s.pendingAmount); });
