@@ -14,7 +14,7 @@
             --in-green: #2e7d32; --out-red: #c62828; --info-blue: #1976d2;
             --old-gold: #8e24aa;
             --fine-gold: #90caf9;
-            --mix-metal: #ff9800;
+            --mix-metal: #ff9800; /* Distinct color for Mix Metal */
             --card-shadow: 0 4px 12px rgba(0,0,0,0.06);
             --card-hover: 0 8px 20px rgba(197, 160, 89, 0.15);
         }
@@ -302,7 +302,7 @@
                             <strong id="uiOpeningBalBank">₹0</strong>
                         </div>
                         <div class="bal-split-item">
-                            <span><i class="fas fa-cubes"></i> Inv/Net</span>
+                            <span><i class="fas fa-cubes"></i> Inv/Fine</span>
                             <strong id="uiOpeningBalMetal">0.000 g</strong>
                         </div>
                         <div class="bal-split-item">
@@ -337,7 +337,7 @@
                         <span id="uiGrandTotalMixMetalIn">0.000 g</span>
                     </div>
                     <div class="gt-row gold-row" style="color: var(--fine-gold); border-top: 1px dashed #444; padding-top: 5px;">
-                        <span class="grand-total-lbl" style="color: var(--fine-gold);"><i class="fas fa-boxes"></i> G.Total Inv/Net Gold</span>
+                        <span class="grand-total-lbl" style="color: var(--fine-gold);"><i class="fas fa-boxes"></i> G.Total Inv/Fine Gold</span>
                         <span id="uiGrandTotalMetalIn">0.000 g</span>
                     </div>
                 </div>
@@ -369,7 +369,7 @@
                             <strong id="uiClosingBalBank">₹0</strong>
                         </div>
                         <div class="bal-split-item">
-                            <span><i class="fas fa-cubes"></i> Inv/Net</span>
+                            <span><i class="fas fa-cubes"></i> Inv/Fine</span>
                             <strong id="uiClosingBalMetal">0.000 g</strong>
                         </div>
                         <div class="bal-split-item">
@@ -408,7 +408,7 @@
                         <span id="uiGrandTotalMixMetalOut">0.000 g</span>
                     </div>
                     <div class="gt-row gold-row" style="color: var(--fine-gold); border-top: 1px dashed #444; padding-top: 5px;">
-                        <span class="grand-total-lbl" style="color: var(--fine-gold);"><i class="fas fa-boxes"></i> G.Total Inv/Net Gold</span>
+                        <span class="grand-total-lbl" style="color: var(--fine-gold);"><i class="fas fa-boxes"></i> G.Total Inv/Fine Gold</span>
                         <span id="uiGrandTotalMetalOut">0.000 g</span>
                     </div>
                 </div>
@@ -449,7 +449,7 @@
                                 <th style="width: 15%;">Party Info</th>
                                 <th style="width: 30%;">Transaction Details</th>
                                 <th style="width: 10%; text-align:center;">Mode</th>
-                                <th style="text-align:right; width: 15%;">Net Wt Flow</th>
+                                <th style="text-align:right; width: 15%;">Metal Flow</th>
                                 <th style="text-align:right; width: 15%;">Cash Flow</th>
                             </tr>
                         </thead>
@@ -467,7 +467,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=71"></script>
+    <script src="db.js?v=69"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -507,20 +507,15 @@
             return 'cash'; 
         }
 
-        // --- LAYER 1: STRICT NET WEIGHT EXTRACTOR ---
         function getSafeNet(i) {
-            if (!i) return 0;
-            let n = getSafeNum(i.netWt || i.netWeight || i.net_wt || i.net);
+            let n = getSafeNum(i.netWt);
             if(n > 0) return n;
-            let g = getSafeNum(i.grossWt || i.grossWeight || i.gross_wt || i.gross);
-            let s = getSafeNum(i.stoneWt || i.stoneWeight || i.stone_wt || i.stone);
+            let g = getSafeNum(i.grossWt);
+            let s = getSafeNum(i.stoneWt);
             if (g > 0) return g - s;
-            let w = getSafeNum(i.weight || i.totalWeight || i.wt || i.itemWeight);
-            if (w > 0) return w;
-            let o = getSafeNum(i.oldGoldWeight || i.oldGoldWt || i.oldGoldNet);
-            if (o > 0) return o;
-            
-            return 0; // Purely physical Net Weight. No Fine Weight fallback allowed.
+            let f = getSafeNum(i.fineWt);
+            if (f > 0) return f;
+            return getSafeNum(i.weight);
         }
 
         function getTime(dateStr) {
@@ -581,6 +576,7 @@
             }
         }
 
+        // PHYSICAL CASH TRACKER
         let actualSyncInCash = 0, actualSyncInBank = 0, actualSyncOutCash = 0, actualSyncOutBank = 0;
 
         function addPhysicalFlow(amount, mode, type) {
@@ -612,13 +608,14 @@
 
             let openHardCash = 0, openBank = 0;
             
-            let openMetal = 0; 
-            let openOldGold = 0; 
-            let openMixMetal = 0; 
+            // Separated Metal Tracking
+            let openMetal = 0; // Fine Metal (Inventory)
+            let openOldGold = 0; // Old Gold
+            let openMixMetal = 0; // Mix Metal (Melted Slab)
             
             let todayMetalNetDB = 0; 
-            let todayMetalIn = 0; 
-            let todayMetalOut = 0; 
+            let todayMetalIn = 0; // Fine/Inv Gold In
+            let todayMetalOut = 0; // Fine/Inv Gold Out
             
             let todayOldGoldIn = 0;
             let todayOldGoldOut = 0;
@@ -648,6 +645,7 @@
             const getCustName = (id) => { const c = customers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in Customer'; };
             const getMerchName = (id) => { const m = merchants.find(x => String(x.id) === String(id)); return m ? m.name : 'Merchant / Supplier'; };
 
+            // --- CALCULATE MONTHLY STATS ---
             const targetMonth = selectedDateStr.substring(0, 7);
             let mSalesTotal = 0, mSalesRecv = 0, mUdhariTotal = 0;
             let mGoldIn = 0, mGoldOut = 0, mSilverIn = 0, mSilverOut = 0;
@@ -672,24 +670,14 @@
             purchases.forEach(p => {
                 if (String(p.date).startsWith(targetMonth)) {
                     let minGold = 0, minSilv = 0;
-                    
-                    let rootNet = getSafeNum(p.totalNetWeight || p.totalNetWt || p.netWt || p.netWeight);
-                    let rootGross = getSafeNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight || p.totalWeight || p.weight);
-                    let rootStone = getSafeNum(p.totalStoneWeight || p.stoneWt || p.stoneWeight);
-                    
-                    if (rootNet > 0) {
-                        minGold = rootNet;
-                    } else if (rootGross > 0) {
-                        minGold = rootGross - rootStone;
-                    } else if(p.itemDetails && p.itemDetails.length > 0) {
+                    if(p.itemDetails && p.itemDetails.length > 0) {
                         p.itemDetails.forEach(item => {
                             let net = getSafeNet(item);
                             if (isSilver(item.purity || item.category)) minSilv += net; else minGold += net;
                         });
                     } else {
-                        minGold = getSafeNum(p.totalWeight || p.weight);
+                        minGold = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalFineWeight);
                     }
-                    
                     mGoldIn += minGold;
                     mSilverIn += minSilv;
                 }
@@ -699,7 +687,7 @@
                 if (String(o.date).startsWith(targetMonth)) {
                     if (o.mode !== 'POS Exchange') {
                         if (o.type === 'MELT') {
-                            let recv = getSafeNum(o.receivedWt || o.meltedWt || o.netWt);
+                            let recv = getSafeNum(o.receivedWt || o.fineWt || o.pureWt || o.meltedWt);
                             if (recv > 0) {
                                 if (isSilver(o.purity || o.description)) mSilverIn += recv; 
                                 else mGoldIn += recv;
@@ -745,10 +733,7 @@
                 const ref = s.invoiceNo || `INV-${s.id}`;
                 const party = getCustName(s.customerId);
                 let txBase = { party, partyType: 'Customer', raw: s };
-                
-                // Separate Repair vs Order logic
-                let isRepairBill = s.jobType === 'Repair' || (s.items && s.items.some(i => String(i.id).startsWith('rep_')));
-                let isOrderBill = s.jobType === 'Order' || (s.items && s.items.some(i => String(i.source).startsWith('order_')));
+                let isOrderBill = s.jobType === 'Repair' || s.jobType === 'Order' || (s.items && s.items.some(i => String(i.id).startsWith('rep_') || String(i.source).startsWith('order_')));
 
                 let pastAdv = 0;
                 let todayPayments = [];
@@ -812,22 +797,8 @@
 
                     if (displaySaleIn > 0) {
                         let mStr = [...new Set(todayPayments.map(p => p.mode))].join(', ') || s.mode || 'Cash';
-                        
-                        let bucketId = 'sales';
-                        let icon = 'fas fa-cash-register';
-                        let title = 'Customer Sales (Full Gross Bill)';
-
-                        if (isRepairBill) {
-                            bucketId = 'sales_repair';
-                            icon = 'fas fa-tools';
-                            title = 'Repair Bill Sales (Full Gross)';
-                        } else if (isOrderBill) {
-                            bucketId = 'sales_order';
-                            icon = 'fas fa-concierge-bell';
-                            title = 'Custom Order Sales (Full Gross)';
-                        }
-
-                        addRojmel('IN', bucketId, title, icon, 'var(--in-green)', displaySaleIn, 0, 
+                        let title = isOrderBill ? 'Custom Order / Repair (Full Gross Bill)' : 'Customer Sales (Full Gross Bill)';
+                        addRojmel('IN', 'sales', title, 'fas fa-cash-register', 'var(--in-green)', displaySaleIn, 0, 
                             { ...txBase, time: getTime(s.date), ref, desc: descHTML, cash: displaySaleIn, metal: 0, mode: mStr, dataType: 'sale_full' }, true);
                     }
                     if (oldVal > 0) {
@@ -960,44 +931,26 @@
                     let party = 'Manual Entry';
                     let ref = `CF-${f.id}`;
 
-                    // --- REPAIR VS ORDER SEPARATION LOGIC ---
                     if (isOrder) {
                         let m = note.match(/(ord-invr?\d+)/i) || note.match(/#(\d+)/i);
-                        let isRepair = cat.includes('repair') || note.includes('invr');
-                        
                         if(m) {
                             let o = orders.find(x => String(x.id) === m[1] || x.invoiceNo === m[1].toUpperCase());
                             if(o) {
                                 party = getCustName(o.customerId);
                                 ref = o.invoiceNo || (o.jobType === 'Repair' ? 'ORD-INVR' + String(o.id).padStart(3, '0') : 'ORD-INV' + String(o.id).padStart(3, '0'));
-                                isRepair = (o.jobType === 'Repair');
                             } else {
                                 ref = m[1].toUpperCase().includes('ORD') ? m[1].toUpperCase() : `ORD-${m[1]}`;
                             }
                         }
-                        
-                        if (isRepair) {
-                            if (fType === 'IN') { 
-                                bucketId = 'repair_in'; 
-                                bucketTitle = 'Repair Advances & Payments'; 
-                                icon = 'fas fa-tools'; 
-                            } else { 
-                                bucketId = 'repair_out'; 
-                                bucketTitle = 'Repair Refunds'; 
-                                icon = 'fas fa-undo'; 
-                                color = 'var(--out-red)'; 
-                            }
-                        } else {
-                            if (fType === 'IN') { 
-                                bucketId = 'order_in'; 
-                                bucketTitle = 'Custom Order Advances & Payments'; 
-                                icon = 'fas fa-concierge-bell'; 
-                            } else { 
-                                bucketId = 'order_out'; 
-                                bucketTitle = 'Custom Order Refunds'; 
-                                icon = 'fas fa-undo'; 
-                                color = 'var(--out-red)'; 
-                            }
+                        if (fType === 'IN') { 
+                            bucketId = 'order_in'; 
+                            bucketTitle = 'Order/Repair Advances & Payments'; 
+                            icon = 'fas fa-hammer'; 
+                        } else { 
+                            bucketId = 'order_out'; 
+                            bucketTitle = 'Order/Repair Refunds'; 
+                            icon = 'fas fa-undo'; 
+                            color = 'var(--out-red)'; 
                         }
                     }
                     else if (cat.includes('loan')) {
@@ -1066,7 +1019,7 @@
             });
 
             // --- 2. STRICT METAL FLOW LOGIC ---
-            const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive, metalCategory = 'NET') => {
+            const logMetal = (date, amt, bucketSide, bucketId, bucketTitle, icon, color, source, party, ref, isPositive, metalCategory = 'FINE') => {
                 if (amt <= 0) return;
                 let d = getSafeDate(date);
                 let signedAmt = isPositive ? Math.abs(amt) : -Math.abs(amt);
@@ -1104,9 +1057,7 @@
 
                 if (cancelDate && cancelDate < selectedDateStr) return; 
 
-                let isRepairBill = s.jobType === 'Repair' || (s.items && s.items.some(i => String(i.id).startsWith('rep_')));
-                let isOrderBill = s.jobType === 'Order' || (s.items && s.items.some(i => String(i.source).startsWith('order_')));
-
+                let isOrderBill = s.jobType === 'Repair' || s.jobType === 'Order' || (s.items && s.items.some(i => String(i.id).startsWith('rep_') || String(i.source).startsWith('order_')));
                 let ref = s.invoiceNo || `INV-${s.id}`;
                 const party = getCustName(s.customerId);
 
@@ -1124,16 +1075,17 @@
                 });
 
                 if (getSafeDate(s.date) <= selectedDateStr) {
+                    // FIX: Route POS Old Gold IN metal to the 'sales_oldgold' bucket on the OUT side so it explicitly displays with the NAMA Cash deduction card UI.
                     if (metalIn > 0) {
                         logMetal(s.date, metalIn, 'OUT', 'sales_oldgold', 'Old Gold Deducted (Bill Adj)', 'fas fa-ring', 'var(--old-gold)', 'POS Old Gold Exchange / Exchanged in Bill', party, ref, true, 'OLD');
                     }
 
-                    if (!isOrderBill && !isRepairBill) {
-                        logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales & Receipts', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'NET');
-                    } else if (isRepairBill) {
-                        logMetal(s.date, metalOut, 'IN', 'repair_in', 'Repair Advances & Payments', 'fas fa-tools', 'var(--in-green)', 'Repair Delivered (Metal Sold)', party, ref, false, 'NET');
+                    if (!isOrderBill) {
+                        logMetal(s.date, metalOut, 'IN', 'sales', 'Customer Sales & Receipts', 'fas fa-cash-register', 'var(--in-green)', 'POS Items Sold', party, ref, false, 'FINE');
                     } else {
-                        logMetal(s.date, metalOut, 'IN', 'order_in', 'Custom Order Advances & Payments', 'fas fa-concierge-bell', 'var(--in-green)', 'Order Delivered (Metal Sold)', party, ref, false, 'NET');
+                        if (s.jobType !== 'Repair') {
+                            logMetal(s.date, metalOut, 'IN', 'order_in', 'Order/Repair Advances & Payments', 'fas fa-hammer', 'var(--in-green)', 'Order Delivered (Metal Sold)', party, ref, false, 'FINE');
+                        }
                     }
                 }
 
@@ -1142,12 +1094,12 @@
                         logMetal(selectedDateStr, metalIn, 'IN', 'sales_oldgold_cancel', 'Old Gold Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', 'Sale Cancelled (Exchange Returned)', party, ref, false, 'OLD');
                     }
 
-                    if (!isOrderBill && !isRepairBill) {
-                        logMetal(selectedDateStr, metalOut, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Items Returned)', party, ref, true, 'NET');
-                    } else if (isRepairBill) {
-                        logMetal(selectedDateStr, metalOut, 'OUT', 'repair_out', 'Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Repair Cancelled (Items Returned)', party, ref, true, 'NET');
+                    if (!isOrderBill) {
+                        logMetal(selectedDateStr, metalOut, 'OUT', 'sales_refund', 'Sales Refunds / Change', 'fas fa-undo', 'var(--out-red)', 'Sale Cancelled (Items Returned)', party, ref, true, 'FINE');
                     } else {
-                        logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Custom Order Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled (Items Returned)', party, ref, true, 'NET');
+                        if (s.jobType !== 'Repair') {
+                            logMetal(selectedDateStr, metalOut, 'OUT', 'order_out', 'Order/Repair Refunds', 'fas fa-undo', 'var(--out-red)', 'Order Cancelled (Items Returned)', party, ref, true, 'FINE');
+                        }
                     }
                 }
             });
@@ -1174,7 +1126,7 @@
                     let issueDate = o.repairMeta?.issuedDate;
                     if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            logMetal(issueDate, shopIssued, 'OUT', 'repair_out', 'Repair Metal Flow', 'fas fa-tools', 'var(--out-red)', `Shop Gold Issued to Karigar`, partyName, invoiceNo, false, 'NET');
+                            logMetal(issueDate, shopIssued, 'OUT', 'order_out', 'Repair Metal Flow', 'fas fa-hammer', 'var(--out-red)', `Shop Gold Issued to Karigar`, partyName, invoiceNo, false, 'FINE');
                         }
                     }
 
@@ -1182,47 +1134,34 @@
                     if (returnedRaw > 0 && auditDate && getSafeDate(auditDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
                             let desc = `Raw Metal Returned (Loss: ${actualLoss.toFixed(3)}g | Allowed: ${allowedLoss.toFixed(3)}g | Shortage Due: ${excessLoss.toFixed(3)}g)`;
-                            logMetal(auditDate, returnedRaw, 'IN', 'repair_in', 'Repair Metal Flow', 'fas fa-tools', 'var(--in-green)', desc, partyName, invoiceNo, true, 'NET');
+                            logMetal(auditDate, returnedRaw, 'IN', 'order_in', 'Repair Metal Flow', 'fas fa-hammer', 'var(--in-green)', desc, partyName, invoiceNo, true, 'FINE');
                         }
                     }
 
                     if (cancelDate === selectedDateStr) {
                         if (shopIssued > 0 && issueDate && getSafeDate(issueDate) <= selectedDateStr) {
-                            logMetal(selectedDateStr, shopIssued, 'IN', 'repair_in', 'Repair Refunds', 'fas fa-undo', 'var(--in-green)', `Repair Cancelled (Shop Metal Recovered)`, partyName, invoiceNo, true, 'NET');
+                            logMetal(selectedDateStr, shopIssued, 'IN', 'order_in', 'Repair Refunds', 'fas fa-undo', 'var(--in-green)', `Repair Cancelled (Shop Metal Recovered)`, partyName, invoiceNo, true, 'FINE');
                         }
                     }
                 } else {
                     let inWt = getSafeNum(o.oldGoldNet);
                     if (getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            logMetal(o.orderDate, inWt, 'IN', 'order_in', 'Custom Order Advances', 'fas fa-concierge-bell', 'var(--in-green)', `Intake: Order Collateral/Exch`, partyName, invoiceNo, true, 'OLD');
+                            logMetal(o.orderDate, inWt, 'IN', 'order_in', 'Order Advances & Payments', 'fas fa-hammer', 'var(--in-green)', `Intake: Order Collateral/Exch`, partyName, invoiceNo, true, 'OLD');
                         }
                         if (cancelDate === selectedDateStr) {
-                            logMetal(selectedDateStr, inWt, 'OUT', 'order_out', 'Custom Order Refunds', 'fas fa-undo', 'var(--out-red)', `Order Cancelled (Collateral Returned)`, partyName, invoiceNo, false, 'OLD');
+                            logMetal(selectedDateStr, inWt, 'OUT', 'order_out', 'Order Refunds', 'fas fa-undo', 'var(--out-red)', `Order Cancelled (Collateral Returned)`, partyName, invoiceNo, false, 'OLD');
                         }
                     }
                 }
             });
 
-            // --- LAYER 3: ROOT LEVEL PURCHASE CHECKING (Daybook Cards) ---
             purchases.forEach(p => {
                 let mIn = 0;
+                if(p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
+                else mIn = getSafeNum(p.totalNetWeight || p.totalNetWt || p.totalFineWeight);
                 
-                let rootNet = getSafeNum(p.totalNetWeight || p.totalNetWt || p.netWt || p.netWeight);
-                let rootGross = getSafeNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight || p.totalWeight || p.weight);
-                let rootStone = getSafeNum(p.totalStoneWeight || p.stoneWt || p.stoneWeight);
-                
-                if (rootNet > 0) {
-                    mIn = rootNet;
-                } else if (rootGross > 0) {
-                    mIn = rootGross - rootStone;
-                } else if(p.itemDetails && p.itemDetails.length > 0) {
-                    p.itemDetails.forEach(i => mIn += getSafeNet(i));
-                } else {
-                    mIn = getSafeNum(p.totalWeight || p.weight); // Strictly physical fallback
-                }
-                
-                logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true, 'NET');
+                logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', getMerchName(p.merchantId), `PUR-${p.id}`, true, 'FINE');
             });
 
             // --- OLD GOLD & MELTING LOGIC (REFINED) ---
@@ -1234,9 +1173,10 @@
 
                     if (isMelt) {
                         let sent = getSafeNum(o.sentWt || o.issuedWt || o.grossWt || o.weight) || getSafeNet(o);
-                        let recv = getSafeNum(o.receivedWt || o.meltedWt || o.netWt); // Excluded fineWt/pureWt
+                        let recv = getSafeNum(o.receivedWt || o.fineWt || o.pureWt || o.meltedWt);
                         let loss = getSafeNum(o.lossWt);
                         
+                        // ऑटोमैटिक कैलकुलेशन (अगर कोई एक चीज छूट गई हो तो)
                         if (recv > 0 && loss === 0) loss = sent - recv;
                         if (loss > 0 && recv === 0) recv = sent - loss;
 
@@ -1247,16 +1187,22 @@
 
                         if (recv > 0 || loss > 0) {
                             if (recv > 0) {
+                                // IN (Jama): गलाई के बाद मिली डली (Mix Metal)
                                 logMetal(o.date, recv, 'IN', 'melt_in', 'Mix Metal Received (Refinery)', 'fas fa-layer-group', 'var(--mix-metal)', 'Pure/Mix Slab received from melting', partyName, `MELT-${o.id}`, true, 'MIX');
+                                
+                                // OUT (Nama): जितना सोना डली बन गया, उतना Old Gold से कम करें (-)
                                 logMetal(o.date, recv, 'OUT', 'melt_out', 'Old Gold Sent & Converted', 'fas fa-fire', 'var(--out-red)', 'Old Gold portion recovered as Mix Metal', partyName, `MELT-${o.id}`, false, 'OLD');
                             }
                             if (loss > 0) {
+                                // OUT (Nama): गलाई की घट (Melting Loss) को Old Gold से कम करें (-)
                                 logMetal(o.date, loss, 'OUT', 'melt_loss', 'Melting Loss (Ghat)', 'fas fa-level-down-alt', 'var(--out-red)', `Weight Loss in Melting. Total Sent: ${sent.toFixed(3)}g`, partyName, `MELT-${o.id}`, false, 'OLD');
                             }
                         } else {
+                            // Fallback: अगर प्राप्त या लॉस नहीं डाला गया है, तो पूरा वज़न Old Gold से कम करें (-)
                             logMetal(o.date, sent, 'OUT', 'melt_out', 'Old Gold Sent to Refinery', 'fas fa-truck', 'var(--out-red)', 'Pending Mix Metal Receive Details', partyName, `MELT-${o.id}`, false, 'OLD');
                         }
                     } else {
+                        // ग्राहक से सीधा पुराना सोना खरीदा (IN)
                         logMetal(o.date, getSafeNet(o), 'OUT', 'oldgold_out', 'Old Metal Purchases', 'fas fa-ring', 'var(--out-red)', 'Direct Old Gold Buy', getCustName(o.customerId), `UR-${o.id}`, true, 'OLD');
                     }
                 }
@@ -1265,10 +1211,10 @@
             loans.forEach(l => {
                 let mWt = getSafeNum(l.weight);
                 if (mWt > 0) {
-                    logMetal(l.date, mWt, 'OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', 'Loan Collateral Received', getCustName(l.customerId), `LN-${l.id}`, true, 'NET');
+                    logMetal(l.date, mWt, 'OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', 'Loan Collateral Received', getCustName(l.customerId), `LN-${l.id}`, true, 'FINE');
                     
                     if (l.status === 'closed' && l.closeDate) {
-                        logMetal(l.closeDate, mWt, 'IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', 'Loan Collateral Returned', getCustName(l.customerId), `LN-${l.id}`, false, 'NET');
+                        logMetal(l.closeDate, mWt, 'IN', 'loan_in', 'Gold Loan Repayments', 'fas fa-coins', 'var(--in-green)', 'Loan Collateral Returned', getCustName(l.customerId), `LN-${l.id}`, false, 'FINE');
                     }
                 }
             });
@@ -1277,12 +1223,13 @@
                 if (mp.goldType !== 'fixed') {
                     let net = getSafeNum(mp.gold);
                     if (mp.paymentType === 'OUT') {
-                        logMetal(mp.date, net, 'OUT', 'merch_out', 'Merchant Payments & Purchases', 'fas fa-truck', 'var(--out-red)', 'Merchant Metal Paid', getMerchName(mp.merchantId), `SET-${mp.id}`, false, 'NET');
+                        logMetal(mp.date, net, 'OUT', 'merch_out', 'Merchant Payments & Purchases', 'fas fa-truck', 'var(--out-red)', 'Merchant Metal Paid', getMerchName(mp.merchantId), `SET-${mp.id}`, false, 'FINE');
                     } else {
-                        logMetal(mp.date, net, 'IN', 'merch_in', 'Merchant Refunds/Receipts', 'fas fa-undo', 'var(--in-green)', 'Merchant Metal Received', getMerchName(mp.merchantId), `SET-${mp.id}`, true, 'NET');
+                        logMetal(mp.date, net, 'IN', 'merch_in', 'Merchant Refunds/Receipts', 'fas fa-undo', 'var(--in-green)', 'Merchant Metal Received', getMerchName(mp.merchantId), `SET-${mp.id}`, true, 'FINE');
                     }
                 }
             });
+
 
             // --- CALCULATE CUMULATIVE UDHARI ---
             let c_marketUdhari = 0; 
@@ -1322,7 +1269,7 @@
                     
                     let metalStr = '-';
                     if(item.metal !== 0 && !isNaN(item.metal)) {
-                        metalStr = `Net Wt: ${item.metal > 0 ? '+' : ''}${Math.abs(item.metal).toFixed(3)}g`;
+                        metalStr = `Metal: ${item.metal > 0 ? '+' : ''}${Math.abs(item.metal).toFixed(3)}g`;
                     }
 
                     html += `
@@ -1410,7 +1357,7 @@
             let html = r.desc.includes('<div') ? r.desc : `<span class="t-desc-title">${r.desc}</span>`;
             
             if (r.dataType === 'metal' && !r.desc.includes('<div')) {
-                return `<div class="t-desc-box">${html}<div class="t-desc-detail">Purely tracks physical net metal movement.</div></div>`;
+                return `<div class="t-desc-box">${html}<div class="t-desc-detail">Purely tracks physical metal movement to balance stock. No direct cash tied.</div></div>`;
             }
             if (r.raw && r.raw.note) {
                 html += `<div class="t-desc-detail"><b>Note:</b> ${r.raw.note}</div>`;
@@ -1428,7 +1375,7 @@
                     <div class="print-bal-title">Opening Balance (JAMA)</div>
                     <div class="print-bal-row"><span>Hard Cash:</span> <span>₹${(printData.opCash||0).toLocaleString()}</span></div>
                     <div class="print-bal-row"><span>Bank / UPI:</span> <span>₹${(printData.opBank||0).toLocaleString()}</span></div>
-                    <div class="print-bal-row"><span>Inv/Net Gold:</span> <span>${(printData.opMetal||0).toFixed(3)} g</span></div>
+                    <div class="print-bal-row"><span>Inv/Fine Gold:</span> <span>${(printData.opMetal||0).toFixed(3)} g</span></div>
                     <div class="print-bal-row"><span>Old Gold:</span> <span>${(printData.opOldGold||0).toFixed(3)} g</span></div>
                     <div class="print-bal-row"><span>Mix Metal:</span> <span>${(printData.opMixMetal||0).toFixed(3)} g</span></div>
                     <div class="print-bal-total"><span>Total Cash:</span> <span>₹${(printData.opTotal||0).toLocaleString()}</span></div>
@@ -1457,7 +1404,7 @@
                                 <th style="width:15%;">Time/Party</th>
                                 <th style="width:35%;">Details</th>
                                 <th style="width:15%; text-align:center;">Mode</th>
-                                <th class="text-right" style="width:15%;">Net Wt (g)</th>
+                                <th class="text-right" style="width:15%;">Metal (g)</th>
                                 <th class="text-right" style="width:20%;">Cash (₹)</th>
                             </tr>
                         </thead>
@@ -1526,7 +1473,7 @@
                         <span>${(printData.grandTotalJamaMixMetal||0).toFixed(3)} g</span>
                     </div>
                     <div class="print-gt-row gold">
-                        <span>GRAND TOTAL INV/NET GOLD:</span>
+                        <span>GRAND TOTAL INV/FINE GOLD:</span>
                         <span>${(printData.grandTotalJamaMetal||0).toFixed(3)} g</span>
                     </div>
                 </div>
@@ -1549,7 +1496,7 @@
                     <div class="print-bal-title">Closing Balance (NAMA)</div>
                     <div class="print-bal-row"><span>Hard Cash:</span> <span>₹${(printData.clCash||0).toLocaleString()}</span></div>
                     <div class="print-bal-row"><span>Bank / UPI:</span> <span>₹${(printData.clBank||0).toLocaleString()}</span></div>
-                    <div class="print-bal-row"><span>Inv/Net Gold:</span> <span>${(printData.clMetal||0).toFixed(3)} g</span></div>
+                    <div class="print-bal-row"><span>Inv/Fine Gold:</span> <span>${(printData.clMetal||0).toFixed(3)} g</span></div>
                     <div class="print-bal-row"><span>Old Gold:</span> <span>${(printData.clOldGold||0).toFixed(3)} g</span></div>
                     <div class="print-bal-row"><span>Mix Metal:</span> <span>${(printData.clMixMetal||0).toFixed(3)} g</span></div>
                     <div class="print-bal-total"><span>Total Cash:</span> <span>₹${(printData.clTotal||0).toLocaleString()}</span></div>
@@ -1569,7 +1516,7 @@
                         <span>${(printData.grandTotalNamaMixMetal||0).toFixed(3)} g</span>
                     </div>
                     <div class="print-gt-row gold">
-                        <span>GRAND TOTAL INV/NET GOLD:</span>
+                        <span>GRAND TOTAL INV/FINE GOLD:</span>
                         <span>${(printData.grandTotalNamaMetal||0).toFixed(3)} g</span>
                     </div>
                 </div>
