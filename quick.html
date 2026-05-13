@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Action - Bharti Jewellers</title>
+    <link rel="stylesheet" href="style.css"> <!-- Aapka existing style -->
+    <style>
+        .master-container { padding: 20px; max-width: 500px; margin: auto; }
+        .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; justify-content: space-around; }
+        .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; }
+        .tab-btn.active { background: #d4af37; color: white; border-color: #d4af37; font-weight: bold; }
+        .form-group { margin-bottom: 15px; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ddd; }
+        .save-btn { background: #28a745; color: white; font-size: 1.1rem; border: none; margin-top: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="master-container">
+    <h2>Quick Entry Dashboard</h2>
+    
+    <!-- Tabs to switch between Sales, Order, and Girvi -->
+    <div class="action-tabs">
+        <div id="tab-sales" class="tab-btn active" onclick="switchAction('sales')">Sale</div>
+        <div id="tab-orders" class="tab-btn" onclick="switchAction('orders')">Order</div>
+        <div id="tab-loans" class="tab-btn" onclick="switchAction('loans')">Girvi</div>
+    </div>
+
+    <form id="quickForm">
+        <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="custName" placeholder="Customer ka naam" required>
+        </div>
+
+        <div class="form-group">
+            <label id="mainLabel">Item Details</label>
+            <input type="text" id="itemDetail" placeholder="Kya cheez hai?" required>
+        </div>
+
+        <div class="form-group">
+            <label>Weight (Grams)</label>
+            <input type="number" id="weight" step="0.001" placeholder="0.000" required>
+        </div>
+
+        <div class="form-group">
+            <label id="amountLabel">Total Amount / Loan Amount</label>
+            <input type="number" id="amount" placeholder="Amount ₹" required>
+        </div>
+
+        <button type="button" class="save-btn" onclick="handleSave()">Save Entry</button>
+    </form>
+</div>
+
+<!-- Database File Link -->
+<script src="db.js"></script>
+
+<script>
+    let currentStore = 'sales';
+
+    function switchAction(type) {
+        currentStore = type;
+        // Update Tabs UI
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('tab-' + type).classList.add('active');
+        
+        // Update Labels based on selection
+        if(type === 'loans') {
+            document.getElementById('mainLabel').innerText = "Girvi Item (Security)";
+            document.getElementById('amountLabel').innerText = "Loan Amount Given";
+        } else if(type === 'orders') {
+            document.getElementById('mainLabel').innerText = "Order Item";
+            document.getElementById('amountLabel').innerText = "Advance/Total Amount";
+        } else {
+            document.getElementById('mainLabel').innerText = "Item Details";
+            document.getElementById('amountLabel').innerText = "Total Sale Amount";
+        }
+    }
+
+    async function handleSave() {
+        const data = {
+            customerName: document.getElementById('custName').value,
+            item: document.getElementById('itemDetail').value,
+            weight: document.getElementById('weight').value,
+            amount: document.getElementById('amount').value,
+            date: new Date().toISOString().split('T')[0], // Aaj ki date
+            status: 'completed'
+        };
+
+        try {
+            // Aapka db.js ka addItem function use ho raha hai
+            const resultId = await addItem(currentStore, data);
+            alert("Success! Entry saved in " + currentStore + " with ID: " + resultId);
+            document.getElementById('quickForm').reset();
+        } catch (error) {
+            console.error("Save failed:", error);
+            alert("Kuch error aaya, please check console.");
+        }
+    }
+</script>
+
+</body>
+</html>
