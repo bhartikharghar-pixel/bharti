@@ -522,7 +522,7 @@
         </div>
     </div>
 
-    <script src="db.js?v=71"></script>
+    <script src="db.js?v=72"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
@@ -1087,12 +1087,14 @@
                     let isCancellationFlow = cat.includes('cancellation') || note.includes('reversal');
                     
                     let isOldGoldFlow = (cat.includes('old gold') || cat.includes('old') || cat.includes('ur-') || note.includes('ur-'));
-                    let isLoanFlow = (cat.includes('loan') || note.includes('ln-'));
-
+                    
                     let linkedSale = sales.find(s => s.invoiceNo && note.includes(s.invoiceNo.toLowerCase()));
                     let linkedPurchase = purchases.find(p => note.includes(`pur-${p.id}`));
                     let linkedOldGold = oldGold.find(o => note.includes(`ur-${o.id}`) || note.includes(`melt-${o.id}`));
-                    let linkedLoan = loans.find(l => note.includes(`ln-${l.id}`));
+                    
+                    // SAFE LOAN MATCHING FOR CASHFLOW SKIPPING
+                    let linkedLoan = loans.find(l => note.includes(`ln-${l.id}`) || ((cat.includes('loan') || note.includes('loan')) && new RegExp(`\\b${l.id}\\b`).test(note)));
+                    let isLoanFlow = !!linkedLoan; 
 
                     if (linkedSale || linkedPurchase || linkedOldGold || linkedLoan || isCancellationFlow || (isSaleFlow && !isOrder) || (isPurchaseFlow && !isOrder) || isOldGoldFlow || isLoanFlow) {
                         if (linkedSale && f.mode && f.mode.includes(',')) {
@@ -1325,6 +1327,15 @@
                 let isClosedToday = l.status === 'closed' && getSafeDate(l.closeDate) === selectedDateStr;
                 let itemName = l.itemName || l.item || l.description || '';
 
+                // --- SMART MATCHER FOR LOAN FLOWS (Fix for missing Interest entries) ---
+                const idRegex = new RegExp(`\\b${l.id}\\b`);
+                const isThisLoanFlow = (f) => {
+                    if (getSafeDate(f.date) !== selectedDateStr) return false;
+                    let n = String(f.note || '').toUpperCase();
+                    let c = String(f.category || '').toUpperCase();
+                    return n.includes(ref) || ((n.includes('LOAN') || c.includes('LOAN')) && idRegex.test(n));
+                };
+
                 if (isCreatedToday) {
                     if (loanAmt > 0) {
                         addRojmel('OUT', 'loan_out', 'Gold Loans Disbursed', 'fas fa-hand-holding-usd', 'var(--out-red)', loanAmt, 0, 
@@ -1340,7 +1351,7 @@
                     let foundInterestFlow = 0;
                     let flowModes = [];
                     
-                    const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
+                    const relatedFlows = cFlows.filter(isThisLoanFlow);
                     relatedFlows.forEach(f => {
                         let fAmt = Math.abs(getSafeNum(f.amount));
                         let fType = f.type || 'IN';
@@ -1371,7 +1382,7 @@
                     }
                 }
 
-                const otherFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && String(f.note).toUpperCase().includes(ref));
+                const otherFlows = cFlows.filter(isThisLoanFlow);
                 otherFlows.forEach(f => {
                     let fAmt = Math.abs(getSafeNum(f.amount));
                     let fType = f.type || 'IN';
