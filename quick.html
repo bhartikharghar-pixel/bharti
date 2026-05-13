@@ -3,269 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick Action - Bharti Jewellers</title>
+    <title>Customer Search - Bharti Jewellers</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .master-container { padding: 15px; max-width: 600px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .balance-board { display: flex; justify-content: space-between; background: #1a1a1a; color: #d4af37; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: center;}
-        .balance-item { flex: 1; }
-        .balance-item span { display: block; font-size: 0.8rem; color: #ccc; margin-bottom: 5px; }
-        .balance-item div { font-size: 1.2rem; }
-        .action-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { padding: 10px; border: 1px solid #ccc; cursor: pointer; background: #f9f9f9; flex: 1; text-align: center; border-radius: 5px; font-weight: bold; transition: 0.3s; }
-        .tab-btn.active { background: #d4af37; color: white; border-color: #d4af37; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .form-group { margin-bottom: 10px; }
-        .full-width { grid-column: span 2; }
-        label { font-size: 0.85rem; color: #555; font-weight: bold; }
-        input, select { width: 100%; padding: 8px; margin-top: 4px; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
-        input[readonly] { background: #e9ecef; color: #555; font-weight: bold; }
-        .save-btn { width: 100%; background: #28a745; color: white; font-size: 1.1rem; border: none; padding: 12px; border-radius: 5px; margin-top: 15px; cursor: pointer; font-weight: bold; }
-        .save-btn:hover { background: #218838; }
+        .master-container { padding: 20px; max-width: 800px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* Search Bar Style */
+        .search-box { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid #d4af37; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; text-align: center;}
+        
+        /* Action Section (Hidden by default) */
+        .action-section { display: none; }
+        .customer-title { text-align: center; color: #333; margin-bottom: 20px; font-size: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* Left & Right Grid */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .column { padding: 15px; border-radius: 8px; }
+        .col-left { background: #e8f5e9; border: 1px solid #c8e6c9; } /* Green tint for IN */
+        .col-right { background: #ffebee; border: 1px solid #ffcdd2; } /* Red tint for OUT */
+        
+        h3 { text-align: center; margin-top: 0; font-size: 1.1rem; }
+        .col-left h3 { color: #2e7d32; }
+        .col-right h3 { color: #c62828; }
+        
+        /* Buttons */
+        .action-btn { width: 100%; padding: 12px; margin-bottom: 10px; border: none; border-radius: 5px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        
+        /* Left Buttons (Greenish) */
+        .btn-in { background: #4caf50; color: white; }
+        .btn-in:hover { background: #388e3c; }
+        
+        /* Right Buttons (Reddish) */
+        .btn-out { background: #f44336; color: white; }
+        .btn-out:hover { background: #d32f2f; }
+
+        /* General Button (Blue) */
+        .btn-neutral { background: #2196f3; color: white; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
-    <div class="balance-board">
-        <div class="balance-item">
-            <span>Today's Cash (In)</span>
-            <div id="todayCash">₹0</div>
-        </div>
-        <div class="balance-item">
-            <span>Gold Out (Sale)</span>
-            <div id="todayGold">0.000 g</div>
-        </div>
-        <div class="balance-item">
-            <span>Gold In (Girvi/Old)</span>
-            <div id="todayGoldIn">0.000 g</div>
-        </div>
-    </div>
+    
+    <!-- Step 1: Search Bar -->
+    <input type="text" id="searchCustomer" class="search-box" list="customerList" placeholder="🔍 Customer Ka Naam Search Karein..." onchange="showActions()">
+    <datalist id="customerList"></datalist>
 
-    <div class="action-tabs">
-        <div id="tab-sales" class="tab-btn active" onclick="switchAction('sales', 'SL-')">Sale (Bikri)</div>
-        <div id="tab-orders" class="tab-btn" onclick="switchAction('orders', 'OR-')">New Order</div>
-        <div id="tab-loans" class="tab-btn" onclick="switchAction('loans', 'LN-')">Girvi (Loan)</div>
-    </div>
-
-    <form id="quickForm">
-        <div class="form-grid">
-            <div class="form-group">
-                <label>Barcode / ID (Auto)</label>
-                <input type="text" id="barcode" readonly>
-            </div>
-            <div class="form-group">
-                <label>Date</label>
-                <input type="date" id="entryDate" required>
+    <!-- Step 2: Action Buttons (Appears after selection) -->
+    <div id="actionPanel" class="action-section">
+        <h2 class="customer-title" id="displayCustName">Customer Name</h2>
+        
+        <div class="action-grid">
+            
+            <!-- LEFT SIDE: IN (Jama / Aaya) -->
+            <div class="column col-left">
+                <h3>⬇️ IN (Jama / Aaya)</h3>
+                <button class="action-btn btn-in" onclick="openForm('Sale')">🛒 Sale (Bikri)</button>
+                <button class="action-btn btn-in" onclick="openForm('Byaaj Jama')">💰 Byaaj Jama</button>
+                <button class="action-btn btn-in" onclick="openForm('Girvi Jama')">💍 Girvi Jama (Purana)</button>
+                <button class="action-btn btn-in" onclick="openForm('Release')">🔓 Release (Chhudana)</button>
+                <button class="action-btn btn-in" onclick="openForm('Payment In')">💵 Other Payment In</button>
             </div>
 
-            <div class="form-group full-width">
-                <label>Customer Name</label>
-                <input type="text" id="custName" list="customerList" placeholder="Search or Type Name..." required>
-                <!-- Customer List -->
-                <datalist id="customerList"></datalist>
-            </div>
-
-            <div class="form-group">
-                <label id="mainLabel">Item Name</label>
-                <!-- Item Auto-suggest list yaha link ho gaya -->
-                <input type="text" id="itemDetail" list="itemList" placeholder="Search Inventory..." required>
-                <!-- Inventory List -->
-                <datalist id="itemList"></datalist>
-            </div>
-            <div class="form-group">
-                <label>Metal</label>
-                <select id="metalType">
-                    <option value="Gold">Gold</option>
-                    <option value="Silver">Silver</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Net Weight (g)</label>
-                <input type="number" id="weight" step="0.001" placeholder="0.000" oninput="calculateAmount()" required>
-            </div>
-            <div class="form-group">
-                <label>Today's Rate (per g)</label>
-                <input type="number" id="rate" placeholder="₹ Rate" oninput="calculateAmount()" required>
+            <!-- RIGHT SIDE: OUT (Karcha / Gaya) -->
+            <div class="column col-right">
+                <h3>⬆️ OUT (Udhar / Gaya)</h3>
+                <button class="action-btn btn-out" onclick="openForm('Girvi Rakha')">🏦 Girvi Rakha (Loan Diya)</button>
+                <button class="action-btn btn-out" onclick="openForm('Purchase')">🛍️ Purchase (Khareedi)</button>
+                <button class="action-btn btn-out" onclick="openForm('Payment Diya')">💸 Payment Diya</button>
+                <button class="action-btn btn-out" onclick="openForm('Expense')">📝 Expense (Kharcha)</button>
             </div>
             
-            <div class="form-group full-width">
-                <label id="amountLabel">Total Amount (₹)</label>
-                <input type="number" id="amount" placeholder="Total ₹" required style="font-size: 1.2rem; font-weight: bold; color: #d4af37;">
-            </div>
         </div>
+        
+        <!-- Reset Button -->
+        <button class="action-btn btn-neutral" onclick="resetSearch()">❌ Cancel / New Search</button>
+    </div>
 
-        <button type="button" class="save-btn" onclick="handleSave()">💾 Save Entry</button>
-    </form>
 </div>
 
 <!-- Aapki Database file -->
 <script src="db.js"></script>
 
 <script>
-    let currentStore = 'sales';
-    let currentPrefix = 'SL-';
-
-    // 1. Page Load hote hi sabse pehle Data layenge
+    // 1. Page load hote hi Customers list me bharo
     window.onload = async function() {
-        document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
-        await loadAllData(); // Customer aur Inventory dono fetch karega
-        await updateStats();
-        await generateNewBarcode('SL-');
-    };
-
-    // 2. Fetch Customers aur Inventory (Auto-suggest ke liye)
-    async function loadAllData() {
         try {
-            // A. Customer Data Load
             const customers = await getAllItems('customers');
-            const custList = document.getElementById('customerList');
-            custList.innerHTML = ''; 
+            const datalist = document.getElementById('customerList');
+            datalist.innerHTML = ''; 
+            
             customers.forEach(cust => {
                 if(cust.name) {
                     let option = document.createElement('option');
-                    // Mobile number bhi dikhayega taaki same naam ke customer pehchane jayein
                     option.value = cust.name + (cust.mobile ? ` - ${cust.mobile}` : '');
-                    custList.appendChild(option);
+                    datalist.appendChild(option);
                 }
             });
-
-            // B. Inventory Data Load (Item Names)
-            const inventory = await getAllItems('inventory');
-            const itemList = document.getElementById('itemList');
-            itemList.innerHTML = '';
-            
-            // Unique Set banayenge taaki ek hi item ka naam baar-baar list me na aaye
-            let uniqueItems = new Set();
-            inventory.forEach(item => {
-                // Aapke db.js ke mutabiq item 'category' me save hota hoga, agar 'name' me hai to wo bhi chalega
-                let itemName = item.category || item.name || item.item; 
-                if(itemName && !uniqueItems.has(itemName)) {
-                    uniqueItems.add(itemName);
-                    let option = document.createElement('option');
-                    option.value = itemName;
-                    itemList.appendChild(option);
-                }
-            });
-            console.log("Customers and Inventory Loaded Successfully.");
-
-        } catch (error) { 
-            console.error("Data fetch me error aaya:", error); 
-        }
-    }
-
-    // 3. Tab Switch Logic
-    async function switchAction(type, prefix) {
-        currentStore = type;
-        currentPrefix = prefix;
-        
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('tab-' + type).classList.add('active');
-        
-        if(type === 'loans') {
-            document.getElementById('mainLabel').innerText = "Girvi Item";
-            document.getElementById('amountLabel').innerText = "Loan Given Amount (₹)";
-        } else if(type === 'orders') {
-            document.getElementById('mainLabel').innerText = "Order Item";
-            document.getElementById('amountLabel').innerText = "Advance Deposit (₹)";
-        } else {
-            document.getElementById('mainLabel').innerText = "Item Name";
-            document.getElementById('amountLabel').innerText = "Total Sale Amount (₹)";
-        }
-        
-        await generateNewBarcode(prefix);
-    }
-
-    // 4. Barcode Generate
-    async function generateNewBarcode(prefix) {
-        try {
-            const newCode = await generateBarcode(prefix);
-            document.getElementById('barcode').value = newCode;
-        } catch(e) {
-            document.getElementById('barcode').value = prefix + Date.now().toString().slice(-4);
-        }
-    }
-
-    // 5. Amount Calculate
-    function calculateAmount() {
-        let weight = parseFloat(document.getElementById('weight').value) || 0;
-        let rate = parseFloat(document.getElementById('rate').value) || 0;
-        
-        if(weight > 0 && rate > 0) {
-            let total = Math.round(weight * rate);
-            document.getElementById('amount').value = total;
-        }
-    }
-
-    // 6. Data Save Karna
-    async function handleSave() {
-        // Customer ka naam agar "Rahul - 9876543210" hai, to sirf naam ("Rahul") uthane ke liye
-        let rawCustName = document.getElementById('custName').value;
-        let cleanCustName = rawCustName.split(' - ')[0]; 
-
-        const data = {
-            barcode: document.getElementById('barcode').value,
-            date: document.getElementById('entryDate').value,
-            customerName: cleanCustName,
-            item: document.getElementById('itemDetail').value,
-            metal: document.getElementById('metalType').value,
-            weight: parseFloat(document.getElementById('weight').value),
-            rate: parseFloat(document.getElementById('rate').value),
-            amount: parseFloat(document.getElementById('amount').value),
-            status: 'active' // Orders ya Loans ke liye default status
-        };
-
-        if(!data.customerName || !data.amount) {
-            alert("Customer Name aur Amount zaroori hai!");
-            return;
-        }
-
-        try {
-            await addItem(currentStore, data);
-            alert("✅ Entry Saved Successfully!");
-            
-            document.getElementById('itemDetail').value = '';
-            document.getElementById('weight').value = '';
-            document.getElementById('amount').value = '';
-            document.getElementById('custName').value = '';
-            
-            await updateStats();
-            await generateNewBarcode(currentPrefix);
         } catch (error) {
-            console.error("Save Error:", error);
-            alert("❌ Error: Data save nahi hua.");
+            console.error("Customer load nahi hue:", error);
+        }
+    };
+
+    // 2. Customer select hone par Actions show karo
+    function showActions() {
+        let inputVal = document.getElementById('searchCustomer').value;
+        
+        if (inputVal.length > 2) { // Kam se kam 3 letter ya selection par
+            document.getElementById('actionPanel').style.display = 'block';
+            document.getElementById('displayCustName').innerText = "👤 " + inputVal.split(' - ')[0]; // Sirf naam dikhao
+        } else {
+            document.getElementById('actionPanel').style.display = 'none';
         }
     }
 
-    // 7. Live Dashboard Stats Update
-    async function updateStats() {
-        let today = new Date().toISOString().split('T')[0];
-        try {
-            let sales = await getAllItems('sales');
-            let loans = await getAllItems('loans');
-            let todayCash = 0, goldOut = 0, goldIn = 0;
+    // 3. Reset karna wapas search ke liye
+    function resetSearch() {
+        document.getElementById('searchCustomer').value = '';
+        document.getElementById('actionPanel').style.display = 'none';
+    }
 
-            sales.forEach(sale => {
-                if(sale.date === today) {
-                    todayCash += (parseFloat(sale.amount) || 0);
-                    if(sale.metal === 'Gold') goldOut += (parseFloat(sale.weight) || 0);
-                }
-            });
-
-            loans.forEach(loan => {
-                if(loan.date === today) {
-                    todayCash -= (parseFloat(loan.amount) || 0);
-                    if(loan.metal === 'Gold') goldIn += (parseFloat(loan.weight) || 0);
-                }
-            });
-
-            document.getElementById('todayCash').innerText = '₹ ' + todayCash.toLocaleString('en-IN');
-            document.getElementById('todayGold').innerText = goldOut.toFixed(3) + ' g';
-            document.getElementById('todayGoldIn').innerText = goldIn.toFixed(3) + ' g';
-        } catch (e) {
-            console.log("Stats update error:", e);
-        }
+    // 4. Buttons par click karne par kya hoga?
+    function openForm(actionType) {
+        let customer = document.getElementById('displayCustName').innerText.replace('👤 ', '');
+        
+        // Abhi ke liye alert chalega
+        alert(`Aap ${customer} ke liye "${actionType}" ki entry karna chahte hain.\n\nYahan par hum ek chota popup form khol sakte hain.`);
+        
+        // Yahan aap bataiye kya karna hai!
     }
 </script>
 
