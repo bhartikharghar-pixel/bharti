@@ -59,14 +59,14 @@
         .badge-overdue { background: #ffebee; color: #c62828; }
 
         .l-footer { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #eee; display: flex; justify-content: space-between; align-items: center; }
-        .btn-view { padding: 6px 15px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .btn-view { padding: 6px 15px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; position: relative; z-index: 2; }
 
         /* FAB */
         .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: #D32F2F; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
         .fab:active { transform: scale(0.9); }
 
         /* --- MODALS --- */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: white; width: 95%; max-width: 650px; border-radius: 16px; padding: 25px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
@@ -184,7 +184,7 @@
     </div>
 
     <!-- Create Loan Modal -->
-    <div id="createModal" class="modal">
+    <div id="createModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('createModal')">&times;</button>
             <h3>New Gold Loan</h3>
@@ -269,16 +269,14 @@
             </div>
 
             <input type="hidden" id="viewLoanId">
-            <input type="hidden" id="uiPendingIntAmount"> <!-- Hidden input for auto-split math -->
+            <input type="hidden" id="uiPendingIntAmount">
 
             <!-- JAMA / UDHAR TABLE -->
             <div class="t-ledger-container">
                 <!-- Left: JAMA -->
                 <div class="ledger-col jama-col">
                     <div class="col-title jama">JAMA (Receipts)</div>
-                    <ul class="ledger-list" id="uiJamaList">
-                        <!-- Populated via JS -->
-                    </ul>
+                    <ul class="ledger-list" id="uiJamaList"></ul>
                     <div class="col-footer" style="color: #2e7d32;">
                         <span>Total Jama:</span>
                         <span id="uiTotalJama">₹0</span>
@@ -288,9 +286,7 @@
                 <!-- Right: UDHAR -->
                 <div class="ledger-col">
                     <div class="col-title udhar">UDHAR (Dues)</div>
-                    <ul class="ledger-list" id="uiUdharList">
-                        <!-- Populated via JS -->
-                    </ul>
+                    <ul class="ledger-list" id="uiUdharList"></ul>
                     <div class="col-footer" style="color: #c62828;">
                         <span>Total Udhar:</span>
                         <span id="uiTotalUdhar">₹0</span>
@@ -332,13 +328,13 @@
             </div>
 
             <div style="display: flex; gap: 10px;">
-                <button class="btn-primary" id="btnWaReminder" style="margin:0; background:#25D366; color:#000; flex: 1;" onclick="sendLoanWhatsApp()"><i class="fab fa-whatsapp"></i> Send Reminder</button>
+                <button class="btn-primary" id="btnWaReminder" style="margin:0; background:#25D366; color:#000; flex: 1;" onclick="sendLoanWhatsApp()"><i class="fab fa-whatsapp"></i> Reminder</button>
                 <button class="btn-primary" id="btnSettleClose" style="margin:0; background:#c62828; flex: 1;" onclick="fillSettleAmount()">Auto-Fill Settle Amount</button>
             </div>
         </div>
     </div>
 
-    <script src="db.js?v=38"></script>
+    <script src="db.js?v=39"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
 
@@ -349,15 +345,16 @@
         let currentCustomerViewId = null;
 
         window.onload = async function() {
-            const r = await getSetting('gold_rates');
-            if(r) goldRates = r;
+            try {
+                const r = await getSetting('gold_rates');
+                if(r) goldRates = r;
+            } catch(e) { console.error("Settings load issue", e); }
             
             await loadCashBalance(); 
             await loadCustomers();
             await loadLoans();
         };
 
-        // --- SHOP CASH BALANCE LOGIC ---
         async function loadCashBalance() {
             try {
                 const flows = await getAllItems('cashflow');
@@ -376,7 +373,12 @@
         }
 
         async function loadCustomers() {
-            allCustomers = await getAllItems('customers');
+            try {
+                allCustomers = await getAllItems('customers');
+            } catch(e) {
+                console.error("Customers load issue", e);
+                allCustomers = [];
+            }
         }
 
         // --- DATE TO DATE INTEREST LOGIC ---
@@ -389,13 +391,13 @@
             // Calculate strictly Date-to-Date elapsed months
             let elapsedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
             if (now.getDate() < startDate.getDate()) {
-                elapsedMonths--; // Abhi is mahine ki date nahi aayi hai
+                elapsedMonths--; // Date not reached yet for this month
             }
             if (elapsedMonths < 0) elapsedMonths = 0;
             
             const expectedLedgerLength = elapsedMonths + 1; // Month 0 (First day) is index 0
             
-            if (l.ledger.length < expectedLedgerLength) {
+            if (l.ledger && l.ledger.length < expectedLedgerLength) {
                 let updated = false;
                 for (let i = l.ledger.length; i < expectedLedgerLength; i++) {
                     const prevEntry = l.ledger[i - 1];
@@ -424,42 +426,44 @@
         }
 
         async function loadLoans() {
-            const loans = await getAllItems('loans');
-            const customers = await getAllItems('customers');
-            
-            let totalPrin = 0;
-            let activeCustIds = new Set();
+            try {
+                const loans = await getAllItems('loans');
+                let totalPrin = 0;
+                let activeCustIds = new Set();
 
-            allLoans = await Promise.all(loans.map(async (l) => {
-                const c = customers.find(x => x.id == l.customerId);
-                
-                if (syncLoanLedger(l)) {
-                    await updateItem('loans', l); 
-                }
+                allLoans = await Promise.all(loans.map(async (l) => {
+                    const c = allCustomers.find(x => String(x.id) === String(l.customerId));
+                    
+                    if (syncLoanLedger(l)) {
+                        await updateItem('loans', l); 
+                    }
 
-                let currentPrin = l.amount;
-                if(l.ledger && l.ledger.length > 0) {
-                    currentPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
-                }
+                    let currentPrin = l.amount;
+                    if(l.ledger && l.ledger.length > 0) {
+                        currentPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
+                    }
 
-                if(l.status === 'active') {
-                    totalPrin += currentPrin;
-                    activeCustIds.add(l.customerId);
-                }
+                    if(l.status === 'active') {
+                        totalPrin += currentPrin;
+                        activeCustIds.add(l.customerId);
+                    }
 
-                return { 
-                    ...l, 
-                    custName: c ? c.name : 'Unknown', 
-                    custMobile: c ? c.mobile : '',
-                    currentPrincipal: currentPrin 
-                };
-            }));
+                    return { 
+                        ...l, 
+                        custName: c ? c.name : 'Unknown', 
+                        custMobile: c ? c.mobile : '',
+                        currentPrincipal: currentPrin 
+                    };
+                }));
 
-            document.getElementById('totalOutstanding').innerText = "₹" + totalPrin.toLocaleString();
-            document.getElementById('totalCustomers').innerText = activeCustIds.size;
-            renderLoans();
+                document.getElementById('totalOutstanding').innerText = "₹" + totalPrin.toLocaleString();
+                document.getElementById('totalCustomers').innerText = activeCustIds.size;
+                renderLoans();
 
-            if(currentCustomerViewId) openCustomerLoans(currentCustomerViewId);
+                if(currentCustomerViewId) openCustomerLoans(currentCustomerViewId);
+            } catch(e) {
+                console.error("Loans load issue", e);
+            }
         }
 
         function renderLoans() {
@@ -503,6 +507,7 @@
                 return;
             }
 
+            // ADDED QUOTES AROUND ID IN ONCLICK TO PREVENT ERROR
             filteredGroups.sort((a,b) => a.custName.localeCompare(b.custName)).forEach(g => {
                 let borderTopColor = g.activeCount > 0 ? '#1976d2' : '#2e7d32';
                 let badgeClass = g.activeCount > 0 ? 'badge-active' : 'badge-closed';
@@ -520,7 +525,7 @@
                         <div class="l-amt">₹${g.totalActivePrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Active Principal</span></div>
                         <div class="l-footer">
                             <span style="font-size:0.85rem; color:#666; font-weight:600;">Total Records: ${g.loans.length}</span>
-                            <button class="btn-view" onclick="openCustomerLoans(${g.customerId})">View Details</button>
+                            <button class="btn-view" onclick="openCustomerLoans('${g.customerId}')">View Details</button>
                         </div>
                     </div>
                 `;
@@ -538,7 +543,7 @@
 
         function openCustomerLoans(custId) {
             currentCustomerViewId = custId;
-            const custLoans = allLoans.filter(l => l.customerId == custId);
+            const custLoans = allLoans.filter(l => String(l.customerId) === String(custId));
             if(!custLoans.length) return;
             
             const custName = custLoans[0].custName;
@@ -547,6 +552,7 @@
             const container = document.getElementById('customerLoansContainer');
             container.innerHTML = '';
             
+            // ADDED QUOTES AROUND ID IN ONCLICK TO PREVENT ERROR
             custLoans.sort((a,b) => {
                 if(a.status === 'active' && b.status !== 'active') return -1;
                 if(a.status !== 'active' && b.status === 'active') return 1;
@@ -565,7 +571,7 @@
                             <span>Issued: ${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
                             <span style="font-weight:bold; color:${l.status === 'active' ? '#D32F2F' : '#2e7d32'};">Prin: ₹${l.currentPrincipal.toLocaleString()}</span>
                         </div>
-                        <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin-top:0; background:#333;" onclick="openLedger(${l.id})">
+                        <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin-top:0; background:#333;" onclick="openLedger('${l.id}')">
                             <i class="fas fa-book-open"></i> Open T-Ledger
                         </button>
                     </div>
@@ -695,121 +701,126 @@
 
         async function openLedger(id) {
             currentLoanId = id;
-            const db = await dbPromise;
-            const tx = db.transaction('loans', 'readonly');
-            const store = tx.objectStore('loans');
-            
-            store.get(id).onsuccess = (e) => {
-                const l = e.target.result;
-                const c = allCustomers.find(x => x.id == l.customerId); 
+            try {
+                const db = await dbPromise;
+                const tx = db.transaction('loans', 'readonly');
+                const store = tx.objectStore('loans');
                 
-                document.getElementById('vLoanIdHeader').innerText = l.id;
-                document.getElementById('viewLoanId').value = l.id;
-                document.getElementById('vCustNameDetail').innerText = c ? c.name : 'Unknown Customer';
-                document.getElementById('vCustPhoneDetail').innerText = c ? c.mobile : 'No Number';
-                document.getElementById('vItemDesc').innerText = l.description || 'Gold Item';
-                document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
+                store.get(id).onsuccess = (e) => {
+                    const l = e.target.result;
+                    if(!l) return alert("Loan not found");
 
-                // Reset Payment Boxes
-                document.getElementById('payCash').value = '';
-                document.getElementById('payBank').value = '';
-                document.getElementById('lblTotalPay').innerText = '₹0';
-                document.getElementById('paySplitText').innerText = '';
-
-                const uiJama = document.getElementById('uiJamaList');
-                const uiUdhar = document.getElementById('uiUdharList');
-                uiJama.innerHTML = ''; uiUdhar.innerHTML = '';
-
-                let totalUdhar = 0;
-                let totalJama = 0;
-
-                // --- UDHAR (Right Side) ---
-                const startDateStr = new Date(l.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
-                uiUdhar.innerHTML += `
-                    <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
-                        <div style="display:flex; justify-content:space-between; width:100%;">
-                            <span>${startDateStr}</span>
-                            <span style="color:#c62828;">₹${l.amount.toLocaleString()}</span>
-                        </div>
-                        <div style="font-size:0.7rem; color:#666; margin-top:2px;">Principal (Mool)</div>
-                    </li>
-                `;
-                totalUdhar += l.amount;
-
-                let totalIntCharged = 0;
-                let totalIntPaid = 0;
-
-                l.ledger.forEach(row => {
-                    totalIntCharged += row.interestCharged;
-                    totalIntPaid += row.paidInterest;
-
-                    if (row.interestCharged > 0) {
-                        uiUdhar.innerHTML += `
-                            <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
-                                <div style="display:flex; justify-content:space-between; width:100%;">
-                                    <span>${row.month}</span>
-                                    <span style="color:#c62828;">₹${row.interestCharged.toLocaleString()}</span>
-                                </div>
-                                <div style="font-size:0.7rem; color:#666; margin-top:2px;">Interest (Byaj)</div>
-                            </li>
-                        `;
-                        totalUdhar += row.interestCharged;
-                    }
-                });
-
-                // Calculate pending interest for auto-split math
-                let pendingInt = totalIntCharged - totalIntPaid;
-                document.getElementById('uiPendingIntAmount').value = pendingInt;
-
-                // --- JAMA (Left Side) ---
-                let paymentsList = l.payments || [];
-                paymentsList.forEach(p => {
-                    const pDateStr = new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+                    const c = allCustomers.find(x => String(x.id) === String(l.customerId)); 
                     
-                    let modes = [];
-                    if(p.cashAmount > 0) modes.push(`Cash: ${p.cashAmount}`);
-                    if(p.bankAmount > 0) modes.push(`Bank: ${p.bankAmount}`);
-                    
-                    uiJama.innerHTML += `
+                    document.getElementById('vLoanIdHeader').innerText = l.id;
+                    document.getElementById('viewLoanId').value = l.id;
+                    document.getElementById('vCustNameDetail').innerText = c ? c.name : 'Unknown Customer';
+                    document.getElementById('vCustPhoneDetail').innerText = c ? c.mobile : 'No Number';
+                    document.getElementById('vItemDesc').innerText = l.description || 'Gold Item';
+                    document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
+
+                    document.getElementById('payCash').value = '';
+                    document.getElementById('payBank').value = '';
+                    document.getElementById('lblTotalPay').innerText = '₹0';
+                    document.getElementById('paySplitText').innerText = '';
+
+                    const uiJama = document.getElementById('uiJamaList');
+                    const uiUdhar = document.getElementById('uiUdharList');
+                    uiJama.innerHTML = ''; uiUdhar.innerHTML = '';
+
+                    let totalUdhar = 0;
+                    let totalJama = 0;
+
+                    // --- UDHAR (Right Side) ---
+                    const startDateStr = new Date(l.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+                    uiUdhar.innerHTML += `
                         <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
                             <div style="display:flex; justify-content:space-between; width:100%;">
-                                <span>${pDateStr}</span>
-                                <span style="color:#2e7d32;">₹${p.totalAmount.toLocaleString()}</span>
+                                <span>${startDateStr}</span>
+                                <span style="color:#c62828;">₹${l.amount.toLocaleString()}</span>
                             </div>
-                            <div style="font-size:0.7rem; color:#666; margin-top:3px; display:flex; justify-content:space-between; width:100%;">
-                                <span>${modes.join(' | ')}</span>
-                                <span>Int: ${p.interestPaid || 0} | Prin: ${p.principalPaid || 0}</span>
-                            </div>
+                            <div style="font-size:0.7rem; color:#666; margin-top:2px;">Principal (Mool)</div>
                         </li>
                     `;
-                    totalJama += p.totalAmount;
-                });
+                    totalUdhar += l.amount;
 
-                // Totals & Net Payable
-                document.getElementById('uiTotalJama').innerText = `₹${totalJama.toLocaleString()}`;
-                document.getElementById('uiTotalUdhar').innerText = `₹${totalUdhar.toLocaleString()}`;
-                
-                let netPayable = totalUdhar - totalJama;
-                if(netPayable < 0) netPayable = 0; 
-                
-                const netUI = document.getElementById('uiNetPayable');
-                netUI.innerText = `₹${netPayable.toLocaleString()}`;
+                    let totalIntCharged = 0;
+                    let totalIntPaid = 0;
 
-                if(l.status === 'closed') {
-                    document.getElementById('paymentBox').style.display = 'none';
-                    document.getElementById('btnSettleClose').style.display = 'none';
-                    document.getElementById('btnWaReminder').style.display = 'none';
-                    netUI.innerText = "Closed / Settled";
-                    netUI.style.color = "#2e7d32";
-                } else {
-                    document.getElementById('paymentBox').style.display = 'block';
-                    document.getElementById('btnSettleClose').style.display = 'block';
-                    document.getElementById('btnWaReminder').style.display = 'inline-block';
-                    netUI.style.color = "#D32F2F";
-                }
+                    if(l.ledger) {
+                        l.ledger.forEach(row => {
+                            totalIntCharged += row.interestCharged;
+                            totalIntPaid += row.paidInterest;
 
-                document.getElementById('viewModal').style.display = 'flex';
-            };
+                            if (row.interestCharged > 0) {
+                                uiUdhar.innerHTML += `
+                                    <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
+                                        <div style="display:flex; justify-content:space-between; width:100%;">
+                                            <span>${row.month}</span>
+                                            <span style="color:#c62828;">₹${row.interestCharged.toLocaleString()}</span>
+                                        </div>
+                                        <div style="font-size:0.7rem; color:#666; margin-top:2px;">Interest (Byaj)</div>
+                                    </li>
+                                `;
+                                totalUdhar += row.interestCharged;
+                            }
+                        });
+                    }
+
+                    let pendingInt = totalIntCharged - totalIntPaid;
+                    document.getElementById('uiPendingIntAmount').value = pendingInt;
+
+                    // --- JAMA (Left Side) ---
+                    let paymentsList = l.payments || [];
+                    paymentsList.forEach(p => {
+                        const pDateStr = new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+                        
+                        let modes = [];
+                        if(p.cashAmount > 0) modes.push(`Cash: ${p.cashAmount}`);
+                        if(p.bankAmount > 0) modes.push(`Bank: ${p.bankAmount}`);
+                        
+                        uiJama.innerHTML += `
+                            <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
+                                <div style="display:flex; justify-content:space-between; width:100%;">
+                                    <span>${pDateStr}</span>
+                                    <span style="color:#2e7d32;">₹${p.totalAmount.toLocaleString()}</span>
+                                </div>
+                                <div style="font-size:0.7rem; color:#666; margin-top:3px; display:flex; justify-content:space-between; width:100%;">
+                                    <span>${modes.join(' | ')}</span>
+                                    <span>Int: ${p.interestPaid || 0} | Prin: ${p.principalPaid || 0}</span>
+                                </div>
+                            </li>
+                        `;
+                        totalJama += p.totalAmount;
+                    });
+
+                    document.getElementById('uiTotalJama').innerText = `₹${totalJama.toLocaleString()}`;
+                    document.getElementById('uiTotalUdhar').innerText = `₹${totalUdhar.toLocaleString()}`;
+                    
+                    let netPayable = totalUdhar - totalJama;
+                    if(netPayable < 0) netPayable = 0; 
+                    
+                    const netUI = document.getElementById('uiNetPayable');
+                    netUI.innerText = `₹${netPayable.toLocaleString()}`;
+
+                    if(l.status === 'closed') {
+                        document.getElementById('paymentBox').style.display = 'none';
+                        document.getElementById('btnSettleClose').style.display = 'none';
+                        document.getElementById('btnWaReminder').style.display = 'none';
+                        netUI.innerText = "Closed / Settled";
+                        netUI.style.color = "#2e7d32";
+                    } else {
+                        document.getElementById('paymentBox').style.display = 'block';
+                        document.getElementById('btnSettleClose').style.display = 'block';
+                        document.getElementById('btnWaReminder').style.display = 'inline-block';
+                        netUI.style.color = "#D32F2F";
+                    }
+
+                    document.getElementById('viewModal').style.display = 'flex';
+                };
+            } catch (e) {
+                console.error("Open Ledger Error", e);
+            }
         }
 
         // --- PAYMENT & AUTO-SPLIT LOGIC ---
@@ -854,95 +865,99 @@
 
             if(payAmt <= 0) return alert("Please enter valid Cash or Bank amount.");
 
-            const db = await dbPromise;
-            const tx = db.transaction('loans', 'readwrite');
-            const store = tx.objectStore('loans');
+            try {
+                const db = await dbPromise;
+                const tx = db.transaction('loans', 'readwrite');
+                const store = tx.objectStore('loans');
 
-            store.get(currentLoanId).onsuccess = async (e) => {
-                const l = e.target.result;
-                syncLoanLedger(l); 
+                store.get(currentLoanId).onsuccess = async (e) => {
+                    const l = e.target.result;
+                    syncLoanLedger(l); 
 
-                // Calculate Pending Interest again strictly for safety
-                let totalIntCharged = 0;
-                let totalIntPaid = 0;
-                l.ledger.forEach(r => {
-                    totalIntCharged += r.interestCharged;
-                    totalIntPaid += r.paidInterest;
-                });
-                let pendingInt = totalIntCharged - totalIntPaid;
+                    let totalIntCharged = 0;
+                    let totalIntPaid = 0;
+                    if(l.ledger) {
+                        l.ledger.forEach(r => {
+                            totalIntCharged += r.interestCharged;
+                            totalIntPaid += r.paidInterest;
+                        });
+                    }
+                    let pendingInt = totalIntCharged - totalIntPaid;
 
-                let toInt = 0;
-                let toPrin = 0;
-                if (payAmt <= pendingInt) {
-                    toInt = payAmt;
-                    toPrin = 0;
-                } else {
-                    toInt = pendingInt;
-                    toPrin = payAmt - pendingInt;
-                }
+                    let toInt = 0;
+                    let toPrin = 0;
+                    if (payAmt <= pendingInt) {
+                        toInt = payAmt;
+                        toPrin = 0;
+                    } else {
+                        toInt = pendingInt;
+                        toPrin = payAmt - pendingInt;
+                    }
 
-                // Add to Payments array (JAMA)
-                if (!l.payments) l.payments = [];
-                l.payments.push({ 
-                    date: new Date().toISOString(), 
-                    totalAmount: payAmt, 
-                    cashAmount: cashAmt, 
-                    bankAmount: bankAmt,
-                    interestPaid: toInt,
-                    principalPaid: toPrin
-                });
+                    if (!l.payments) l.payments = [];
+                    l.payments.push({ 
+                        date: new Date().toISOString(), 
+                        totalAmount: payAmt, 
+                        cashAmount: cashAmt, 
+                        bankAmount: bankAmt,
+                        interestPaid: toInt,
+                        principalPaid: toPrin
+                    });
 
-                // Internal reducing balance math distribution
-                let amountToDistribute = payAmt;
-                for (let i = 0; i < l.ledger.length; i++) {
-                    let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
-                    if (unpaidInt > 0) {
-                        if (amountToDistribute >= unpaidInt) {
-                            l.ledger[i].paidInterest += unpaidInt;
-                            amountToDistribute -= unpaidInt;
-                        } else {
-                            l.ledger[i].paidInterest += amountToDistribute;
-                            amountToDistribute = 0;
-                            break;
+                    let amountToDistribute = payAmt;
+                    if(l.ledger) {
+                        for (let i = 0; i < l.ledger.length; i++) {
+                            let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
+                            if (unpaidInt > 0) {
+                                if (amountToDistribute >= unpaidInt) {
+                                    l.ledger[i].paidInterest += unpaidInt;
+                                    amountToDistribute -= unpaidInt;
+                                } else {
+                                    l.ledger[i].paidInterest += amountToDistribute;
+                                    amountToDistribute = 0;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        let lastEntry = l.ledger[l.ledger.length - 1];
+                        lastEntry.paidPrincipal += amountToDistribute;
+                        lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
+
+                        if (lastEntry.closingPrincipal <= 0) {
+                            l.status = 'closed';
+                            l.closeDate = new Date().toISOString();
+                            lastEntry.closingPrincipal = 0;
                         }
                     }
-                }
-                
-                let lastEntry = l.ledger[l.ledger.length - 1];
-                lastEntry.paidPrincipal += amountToDistribute;
-                lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
 
-                if (lastEntry.closingPrincipal <= 0) {
-                    l.status = 'closed';
-                    l.closeDate = new Date().toISOString();
-                    lastEntry.closingPrincipal = 0;
-                }
+                    store.put(l);
 
-                store.put(l);
+                    if(cashAmt > 0) {
+                        await addItem('cashflow', {
+                            date: new Date().toISOString(), type: 'IN', mode: 'Cash',
+                            category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${currentLoanId}`
+                        });
+                    }
+                    if(bankAmt > 0) {
+                        await addItem('cashflow', {
+                            date: new Date().toISOString(), type: 'IN', mode: 'Bank',
+                            category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${currentLoanId}`
+                        });
+                    }
 
-                // Add separate entries to Cashbook for Cash vs Bank to keep Rojmel perfect
-                if(cashAmt > 0) {
-                    await addItem('cashflow', {
-                        date: new Date().toISOString(), type: 'IN', mode: 'Cash',
-                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${currentLoanId}`
-                    });
-                }
-                if(bankAmt > 0) {
-                    await addItem('cashflow', {
-                        date: new Date().toISOString(), type: 'IN', mode: 'Bank',
-                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${currentLoanId}`
-                    });
-                }
-
-                alert("Payment Recorded & Cashbook Updated!");
-                await loadCashBalance(); 
-                await loadLoans(); 
-                openLedger(currentLoanId); // Refresh UI to show new Jama entry instantly
-            };
+                    alert("Payment Recorded & Cashbook Updated!");
+                    await loadCashBalance(); 
+                    await loadLoans(); 
+                    openLedger(currentLoanId); 
+                };
+            } catch (e) {
+                console.error("Payment Processing Error", e);
+            }
         }
 
         function sendLoanWhatsApp() {
-            const l = allLoans.find(x => x.id === currentLoanId);
+            const l = allLoans.find(x => String(x.id) === String(currentLoanId));
             if(!l || !l.custMobile) return alert("No valid mobile number found for this customer.");
             
             const settleAmt = document.getElementById('uiNetPayable').innerText;
