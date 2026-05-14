@@ -12,7 +12,7 @@
         
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px;}
         .dashboard-title { margin: 0; color: #111; font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;}
-        .refresh-btn { background: #111; color: #C5A059; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
+        .refresh-btn { background: #111; color: #C5A059; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .refresh-btn:hover { background: #000; transform: scale(1.02); }
         
         /* --- 💰 LIVE CASH DASHBOARD --- */
@@ -53,15 +53,13 @@
 
         /* Action Wrappers */
         .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #ddd; }
-        
-        /* Clickable Links styled as Buttons */
-        .action-btn { width: 100%; padding: 14px; border: none; font-size: 1.05rem; font-weight: 800; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
+        .action-btn { width: 100%; padding: 14px; border: none; font-size: 1.05rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
         .btn-in { background: #e8f5e9; color: #2e7d32; border-bottom: 2px solid #c8e6c9;}
         .btn-in:hover { background: #c8e6c9; color: #1b5e20;}
         .btn-out { background: #ffebee; color: #c62828; border-bottom: 2px solid #ffcdd2;}
         .btn-out:hover { background: #ffcdd2; color: #b71c1c;}
         
-        /* Auto-Generated Headers (Unclickable) */
+        /* Auto-Generated Headers */
         .btn-auto-in { background: #f1f8e9; color: #388e3c; border-bottom: 2px dashed #a5d6a7; cursor: default; }
         .btn-auto-out { background: #fff3e0; color: #e65100; border-bottom: 2px dashed #ffcc80; cursor: default; }
 
@@ -90,9 +88,8 @@
 <body>
 
 <div class="master-container">
-    
     <div class="dashboard-header">
-        <h1 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel</h1>
+        <h2 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel</h2>
         <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
     </div>
 
@@ -128,9 +125,9 @@
         <div class="column col-left">
             <div class="side-title">⬇️ IN (Jama / Aaya)</div>
             
-            <div class="inline-bal-box box-open">
-                <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; margin-bottom:5px; letter-spacing:1px; color:#0d47a1;">Opening Balance</div>
-                <div id="openBalText">₹0 T = 0* + 0#</div>
+            <div class="inline-bal-box box-open" id="uiOpenBal">
+                <span style="font-size:0.9rem; color:#555; text-transform:uppercase;">Opening</span>
+                <span id="openBalText">₹0 T = 0* + 0#</span>
             </div>
 
             <div class="action-wrapper">
@@ -194,7 +191,7 @@
 
             <div class="action-wrapper">
                 <a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice"></i> Expense / Other OUT</a>
-                <div id="log-Expense" class="mini-log"></div>
+                <div id="log-Other Out" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper" id="wrap-SaleDueGiven" style="display:none;">
@@ -209,9 +206,9 @@
 
             <div style="flex:1;"></div>
 
-            <div class="inline-bal-box box-close">
-                <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; margin-bottom:5px; letter-spacing:1px; color:#b08d4a;">Closing Balance</div>
-                <div id="closeBalText">₹0 T = 0* + 0#</div>
+            <div class="inline-bal-box box-close" id="uiCloseBal">
+                <span style="font-size:0.9rem; color:#555; text-transform:uppercase;">Closing</span>
+                <span id="closeBalText">₹0 T = 0* + 0#</span>
             </div>
         </div>
     </div>
@@ -229,7 +226,7 @@
     let allCustomers = [];
     let allMerchants = [];
 
-    // Helper: Format numbers nicely with decimals
+    // Formatting Helpers
     function fmtNum(num) {
         return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
     }
@@ -316,7 +313,7 @@
             let schemes = await safeGetAll('schemes');
             let deposits = await safeGetAll('deposits');
 
-            // 1. CASHFLOW CALCULATION (Live Balances)
+            // 1. CASHFLOW CALCULATION
             cFlows.forEach(c => {
                 let amt = Math.abs(parseFloat(c.amount)) || 0;
                 let cDate = c.date ? c.date.split('T')[0] : '';
@@ -352,7 +349,7 @@
             document.getElementById('closeCash').innerText = fmtNum(closingCash);
             document.getElementById('closeBank').innerText = fmtNum(closingBank);
 
-            // Render Opening & Closing Balances in Inline Boxes
+            // Inline Boxes Update
             document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
             document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
 
@@ -360,7 +357,7 @@
             let logs = {
                 'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Vyapari Aaya': [], 'Other In': [], 
                 'SaleDueRecv': [], 'PurchaseDue': [],
-                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Expense': [],
+                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Other Out': [], 'Expense': [],
                 'SaleDueGiven': [], 'OldGold': []
             };
 
@@ -416,7 +413,7 @@
                 }
             });
 
-            // PURCHASES (Total Fix to capture exact amount)
+            // PURCHASES
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                 let mName = getMerchName(p.merchantId);
                 let gross = parseFloat(p.totalAmount || p.grandTotal || p.total) || 0; 
@@ -476,7 +473,7 @@
                 }
             });
 
-            // ORDERS (Advances & Payments)
+            // ORDERS
             orders.forEach(o => {
                 let cName = getCustName(o.customerId);
                 let hasTodayPayment = false;
@@ -490,7 +487,7 @@
                 } 
                 
                 if (!hasTodayPayment && o.orderDate && o.orderDate.startsWith(today)) {
-                    let amt = parseFloat(o.advanceAmount || o.paidAmount || 0);
+                    let amt = parseFloat(o.advanceAmount || o.paidAmount || o.amount || 0);
                     if(amt > 0) {
                         let spl = getSplitStr(null, o.paymentMode||'Cash', amt, amt);
                         pushLog('Order In', amt, cName, 'Advance', spl, true);
@@ -519,7 +516,7 @@
                 if (d.withdrawals && d.withdrawals.length > 0) {
                     d.withdrawals.filter(w => w.date && w.date.startsWith(today) && w.amount > 0).forEach(w => {
                         let spl = getSplitStr(null, w.mode||'Cash', w.amount, w.amount);
-                        pushLog('Expense', w.amount, `${cName} (Deposit)`, 'W/D', spl, false);
+                        pushLog('Other Out', w.amount, `${cName} (Deposit)`, 'W/D', spl, false);
                     });
                 }
             });
@@ -532,7 +529,6 @@
                 
                 if(getMoneyType(c.mode) === 'none') return;
                 
-                // ⭐ BUG FIX: Explicitly ignore anything handled by specific modules
                 let isHandled = 
                     cat.includes('sale') || note.includes('pos') || 
                     cat.includes('purchase') || cat.includes('pur-') || 
@@ -556,7 +552,7 @@
                     if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
                         pushLog('Expense', amt, c.note || c.category, 'Kharcha', spl, false);
                     } else {
-                        pushLog('Expense', amt, c.note || c.category || 'Paid', '', spl, false);
+                        pushLog('Other Out', amt, c.note || c.category || 'Paid', '', spl, false);
                     }
                 }
             });
