@@ -156,6 +156,11 @@
             </div>
 
             <div class="action-wrapper">
+                <a href="schemes.html" class="action-btn btn-in"><i class="fas fa-hand-holding-heart"></i> BC Jama (In)</a>
+                <div id="log-BC In" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
                 <a href="merchants.html" class="action-btn btn-in"><i class="fas fa-truck"></i> Payment Aaya / Vyapari</a>
                 <div id="log-Vyapari Aaya" class="mini-log"></div>
             </div>
@@ -197,6 +202,11 @@
             <div class="action-wrapper">
                 <a href="repairs.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund / Less Est.)</a>
                 <div id="log-Repair Out" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="schemes.html" class="action-btn btn-out"><i class="fas fa-gift"></i> BC Matured (Nama)</a>
+                <div id="log-BC Out" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
@@ -371,9 +381,9 @@
 
             // 2. GENERATE LOGS
             let logs = {
-                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'Vyapari Aaya': [], 'Other In': [], 
+                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
                 'SaleDueRecv': [], 'PurchaseDue': [],
-                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'Other Out': [], 'Expense': [],
+                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'BC Out': [], 'Other Out': [], 'Expense': [],
                 'SaleDueGiven': [], 'OldGold': []
             };
 
@@ -398,9 +408,7 @@
                 else sumNama += amt;
             };
 
-            // 🌟 STEP 1: EXCLUSIVE REPAIR LOGIC (DIRECT FROM CASHFLOW)
-            // repairs.html saves all repair transactions directly to Cashflow perfectly!
-            // So we will grab them directly from here and show them in Repair IN and Repair OUT
+            // 🌟 STEP 1: EXCLUSIVE REPAIR & BC SCHEME LOGIC (FROM CASHFLOW)
             cFlows.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0 || getMoneyType(c.mode) === 'none') return;
@@ -412,9 +420,31 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                // 🔥 CATCH REPAIR AND REFUNDS DIRECTLY HERE 🔥
+                // 🔥 CATCH BC SCHEMES 🔥
+                let isBC = cat.includes('scheme') || note.includes('sch-') || cat.includes('bc scheme');
+                if (isBC) {
+                    let cName = 'BC Scheme';
+                    let schemeIdMatch = note.match(/scheme #(\d+)/i);
+                    if (schemeIdMatch) {
+                        let sId = parseInt(schemeIdMatch[1]);
+                        let s = schemes.find(x => x.id === sId);
+                        if (s) cName = getCustName(s.customerId);
+                    } else if (c.note) {
+                        cName = c.note.split('for ')[1] || c.category;
+                    }
+
+                    if (type === 'IN') {
+                        pushLog('BC In', amt, cName, 'Installment', spl, true);
+                    } else {
+                        let outTag = cat.includes('bonus') ? 'Matured Bonus' : 'BC Reversal';
+                        pushLog('BC Out', amt, cName, outTag, spl, false);
+                    }
+                    c.alreadyHandled = true; 
+                    return;
+                }
+
+                // 🔥 CATCH REPAIRS 🔥
                 if (cat.includes('repair') || note.includes('repair') || note.includes('rep-') || cat.includes('job cancel')) {
-                    // Extract invoice number if possible
                     let displayDesc = c.category || 'Repair';
                     if (cat.includes('excess refund') || cat.includes('cancel refund')) {
                         displayDesc = 'Cust. Refund';
@@ -425,24 +455,21 @@
                     } else {
                         pushLog('Repair Out', amt, displayDesc, 'Out', spl, false);
                     }
-                    
-                    // Mark as handled by adding a custom flag so regular cashflow processor skips it
                     c.alreadyHandled = true; 
+                    return;
                 }
             });
 
 
-            // 🛒 SALES ENGINE (COMPLETELY IGNORING REPAIRS)
+            // 🛒 SALES ENGINE
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
-                // 🛑 NEW: Skip ANY sale that is marked as Repair
+                // Skip ANY sale that is marked as Repair
                 let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
                                    (s.items && s.items.length > 0 && String(s.items[0].category || s.items[0].itemName || s.items[0].name || s.items[0].barcode || '').toLowerCase().includes('repair'));
 
-                if (isRepairSale) {
-                    return; // Ignore completely, handled by Cashflow loop above!
-                }
+                if (isRepairSale) return; 
 
-                // 🛒 NORMAL SALE
+                // NORMAL SALE
                 let cName = getCustName(s.customerId);
                 let isCreatedToday = s.date && s.date.startsWith(today);
 
@@ -468,7 +495,9 @@
                     if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
                     if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
                     if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
-                    if(bc > 0) pushLog('Other Out', bc, cName, 'BC Wallet', '', false);
+                    
+                    // 🔥 BC WALLET USED GOES TO BC NAMA 🔥
+                    if(bc > 0) pushLog('BC Out', bc, cName, 'Wallet Used', '', false);
                 }
 
                 if (s.payments && s.payments.length > 0) {
@@ -483,10 +512,10 @@
             });
 
 
-            // 📦 REGULAR ORDERS ENGINE (COMPLETELY IGNORING REPAIRS)
+            // 📦 REGULAR ORDERS ENGINE 
             const processRegularOrder = (data) => {
                 let isRepair = String(data.jobType || data.orderType || data.type || data.category || '').toLowerCase().includes('repair');
-                if (isRepair) return; // Ignore completely, handled by Cashflow!
+                if (isRepair) return; 
 
                 let cName = getCustName(data.customerId);
                 let createdDate = data.orderDate || data.date || data.createdDate || '';
@@ -586,20 +615,6 @@
                 }
             });
 
-            // SCHEMES
-            schemes.forEach(s => {
-                let cName = getCustName(s.customerId);
-                if (s.payments && s.payments.length > 0) {
-                    s.payments.forEach(p => {
-                        let pAmt = parseNum(p.amount);
-                        if(p.date && p.date.startsWith(today) && pAmt > 0) {
-                            let spl = getSplitStr([p], p.mode, pAmt, pAmt);
-                            pushLog('Other In', pAmt, `${cName} (Scheme)`, 'Kisht', spl, true);
-                        }
-                    });
-                }
-            });
-
             // DEPOSITS
             deposits.forEach(d => {
                 let cName = getCustName(d.customerId);
@@ -619,7 +634,7 @@
                 }
             });
 
-            // OTHER CASHFLOW
+            // OTHER CASHFLOW (Non-Repair, Non-BC Scheme)
             cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0) return;
@@ -629,7 +644,6 @@
                 
                 if(getMoneyType(c.mode) === 'none') return;
                 
-                // ⭐ SAFETY NET: Ignore duplicates correctly
                 let isHandled = 
                     cat.includes('sale') || note.includes('pos') || 
                     cat.includes('purchase') || cat.includes('pur-') || 
@@ -638,7 +652,6 @@
                     cat.includes('old gold') || cat.includes('ur-') || 
                     cat.includes('merch') || note.includes('set-') || cat.includes('vyapari') || 
                     cat.includes('order') || note.includes('ord-') ||
-                    cat.includes('scheme') || note.includes('sch-') ||
                     cat.includes('deposit') || note.includes('dep-');
                     
                 if (isHandled) return;
