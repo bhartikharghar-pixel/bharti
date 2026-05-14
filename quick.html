@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Quick Book - Bharti Jewellers</title>
+    <title>Live Dashboard - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; }
-        .master-container { padding: 15px; max-width: 950px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .master-container { padding: 15px; max-width: 1000px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
         .dashboard-title { text-align: center; color: #C5A059; margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #eee; font-size: 1.5rem; font-weight: 700; text-transform: uppercase;}
+        .refresh-btn { display: block; margin: 10px auto; background: #333; color: #fff; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; }
         
-        /* --- LIVE CASH DASHBOARD (Matches Main Daybook Logic) --- */
-        .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; margin-top: 15px; }
+        /* --- LIVE CASH DASHBOARD --- */
+        .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; margin-top: 5px; }
         @media(max-width: 700px) { .cash-dashboard { grid-template-columns: 1fr 1fr; gap: 10px; } }
-        .cash-card { padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; overflow: hidden; background: #fff;}
+        .cash-card { padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; overflow: hidden; background: #fff; border: 1px solid #eee;}
         .cash-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 5px; }
         .card-open::before { background: #1976d2; }
         .card-in::before { background: #4caf50; }
@@ -28,62 +30,46 @@
         .card-out strong { color: #c62828; }
         .card-close strong { color: #b08d4a; }
 
-        /* Action Grid */
+        /* --- ACTION GRID --- */
         .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media(max-width: 700px) { .action-grid { grid-template-columns: 1fr; } }
-        .column { padding: 15px; border-radius: 10px; background: #fafafa; border: 1px solid #eee; }
+        .column { padding: 15px; border-radius: 10px; background: #fafafa; border: 1px solid #e0e0e0; }
         .col-left { border-top: 4px solid #4caf50; } 
         .col-right { border-top: 4px solid #f44336; } 
         h3 { text-align: center; margin-top: 0; font-size: 1.1rem; margin-bottom: 15px; font-weight: 700; }
         .col-left h3 { color: #2e7d32; }
         .col-right h3 { color: #c62828; }
         
-        /* Action Wrappers (Button + Log together) */
-        .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #e0e0e0; }
-        .action-btn { width: 100%; padding: 14px; border: none; font-size: 1.05rem; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;}
-        .btn-in { background: #4caf50; color: white; }
-        .btn-in:hover { background: #388e3c; }
-        .btn-out { background: #f44336; color: white; }
-        .btn-out:hover { background: #d32f2f; }
+        .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #ddd; }
+        
+        /* Links styled as buttons */
+        .action-btn { width: 100%; padding: 12px; border: none; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
+        .btn-in { background: #e8f5e9; color: #2e7d32; border-bottom: 2px solid #c8e6c9;}
+        .btn-in:hover { background: #c8e6c9; }
+        .btn-out { background: #ffebee; color: #c62828; border-bottom: 2px solid #ffcdd2;}
+        .btn-out:hover { background: #ffcdd2; }
 
-        /* MINI LOG UNDER BUTTONS */
-        .mini-log { background: #fdfdfd; padding: 0 12px; max-height: 180px; overflow-y: auto; display: none; border-top: 1px solid #eee; }
-        .log-item { padding: 10px 0; border-bottom: 1px dashed #ccc; font-size: 0.9rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        /* --- MINI LOGS --- */
+        .mini-log { background: #fff; padding: 0 12px; max-height: 200px; overflow-y: auto; display: none; }
+        .log-item { padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
         .log-item:last-child { border-bottom: none; }
-        .log-in { color: #2e7d32; }
-        .log-out { color: #c62828; }
         
-        .log-format-str { color: #333; display: flex; width: 100%; justify-content: space-between;}
-        .log-format-str .p1 { font-weight: 800; color: inherit; }
-        .log-format-str .p2 { color: #555; text-transform: uppercase; }
-        .log-format-str .p3 { color: #777; }
-
-        /* Popup Form */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
-        .modal-content { background-color: #fff; margin: 3% auto; padding: 25px; border-radius: 12px; width: 95%; max-width: 480px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;}
-        .close-btn { position: absolute; right: 15px; top: 15px; font-size: 24px; cursor: pointer; color: #888; background: none; border: none; }
+        .log-format-str { display: flex; width: 100%; justify-content: space-between; align-items: center;}
+        .log-format-str .p1 { font-weight: 800; font-size: 0.95rem; }
+        .log-format-str .p2 { color: #555; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; text-align: center; }
+        .log-format-str .p3 { color: #888; font-size: 0.8rem; text-align: right; min-width: 60px; }
         
-        .form-group { margin-bottom: 15px; position: relative; }
-        .form-row { display: flex; gap: 10px; margin-bottom: 15px; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 5px; color: #555; text-transform: uppercase; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1rem; background: #fdfdfd;}
-        .form-group input:focus, .form-group select:focus { border-color: #C5A059; outline: none; background: #fff; box-shadow: 0 0 5px rgba(197, 160, 89, 0.3);}
+        .c-in { color: #2e7d32; }
+        .c-out { color: #c62828; }
         
-        .dropdown-list { display: none; position: absolute; width: 100%; max-height: 180px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 2000; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-radius: 6px; margin-top: 2px; }
-        .dropdown-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.95rem; color: #333; }
-        .dropdown-item:hover { background: #fdfbf7; color: #C5A059; font-weight: bold; }
-
-        .amount-box { background: #fff8e1; padding: 15px; border-radius: 8px; border: 1px solid #ffe082; margin-top: 10px; margin-bottom: 15px; }
-        .amount-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
-        .amount-total { font-size: 1.3rem; font-weight: 800; color: #D32F2F; border-top: 1px dashed #ccc; padding-top: 8px; margin-top: 5px; display: flex; justify-content: space-between;}
-        
-        .save-btn { width: 100%; padding: 16px; background: #C5A059; color: #000; font-size: 1.2rem; font-weight: 800; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-transform: uppercase; }
+        .empty-log { text-align: center; color: #aaa; font-size: 0.8rem; padding: 10px; font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
-    <h2 class="dashboard-title">⚡ Quick Book & Rozmel</h2>
+    <h2 class="dashboard-title">📊 Live Dashboard & Rojmel</h2>
+    <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
     
     <div class="cash-dashboard">
         <div class="cash-card card-open">
@@ -105,27 +91,33 @@
     </div>
 
     <div class="action-grid">
+        
         <div class="column col-left">
             <h3>⬇️ IN (Jama / Aaya)</h3>
             
             <div class="action-wrapper">
-                <button class="action-btn btn-in" onclick="openPopup('Sale')">🛒 Sale (Bikri)</button>
+                <a href="sales.html" class="action-btn btn-in"><i class="fas fa-cash-register"></i> Sales & Receipts</a>
                 <div id="log-Sale" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
-                <button class="action-btn btn-in" onclick="openPopup('Byaaj Jama')">💰 Byaaj Jama</button>
-                <div id="log-Byaaj Jama" class="mini-log"></div>
+                <a href="loans.html" class="action-btn btn-in"><i class="fas fa-coins"></i> Loan Receipts (Byaaj/Jama)</a>
+                <div id="log-LoanIn" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
-                <button class="action-btn btn-in" onclick="openPopup('Girvi Chhudaya')">🔓 Girvi Chhudaya / Jama Pete</button>
-                <div id="log-Girvi Chhudaya" class="mini-log"></div>
+                <a href="orders.html" class="action-btn btn-in"><i class="fas fa-concierge-bell"></i> Order Advances</a>
+                <div id="log-OrderIn" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
-                <button class="action-btn btn-in" onclick="openPopup('Payment In')">💵 Other Payment In</button>
-                <div id="log-Payment In" class="mini-log"></div>
+                <a href="merchants.html" class="action-btn btn-in"><i class="fas fa-undo"></i> Merchant Refunds</a>
+                <div id="log-MerchantIn" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="cashflow.html" class="action-btn btn-in"><i class="fas fa-wallet"></i> Other Income / Deposits</a>
+                <div id="log-OtherIn" class="mini-log"></div>
             </div>
         </div>
 
@@ -133,38 +125,30 @@
             <h3>⬆️ OUT (Udhar / Gaya)</h3>
             
             <div class="action-wrapper">
-                <button class="action-btn btn-out" onclick="openPopup('Girvi Diya')">🏦 Girvi Diya (New Loan)</button>
-                <div id="log-Girvi Diya" class="mini-log"></div>
-            </div>
-
-            <div class="action-wrapper">
-                <button class="action-btn btn-out" onclick="openPopup('Purchase')">🛍️ Purchase (Khareedi)</button>
+                <a href="purchases.html" class="action-btn btn-out"><i class="fas fa-cart-arrow-down"></i> Stock Purchases</a>
                 <div id="log-Purchase" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
-                <button class="action-btn btn-out" onclick="openPopup('Payment Diya')">💸 Payment Diya</button>
-                <div id="log-Payment Diya" class="mini-log"></div>
+                <a href="loans.html" class="action-btn btn-out"><i class="fas fa-hand-holding-usd"></i> New Gold Loans</a>
+                <div id="log-LoanOut" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
-                <button class="action-btn btn-out" onclick="openPopup('Expense')">📝 Expense (Kharcha)</button>
+                <a href="oldgold.html" class="action-btn btn-out"><i class="fas fa-ring"></i> Old Gold Buy</a>
+                <div id="log-OldGold" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="merchants.html" class="action-btn btn-out"><i class="fas fa-truck"></i> Merchant Payments</a>
+                <div id="log-MerchantOut" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice-dollar"></i> Expenses & Withdrawals</a>
                 <div id="log-Expense" class="mini-log"></div>
             </div>
         </div>
-    </div>
-</div>
-
-<div id="entryModal" class="modal">
-    <div class="modal-content">
-        <button class="close-btn" onclick="closePopup()">&times;</button>
-        <h2 id="modalTitle" style="margin-top:0; color:#C5A059; border-bottom: 2px solid #eee; padding-bottom: 10px;">Entry Form</h2>
-        
-        <form id="dynamicForm">
-            <input type="hidden" id="actionType">
-            <div id="formFields"></div>
-            <button type="button" class="save-btn" onclick="saveEntry()">💾 Save Data</button>
-        </form>
     </div>
 </div>
 
@@ -172,66 +156,56 @@
 
 <script>
     let allCustomers = [];
-    let allInventory = [];
-    let allLoans = [];
-    let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
-    let globalGstDefault = 3;
-    let selectedItemObj = null;
-    let isLoanAction = false; 
-
-    // --- DAYBOOK COMPATIBILITY FUNCTION ---
-    function getMoneyType(modeStr) {
-        if(!modeStr) return 'cash';
-        let m = String(modeStr).toLowerCase();
-        if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online') || m.includes('transfer')) return 'bank';
-        if (m.includes('metal') || m.includes('system') || m.includes('wallet') || m.includes('-')) return 'none';
-        return 'cash'; 
-    }
+    let allMerchants = [];
 
     window.onload = async function() {
-        await loadCoreData();
+        allCustomers = await getAllItems('customers').catch(()=>[]);
+        allMerchants = await getAllItems('merchants').catch(()=>[]);
+        
         await updateCashDashboard();
         await loadTodayLogs();
     };
 
-    async function loadCoreData() {
-        try {
-            allCustomers = await getAllItems('customers');
-            allInventory = await getAllItems('inventory'); 
-            allLoans = await getAllItems('loans');
-            const r = await getSetting('gold_rates'); 
-            if(r) goldRates = r;
-            const defaults = await getSetting('billing_defaults');
-            if(defaults && defaults.gst) globalGstDefault = defaults.gst;
-        } catch (error) { console.error("Data load error:", error); }
+    function getCustName(id) {
+        let c = allCustomers.find(x => String(x.id) === String(id));
+        return c ? c.name : 'Walk-in';
+    }
+    function getMerchName(id) {
+        let m = allMerchants.find(x => String(x.id) === String(id));
+        return m ? m.name : 'Merchant';
     }
 
-    // --- 💰 LIVE CASH DASHBOARD (Matches daybook.html EXACTLY) ---
+    // Daybook Money Type Parser
+    function getMoneyType(modeStr) {
+        if(!modeStr) return 'cash';
+        let m = String(modeStr).toLowerCase();
+        if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online')) return 'bank';
+        if (m.includes('metal') || m.includes('system') || m.includes('wallet') || m.includes('-')) return 'none';
+        return 'cash'; 
+    }
+
+    // --- 💰 CASH DASHBOARD CALCULATION ---
     async function updateCashDashboard() {
         try {
             let cashflow = await getAllItems('cashflow');
             let todayStr = new Date().toISOString().split('T')[0];
 
-            let openingBal = 0;
-            let todayIn = 0;
-            let todayOut = 0;
+            let openingBal = 0, todayIn = 0, todayOut = 0;
 
             cashflow.forEach(c => {
                 let amt = Math.abs(parseFloat(c.amount)) || 0;
                 let cDate = c.date ? c.date.split('T')[0] : '';
                 
                 let mType = getMoneyType(c.mode);
-                if (mType === 'none') return; // Exclude non-cash entries
+                if (mType === 'none') return; // Exclude non-cash
 
                 let type = c.type || 'OUT';
                 if(parseFloat(c.amount) < 0 && c.type === 'IN') type = 'OUT';
 
                 if (cDate < todayStr) {
-                    if (type === 'IN') openingBal += amt;
-                    else openingBal -= amt;
+                    if (type === 'IN') openingBal += amt; else openingBal -= amt;
                 } else if (cDate === todayStr) {
-                    if (type === 'IN') todayIn += amt;
-                    else todayOut += amt;
+                    if (type === 'IN') todayIn += amt; else todayOut += amt;
                 }
             });
 
@@ -242,474 +216,138 @@
             document.getElementById('todayOut').innerText = "-₹" + todayOut.toLocaleString();
             document.getElementById('closeBal').innerText = "₹" + closingBal.toLocaleString();
 
-        } catch (error) { console.error("Cashflow calculation error:", error); }
+        } catch (error) { console.error("Cash Error:", error); }
     }
 
-    // --- SMART LOG LOADER (Perfect String Formatting) ---
+    // --- 📊 CATEGORY LOGS GENERATOR ---
     async function loadTodayLogs() {
         try {
             let today = new Date().toISOString().split('T')[0];
-            let logsHTML = { 'Sale': '', 'Byaaj Jama': '', 'Girvi Chhudaya': '', 'Payment In': '', 'Girvi Diya': '', 'Purchase': '', 'Payment Diya': '', 'Expense': '' };
+            
+            // Containers initialization
+            let logs = {
+                'Sale': [], 'LoanIn': [], 'OrderIn': [], 'MerchantIn': [], 'OtherIn': [],
+                'Purchase': [], 'LoanOut': [], 'OldGold': [], 'MerchantOut': [], 'Expense': []
+            };
 
-            // SALES (₹50,000 | rng0002 | 5.210g)
-            let sales = await getAllItems('sales');
+            const formatItem = (amt, middleStr, rightStr, isIN) => {
+                let colorCls = isIN ? 'c-in' : 'c-out';
+                return `<div class="log-item"><div class="log-format-str"><span class="p1 ${colorCls}">₹${amt.toLocaleString()}</span> <span class="p2">${middleStr}</span> <span class="p3">${rightStr}</span></div></div>`;
+            };
+
+            // 1. SALES
+            let sales = await getAllItems('sales').catch(()=>[]);
             sales.filter(s => s.date && s.date.startsWith(today)).forEach(s => {
+                let party = getCustName(s.customerId);
                 s.items.forEach(i => {
-                    let dispAmt = s.paidAmount > 0 ? s.paidAmount : s.grandTotal;
-                    let wtDisp = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
-                    let code = i.barcode || i.category;
-                    logsHTML['Sale'] = `<div class="log-item log-in"><div class="log-format-str"><span class="p1">₹${dispAmt.toLocaleString()}</span> <span class="p2">| ${code}</span> <span class="p3">| ${wtDisp}</span></div></div>` + logsHTML['Sale'];
+                    let amt = s.paidAmount > 0 ? s.paidAmount : s.grandTotal;
+                    let wt = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
+                    let code = i.barcode || i.category || party;
+                    logs['Sale'].push(formatItem(amt, code, wt, true));
                 });
             });
 
-            // PURCHASES
-            let purchases = await getAllItems('purchases');
+            // 2. PURCHASES
+            let purchases = await getAllItems('purchases').catch(()=>[]);
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
+                let party = getMerchName(p.merchantId);
                 p.items.forEach(i => {
-                    let dispAmt = p.paidAmount > 0 ? p.paidAmount : p.grandTotal;
-                    let wtDisp = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
-                    let code = i.barcode || i.category;
-                    logsHTML['Purchase'] = `<div class="log-item log-out"><div class="log-format-str"><span class="p1">₹${dispAmt.toLocaleString()}</span> <span class="p2">| ${code}</span> <span class="p3">| ${wtDisp}</span></div></div>` + logsHTML['Purchase'];
+                    let amt = p.paidAmount > 0 ? p.paidAmount : p.grandTotal;
+                    let wt = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
+                    let code = i.barcode || i.category || party;
+                    logs['Purchase'].push(formatItem(amt, code, wt, false));
                 });
             });
 
-            // LOANS
-            let loans = await getAllItems('loans');
+            // 3. LOANS
+            let loans = await getAllItems('loans').catch(()=>[]);
             loans.forEach(l => {
-                let cName = allCustomers.find(c => c.id == l.customerId)?.name || 'Unknown';
+                let cName = getCustName(l.customerId);
                 
+                // New Loans (Out)
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
-                    logsHTML['Girvi Diya'] = `<div class="log-item log-out"><div class="log-format-str"><span class="p1">₹${l.amount.toLocaleString()}</span> <span class="p2">${cName}</span> <span class="p3">- ${l.item || 'Item'}</span></div></div>` + logsHTML['Girvi Diya'];
+                    logs['LoanOut'].push(formatItem(l.amount, `${cName}`, l.item||'Item', false));
                 }
 
+                // Loan Repayments (In)
                 if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
-                        let itemStr = l.item || 'Item';
-                        if (p.type === 'Byaaj') {
-                            logsHTML['Byaaj Jama'] = `<div class="log-item log-in"><div class="log-format-str"><span class="p1">₹${p.amount.toLocaleString()}</span> <span class="p2">- ${cName}</span> <span class="p3"></span></div></div>` + logsHTML['Byaaj Jama'];
-                        } else if (p.type === 'Release') {
-                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in"><div class="log-format-str"><span class="p1">₹${p.amount.toLocaleString()}</span> <span class="p2">${cName}</span> <span class="p3">- ${itemStr} (Chhudaya)</span></div></div>` + logsHTML['Girvi Chhudaya'];
-                        } else if (p.type === 'Jama Pete') {
-                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in"><div class="log-format-str"><span class="p1">₹${p.amount.toLocaleString()}</span> <span class="p2">${cName}</span> <span class="p3">- Jama pete</span></div></div>` + logsHTML['Girvi Chhudaya'];
-                        }
+                        let typeStr = p.type === 'Release' ? '(Chhudaya)' : p.type;
+                        logs['LoanIn'].push(formatItem(p.amount, `${cName}`, typeStr, true));
                     });
                 }
             });
 
-            // CASHFLOW
-            let cashflow = await getAllItems('cashflow');
-            cashflow.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
-                let colorClass = c.type === 'IN' ? 'log-in' : 'log-out';
-                let txt = `<div class="log-item ${colorClass}"><div class="log-format-str"><span class="p1">₹${c.amount.toLocaleString()}</span> <span class="p2">- ${c.note || 'Cash'}</span><span class="p3"></span></div></div>`;
-                
-                if(c.category === 'Payment In') logsHTML['Payment In'] = txt + logsHTML['Payment In'];
-                if(c.category === 'Payment Diya') logsHTML['Payment Diya'] = txt + logsHTML['Payment Diya'];
-                if(c.category === 'Expense') logsHTML['Expense'] = txt + logsHTML['Expense'];
+            // 4. OLD GOLD
+            let oldGold = await getAllItems('old_gold').catch(()=>[]);
+            oldGold.filter(o => o.date && o.date.startsWith(today)).forEach(o => {
+                if(o.mode !== 'POS Exchange' && o.type !== 'MELT') {
+                    let amt = parseFloat(o.amount || o.paidAmount || o.cash || 0);
+                    let wt = parseFloat(o.netWt || o.oldGoldWeight || 0).toFixed(3) + 'g';
+                    let cName = getCustName(o.customerId);
+                    if(amt > 0) logs['OldGold'].push(formatItem(amt, cName, wt, false));
+                }
             });
 
-            for(let key in logsHTML) {
+            // 5. ORDERS
+            let orders = await getAllItems('orders').catch(()=>[]);
+            orders.filter(o => o.orderDate && o.orderDate.startsWith(today)).forEach(o => {
+                let amt = parseFloat(o.advanceAmount || 0);
+                if(amt > 0) {
+                    let cName = getCustName(o.customerId);
+                    logs['OrderIn'].push(formatItem(amt, cName, 'Advance', true));
+                }
+            });
+
+            // 6. MERCHANT PAYMENTS
+            let mPayments = await getAllItems('merchant_payments').catch(()=>[]);
+            mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
+                let amt = parseFloat(m.amount || 0);
+                if(amt > 0) {
+                    let mName = getMerchName(m.merchantId);
+                    if(m.paymentType === 'OUT') logs['MerchantOut'].push(formatItem(amt, mName, 'Sent', false));
+                    else logs['MerchantIn'].push(formatItem(amt, mName, 'Refund', true));
+                }
+            });
+
+            // 7. CASHFLOW (Filtering remaining)
+            let cashflow = await getAllItems('cashflow').catch(()=>[]);
+            cashflow.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
+                let amt = parseFloat(c.amount || 0);
+                let cat = String(c.category || '').toLowerCase();
+                let note = String(c.note || '').toLowerCase();
+                
+                // Ignore duplicates generated by Sales, Loans, Purchases
+                if(cat.includes('sale') || cat.includes('loan') || cat.includes('purchase') || note.includes('pos')) return;
+
+                if (c.type === 'IN') {
+                    if(!cat.includes('order') && !cat.includes('merch')) {
+                        logs['OtherIn'].push(formatItem(amt, c.note || c.category || 'Receipt', c.mode, true));
+                    }
+                } else {
+                    if(cat.includes('expense') || cat.includes('salary')) {
+                        logs['Expense'].push(formatItem(amt, c.note || c.category, 'Kharcha', false));
+                    } else if(!cat.includes('order') && !cat.includes('merch') && !cat.includes('old gold')) {
+                        logs['Expense'].push(formatItem(amt, c.note || 'Other Out', c.mode, false));
+                    }
+                }
+            });
+
+            // --- INJECT INTO UI ---
+            for(let key in logs) {
                 let logElement = document.getElementById('log-' + key);
                 if(logElement) {
-                    if(logsHTML[key] !== '') {
-                        logElement.innerHTML = logsHTML[key];
+                    if(logs[key].length > 0) {
+                        logElement.innerHTML = logs[key].join('');
                         logElement.style.display = 'block';
                     } else {
-                        logElement.innerHTML = '';
-                        logElement.style.display = 'none';
+                        logElement.innerHTML = '<div class="empty-log">No entries today.</div>';
+                        logElement.style.display = 'block';
                     }
                 }
             }
-        } catch(e) { console.error("Log Update Error:", e); }
-    }
 
-    // --- POPUP FORMS ---
-    function openPopup(action) {
-        selectedItemObj = null;
-        document.getElementById('modalTitle').innerText = action + " Entry";
-        document.getElementById('actionType').value = action;
-        
-        isLoanAction = (action === 'Byaaj Jama' || action === 'Girvi Chhudaya');
-        let fieldsHTML = '';
-
-        if(action === 'Sale') {
-            fieldsHTML = `
-                <div class="form-group" style="position:relative;">
-                    <label>Customer Name</label>
-                    <input type="text" id="p_customer" placeholder="🔍 Type Customer Name..." autocomplete="off" onfocus="showCustomerDropdown()" oninput="filterCustomerInPopup()" style="border: 2px solid #C5A059; font-weight:bold;">
-                    <input type="hidden" id="p_customerId">
-                    <div id="customerDropdownPopup" class="dropdown-list"></div>
-                </div>
-                <div class="form-group" style="position:relative;">
-                    <label>Item Name / Barcode (Shop Inventory)</label>
-                    <input type="text" id="p_item" placeholder="🔍 Scan ya Type karein..." autocomplete="off" onfocus="showItemDropdown()" oninput="filterItemInPopup()" required>
-                    <div id="itemDropdownPopup" class="dropdown-list"></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;"><label>Net Wt (g)</label><input type="number" step="0.001" id="p_weight" placeholder="0.000" oninput="calcSmartAmount()" required></div>
-                    <div class="form-group" style="flex:1;"><label>Rate (₹/g)</label><input type="number" id="p_rate" placeholder="₹ Bhaav" oninput="calcSmartAmount()"></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;"><label>Making (₹)</label><input type="number" id="p_making" value="0" oninput="calcSmartAmount()"></div>
-                    <div class="form-group" style="flex:1;"><label>GST (%)</label><input type="number" id="p_gst" value="${globalGstDefault}" oninput="calcSmartAmount()"></div>
-                </div>
-                <div class="amount-box">
-                    <div class="amount-row"><span>Metal Value:</span> <b id="liveMetal">₹0</b></div>
-                    <div class="amount-row"><span>Making + Tax:</span> <b id="liveTax">₹0</b></div>
-                    <div class="amount-total"><span>Grand Total:</span> <span id="liveTotal">₹0</span></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>Amount Received (₹)</label><input type="number" id="p_paid" placeholder="Final Amount" style="font-size:1.1rem; font-weight:bold; color:#2e7d32;" required></div>
-                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
-                </div>
-            `;
-        } 
-        else if (action === 'Girvi Diya') {
-            fieldsHTML = `
-                <div class="form-group" style="position:relative;">
-                    <label>Customer Name</label>
-                    <input type="text" id="p_customer" placeholder="🔍 Type Customer Name..." autocomplete="off" onfocus="showCustomerDropdown()" oninput="filterCustomerInPopup()" style="border: 2px solid #C5A059; font-weight:bold;">
-                    <input type="hidden" id="p_customerId">
-                    <div id="customerDropdownPopup" class="dropdown-list"></div>
-                </div>
-                <div class="form-group">
-                    <label>Item Description (Customer ka Sona/Chandi)</label>
-                    <input type="text" id="p_item" placeholder="✍️ Jaise: 2 Gold Bangles..." autocomplete="off" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;"><label>Weight (g)</label><input type="number" step="0.001" id="p_weight" placeholder="0.000" required></div>
-                    <div class="form-group" style="flex:1;"><label>Interest Rate (%)</label><input type="number" step="0.1" id="p_intRate" value="2.0" required></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>Loan Amount Given (₹)</label><input type="number" id="p_paid" placeholder="₹ Amount" style="font-size:1.1rem; font-weight:bold; color:#c62828;" required></div>
-                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
-                </div>
-            `;
-        }
-        else if (action === 'Purchase') {
-            fieldsHTML = `
-                <div class="form-group" style="position:relative;">
-                    <label>Customer Name</label>
-                    <input type="text" id="p_customer" placeholder="🔍 Type Customer Name..." autocomplete="off" onfocus="showCustomerDropdown()" oninput="filterCustomerInPopup()" style="border: 2px solid #C5A059; font-weight:bold;">
-                    <input type="hidden" id="p_customerId">
-                    <div id="customerDropdownPopup" class="dropdown-list"></div>
-                </div>
-                <div class="form-group">
-                    <label>Item Description (Khareedi Sona/Chandi)</label>
-                    <input type="text" id="p_item" placeholder="✍️ Jaise: Old Chain..." autocomplete="off" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;"><label>Net Wt (g)</label><input type="number" step="0.001" id="p_weight" placeholder="0.000" oninput="calcPurchaseAmount()" required></div>
-                    <div class="form-group" style="flex:1;"><label>Rate (₹/g)</label><input type="number" id="p_rate" placeholder="₹ Bhaav" oninput="calcPurchaseAmount()"></div>
-                </div>
-                <div class="amount-box"><div class="amount-total"><span>Total Amount:</span> <span id="liveTotal">₹0</span></div></div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>Amount Paid (₹)</label><input type="number" id="p_paid" placeholder="Final Amount" style="font-size:1.1rem; font-weight:bold; color:#c62828;" required></div>
-                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
-                </div>
-            `;
-        }
-        else if (action === 'Byaaj Jama' || action === 'Girvi Chhudaya') {
-            fieldsHTML = `
-                <div class="form-group" style="position:relative;">
-                    <label style="color:#d32f2f;">Customer (Only Active Loans)</label>
-                    <input type="text" id="p_customer" placeholder="🔍 Select Customer..." autocomplete="off" onfocus="showCustomerDropdown()" oninput="filterCustomerInPopup()" style="border: 2px solid #d32f2f; font-weight:bold;">
-                    <input type="hidden" id="p_customerId">
-                    <div id="customerDropdownPopup" class="dropdown-list"></div>
-                </div>
-                
-                <div class="form-group" id="loanSelectDiv" style="display:none;">
-                    <label>Select Loan Account</label>
-                    <select id="p_loanId" style="font-weight:bold; color:#1976d2; border:1px solid #1976d2; background:#e3f2fd;"></select>
-                </div>
-
-                ${action === 'Girvi Chhudaya' ? `
-                <div class="form-group">
-                    <label>Entry Type</label>
-                    <select id="p_repayType" style="font-weight:bold; border-color:#2e7d32;">
-                        <option value="Jama Pete">Jama Pete (Thoda Paisa Diya)</option>
-                        <option value="Release">Chhudaya (Pura Settle)</option>
-                    </select>
-                </div>` : `<input type="hidden" id="p_repayType" value="Byaaj">`}
-
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;"><label>Amount Received (₹)</label><input type="number" id="p_amount" placeholder="₹ Amount" style="font-size:1.2rem; font-weight:bold; color:#2e7d32;" required></div>
-                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
-                </div>
-            `;
-        }
-        else {
-            fieldsHTML = `
-                <div class="form-group"><label>Amount (₹)</label><input type="number" id="p_amount" style="font-size:1.2rem; font-weight:bold; color:#D32F2F;" required></div>
-                <div class="form-group"><label>Payment Mode</label><select id="p_mode"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
-                <div class="form-group"><label>Remarks / Detail</label><input type="text" id="p_desc" placeholder="Kiske liye?"></div>
-            `;
-        }
-
-        document.getElementById('formFields').innerHTML = fieldsHTML;
-        document.getElementById('entryModal').style.display = 'block';
-    }
-
-    function closePopup() { document.getElementById('entryModal').style.display = 'none'; }
-
-    function showCustomerDropdown() {
-        let list = allCustomers;
-        if(isLoanAction) {
-            let activeLoanCustIds = allLoans.filter(l => l.status === 'active').map(l => l.customerId);
-            list = allCustomers.filter(c => activeLoanCustIds.includes(c.id));
-        }
-        renderCustomerDropdown(list);
-    }
-
-    function filterCustomerInPopup() {
-        let txt = document.getElementById('p_customer').value.toLowerCase();
-        let list = allCustomers;
-        if(isLoanAction) {
-            let activeLoanCustIds = allLoans.filter(l => l.status === 'active').map(l => l.customerId);
-            list = allCustomers.filter(c => activeLoanCustIds.includes(c.id));
-        }
-        let filtered = list.filter(c => (c.name && c.name.toLowerCase().includes(txt)) || (c.mobile && String(c.mobile).includes(txt)));
-        renderCustomerDropdown(filtered);
-    }
-
-    function renderCustomerDropdown(list) {
-        const div = document.getElementById('customerDropdownPopup');
-        div.innerHTML = ''; div.style.display = 'block';
-        if(list.length === 0) { 
-            div.innerHTML = `<div class="dropdown-item" style="color:red; text-align:center;">${isLoanAction ? 'Koi Active Loan nahi mila!' : 'Naya Customer Add Hoga'}</div>`; 
-            return; 
-        }
-        list.slice(0, 5).forEach(c => {
-            let item = document.createElement('div');
-            item.className = 'dropdown-item';
-            item.innerHTML = `<b>${c.name}</b> <small style="color:#888;">${c.mobile||''}</small>`;
-            item.onmousedown = function(e) {
-                e.preventDefault();
-                document.getElementById('p_customer').value = c.name;
-                document.getElementById('p_customerId').value = c.id;
-                div.style.display = 'none';
-                
-                if(isLoanAction) {
-                    let custLoans = allLoans.filter(l => l.status === 'active' && l.customerId == c.id);
-                    let sel = document.getElementById('p_loanId');
-                    sel.innerHTML = '';
-                    custLoans.forEach(l => {
-                        let prin = l.ledger ? l.ledger[l.ledger.length-1].closingPrincipal : l.amount;
-                        sel.innerHTML += `<option value="${l.id}">${l.item || 'Item'} (Pending: ₹${prin})</option>`;
-                    });
-                    document.getElementById('loanSelectDiv').style.display = 'block';
-                }
-            };
-            div.appendChild(item);
-        });
-    }
-
-    function showItemDropdown() { renderItemDropdown(allInventory); }
-    function filterItemInPopup() {
-        let txt = document.getElementById('p_item').value.trim().toUpperCase();
-        let exactMatch = allInventory.find(item => item.status === 'stock' && item.barcode && item.barcode.toUpperCase() === txt);
-        if(exactMatch) { document.getElementById('itemDropdownPopup').style.display = 'none'; selectInventoryItem(exactMatch); return; }
-        let filtered = allInventory.filter(item => item.status === 'stock' && ((item.barcode && item.barcode.toUpperCase().includes(txt)) || (item.category && item.category.toUpperCase().includes(txt))));
-        renderItemDropdown(filtered);
-    }
-    function renderItemDropdown(list) {
-        const div = document.getElementById('itemDropdownPopup');
-        if(!div) return;
-        div.innerHTML = ''; div.style.display = 'block';
-        if(list.length === 0) return;
-        list.slice(0, 5).forEach(item => {
-            let divItem = document.createElement('div');
-            divItem.className = 'dropdown-item';
-            let wt = parseFloat(item.netWt || item.grossWeight || item.weight || 0).toFixed(3);
-            divItem.innerHTML = `<b>${item.barcode}</b> - ${item.category} <small style="color:#C5A059;">[${wt}g]</small>`;
-            divItem.onmousedown = function(e) { e.preventDefault(); selectInventoryItem(item); div.style.display = 'none'; };
-            div.appendChild(divItem);
-        });
-    }
-
-    function getPurityFactor(key) {
-        if (!key) return 1.0; if (key === '24K' || key === 'Silver') return 1.0; if (key === '22K') return 0.9166; if (key === '18K') return 0.75;
-        let customG = goldRates.customPurities?.find(cp => cp.name === key); if (customG) return customG.pct / 100; return 1.0;
-    }
-    function checkIsSilver(purity) {
-        if(!purity) return false; const p = purity.toUpperCase();
-        return p.includes('SIL') || p.includes('92.5') || p.includes('99.9') || goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
-    }
-
-    function selectInventoryItem(item) {
-        selectedItemObj = item;
-        let wt = parseFloat(item.netWt || item.grossWeight || item.weight || 0);
-        document.getElementById('p_item').value = `${item.barcode} | ${item.category}`;
-        document.getElementById('p_weight').value = wt;
-
-        let isSilv = checkIsSilver(item.purity);
-        let r = isSilv ? (goldRates.rateSilver / 1000) : (goldRates.rate24k / 10);
-        if(item.purity === '22K') r = goldRates.rate22k / 10;
-        else if(item.purity === '18K') r = (goldRates.rate18k || (goldRates.rate22k * 0.82)) / 10;
-        else r = r * getPurityFactor(item.purity);
-
-        document.getElementById('p_rate').value = parseFloat(r.toFixed(2));
-        calcSmartAmount();
-    }
-
-    function calcSmartAmount() {
-        let wt = parseFloat(document.getElementById('p_weight').value) || 0;
-        let rate = parseFloat(document.getElementById('p_rate').value) || 0;
-        let making = document.getElementById('p_making') ? (parseFloat(document.getElementById('p_making').value) || 0) : 0;
-        let gstPct = document.getElementById('p_gst') ? (parseFloat(document.getElementById('p_gst').value) || 0) : 0;
-
-        let metalVal = wt * rate;
-        let baseTotal = metalVal + making;
-        let gstAmt = baseTotal * (gstPct / 100);
-        let finalTotal = Math.round(baseTotal + gstAmt);
-
-        if(document.getElementById('liveMetal')) {
-            document.getElementById('liveMetal').innerText = "₹" + Math.round(metalVal).toLocaleString();
-            document.getElementById('liveTax').innerText = "₹" + Math.round(making + gstAmt).toLocaleString();
-        }
-        if(document.getElementById('liveTotal')) document.getElementById('liveTotal').innerText = "₹" + finalTotal.toLocaleString();
-        if(document.getElementById('p_paid')) document.getElementById('p_paid').value = finalTotal;
-    }
-
-    function calcPurchaseAmount() {
-        let wt = parseFloat(document.getElementById('p_weight').value) || 0;
-        let rate = parseFloat(document.getElementById('p_rate').value) || 0;
-        let finalTotal = Math.round(wt * rate);
-        if(document.getElementById('liveTotal')) document.getElementById('liveTotal').innerText = "₹" + finalTotal.toLocaleString();
-        if(document.getElementById('p_paid')) document.getElementById('p_paid').value = finalTotal;
-    }
-
-    document.addEventListener('click', function(event) {
-        let pCust = document.getElementById('p_customer'); let cList = document.getElementById('customerDropdownPopup');
-        if (pCust && cList && !pCust.contains(event.target) && !cList.contains(event.target)) cList.style.display = 'none';
-        let pItem = document.getElementById('p_item'); let iList = document.getElementById('itemDropdownPopup');
-        if (pItem && iList && !pItem.contains(event.target) && !iList.contains(event.target)) iList.style.display = 'none';
-    });
-
-    // --- MAIN SAVE ENGINE ---
-    async function saveEntry() {
-        let action = document.getElementById('actionType').value;
-        let dateToday = new Date().toISOString();
-        
-        try {
-            const db = await dbPromise;
-            const tx = db.transaction(['sales', 'purchases', 'inventory', 'cashflow', 'loans', 'customers'], 'readwrite');
-
-            if(action === 'Byaaj Jama' || action === 'Girvi Chhudaya') {
-                let loanId = document.getElementById('p_loanId').value;
-                let payAmt = parseFloat(document.getElementById('p_amount').value);
-                let repayType = document.getElementById('p_repayType').value; 
-                let payMode = document.getElementById('p_mode').value;
-                
-                if(!loanId || !payAmt) return alert("Details bharo!");
-
-                let loanReq = await new Promise(r => tx.objectStore('loans').get(parseInt(loanId)).onsuccess = e => r(e.target.result));
-                if(!loanReq) return alert("Loan nahi mila!");
-
-                let lastEntry = loanReq.ledger[loanReq.ledger.length - 1];
-
-                if(repayType === 'Byaaj') {
-                    lastEntry.paidInterest = (lastEntry.paidInterest || 0) + payAmt;
-                } else if(repayType === 'Jama Pete') {
-                    lastEntry.paidPrincipal = (lastEntry.paidPrincipal || 0) + payAmt;
-                    lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
-                } else if(repayType === 'Release') {
-                    lastEntry.paidPrincipal = (lastEntry.paidPrincipal || 0) + payAmt;
-                    lastEntry.closingPrincipal = 0;
-                    loanReq.status = 'closed';
-                    loanReq.closeDate = dateToday;
-                }
-
-                if(!loanReq.payments) loanReq.payments = [];
-                loanReq.payments.push({ date: dateToday, amount: payAmt, mode: payMode, type: repayType });
-                tx.objectStore('loans').put(loanReq);
-                tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: repayType==='Byaaj'?'Interest Payment':'Loan Repayment', amount: payAmt });
-            }
-            else if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Diya') {
-                let custName = document.getElementById('p_customer').value.trim();
-                let cid = document.getElementById('p_customerId').value;
-                let itemNameStr = document.getElementById('p_item').value;
-                
-                if(!custName) return alert("Customer Name zaroori hai!");
-                if(!itemNameStr) return alert("Item details bharein!");
-                
-                if(!cid) cid = await new Promise(r => { let r1 = tx.objectStore('customers').add({name: custName, mobile:'', city:'', bcBalance:0}); r1.onsuccess = e => r(e.target.result); });
-
-                let wt = parseFloat(document.getElementById('p_weight').value) || 0;
-                let paid = parseFloat(document.getElementById('p_paid').value) || 0;
-                let payMode = document.getElementById('p_mode').value;
-
-                if(action === 'Sale') {
-                    let rate = parseFloat(document.getElementById('p_rate').value) || 0;
-                    let mkAmt = document.getElementById('p_making') ? parseFloat(document.getElementById('p_making').value) || 0 : 0;
-                    let gstPct = document.getElementById('p_gst') ? parseFloat(document.getElementById('p_gst').value) || 0 : 0;
-
-                    let baseAmt = (wt * rate) + mkAmt;
-                    let gstAmt = baseAmt * (gstPct / 100);
-                    let grandTotal = Math.round(baseAmt + gstAmt);
-                    let barcodeVal = selectedItemObj ? selectedItemObj.barcode : itemNameStr.split('|')[0].trim();
-
-                    if(selectedItemObj) {
-                        let storeItem = await new Promise(r => tx.objectStore('inventory').get(selectedItemObj.id).onsuccess = e => r(e.target.result));
-                        if(storeItem) {
-                            let isSilv = checkIsSilver(storeItem.purity);
-                            if(isSilv || storeItem.category === 'MIX' || storeItem.pieces > 1) {
-                                storeItem.pieces = Math.max(0, (parseInt(storeItem.pieces) || 1) - 1);
-                                storeItem.grossWt = Math.max(0, storeItem.grossWt - wt);
-                                storeItem.netWt = Math.max(0, storeItem.netWt - wt);
-                                storeItem.weight = storeItem.grossWt;
-                                if (storeItem.pieces <= 0 || storeItem.netWt <= 0.05) storeItem.status = 'sold';
-                            } else {
-                                storeItem.status = 'sold'; storeItem.pieces = 0; storeItem.netWt = 0; storeItem.weight = 0;
-                            }
-                            tx.objectStore('inventory').put(storeItem);
-                        }
-                    }
-                    let saleData = {
-                        date: dateToday, customerId: parseInt(cid), subTotal: baseAmt, gst: gstAmt, grandTotal: grandTotal, paidAmount: paid, pendingAmount: grandTotal - paid, status: 'completed',
-                        items: [{ id: selectedItemObj?selectedItemObj.id:'manual', isOldGold: false, barcode: barcodeVal, category: itemNameStr, weight: wt, rate: rate, total: grandTotal }]
-                    };
-                    tx.objectStore('sales').add(saleData);
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: 'POS Sale', amount: paid });
-                }
-                else if (action === 'Purchase') {
-                    let rate = parseFloat(document.getElementById('p_rate').value) || 0;
-                    let grandTotal = Math.round(wt * rate);
-                    let purData = {
-                        date: dateToday, customerId: parseInt(cid), grandTotal: grandTotal, paidAmount: paid, status: 'completed',
-                        items: [{ id: 'manual', barcode: 'CUSTOM', category: itemNameStr, weight: wt, rate: rate, total: grandTotal }]
-                    };
-                    tx.objectStore('purchases').add(purData);
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'Purchase', amount: paid });
-                }
-                else if (action === 'Girvi Diya') {
-                    let intRate = parseFloat(document.getElementById('p_intRate').value) || 2.0;
-                    let loanData = {
-                        customerId: parseInt(cid), date: dateToday.split('T')[0], dueDate: dateToday.split('T')[0], status: 'active',
-                        item: itemNameStr, metal: 'Gold', weight: wt, amount: paid, ratePercent: intRate, durationVal: 6,
-                        ledger: [{ month: new Date().toLocaleDateString('en-IN', { month:'short', year:'numeric' }), openPrincipal: paid, interestCharged: Math.round(paid * (intRate/100)), paidInterest: 0, paidPrincipal: 0, closingPrincipal: paid, status: 'active' }]
-                    };
-                    tx.objectStore('loans').add(loanData);
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'New Gold Loan', amount: paid });
-                }
-            } 
-            else {
-                let amt = parseFloat(document.getElementById('p_amount').value);
-                let mode = document.getElementById('p_mode').value;
-                let desc = document.getElementById('p_desc').value || action;
-                let type = (action === 'Payment Diya' || action === 'Expense') ? 'OUT' : 'IN';
-                tx.objectStore('cashflow').add({ date: dateToday, type: type, mode: mode, category: action, amount: amt, note: desc });
-            }
-
-            tx.oncomplete = () => {
-                closePopup();
-                loadCoreData().then(() => {
-                    updateCashDashboard();
-                    loadTodayLogs();
-                }); 
-            };
-            tx.onerror = (e) => { console.error(e); alert("❌ Error saving data."); };
-
-        } catch(error) { console.error("Master Save Error:", error); alert("❌ DB Error!"); }
+        } catch(e) { console.error("Logs Error:", e); }
     }
 </script>
 
