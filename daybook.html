@@ -1067,18 +1067,24 @@
                 logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', party, ref, true, 'NET', true);
 
                 if (billCreatedToday) {
-                    if ((isFixed && pTotal > 0) || mIn > 0) {
-                        let mStr = p.paymentMode || p.mode || 'Cash';
-                        addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, mIn, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: mIn, mode: mStr, dataType: 'purchase_full' }, true);
-                        
-                        if (dueAmt > 0) {
-                            addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, 
-                                { ...txBase, time: getTime(p.date), ref, desc: `Pending Payment for Bill`, cash: dueAmt, metal: 0, mode: '-', dataType: 'merch_due' });
+                    let mStr = p.paymentMode || p.mode || 'Cash';
+                    
+                    if (isFixed) {
+                        if (pTotal > 0 || mIn > 0) {
+                            addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, mIn, 
+                                { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: mIn, mode: mStr, dataType: 'purchase_full' }, true);
+                            
+                            if (dueAmt > 0) {
+                                addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, 
+                                    { ...txBase, time: getTime(p.date), ref, desc: `Pending Payment for Bill`, cash: dueAmt, metal: 0, mode: '-', dataType: 'merch_due' });
+                            }
                         }
-                    } else if (paidToday > 0) {
-                        addRojmel('OUT', 'purchases', 'Stock Purchases (Advance Paid)', 'fas fa-cart-arrow-down', 'var(--out-red)', paidToday, 0, 
-                            { ...txBase, time: getTime(p.date), ref, desc: `Advance Paid for Unfixed Stock`, cash: paidToday, metal: 0, mode: p.paymentMode || 'Cash', dataType: 'purchase_unfixed' }, true);
+                    } else {
+                        // UNFIXED PURCHASE LOGIC FIXED HERE
+                        if (paidToday > 0 || mIn > 0) {
+                            addRojmel('OUT', 'purchases', 'Stock Purchases (Advance / Unfixed)', 'fas fa-cart-arrow-down', 'var(--out-red)', paidToday, mIn, 
+                                { ...txBase, time: getTime(p.date), ref, desc: `Unfixed Metal Received & Advance Paid`, cash: paidToday, metal: mIn, mode: mStr, dataType: 'purchase_unfixed' }, true);
+                        }
                     }
                 } else {
                     const relatedFlows = cFlows.filter(f => getSafeDate(f.date) === selectedDateStr && f.note && (String(f.note).toUpperCase().includes(ref) || String(f.note).toUpperCase().includes(`PUR-${p.id}`)));
@@ -1509,11 +1515,9 @@
             setInner('uiTotalIn', "₹" + totalVisualInCash.toLocaleString());
             setInner('uiTotalOut', "₹" + totalVisualOutCash.toLocaleString());
 
+            const finalCloseCash = openTotalCash + totalVisualInCash - totalVisualOutCash;
             const closeBank = openBank + actualSyncInBank - actualSyncOutBank;
-            const closeHardCash = openHardCash + actualSyncInCash - actualSyncOutCash;
-
-            const finalCloseCash = closeBank + closeHardCash;
-            const finalCloseHardCash = closeHardCash;
+            const finalCloseHardCash = finalCloseCash - closeBank;
 
             let visualNet = totalVisualInCash - totalVisualOutCash;
             let dbNet = (actualSyncInBank + actualSyncInCash) - (actualSyncOutBank + actualSyncOutCash);
