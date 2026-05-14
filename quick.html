@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -39,23 +40,22 @@
         .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; color: #555; }
         
         .form-group { margin-bottom: 15px; position: relative; }
+        .form-row { display: flex; gap: 10px; margin-bottom: 15px; } /* Weight aur Rate ek line me dikhane ke liye */
         .form-group label { display: block; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #333; }
         .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1rem;}
-        .save-btn { width: 100%; padding: 14px; background: #d4af37; color: white; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; }
+        
+        .amount-input { font-size: 1.2rem !important; font-weight: bold; color: #d4af37; background: #f9f9f9; }
+        .save-btn { width: 100%; padding: 14px; background: #d4af37; color: white; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; margin-top:10px; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
-    <!-- Dropdown & Search -->
     <div class="dropdown-container">
-        <input type="text" id="searchCustomer" class="search-box" placeholder="🔍 Select ya Search Customer..." autocomplete="off" onclick="openDropdown()" oninput="filterDropdown()">
-        <div id="dropdownList" class="dropdown-list">
-            <!-- Data yahan JS se aayega -->
-        </div>
+        <input type="text" id="searchCustomer" class="search-box" placeholder="🔍 Select ya Search Customer..." autocomplete="off" onfocus="openDropdown()" oninput="filterDropdown()">
+        <div id="dropdownList" class="dropdown-list"></div>
     </div>
 
-    <!-- Action Buttons -->
     <div id="actionPanel" class="action-section">
         <h2 class="customer-title" id="displayCustName">Customer Name</h2>
         
@@ -105,19 +105,16 @@
 
 <script>
     let allCustomers = [];
-    let allInventory = []; // Inventory ka data rakhne ke liye
+    let allInventory = [];
 
-    // 1. Data load at start
     window.onload = async function() {
         try {
             allCustomers = await getAllItems('customers');
-            allInventory = await getAllItems('inventory'); // Stock ka data fetch karein
-        } catch (error) {
-            console.error("Data load failed:", error);
-        }
+            allInventory = await getAllItems('inventory'); 
+        } catch (error) { console.error("Data load failed:", error); }
     };
 
-    // 2. Customer Dropdown Logic
+    /* --- Customer Dropdown Logic --- */
     function openDropdown() {
         document.getElementById('dropdownList').style.display = 'block';
         renderDropdown(allCustomers);
@@ -144,7 +141,8 @@
             let item = document.createElement('div');
             item.className = 'dropdown-item';
             item.innerText = c.name + (c.mobile ? ` - ${c.mobile}` : '');
-            item.onclick = function() {
+            item.onmousedown = function(e) {
+                e.preventDefault();
                 selectCustomer(c.name, item.innerText);
             };
             div.appendChild(item);
@@ -163,7 +161,7 @@
         document.getElementById('actionPanel').style.display = 'none';
     }
 
-    // 3. Popup Form & Inventory Dropdown Logic
+    /* --- Popup Form Logic --- */
     function openPopup(action) {
         let customer = document.getElementById('displayCustName').innerText.replace('👤 ', '');
         
@@ -174,18 +172,33 @@
         let fieldsHTML = '';
 
         if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Rakha' || action === 'Girvi Jama') {
+            // Naya Form: Jisme Weight aur Rate aamne-saamne hain
             fieldsHTML = `
-                <div class="form-group">
-                    <label>Item / Barcode Search</label>
-                    <input type="text" id="p_item" placeholder="Barcode ya Item type karein..." autocomplete="off" onclick="openItemDropdown()" oninput="filterItemDropdown()" required>
-                    <div id="itemDropdownList" class="dropdown-list"></div>
+                <div class="form-group" style="position:relative;">
+                    <label>Item Name / Barcode</label>
+                    <input type="text" id="p_item" placeholder="🔍 Barcode ya Item search karein..." autocomplete="off" onfocus="openItemDropdown()" onkeyup="filterItemDropdown()" required>
+                    <div id="itemDropdownList" class="dropdown-list" style="max-height: 150px; z-index:9999;"></div>
                 </div>
-                <div class="form-group"><label>Weight (Grams)</label><input type="number" step="0.001" id="p_weight" required></div>
-                <div class="form-group"><label>Total Amount (₹)</label><input type="number" id="p_amount" required></div>
+                
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Weight (g)</label>
+                        <input type="number" step="0.001" id="p_weight" placeholder="0.000" oninput="calculateAmount()" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Rate (₹/g)</label>
+                        <input type="number" id="p_rate" placeholder="₹ Bhaav" oninput="calculateAmount()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Total Amount (₹)</label>
+                    <input type="number" id="p_amount" class="amount-input" required>
+                </div>
             `;
         } else {
             fieldsHTML = `
-                <div class="form-group"><label>Amount (₹)</label><input type="number" id="p_amount" required></div>
+                <div class="form-group"><label>Amount (₹)</label><input type="number" id="p_amount" class="amount-input" required></div>
                 <div class="form-group"><label>Remarks / Detail</label><input type="text" id="p_item" placeholder="Koi detail? (Optional)"></div>
             `;
         }
@@ -198,7 +211,18 @@
         document.getElementById('entryModal').style.display = 'none';
     }
 
-    // --- Inventory Items ki Dropdown list ke functions ---
+    /* --- Amount Calculation --- */
+    function calculateAmount() {
+        let weight = parseFloat(document.getElementById('p_weight').value) || 0;
+        let rate = parseFloat(document.getElementById('p_rate').value) || 0;
+        
+        // Agar weight aur rate dono dale hain, to amount apne aap aayega
+        if(weight > 0 && rate > 0) {
+            document.getElementById('p_amount').value = Math.round(weight * rate);
+        }
+    }
+
+    /* --- Inventory Items Dropdown Logic --- */
     function openItemDropdown() {
         renderItemDropdown(allInventory);
     }
@@ -220,7 +244,7 @@
         div.innerHTML = '';
         
         if(list.length === 0) {
-            div.innerHTML = '<div class="dropdown-item">Item nahi mila. Manually type karein.</div>';
+            div.innerHTML = '<div class="dropdown-item" style="color:red; text-align:center;">Stock nahi mila!</div>';
             return;
         }
 
@@ -228,47 +252,52 @@
             let divItem = document.createElement('div');
             divItem.className = 'dropdown-item';
             
-            // Format banayenge: "B-001 - Gold Ring (12.500g)"
-            let itemName = item.category || item.name || "Item";
+            let itemName = item.category || item.name || item.item || "Unknown Item";
             let displayTxt = `${item.barcode ? '[' + item.barcode + '] ' : ''}${itemName}`;
-            let wtText = item.weight ? ` - ${item.weight}g` : '';
+            
+            // Har sambhav naam check karega DB me weight ke liye
+            let wt = item.weight || item.Weight || item.netWeight || item.grossWeight || item.wt || '';
+            let wtText = wt ? ` - ${wt}g` : '';
             
             divItem.innerText = displayTxt + wtText;
             
-            divItem.onclick = function() {
-                // Input box me naam dalenge
+            divItem.onmousedown = function(e) {
+                e.preventDefault(); 
                 document.getElementById('p_item').value = displayTxt;
                 
-                // Agar item ka weight database me hai, to weight wale box me automatically daal denge
-                if(item.weight && document.getElementById('p_weight')) {
-                    document.getElementById('p_weight').value = item.weight;
+                if(wt && document.getElementById('p_weight')) {
+                    document.getElementById('p_weight').value = wt;
+                    calculateAmount(); // Weight aate hi Amount calculate karo!
                 }
-                
                 div.style.display = 'none';
             };
             div.appendChild(divItem);
         });
     }
 
-    // Dropdown ke bahar click karne par band karne ka code
-    window.onclick = function(event) {
-        if (!event.target.matches('#searchCustomer')) {
-            let cList = document.getElementById('dropdownList');
-            if(cList) cList.style.display = 'none';
+    // Hide dropdowns click outside
+    document.addEventListener('click', function(event) {
+        let pItem = document.getElementById('p_item');
+        let iList = document.getElementById('itemDropdownList');
+        if (pItem && iList && !pItem.contains(event.target) && !iList.contains(event.target)) {
+            iList.style.display = 'none';
         }
-        if (!event.target.matches('#p_item')) {
-            let iList = document.getElementById('itemDropdownList');
-            if(iList) iList.style.display = 'none';
-        }
-    }
 
-    // 4. Save Entry to db.js
+        let searchC = document.getElementById('searchCustomer');
+        let cList = document.getElementById('dropdownList');
+        if (searchC && cList && !searchC.contains(event.target) && !cList.contains(event.target)) {
+            cList.style.display = 'none';
+        }
+    });
+
+    /* --- Save Entry Logic --- */
     async function saveEntry() {
         let action = document.getElementById('actionType').value;
         let customer = document.getElementById('customerHidden').value;
         let amount = document.getElementById('p_amount') ? document.getElementById('p_amount').value : 0;
         let item = document.getElementById('p_item') ? document.getElementById('p_item').value : '';
         let weight = document.getElementById('p_weight') ? document.getElementById('p_weight').value : 0;
+        let rate = document.getElementById('p_rate') ? document.getElementById('p_rate').value : 0;
 
         if(!amount) { alert("Bhai, Amount toh dalo!"); return; }
 
@@ -277,11 +306,11 @@
         let finalData = { date: dateToday, customerName: customer, amount: parseFloat(amount), status: 'completed' };
 
         if(action === 'Sale') {
-            storeName = 'sales'; finalData.item = item; finalData.weight = parseFloat(weight);
+            storeName = 'sales'; finalData.item = item; finalData.weight = parseFloat(weight); finalData.rate = parseFloat(rate);
         } else if(action === 'Girvi Rakha' || action === 'Girvi Jama') {
-            storeName = 'loans'; finalData.item = item; finalData.weight = parseFloat(weight); finalData.status = action === 'Girvi Rakha' ? 'active' : 'closed';
+            storeName = 'loans'; finalData.item = item; finalData.weight = parseFloat(weight); finalData.rate = parseFloat(rate); finalData.status = action === 'Girvi Rakha' ? 'active' : 'closed';
         } else if(action === 'Purchase') {
-            storeName = 'purchases'; finalData.item = item; finalData.weight = parseFloat(weight);
+            storeName = 'purchases'; finalData.item = item; finalData.weight = parseFloat(weight); finalData.rate = parseFloat(rate);
         } else {
             storeName = 'cashflow'; finalData.mode = action; finalData.description = item;
         }
