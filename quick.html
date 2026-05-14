@@ -49,6 +49,12 @@
         .amount-total { font-size: 1.3rem; font-weight: bold; color: #D32F2F; border-top: 1px dashed #ccc; padding-top: 8px; margin-top: 5px; display: flex; justify-content: space-between;}
         
         .save-btn { width: 100%; padding: 15px; background: #C5A059; color: #000; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
+
+        /* LAST ENTRY SUCCESS LOG STYLE */
+        .recent-log { display: none; margin-top: 20px; background: #e8f5e9; border: 2px dashed #4caf50; padding: 15px; border-radius: 8px; text-align: center; animation: fadeIn 0.5s; }
+        .log-details { display: flex; justify-content: space-around; font-size: 1.2rem; font-weight: bold; color: #2e7d32; }
+        .log-msg { font-size: 0.85rem; color: #4caf50; margin-top: 8px; font-weight: 600; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -82,6 +88,16 @@
         
         <button class="action-btn btn-neutral" onclick="resetSearch()">❌ Cancel / New Entry</button>
     </div>
+
+    <div id="recentActivity" class="recent-log">
+        <div class="log-details">
+            <span id="logAmt">₹50000</span>
+            <span id="logCode">rng0002</span>
+            <span id="logWt">5.210 g</span>
+        </div>
+        <div class="log-msg">✅ Entry Saved Successfully & Stock Updated</div>
+    </div>
+
 </div>
 
 <div id="entryModal" class="modal">
@@ -108,31 +124,31 @@
     let allInventory = [];
     let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
     let globalGstDefault = 3;
-    let selectedItemObj = null; // Store selected item data completely
+    let selectedItemObj = null;
 
+    // Load Data at startup
     window.onload = async function() {
+        await loadCoreData();
+    };
+
+    // Naya function: Background me bina page load kiye stock update karne ke liye
+    async function loadCoreData() {
         try {
             allCustomers = await getAllItems('customers');
             allInventory = await getAllItems('inventory'); 
-            
-            // Fetch global settings just like sales.html
             const r = await getSetting('gold_rates'); 
             if(r) goldRates = r;
-            
             const defaults = await getSetting('billing_defaults');
             if(defaults && defaults.gst) globalGstDefault = defaults.gst;
-
         } catch (error) { console.error("Data load failed:", error); }
-    };
+    }
 
-    /* --- Purity Factor Logic (Same as sales.html) --- */
     function getPurityFactor(key) {
         if (!key) return 1.000;
         if (key === '24K' || key === 'Silver') return 1.000;
         if (key === '22K') return 0.9166;
         if (key === '18K') return 0.7500;
         if (key === 'Silver 92.5%') return 0.925;
-        
         let customG = goldRates.customPurities?.find(cp => cp.name === key);
         if (customG) return customG.pct / 100;
         let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
@@ -149,7 +165,6 @@
         return false;
     }
 
-    /* --- Customer Dropdown --- */
     function openDropdown() {
         document.getElementById('dropdownList').style.display = 'block';
         renderDropdown(allCustomers);
@@ -183,9 +198,11 @@
                 document.getElementById('actionPanel').style.display = 'block';
                 document.getElementById('displayCustName').innerText = "👤 " + c.name;
                 
-                // Store Customer ID and Name for DB
                 document.getElementById('customerIdHidden').value = c.id;
                 document.getElementById('customerNameHidden').value = c.name;
+                
+                // Hide recent activity if a new customer is selected
+                document.getElementById('recentActivity').style.display = 'none';
             };
             div.appendChild(item);
         });
@@ -194,9 +211,9 @@
     function resetSearch() {
         document.getElementById('searchCustomer').value = '';
         document.getElementById('actionPanel').style.display = 'none';
+        document.getElementById('recentActivity').style.display = 'none';
     }
 
-    /* --- Popup Form Generator --- */
     function openPopup(action) {
         selectedItemObj = null;
         let custName = document.getElementById('customerNameHidden').value;
@@ -275,7 +292,6 @@
         document.getElementById('entryModal').style.display = 'none';
     }
 
-    /* --- Smart Auto-Calculation --- */
     function calculateSmartAmount() {
         let wt = parseFloat(document.getElementById('p_weight').value) || 0;
         let rate = parseFloat(document.getElementById('p_rate').value) || 0;
@@ -290,12 +306,9 @@
         document.getElementById('liveMetal').innerText = "₹" + Math.round(metalVal).toLocaleString();
         document.getElementById('liveTax').innerText = "₹" + Math.round(making + gstAmt).toLocaleString();
         document.getElementById('liveTotal').innerText = "₹" + finalTotal.toLocaleString();
-        
-        // Auto fill payment received field with Grand Total
         document.getElementById('p_paid').value = finalTotal;
     }
 
-    /* --- Inventory & Barcode Logic --- */
     function openItemDropdown() {
         renderItemDropdown(allInventory);
     }
@@ -303,7 +316,6 @@
     function filterItemDropdown() {
         let txt = document.getElementById('p_item').value.trim().toUpperCase();
         
-        // Exact Barcode Scanner Match
         let exactMatch = allInventory.find(item => item.status === 'stock' && item.barcode && item.barcode.toUpperCase() === txt);
         if(exactMatch) {
             document.getElementById('itemDropdownList').style.display = 'none';
@@ -325,16 +337,13 @@
         const div = document.getElementById('itemDropdownList');
         if(!div) return;
         div.innerHTML = '';
-        
         if(list.length === 0) return;
 
         list.slice(0, 10).forEach(item => {
             let divItem = document.createElement('div');
             divItem.className = 'dropdown-item';
-            
             let wt = parseFloat(item.netWt || item.grossWeight || item.weight || 0).toFixed(3);
             divItem.innerHTML = `<b>${item.barcode}</b> - ${item.category} <small style="color:#C5A059;">[${item.purity} | ${wt}g]</small>`;
-            
             divItem.onmousedown = function(e) {
                 e.preventDefault(); 
                 selectInventoryItem(item);
@@ -351,7 +360,6 @@
         document.getElementById('p_item').value = `${item.barcode} | ${item.category}`;
         document.getElementById('p_weight').value = wt;
 
-        // Smart Rate Calculation just like sales.html
         let isSilv = checkIsSilver(item.purity);
         let pureRatePerGram = isSilv ? (goldRates.rateSilver / 1000) : (goldRates.rate24k / 10);
         let r = 0;
@@ -361,11 +369,9 @@
         else r = pureRatePerGram * getPurityFactor(item.purity);
 
         document.getElementById('p_rate').value = parseFloat(r.toFixed(2));
-        
         calculateSmartAmount();
     }
 
-    // Hide dropdowns click outside
     document.addEventListener('click', function(event) {
         let pItem = document.getElementById('p_item');
         let iList = document.getElementById('itemDropdownList');
@@ -375,21 +381,25 @@
         if (searchC && cList && !searchC.contains(event.target) && !cList.contains(event.target)) { cList.style.display = 'none'; }
     });
 
-    /* --- THE MASTER SAVE FUNCTION --- */
     async function saveEntry() {
         let action = document.getElementById('actionType').value;
         let cid = document.getElementById('customerIdHidden').value;
         let dateToday = new Date().toISOString();
+        
+        // Log show karne ke liye variables
+        let finalDisplayAmount = 0;
+        let finalDisplayBarcode = action;
+        let finalDisplayWt = "0.000";
 
         try {
             const db = await dbPromise;
             const tx = db.transaction(['sales', 'inventory', 'cashflow', 'loans'], 'readwrite');
 
             if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Rakha') {
-                if(!selectedItemObj) return alert("Pehle upar se Item select karein!");
+                if(!selectedItemObj && !document.getElementById('p_item').value) return alert("Pehle Item details bharein!");
                 
-                let wt = parseFloat(document.getElementById('p_weight').value);
-                let rate = parseFloat(document.getElementById('p_rate').value);
+                let wt = parseFloat(document.getElementById('p_weight').value) || 0;
+                let rate = parseFloat(document.getElementById('p_rate').value) || 0;
                 let mkAmt = parseFloat(document.getElementById('p_making').value) || 0;
                 let gstPct = parseFloat(document.getElementById('p_gst').value) || 0;
                 let paid = parseFloat(document.getElementById('p_paid').value) || 0;
@@ -400,91 +410,88 @@
                 let gstAmt = baseAmt * (gstPct / 100);
                 let grandTotal = Math.round(baseAmt + gstAmt);
                 
-                // Construct EXACT Item array for `sales.html` compatibility
+                // For Log UI
+                finalDisplayAmount = paid > 0 ? paid : grandTotal;
+                finalDisplayWt = wt.toFixed(3);
+                finalDisplayBarcode = selectedItemObj ? selectedItemObj.barcode : document.getElementById('p_item').value.split('|')[0].trim();
+                
                 let cartItem = {
-                    id: selectedItemObj.id,
+                    id: selectedItemObj ? selectedItemObj.id : 'manual_' + Date.now(),
                     isOldGold: false,
-                    barcode: selectedItemObj.barcode,
-                    category: selectedItemObj.category,
-                    purity: selectedItemObj.purity,
-                    weight: wt,
-                    grossWt: wt,
-                    stoneWt: 0,
-                    netWt: wt,
-                    payableWt: wt,
-                    sellQty: 1,
-                    rate: rate,
-                    makingType: 'flat',
-                    makingRate: mkAmt,
-                    makingAmount: mkAmt,
-                    baseAmount: baseAmt,
-                    gstPct: gstPct,
-                    gstAmount: gstAmt,
-                    total: grandTotal
+                    barcode: finalDisplayBarcode,
+                    category: selectedItemObj ? selectedItemObj.category : finalDisplayBarcode,
+                    purity: selectedItemObj ? selectedItemObj.purity : 'Unknown',
+                    weight: wt, grossWt: wt, stoneWt: 0, netWt: wt, payableWt: wt, sellQty: 1,
+                    rate: rate, makingType: 'flat', makingRate: mkAmt, makingAmount: mkAmt,
+                    baseAmount: baseAmt, gstPct: gstPct, gstAmount: gstAmt, total: grandTotal
                 };
 
                 let saleData = {
                     date: dateToday, customerId: parseInt(cid), items: [cartItem],
-                    subTotal: baseAmt, gst: gstAmt, oldGoldDeduction: 0,
-                    discountMode: 'flat', discount: 0, bcWalletDeduction: 0,
+                    subTotal: baseAmt, gst: gstAmt, oldGoldDeduction: 0, discountMode: 'flat', discount: 0, bcWalletDeduction: 0,
                     grandTotal: grandTotal, paidAmount: paid, pendingAmount: grandTotal - paid,
                     payments: [{ mode: payMode, amount: paid, date: dateToday }],
                     isGstBill: true, status: 'completed'
                 };
 
                 if(action === 'Sale') {
-                    // Update Inventory Logic (Exact replica of sales.html updateStockStatusInternal)
-                    let storeItem = await new Promise(r => tx.objectStore('inventory').get(selectedItemObj.id).onsuccess = e => r(e.target.result));
-                    if(storeItem) {
-                        let isSilver = checkIsSilver(storeItem.purity);
-                        if(isSilver || storeItem.category === 'MIX' || storeItem.pieces > 1) {
-                            storeItem.pieces = Math.max(0, (parseInt(storeItem.pieces) || 1) - 1);
-                            storeItem.grossWt = Math.max(0, storeItem.grossWt - wt);
-                            storeItem.netWt = Math.max(0, storeItem.netWt - wt);
-                            storeItem.weight = storeItem.grossWt;
-                            if (storeItem.pieces <= 0 || storeItem.netWt <= 0.05) storeItem.status = 'sold';
-                        } else {
-                            storeItem.status = 'sold';
-                            storeItem.pieces = 0; storeItem.netWt = 0; storeItem.weight = 0;
+                    if(selectedItemObj) {
+                        let storeItem = await new Promise(r => tx.objectStore('inventory').get(selectedItemObj.id).onsuccess = e => r(e.target.result));
+                        if(storeItem) {
+                            let isSilver = checkIsSilver(storeItem.purity);
+                            if(isSilver || storeItem.category === 'MIX' || storeItem.pieces > 1) {
+                                storeItem.pieces = Math.max(0, (parseInt(storeItem.pieces) || 1) - 1);
+                                storeItem.grossWt = Math.max(0, storeItem.grossWt - wt);
+                                storeItem.netWt = Math.max(0, storeItem.netWt - wt);
+                                storeItem.weight = storeItem.grossWt;
+                                if (storeItem.pieces <= 0 || storeItem.netWt <= 0.05) storeItem.status = 'sold';
+                            } else {
+                                storeItem.status = 'sold'; storeItem.pieces = 0; storeItem.netWt = 0; storeItem.weight = 0;
+                            }
+                            tx.objectStore('inventory').put(storeItem);
                         }
-                        tx.objectStore('inventory').put(storeItem);
                     }
-
-                    // Save Sale & Cashflow
-                    let sReq = tx.objectStore('sales').add(saleData);
+                    tx.objectStore('sales').add(saleData);
                     tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: 'POS Sale', amount: paid, note: 'Quick Sale Entry' });
                 }
                 else if (action === 'Girvi Rakha') {
-                    // Logic for Girvi (Loans)
                     tx.objectStore('loans').add({
                         customerId: parseInt(cid), date: dateToday.split('T')[0], status: 'active',
-                        item: selectedItemObj.category, metal: checkIsSilver(selectedItemObj.purity) ? 'Silver' : 'Gold',
-                        weight: wt, amount: grandTotal // In loan, grandTotal is loan given
+                        item: finalDisplayBarcode, metal: (selectedItemObj && checkIsSilver(selectedItemObj.purity)) ? 'Silver' : 'Gold',
+                        weight: wt, amount: grandTotal
                     });
                     tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'New Gold Loan', amount: grandTotal });
                 }
 
             } else {
-                // Cash Only Entries (Payment In/Out)
                 let amt = parseFloat(document.getElementById('p_amount').value);
                 let mode = document.getElementById('p_mode').value;
                 let desc = document.getElementById('p_desc').value || action;
                 let type = (action === 'Payment Diya' || action === 'Expense') ? 'OUT' : 'IN';
                 
-                tx.objectStore('cashflow').add({
-                    date: dateToday, type: type, mode: mode, category: action, amount: amt, note: desc
-                });
+                finalDisplayAmount = amt;
+                finalDisplayBarcode = "Payment";
+                finalDisplayWt = "-";
+                
+                tx.objectStore('cashflow').add({ date: dateToday, type: type, mode: mode, category: action, amount: amt, note: desc });
             }
 
             tx.oncomplete = () => {
-                alert("✅ Record successfully saved!");
+                // Background me DB refetch karna, bina reload ke
+                loadCoreData();
+                
+                // Form close & clear
                 closePopup();
-                resetSearch();
-                window.location.reload(); // Refresh to get updated stock
+                document.getElementById('searchCustomer').value = '';
+                document.getElementById('actionPanel').style.display = 'none';
+                
+                // Show Recent Log Line exactly as requested
+                document.getElementById('logAmt').innerText = "₹" + finalDisplayAmount.toLocaleString();
+                document.getElementById('logCode').innerText = finalDisplayBarcode;
+                document.getElementById('logWt').innerText = finalDisplayWt === "-" ? "" : finalDisplayWt + " g";
+                document.getElementById('recentActivity').style.display = 'block';
             };
-            tx.onerror = (e) => {
-                console.error(e); alert("❌ Error saving data.");
-            };
+            tx.onerror = (e) => { console.error(e); alert("❌ Error saving data."); };
 
         } catch(error) {
             console.error("Master Save Error:", error); alert("❌ DB Error!");
