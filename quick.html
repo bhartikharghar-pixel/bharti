@@ -150,7 +150,6 @@
                 <div id="log-Order In" class="mini-log"></div>
             </div>
 
-            <!-- NEW: Repair IN Box -->
             <div class="action-wrapper">
                 <a href="orders.html" class="action-btn btn-in"><i class="fas fa-tools"></i> Repair Jama (In)</a>
                 <div id="log-Repair In" class="mini-log"></div>
@@ -195,7 +194,6 @@
                 <div id="log-Vyapari Diya" class="mini-log"></div>
             </div>
 
-            <!-- NEW: Repair OUT Box (For Discount/Refund or Less Estimate) -->
             <div class="action-wrapper">
                 <a href="orders.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund / Less Est.)</a>
                 <div id="log-Repair Out" class="mini-log"></div>
@@ -330,7 +328,7 @@
             let orders = await safeGetAll('orders');
             let schemes = await safeGetAll('schemes');
             let deposits = await safeGetAll('deposits');
-            let repairsStore = await safeGetAll('repairs'); // In case repair has its own store
+            let repairsStore = await safeGetAll('repairs'); 
 
             // 1. CASHFLOW CALCULATION (Live Balances)
             cFlows.forEach(c => {
@@ -368,11 +366,10 @@
             document.getElementById('closeCash').innerText = fmtNum(closingCash);
             document.getElementById('closeBank').innerText = fmtNum(closingBank);
 
-            // Render Opening & Closing Balances in Inline Boxes
             document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
             document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
 
-            // 2. GENERATE LOGS (NEW REPAIR ADDED)
+            // 2. GENERATE LOGS
             let logs = {
                 'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'Vyapari Aaya': [], 'Other In': [], 
                 'SaleDueRecv': [], 'PurchaseDue': [],
@@ -384,7 +381,7 @@
             let sumNama = 0;
 
             const pushLog = (key, amt, midStr, rightStr, splitStr, isIN) => {
-                if(amt === 0) return; // Prevent 0 entries
+                if(amt === 0) return;
                 let c = isIN ? 'c-in' : 'c-out';
                 let splitHTML = splitStr ? `<div class="log-split">${splitStr}</div>` : '';
                 logs[key].push(`
@@ -506,99 +503,78 @@
                 }
             });
 
-            // ORDERS & REPAIRS (Separation Logic)
-            orders.forEach(o => {
-                let cName = getCustName(o.customerId);
+            // 🌟 SMART REPAIR & ORDERS ENGINE
+            const processOrderOrRepair = (data, isExplicitRepairStore) => {
+                let cName = getCustName(data.customerId);
+                let isRepair = isExplicitRepairStore || String(data.orderType || data.type || data.category || '').toLowerCase().includes('repair');
+                let createdDate = data.orderDate || data.date || data.createdDate || '';
+                let isCreatedToday = createdDate.startsWith(today);
+
                 let hasTodayPayment = false;
                 
-                // Identify if it's a Repair
-                let isRepair = String(o.orderType || o.type || o.category || '').toLowerCase().includes('repair');
-
-                if (o.payments && o.payments.length > 0) {
-                    o.payments.forEach(p => {
-                        let pAmt = parseNum(p.amount);
-                        if(p.date && p.date.startsWith(today) && pAmt !== 0) {
-                            let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
-                            
-                            if (isRepair) {
-                                // If payment is negative or marked as Refund -> Repair Out (Nama)
-                                if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
-                                    pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund / Less', spl, false);
+                // 1. Check inside payments array
+                if (data.payments && data.payments.length > 0) {
+                    data.payments.forEach(p => {
+                        let pDate = p.date || p.paymentDate || createdDate; 
+                        if (pDate.startsWith(today)) {
+                            let pAmt = parseNum(p.amount);
+                            if (pAmt !== 0) {
+                                hasTodayPayment = true;
+                                let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
+                                
+                                if (isRepair) {
+                                    if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
+                                        pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund', spl, false);
+                                    } else {
+                                        let text = (p.type === 'Advance' || isCreatedToday) ? 'Rep Adv' : 'Rep Pay';
+                                        pushLog('Repair In', pAmt, cName, text, spl, true);
+                                    }
                                 } else {
-                                    pushLog('Repair In', pAmt, cName, 'Repair In', spl, true);
+                                    let text = (p.type === 'Advance' || isCreatedToday) ? 'Advance' : 'Pay/Adv';
+                                    pushLog('Order In', pAmt, cName, text, spl, true);
                                 }
-                            } else {
-                                // Normal Order
-                                pushLog('Order In', pAmt, cName, 'Pay/Adv', spl, true);
                             }
-                            hasTodayPayment = true;
                         }
                     });
-                } 
-                
-                if (!hasTodayPayment && o.orderDate && o.orderDate.startsWith(today)) {
-                    let amt = parseNum(o.advanceAmount || o.paidAmount || o.amount);
-                    if(amt > 0) {
-                        let spl = getSplitStr(null, o.paymentMode||'Cash', amt, amt);
+                }
+
+                // 2. If NO payment object exists today, but created today -> Check Advance Amount
+                if (!hasTodayPayment && isCreatedToday) {
+                    let adv = parseNum(data.advanceAmount || data.paidAmount || data.advance || data.amount);
+                    if (adv > 0) {
+                        let spl = getSplitStr(null, data.paymentMode || data.mode || 'Cash', adv, adv);
                         if (isRepair) {
-                            pushLog('Repair In', amt, cName, 'Repair Adv', spl, true);
+                            pushLog('Repair In', adv, cName, 'Rep Adv', spl, true);
                         } else {
-                            pushLog('Order In', amt, cName, 'Advance', spl, true);
+                            pushLog('Order In', adv, cName, 'Advance', spl, true);
                         }
                     }
                 }
 
-                // 🌟 CORE FEATURE: Agar Estimate se Final Amount Kam hai, to Nama (OUT) me dalo
-                if (isRepair && (o.status === 'delivered' || o.status === 'completed') && o.deliveryDate && o.deliveryDate.startsWith(today)) {
-                    let estAmt = parseNum(o.estimateAmount || o.approxAmount);
-                    let finalAmt = parseNum(o.totalAmount || o.finalAmount || o.amount);
-                    let discountAmt = parseNum(o.discount);
-                    
-                    if (estAmt > 0 && finalAmt > 0 && finalAmt < estAmt) {
-                        let difference = estAmt - finalAmt;
-                        pushLog('Repair Out', difference, cName, 'Estimate Less (Diff)', '', false);
-                    } else if (discountAmt > 0) {
-                        pushLog('Repair Out', discountAmt, cName, 'Repair Discount', '', false);
-                    }
-                }
-            });
-
-            // EXPLICIT REPAIRS STORE (In case system uses a separate store for repairs)
-            repairsStore.forEach(r => {
-                let cName = getCustName(r.customerId);
-                let hasTodayPayment = false;
-
-                if (r.payments && r.payments.length > 0) {
-                    r.payments.forEach(p => {
-                        let pAmt = parseNum(p.amount);
-                        if(p.date && p.date.startsWith(today) && pAmt !== 0) {
-                            let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
-                            if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
-                                pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund/Less', spl, false);
-                            } else {
-                                pushLog('Repair In', pAmt, cName, 'Repair In', spl, true);
-                            }
-                            hasTodayPayment = true;
-                        }
-                    });
-                } 
+                // 3. Refund / Less Estimate logic on Delivery Day
+                let dDate = data.deliveryDate || data.deliveredDate || '';
+                let isDeliveredToday = dDate.startsWith(today) && (data.status === 'delivered' || data.status === 'completed');
                 
-                if (!hasTodayPayment && r.date && r.date.startsWith(today)) {
-                    let amt = parseNum(r.advanceAmount || r.paidAmount || r.amount);
-                    if(amt > 0) {
-                        let spl = getSplitStr(null, r.paymentMode||'Cash', amt, amt);
-                        pushLog('Repair In', amt, cName, 'Repair Adv', spl, true);
+                if (isRepair && isDeliveredToday) {
+                    let finalAmt = parseNum(data.totalAmount || data.finalAmount || data.amount);
+                    let advAmt = parseNum(data.advanceAmount || data.advance);
+                    let totalPaid = parseNum(data.paidAmount) || advAmt; // fallback to advance if total paid is absent
+                    
+                    // IF CUSTOMER PAID MORE THAN THE FINAL BILL -> REFUND THE DIFFERENCE
+                    if (advAmt > finalAmt && finalAmt > 0) {
+                        let refundAmt = advAmt - finalAmt;
+                        pushLog('Repair Out', refundAmt, cName, 'Refund/Less Est', '', false);
+                    } else if (parseNum(data.discount) > 0) {
+                        // explicitly capture manual discount at delivery if any
+                        pushLog('Repair Out', parseNum(data.discount), cName, 'Rep Discount', '', false);
                     }
                 }
+            };
 
-                if ((r.status === 'delivered' || r.status === 'completed') && r.deliveryDate && r.deliveryDate.startsWith(today)) {
-                    let estAmt = parseNum(r.estimateAmount || r.approxAmount);
-                    let finalAmt = parseNum(r.totalAmount || r.finalAmount);
-                    if (estAmt > 0 && finalAmt > 0 && finalAmt < estAmt) {
-                        pushLog('Repair Out', (estAmt - finalAmt), cName, 'Est. Difference', '', false);
-                    }
-                }
-            });
+            // Apply unified logic to both standard orders and explicit repairs
+            orders.forEach(o => processOrderOrRepair(o, false));
+            repairsStore.forEach(r => processOrderOrRepair(r, true));
+
 
             // SCHEMES
             schemes.forEach(s => {
@@ -661,7 +637,7 @@
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                // 🌟 NEW: Intercept Repair from Cashflow specifically
+                // intercept repair specific cashflows
                 if (cat.includes('repair') || note.includes('repair') || note.includes('rep-')) {
                     if (type === 'IN') {
                         pushLog('Repair In', amt, c.note || c.category, 'Repair', spl, true);
