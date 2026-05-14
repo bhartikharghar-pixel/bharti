@@ -378,8 +378,6 @@
             });
 
             // --- 🚨 CORE BUG FIX: KARIGHAR / VYAPARI MISSING CASHFLOW RECONCILIATION ---
-            // यह कोड चेक करता है कि कोई कारीगर पेमेंट Cashflow में छूट तो नहीं गया, 
-            // अगर छूटा है तो उसे खुद Closing Balance से Less कर देगा।
             mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
                 let amt = parseNum(m.amount);
                 let mType = getMoneyType(m.paymentMode || m.mode || 'cash');
@@ -505,7 +503,7 @@
             });
 
 
-            // 🛒 SALES ENGINE
+            // 🛒 SALES ENGINE (UPDATED TO PREVENT JAMA-NAMA DIFFERENCE)
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
                 let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
                                    (s.items && s.items.length > 0 && String(s.items[0].category || s.items[0].itemName || s.items[0].name || s.items[0].barcode || '').toLowerCase().includes('repair'));
@@ -516,28 +514,29 @@
                 let isCreatedToday = s.date && s.date.startsWith(today);
 
                 if (isCreatedToday) {
-                    let gross = parseNum(s.subTotal) + parseNum(s.gst);
-                    if (gross === 0) {
-                        gross = parseNum(s.grandTotal) + parseNum(s.oldGoldDeduction) + parseNum(s.discount) + parseNum(s.bcWalletDeduction);
-                    }
-                    
+                    // 👉 NAYA LOGIC: Jama Me Poora Amount Dikhe Taki Jama-Nama Ka Farak Na Aaye
                     let udhari = parseNum(s.pendingAmount);
                     let og = parseNum(s.oldGoldDeduction);
                     let discount = parseNum(s.discount);
                     let bc = parseNum(s.bcWalletDeduction);
                     let paid = parseNum(s.paidAmount);
                     
+                    // Sales Total hamesha sabhi cheezon ka exact Sum hoga jisse equation balance rahegi!
+                    let gross = paid + udhari + og + discount + bc;
+                    
                     let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
                     let wtStr = s.items && s.items.length > 0 ? parseNum(s.items[0].weight).toFixed(3)+'g' : '';
 
                     if(gross > 0) {
                         let spl = getSplitStr(s.payments, s.mode, paid, gross);
+                        // Sale Jama Log (Full Invoice Value Here)
                         pushLog('Sale', gross, `${cName} - ${itemStr}`, wtStr, spl, true);
                     }
+                    
+                    // Outgoing/Nama Adjustments
                     if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
                     if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
                     if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
-                    
                     if(bc > 0) pushLog('BC Out', bc, cName, 'Wallet Used', '', false);
                 }
 
