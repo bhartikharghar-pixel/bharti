@@ -224,6 +224,11 @@
     let allCustomers = [];
     let allMerchants = [];
 
+    // Helper: Format numbers nicely with decimals
+    function fmtNum(num) {
+        return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    }
+
     async function safeGetAll(storeName) {
         try {
             const db = await dbPromise;
@@ -251,6 +256,9 @@
     // --- ⭐ SMART SPLIT FORMATTER (* AND #) ---
     function getSplitStr(payments, defaultMode, paidAmt, displayGrossAmt) {
         let cAmt = 0, bAmt = 0;
+        paidAmt = parseFloat(paidAmt) || 0;
+        displayGrossAmt = parseFloat(displayGrossAmt) || 0;
+
         if (paidAmt > 0) {
             if (payments && payments.length > 0) {
                 payments.forEach(p => {
@@ -266,14 +274,14 @@
             }
         }
         
-        if (cAmt === 0 && bAmt === 0) return ``; // Pure udhari
-        if (cAmt === displayGrossAmt && bAmt === 0) return `(${displayGrossAmt.toLocaleString()}*)`; 
-        if (bAmt === displayGrossAmt && cAmt === 0) return `(${displayGrossAmt.toLocaleString()}#)`; 
+        if (cAmt === 0 && bAmt === 0) return ``; 
+        if (cAmt === displayGrossAmt && bAmt === 0) return `(₹${fmtNum(displayGrossAmt)}*)`;
+        if (bAmt === displayGrossAmt && cAmt === 0) return `(₹${fmtNum(displayGrossAmt)}#)`;
         
-        let splitParts = [];
-        if(cAmt > 0) splitParts.push(`${cAmt.toLocaleString()}*`);
-        if(bAmt > 0) splitParts.push(`${bAmt.toLocaleString()}#`);
-        return `(${splitParts.join(' + ')})`;
+        let parts = [];
+        if(cAmt > 0) parts.push(`${fmtNum(cAmt)}*`);
+        if(bAmt > 0) parts.push(`${fmtNum(bAmt)}#`);
+        return `(${parts.join(' + ')})`;
     }
 
     window.onload = async function() {
@@ -284,7 +292,7 @@
         await updateDashboardAndLogs();
     };
 
-    // --- 🔥 MASTER ROJMEL ENGINE (Reads from DB, Renders UI) ---
+    // --- 🔥 MASTER ROJMEL ENGINE ---
     async function updateDashboardAndLogs() {
         try {
             let today = new Date().toISOString().split('T')[0];
@@ -328,20 +336,20 @@
             let closingTotal = closingCash + closingBank;
 
             // UI Update Top Dashboard
-            document.getElementById('openBal').innerText = "₹" + openingTotal.toLocaleString();
-            document.getElementById('openCash').innerText = openCash.toLocaleString();
-            document.getElementById('openBank').innerText = openBank.toLocaleString();
+            document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
+            document.getElementById('openCash').innerText = fmtNum(openCash);
+            document.getElementById('openBank').innerText = fmtNum(openBank);
 
-            document.getElementById('todayIn').innerText = "+₹" + (todayCashIn + todayBankIn).toLocaleString();
-            document.getElementById('todayOut').innerText = "-₹" + (todayCashOut + todayBankOut).toLocaleString();
+            document.getElementById('todayIn').innerText = "+₹" + fmtNum(todayCashIn + todayBankIn);
+            document.getElementById('todayOut').innerText = "-₹" + fmtNum(todayCashOut + todayBankOut);
             
-            document.getElementById('closeBal').innerText = "₹" + closingTotal.toLocaleString();
-            document.getElementById('closeCash').innerText = closingCash.toLocaleString();
-            document.getElementById('closeBank').innerText = closingBank.toLocaleString();
+            document.getElementById('closeBal').innerText = "₹" + fmtNum(closingTotal);
+            document.getElementById('closeCash').innerText = fmtNum(closingCash);
+            document.getElementById('closeBank').innerText = fmtNum(closingBank);
 
             // Render Opening & Closing Balances in Inline Boxes
-            document.getElementById('openBalText').innerHTML = `₹${openingTotal.toLocaleString()} T = <span style="color:#2e7d32;">${openCash.toLocaleString()}*</span> + <span style="color:#1976d2;">${openBank.toLocaleString()}#</span>`;
-            document.getElementById('closeBalText').innerHTML = `₹${closingTotal.toLocaleString()} T = <span style="color:#2e7d32;">${closingCash.toLocaleString()}*</span> + <span style="color:#1976d2;">${closingBank.toLocaleString()}#</span>`;
+            document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
+            document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
 
             // 2. GENERATE LOGS
             let logs = {
@@ -360,7 +368,7 @@
                 logs[key].push(`
                 <div class="log-item">
                     <div class="log-main">
-                        <span class="log-amt ${c}">₹${amt.toLocaleString()}</span>
+                        <span class="log-amt ${c}">₹${fmtNum(amt)}</span>
                         <span class="log-code">| ${midStr} |</span>
                         <span class="log-wt">${rightStr}</span>
                     </div>
@@ -377,10 +385,11 @@
                 let isCreatedToday = s.date && s.date.startsWith(today);
                 
                 if (isCreatedToday) {
-                    let gross = (parseFloat(s.subTotal)||0) + (parseFloat(s.gst)||0);
-                    let udhari = parseFloat(s.pendingAmount)||0;
-                    let og = parseFloat(s.oldGoldDeduction)||0;
-                    let paid = parseFloat(s.paidAmount)||0;
+                    let gross = parseFloat(s.grandTotal || s.totalAmount || s.total) || 0; 
+                    if(gross === 0) gross = (parseFloat(s.subTotal)||0) + (parseFloat(s.gst)||0);
+                    let udhari = parseFloat(s.pendingAmount || s.dueAmount) || 0;
+                    let og = parseFloat(s.oldGoldDeduction || s.oldGoldAmount || s.oldGoldValue) || 0;
+                    let paid = parseFloat(s.paidAmount || s.advanceAmount) || 0;
                     let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
                     let wtStr = s.items && s.items.length > 0 ? parseFloat(s.items[0].weight||0).toFixed(3)+'g' : '';
 
@@ -392,7 +401,6 @@
                     if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
                 }
 
-                // Due Receipts
                 if (s.payments && s.payments.length > 0) {
                     s.payments.forEach(p => {
                         if (p.date && p.date.startsWith(today) && !isCreatedToday && p.amount > 0) {
@@ -404,18 +412,32 @@
             });
 
             // PURCHASES
-            purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
+            purchases.forEach(p => {
                 let mName = getMerchName(p.merchantId);
-                let gross = p.grandTotal || 0;
-                let due = p.pendingAmount || p.dueAmount || 0;
-                let paid = p.paidAmount || 0;
-                let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
+                let isCreatedToday = p.date && p.date.startsWith(today);
 
-                if(gross > 0) {
-                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
-                    pushLog('Purchase', gross, mName, itemStr, spl, false);
+                if (isCreatedToday) {
+                    let gross = parseFloat(p.totalAmount || p.grandTotal || p.total) || 0;
+                    let due = parseFloat(p.dueAmount || p.pendingAmount) || 0;
+                    let paid = parseFloat(p.paidAmount || p.advanceAmount) || 0;
+                    let itemStr = p.items && p.items.length > 0 ? (p.items[0].category || p.items[0].itemName || 'Stock') : 'Stock';
+
+                    if(gross > 0) {
+                        let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
+                        pushLog('Purchase', gross, mName, itemStr, spl, false);
+                    }
+                    if(due > 0) pushLog('PurchaseDue', due, mName, 'M. Credit', '', true);
                 }
-                if(due > 0) pushLog('PurchaseDue', due, mName, 'M. Credit', '', true);
+
+                // Check Past Payments made today!
+                if (p.payments && p.payments.length > 0) {
+                    p.payments.forEach(pay => {
+                        if (pay.date && pay.date.startsWith(today) && !isCreatedToday && pay.amount > 0) {
+                            let spl = getSplitStr([pay], pay.mode, pay.amount, pay.amount);
+                            pushLog('Vyapari Diya', pay.amount, mName, 'Due Paid', spl, false);
+                        }
+                    });
+                }
             });
 
             // LOANS
@@ -424,7 +446,7 @@
                 let itemN = l.itemName || l.item || l.description || 'Item';
                 
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
-                    let amt = l.amount || l.loanAmount || 0;
+                    let amt = parseFloat(l.amount || l.loanAmount || l.principalAmount || 0);
                     let spl = getSplitStr(null, l.paymentMode||l.mode, amt, amt);
                     pushLog('Girvi Diya', amt, cName, itemN, spl, false);
                 }
@@ -458,7 +480,7 @@
                 }
             });
 
-            // 🔥 ORDERS (Advances & Payments into its OWN box)
+            // ORDERS (Advances & Payments)
             orders.forEach(o => {
                 let cName = getCustName(o.customerId);
                 let hasTodayPayment = false;
@@ -472,7 +494,7 @@
                 } 
                 
                 if (!hasTodayPayment && o.orderDate && o.orderDate.startsWith(today)) {
-                    let amt = parseFloat(o.advanceAmount || o.paidAmount || 0);
+                    let amt = parseFloat(o.advanceAmount || o.paidAmount || o.amount || 0);
                     if(amt > 0) {
                         let spl = getSplitStr(null, o.paymentMode||'Cash', amt, amt);
                         pushLog('Order In', amt, cName, 'Advance', spl, true);
@@ -480,7 +502,7 @@
                 }
             });
 
-            // SCHEMES (11+1)
+            // SCHEMES
             schemes.forEach(s => {
                 let cName = getCustName(s.customerId);
                 if (s.payments && s.payments.length > 0) {
@@ -506,17 +528,20 @@
                 }
             });
 
-            // OTHER CASHFLOW (100% Safety Net for Kharcha / Missed Entries)
+            // OTHER CASHFLOW (100% Safety Net with Bug Fix)
             cFlows.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
                 let amt = Math.abs(parseFloat(c.amount)) || 0;
                 let cat = String(c.category || '').toLowerCase();
                 let note = String(c.note || '').toLowerCase();
                 
-                // Exclude the ones handled explicitly to prevent double counting
+                if(getMoneyType(c.mode) === 'none') return;
+                
+                // ⭐ BUG FIX: Explicitly ignore anything handled by specific modules
                 let isHandled = 
                     cat.includes('sale') || note.includes('pos') || 
                     cat.includes('purchase') || cat.includes('pur-') || 
                     cat.includes('loan') || cat.includes('ln-') || 
+                    cat.includes('interest') || cat.includes('byaaj') || cat.includes('chhudaya') ||
                     cat.includes('old gold') || cat.includes('ur-') || 
                     cat.includes('merch') || note.includes('set-') || cat.includes('vyapari') || 
                     cat.includes('order') || note.includes('ord-') ||
@@ -543,8 +568,8 @@
             // GRAND TOTALS RENDER
             sumNama += closingTotal; 
             
-            document.getElementById('uiTotalJama').innerText = `₹${sumJama.toLocaleString()}`;
-            document.getElementById('uiTotalNama').innerText = `₹${sumNama.toLocaleString()}`;
+            document.getElementById('uiTotalJama').innerText = `₹${fmtNum(sumJama)}`;
+            document.getElementById('uiTotalNama').innerText = `₹${fmtNum(sumNama)}`;
 
             // Render Logs under buttons
             for(let key in logs) {
@@ -574,5 +599,3 @@
 
 </body>
 </html>
-
-
