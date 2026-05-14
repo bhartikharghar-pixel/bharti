@@ -398,7 +398,7 @@
                 else sumNama += amt;
             };
 
-            // SALES & REPAIR FINALIZATION
+            // 🛒 SALES & REPAIR FINALIZATION
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
                 let cName = getCustName(s.customerId);
                 let isCreatedToday = s.date && s.date.startsWith(today);
@@ -409,6 +409,7 @@
 
                 if (isRepairSale) {
                     // 🛑 DONT SHOW IN 'SALE', HANDLE AS REPAIR
+                    let isFinalizedToday = (s.date && s.date.startsWith(today)) || (s.deliveryDate && s.deliveryDate.startsWith(today)) || (s.updatedAt && s.updatedAt.startsWith(today));
                     let hasRefundPayment = false;
                     
                     if (s.payments && s.payments.length > 0) {
@@ -416,28 +417,34 @@
                             let pAmt = parseNum(p.amount);
                             if (p.date && p.date.startsWith(today)) {
                                 let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
-                                if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
+                                // MASTER REFUND CATCHER
+                                if (pAmt < 0 || String(p.type).toLowerCase().includes('refund') || String(p.type).toLowerCase() === 'out') {
                                     pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund', spl, false);
                                     hasRefundPayment = true;
                                 } else if (!isCreatedToday && pAmt > 0) {
-                                    // Received due on an old repair bill
                                     pushLog('Repair In', pAmt, cName, 'Rep Due Rcvd', spl, true);
                                 }
                             }
                         });
                     }
                     
-                    if (isCreatedToday && !hasRefundPayment) {
+                    if (isFinalizedToday && !hasRefundPayment) {
+                        // Scan Every Possible Refund Property
+                        let explicitRefund = parseNum(s.refundAmount || s.changeAmount || s.refund || s.returnAmount);
+                        let bal = parseNum(s.balance || s.pendingAmount);
+                        if (bal < 0 && explicitRefund === 0) explicitRefund = Math.abs(bal); // sometimes balance is saved negative as refund
+
                         let finalAmt = parseNum(s.grandTotal || s.totalAmount || s.total);
-                        let advAmt = parseNum(s.advanceAmount || s.advance || s.prePaidAmount || s.paidAmount);
-                        let refundAmt = parseNum(s.refundAmount || s.changeAmount || s.refund);
+                        let advAmt = parseNum(s.advanceAmount || s.advance || s.prePaidAmount || s.paidAmount || s.deposit);
                         let discountAmt = parseNum(s.discount);
 
-                        if (refundAmt > 0) {
-                            pushLog('Repair Out', refundAmt, cName, 'Refund', '', false);
+                        if (explicitRefund > 0) {
+                            pushLog('Repair Out', explicitRefund, cName, 'Refund', '', false);
                         } else if (advAmt > finalAmt && finalAmt > 0) {
                             pushLog('Repair Out', (advAmt - finalAmt), cName, 'Refund/Less Est', '', false);
-                        } else if (discountAmt > 0) {
+                        } 
+                        
+                        if (discountAmt > 0) {
                             pushLog('Repair Out', discountAmt, cName, 'Rep Discount', '', false);
                         }
                     }
@@ -544,14 +551,18 @@
                 }
             });
 
-            // 🌟 SMART REPAIR & ORDERS ENGINE
+            // 🌟 SMART REPAIR & ORDERS ENGINE (WITH MASTER REFUND CHECK)
             const processOrderOrRepair = (data, isExplicitRepairStore) => {
                 let cName = getCustName(data.customerId);
                 let isRepair = isExplicitRepairStore || String(data.orderType || data.type || data.category || '').toLowerCase().includes('repair');
                 let createdDate = data.orderDate || data.date || data.createdDate || '';
                 let isCreatedToday = createdDate.startsWith(today);
 
+                let dDate = data.deliveryDate || data.deliveredDate || data.updatedAt || '';
+                let isDeliveredToday = dDate.startsWith(today) || (data.status && String(data.status).toLowerCase().includes('deliver') && isCreatedToday);
+
                 let hasTodayPayment = false;
+                let hasRefundPayment = false;
                 
                 // 1. Check inside payments array
                 if (data.payments && data.payments.length > 0) {
@@ -564,15 +575,21 @@
                                 let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
                                 
                                 if (isRepair) {
-                                    if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
+                                    // ANY indication of negative amount or refund type
+                                    if (pAmt < 0 || String(p.type).toLowerCase().includes('refund') || String(p.type).toLowerCase() === 'out') {
                                         pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund', spl, false);
+                                        hasRefundPayment = true;
                                     } else {
                                         let text = (p.type === 'Advance' || isCreatedToday) ? 'Rep Adv' : 'Rep Pay';
                                         pushLog('Repair In', pAmt, cName, text, spl, true);
                                     }
                                 } else {
-                                    let text = (p.type === 'Advance' || isCreatedToday) ? 'Advance' : 'Pay/Adv';
-                                    pushLog('Order In', pAmt, cName, text, spl, true);
+                                    if (pAmt < 0 || String(p.type).toLowerCase().includes('refund')) {
+                                        pushLog('Other Out', Math.abs(pAmt), cName, 'Order Refund', spl, false);
+                                    } else {
+                                        let text = (p.type === 'Advance' || isCreatedToday) ? 'Advance' : 'Pay/Adv';
+                                        pushLog('Order In', pAmt, cName, text, spl, true);
+                                    }
                                 }
                             }
                         }
@@ -584,27 +601,27 @@
                     let adv = parseNum(data.advanceAmount || data.paidAmount || data.advance || data.amount);
                     if (adv > 0) {
                         let spl = getSplitStr(null, data.paymentMode || data.mode || 'Cash', adv, adv);
-                        if (isRepair) {
-                            pushLog('Repair In', adv, cName, 'Rep Adv', spl, true);
-                        } else {
-                            pushLog('Order In', adv, cName, 'Advance', spl, true);
-                        }
+                        if (isRepair) pushLog('Repair In', adv, cName, 'Rep Adv', spl, true);
+                        else pushLog('Order In', adv, cName, 'Advance', spl, true);
                     }
                 }
 
-                // 3. Refund / Less Estimate logic on Delivery Day (if not handled by Sales Finalization)
-                let dDate = data.deliveryDate || data.deliveredDate || '';
-                let isDeliveredToday = dDate.startsWith(today) && (data.status === 'delivered' || data.status === 'completed');
-                
-                if (isRepair && isDeliveredToday) {
-                    let finalAmt = parseNum(data.totalAmount || data.finalAmount || data.amount);
-                    let advAmt = parseNum(data.advanceAmount || data.advance);
+                // 3. MASTER REFUND CHECKER (If properties exist instead of payment array)
+                let explicitRefund = parseNum(data.refundAmount || data.changeAmount || data.refund || data.returnAmount || data.balanceAmount);
+                let bal = parseNum(data.balance || data.pendingAmount);
+                if (bal < 0 && explicitRefund === 0) explicitRefund = Math.abs(bal);
+
+                let finalAmt = parseNum(data.totalAmount || data.finalAmount || data.amount || data.grandTotal);
+                let advAmt = parseNum(data.advanceAmount || data.advance || data.paidAmount || data.prePaidAmount);
+
+                if (isRepair && (isDeliveredToday || isCreatedToday) && !hasRefundPayment) {
+                    if (explicitRefund > 0) {
+                        pushLog('Repair Out', explicitRefund, cName, 'Refund', '', false);
+                    } else if (advAmt > finalAmt && finalAmt > 0) {
+                        pushLog('Repair Out', (advAmt - finalAmt), cName, 'Refund/Less Est', '', false);
+                    }
                     
-                    // IF CUSTOMER PAID MORE THAN THE FINAL BILL -> REFUND THE DIFFERENCE
-                    if (advAmt > finalAmt && finalAmt > 0) {
-                        let refundAmt = advAmt - finalAmt;
-                        pushLog('Repair Out', refundAmt, cName, 'Refund/Less Est', '', false);
-                    } else if (parseNum(data.discount) > 0) {
+                    if (parseNum(data.discount) > 0) {
                         pushLog('Repair Out', parseNum(data.discount), cName, 'Rep Discount', '', false);
                     }
                 }
