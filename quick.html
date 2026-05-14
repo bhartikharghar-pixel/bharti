@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Quick Action - Bharti Jewellers</title>
+    <title>Quick Book - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
@@ -12,17 +12,28 @@
         
         .dashboard-title { text-align: center; color: #C5A059; margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #eee; font-size: 1.5rem; font-weight: 700;}
         
+        /* CASH DASHBOARD */
+        .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        @media(max-width: 600px) { .cash-dashboard { grid-template-columns: 1fr 1fr; } }
+        .cash-card { padding: 15px 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #ddd; background: #fff; }
+        .cash-card span { display: block; font-size: 0.8rem; color: #666; font-weight: 600; margin-bottom: 5px; text-transform: uppercase; }
+        .cash-card strong { display: block; font-size: 1.2rem; color: #333; }
+        .card-open { border-top: 4px solid #1976d2; background: #e3f2fd; }
+        .card-in { border-top: 4px solid #4caf50; background: #e8f5e9; }
+        .card-out { border-top: 4px solid #f44336; background: #ffebee; }
+        .card-close { border-top: 4px solid #C5A059; background: #fff8e1; }
+
         /* Action Grid */
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px; }
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media(max-width: 600px) { .action-grid { grid-template-columns: 1fr; } }
         .column { padding: 15px; border-radius: 8px; }
-        .col-left { background: #e8f5e9; border: 1px solid #c8e6c9; } 
-        .col-right { background: #ffebee; border: 1px solid #ffcdd2; } 
+        .col-left { background: #fdfdfd; border: 2px solid #c8e6c9; } 
+        .col-right { background: #fdfdfd; border: 2px solid #ffcdd2; } 
         h3 { text-align: center; margin-top: 0; font-size: 1.1rem; margin-bottom: 15px; font-weight: 700; }
         .col-left h3 { color: #2e7d32; }
         .col-right h3 { color: #c62828; }
         
-        /* Action Wrappers (Button + Log together) */
+        /* Action Wrappers */
         .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #ddd; }
         .action-btn { width: 100%; padding: 12px; border: none; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;}
         .btn-in { background: #4caf50; color: white; }
@@ -32,7 +43,7 @@
 
         /* MINI LOG UNDER BUTTONS */
         .mini-log { background: #fafafa; padding: 0 10px; max-height: 150px; overflow-y: auto; display: none; border-top: 1px solid #eee; }
-        .log-item { padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 0.88rem; font-weight: 600; color: #333; }
+        .log-item { padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 0.88rem; font-weight: 600; color: #333; display: flex; justify-content: space-between; align-items: center;}
         .log-item:last-child { border-bottom: none; }
         .log-in { color: #2e7d32; }
         .log-out { color: #c62828; }
@@ -62,8 +73,27 @@
 <body>
 
 <div class="master-container">
-    <h2 class="dashboard-title">⚡ Smart Entry Dashboard</h2>
+    <h2 class="dashboard-title">⚡ Quick Book & Rozmel</h2>
     
+    <div class="cash-dashboard">
+        <div class="cash-card card-open">
+            <span>Opening Cash</span>
+            <strong id="openBal" style="color: #1976d2;">₹0</strong>
+        </div>
+        <div class="cash-card card-in">
+            <span>Today's IN</span>
+            <strong id="todayIn" style="color: #2e7d32;">+₹0</strong>
+        </div>
+        <div class="cash-card card-out">
+            <span>Today's OUT</span>
+            <strong id="todayOut" style="color: #c62828;">-₹0</strong>
+        </div>
+        <div class="cash-card card-close">
+            <span>Closing Cash</span>
+            <strong id="closeBal" style="color: #b08d4a;">₹0</strong>
+        </div>
+    </div>
+
     <div class="action-grid">
         <div class="column col-left">
             <h3>⬇️ IN (Jama / Aaya)</h3>
@@ -141,6 +171,7 @@
 
     window.onload = async function() {
         await loadCoreData();
+        await updateCashDashboard();
         await loadTodayLogs();
     };
 
@@ -156,7 +187,40 @@
         } catch (error) { console.error("Data load error:", error); }
     }
 
-    // --- SMART LOG LOADER (Aapke Exact Format Mein) ---
+    // --- 💰 LIVE CASH DASHBOARD LOGIC ---
+    async function updateCashDashboard() {
+        try {
+            let cashflow = await getAllItems('cashflow');
+            let todayStr = new Date().toISOString().split('T')[0];
+
+            let openingBal = 0;
+            let todayIn = 0;
+            let todayOut = 0;
+
+            cashflow.forEach(c => {
+                let amt = parseFloat(c.amount) || 0;
+                let cDate = c.date ? c.date.split('T')[0] : '';
+
+                if (cDate < todayStr) {
+                    if (c.type === 'IN') openingBal += amt;
+                    else if (c.type === 'OUT') openingBal -= amt;
+                } else if (cDate === todayStr) {
+                    if (c.type === 'IN') todayIn += amt;
+                    else if (c.type === 'OUT') todayOut += amt;
+                }
+            });
+
+            let closingBal = openingBal + todayIn - todayOut;
+
+            document.getElementById('openBal').innerText = "₹" + openingBal.toLocaleString();
+            document.getElementById('todayIn').innerText = "+₹" + todayIn.toLocaleString();
+            document.getElementById('todayOut').innerText = "-₹" + todayOut.toLocaleString();
+            document.getElementById('closeBal').innerText = "₹" + closingBal.toLocaleString();
+
+        } catch (error) { console.error("Cashflow calculation error:", error); }
+    }
+
+    // --- SMART LOG LOADER (Format exactly as requested) ---
     async function loadTodayLogs() {
         try {
             let today = new Date().toISOString().split('T')[0];
@@ -168,7 +232,7 @@
                     let dispAmt = s.paidAmount > 0 ? s.paidAmount : s.grandTotal;
                     let wtDisp = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
                     let code = i.barcode || i.category;
-                    logsHTML['Sale'] = `<div class="log-item log-in">₹${dispAmt.toLocaleString()} | ${code} | ${wtDisp}</div>` + logsHTML['Sale'];
+                    logsHTML['Sale'] = `<div class="log-item log-in"><span>₹${dispAmt.toLocaleString()} | ${code}</span> <span>${wtDisp}</span></div>` + logsHTML['Sale'];
                 });
             });
 
@@ -178,7 +242,7 @@
                     let dispAmt = p.paidAmount > 0 ? p.paidAmount : p.grandTotal;
                     let wtDisp = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
                     let code = i.barcode || i.category;
-                    logsHTML['Purchase'] = `<div class="log-item log-out">₹${dispAmt.toLocaleString()} | ${code} | ${wtDisp}</div>` + logsHTML['Purchase'];
+                    logsHTML['Purchase'] = `<div class="log-item log-out"><span>₹${dispAmt.toLocaleString()} | ${code}</span> <span>${wtDisp}</span></div>` + logsHTML['Purchase'];
                 });
             });
 
@@ -186,21 +250,19 @@
             loans.forEach(l => {
                 let cName = allCustomers.find(c => c.id == l.customerId)?.name || 'Unknown';
                 
-                // Girvi Diya (New Loan)
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
-                    logsHTML['Girvi Diya'] = `<div class="log-item log-out">₹${l.amount.toLocaleString()} ${cName} - ${l.item || 'Item'}</div>` + logsHTML['Girvi Diya'];
+                    logsHTML['Girvi Diya'] = `<div class="log-item log-out"><span>₹${l.amount.toLocaleString()} ${cName}</span> <span>${l.item || 'Item'}</span></div>` + logsHTML['Girvi Diya'];
                 }
 
-                // Loan Repayments
                 if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                         let itemStr = l.item || 'Item';
                         if (p.type === 'Byaaj') {
-                            logsHTML['Byaaj Jama'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} - ${cName}</div>` + logsHTML['Byaaj Jama'];
+                            logsHTML['Byaaj Jama'] = `<div class="log-item log-in"><span>₹${p.amount.toLocaleString()} - ${cName}</span></div>` + logsHTML['Byaaj Jama'];
                         } else if (p.type === 'Release') {
-                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} ${cName} - ${itemStr} (Chhudaya)</div>` + logsHTML['Girvi Chhudaya'];
+                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in"><span>₹${p.amount.toLocaleString()} ${cName}</span> <span>${itemStr} (Chhudaya)</span></div>` + logsHTML['Girvi Chhudaya'];
                         } else if (p.type === 'Jama Pete') {
-                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} ${cName} - Jama pete</div>` + logsHTML['Girvi Chhudaya'];
+                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in"><span>₹${p.amount.toLocaleString()} ${cName}</span> <span>Jama Pete</span></div>` + logsHTML['Girvi Chhudaya'];
                         }
                     });
                 }
@@ -209,11 +271,12 @@
             let cashflow = await getAllItems('cashflow');
             cashflow.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
                 let colorClass = c.type === 'IN' ? 'log-in' : 'log-out';
-                if(c.category === 'Payment In') logsHTML['Payment In'] = `<div class="log-item ${colorClass}">₹${c.amount.toLocaleString()} - ${c.note || 'Cash'}</div>` + logsHTML['Payment In'];
-                if(c.category === 'Payment Diya') logsHTML['Payment Diya'] = `<div class="log-item ${colorClass}">₹${c.amount.toLocaleString()} - ${c.note || 'Cash'}</div>` + logsHTML['Payment Diya'];
-                if(c.category === 'Expense') logsHTML['Expense'] = `<div class="log-item ${colorClass}">₹${c.amount.toLocaleString()} - ${c.note || 'Kharcha'}</div>` + logsHTML['Expense'];
+                if(c.category === 'Payment In') logsHTML['Payment In'] = `<div class="log-item ${colorClass}"><span>₹${c.amount.toLocaleString()} - ${c.note || 'Cash'}</span></div>` + logsHTML['Payment In'];
+                if(c.category === 'Payment Diya') logsHTML['Payment Diya'] = `<div class="log-item ${colorClass}"><span>₹${c.amount.toLocaleString()} - ${c.note || 'Cash'}</span></div>` + logsHTML['Payment Diya'];
+                if(c.category === 'Expense') logsHTML['Expense'] = `<div class="log-item ${colorClass}"><span>₹${c.amount.toLocaleString()} - ${c.note || 'Kharcha'}</span></div>` + logsHTML['Expense'];
             });
 
+            // Inject into UI
             for(let key in logsHTML) {
                 let logElement = document.getElementById('log-' + key);
                 if(logElement) {
@@ -229,7 +292,7 @@
         } catch(e) { console.error("Log Update Error:", e); }
     }
 
-    // --- POPUP LOGIC (Logic changed based on your request) ---
+    // --- POPUP LOGIC ---
     function openPopup(action) {
         selectedItemObj = null;
         document.getElementById('modalTitle').innerText = action + " Entry";
@@ -238,7 +301,6 @@
         isLoanAction = (action === 'Byaaj Jama' || action === 'Girvi Chhudaya');
         let fieldsHTML = '';
 
-        // 1. SALE (Needs Inventory Dropdown)
         if(action === 'Sale') {
             fieldsHTML = `
                 <div class="form-group" style="position:relative;">
@@ -271,7 +333,6 @@
                 </div>
             `;
         } 
-        // 2. GIRVI DIYA (New Loan - No Inventory Search)
         else if (action === 'Girvi Diya') {
             fieldsHTML = `
                 <div class="form-group" style="position:relative;">
@@ -294,7 +355,6 @@
                 </div>
             `;
         }
-        // 3. PURCHASE (No Inventory Search)
         else if (action === 'Purchase') {
             fieldsHTML = `
                 <div class="form-group" style="position:relative;">
@@ -320,7 +380,6 @@
                 </div>
             `;
         }
-        // 4. LOAN RECOVERY (Smart Customer Filter)
         else if (action === 'Byaaj Jama' || action === 'Girvi Chhudaya') {
             fieldsHTML = `
                 <div class="form-group" style="position:relative;">
@@ -408,7 +467,7 @@
                     sel.innerHTML = '';
                     custLoans.forEach(l => {
                         let prin = l.ledger ? l.ledger[l.ledger.length-1].closingPrincipal : l.amount;
-                        sel.innerHTML += `<option value="${l.id}">${l.item || 'Item'} (Due: ₹${prin})</option>`;
+                        sel.innerHTML += `<option value="${l.id}">${l.item || 'Item'} (Pending: ₹${prin})</option>`;
                     });
                     document.getElementById('loanSelectDiv').style.display = 'block';
                 }
@@ -417,7 +476,7 @@
         });
     }
 
-    // --- INVENTORY ITEM SEARCH (Only used for Sale) ---
+    // --- INVENTORY ITEM SEARCH (Only for Sale) ---
     function showItemDropdown() { renderItemDropdown(allInventory); }
     function filterItemInPopup() {
         let txt = document.getElementById('p_item').value.trim().toUpperCase();
@@ -509,7 +568,6 @@
             const db = await dbPromise;
             const tx = db.transaction(['sales', 'purchases', 'inventory', 'cashflow', 'loans', 'customers'], 'readwrite');
 
-            // 1. SMART LOAN RECEIVE LOGIC
             if(action === 'Byaaj Jama' || action === 'Girvi Chhudaya') {
                 let loanId = document.getElementById('p_loanId').value;
                 let payAmt = parseFloat(document.getElementById('p_amount').value);
@@ -538,10 +596,8 @@
                 if(!loanReq.payments) loanReq.payments = [];
                 loanReq.payments.push({ date: dateToday, amount: payAmt, mode: payMode, type: repayType });
                 tx.objectStore('loans').put(loanReq);
-                
                 tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: repayType==='Byaaj'?'Interest Payment':'Loan Repayment', amount: payAmt });
             }
-            // 2. SALE / PURCHASE / NEW LOAN
             else if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Diya') {
                 let custName = document.getElementById('p_customer').value.trim();
                 let cid = document.getElementById('p_customerId').value;
@@ -561,8 +617,7 @@
                     let mkAmt = document.getElementById('p_making') ? parseFloat(document.getElementById('p_making').value) || 0 : 0;
                     let gstPct = document.getElementById('p_gst') ? parseFloat(document.getElementById('p_gst').value) || 0 : 0;
 
-                    let metalVal = wt * rate;
-                    let baseAmt = metalVal + mkAmt;
+                    let baseAmt = (wt * rate) + mkAmt;
                     let gstAmt = baseAmt * (gstPct / 100);
                     let grandTotal = Math.round(baseAmt + gstAmt);
                     let barcodeVal = selectedItemObj ? selectedItemObj.barcode : itemNameStr.split('|')[0].trim();
@@ -611,7 +666,6 @@
                     tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'New Gold Loan', amount: paid });
                 }
             } 
-            // 3. NORMAL CASH FLOW LOGIC
             else {
                 let amt = parseFloat(document.getElementById('p_amount').value);
                 let mode = document.getElementById('p_mode').value;
@@ -622,7 +676,10 @@
 
             tx.oncomplete = () => {
                 closePopup();
-                loadCoreData().then(() => loadTodayLogs()); 
+                loadCoreData().then(() => {
+                    updateCashDashboard();
+                    loadTodayLogs();
+                }); 
             };
             tx.onerror = (e) => { console.error(e); alert("❌ Error saving data."); };
 
