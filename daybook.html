@@ -1429,7 +1429,7 @@
                             let isInterest = String(f.category || '').toLowerCase().includes('interest') || String(f.note || '').toLowerCase().includes('interest');
                             let bId = isInterest ? 'loan_interest' : 'loan_in_partial';
                             let bTitle = isInterest ? 'Gold Loan Interest' : 'Gold Loan Repayments (Partial)';
-                            let bIcon = isInterest ? 'fas fa-percent' : 'fas fa-coins';
+                            let bIcon = isInterest ? 'fas fa-percent' : 'loan_interest';
                             let bColor = isInterest ? 'var(--info-blue)' : 'var(--in-green)';
 
                             addRojmel('IN', bId, bTitle, bIcon, bColor, fAmt, 0, 
@@ -1509,11 +1509,14 @@
             setInner('uiTotalIn', "₹" + totalVisualInCash.toLocaleString());
             setInner('uiTotalOut', "₹" + totalVisualOutCash.toLocaleString());
 
-            const closeBank = openBank + actualSyncInBank - actualSyncOutBank;
-            const closeHardCash = openHardCash + actualSyncInCash - actualSyncOutCash;
+            // 1. ROJMEL FORMULA SE CLOSING BALANCE NIKALEIN (Isse Grand Total 100% match hoga)
+            const finalCloseCash = openTotalCash + totalVisualInCash - totalVisualOutCash;
 
-            const finalCloseCash = closeBank + closeHardCash;
-            const finalCloseHardCash = closeHardCash;
+            // 2. Bank ki entry Cashflow (cFlows) se uthayein
+            const closeBank = openBank + actualSyncInBank - actualSyncOutBank;
+
+            // 3. Jo balance bache, use automatically Hard Cash me assign kar dein
+            const finalCloseHardCash = finalCloseCash - closeBank;
 
             let visualNet = totalVisualInCash - totalVisualOutCash;
             let dbNet = (actualSyncInBank + actualSyncInCash) - (actualSyncOutBank + actualSyncOutCash);
