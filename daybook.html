@@ -1049,7 +1049,7 @@
 
                 let pTotal = getSafeNum(p.totalAmount || p.grandTotal || p.total);
                 let dueAmt = getSafeNum(p.dueAmount || p.pendingAmount);
-                let paidToday = getSafeNum(p.paidAmount || p.advanceAmount);
+                let paidToday = getSafeNum(p.paidAmount || p.advanceAmount || p.paid || p.advance || p.cashAmount || p.amountPaid);
 
                 let pType = String(p.type || '').toLowerCase();
                 let isFixed = (pType === 'fixed' || pType === '' || pType === 'undefined');
@@ -1064,25 +1064,25 @@
                 else if(p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
                 else mIn = getSafeNum(p.totalWeight || p.weight); 
 
-                logMetal(p.date, mIn, 'OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', 'Stock Purchase', party, ref, true, 'NET', true);
+                logMetal(p.date, mIn, 'OUT', 'merchant_out', 'Merchant Payments & Stock Purchases', 'fas fa-truck', 'var(--out-red)', 'Stock Purchase', party, ref, true, 'NET', true);
 
                 if (billCreatedToday) {
                     let mStr = p.paymentMode || p.mode || 'Cash';
                     
                     if (isFixed) {
                         if (pTotal > 0 || mIn > 0) {
-                            addRojmel('OUT', 'purchases', 'Stock Purchases (Full Bill)', 'fas fa-cart-arrow-down', 'var(--out-red)', pTotal, mIn, 
+                            addRojmel('OUT', 'merchant_out', 'Merchant Payments & Stock Purchases', 'fas fa-truck', 'var(--out-red)', pTotal, mIn, 
                                 { ...txBase, time: getTime(p.date), ref, desc: `Purchase Bill Generated`, cash: pTotal, metal: mIn, mode: mStr, dataType: 'purchase_full' }, true);
                             
                             if (dueAmt > 0) {
-                                addRojmel('IN', 'purchases_due', 'Merchant Credit Taken', 'fas fa-book', '#f57c00', dueAmt, 0, 
+                                addRojmel('IN', 'merchant_in', 'Merchant Refunds & Credit', 'fas fa-book', '#f57c00', dueAmt, 0, 
                                     { ...txBase, time: getTime(p.date), ref, desc: `Pending Payment for Bill`, cash: dueAmt, metal: 0, mode: '-', dataType: 'merch_due' });
                             }
                         }
                     } else {
-                        // UNFIXED PURCHASE LOGIC FIXED HERE
+                        // UNFIXED PURCHASE LOGIC FIXED HERE - USING MERCHANT_OUT BUCKET
                         if (paidToday > 0 || mIn > 0) {
-                            addRojmel('OUT', 'purchases', 'Stock Purchases (Advance / Unfixed)', 'fas fa-cart-arrow-down', 'var(--out-red)', paidToday, mIn, 
+                            addRojmel('OUT', 'merchant_out', 'Merchant Payments & Stock Purchases', 'fas fa-truck', 'var(--out-red)', paidToday, mIn, 
                                 { ...txBase, time: getTime(p.date), ref, desc: `Unfixed Metal Received & Advance Paid`, cash: paidToday, metal: mIn, mode: mStr, dataType: 'purchase_unfixed' }, true);
                         }
                     }
@@ -1095,10 +1095,10 @@
                         if (getSafeNum(f.amount) < 0 && fType === 'IN') fType = 'OUT';
                         
                         if (fType === 'OUT') {
-                            addRojmel('OUT', 'purchases_pay', 'Merchant Due Payments', 'fas fa-truck', 'var(--out-red)', fAmt, 0, 
+                            addRojmel('OUT', 'merchant_out', 'Merchant Payments & Stock Purchases', 'fas fa-truck', 'var(--out-red)', fAmt, 0, 
                                 { ...txBase, time: getTime(f.date), ref, desc: `Due Payment Sent`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_due' });
                         } else {
-                            addRojmel('IN', 'purchases_refund', 'Merchant Refunds', 'fas fa-undo', 'var(--in-green)', fAmt, 0, 
+                            addRojmel('IN', 'merchant_in', 'Merchant Refunds & Credit', 'fas fa-undo', 'var(--in-green)', fAmt, 0, 
                                 { ...txBase, time: getTime(f.date), ref, desc: `Refund Received`, cash: fAmt, metal: 0, mode: f.mode, dataType: 'purchase_full' });
                         }
                     });
@@ -1193,8 +1193,18 @@
                             if(mp) party = getMerchName(mp.merchantId);
                             ref = `SET-${m[1]}`;
                         }
-                        if (fType === 'IN') { bucketId = 'merch_in'; bucketTitle = 'Merchant Refunds/Receipts'; icon = 'fas fa-undo'; }
-                        else { bucketId = 'merch_out'; bucketTitle = 'Merchant Payments & Purchases'; icon = 'fas fa-truck'; color = 'var(--out-red)'; }
+                        // BUCKET ID MERGED HERE
+                        if (fType === 'IN') { 
+                            bucketId = 'merchant_in'; 
+                            bucketTitle = 'Merchant Refunds & Credit'; 
+                            icon = 'fas fa-undo'; 
+                            color = 'var(--in-green)'; 
+                        } else { 
+                            bucketId = 'merchant_out'; 
+                            bucketTitle = 'Merchant Payments & Stock Purchases'; 
+                            icon = 'fas fa-truck'; 
+                            color = 'var(--out-red)'; 
+                        }
                     }
                     else if (cat.includes('scheme') || note.includes('sch-')) {
                         let m = note.match(/sch-(\d+)/i) || note.match(/#(\d+)/i);
@@ -1288,17 +1298,18 @@
                     
                     if (karigarIssuedWt > 0 && getSafeDate(o.orderDate) <= selectedDateStr) {
                         if (!cancelDate || cancelDate >= selectedDateStr) {
-                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'order_out_karigar', issueTitle, 'fas fa-truck', 'var(--out-red)', issueDesc, karigarDisplay, invoiceNo, false, issueCategory);
+                            // USING MERCHANT_OUT BUCKET HERE AS WELL
+                            logMetal(o.orderDate, karigarIssuedWt, 'OUT', 'merchant_out', 'Merchant Payments & Stock Purchases', 'fas fa-truck', 'var(--out-red)', issueDesc, karigarDisplay, invoiceNo, false, issueCategory);
                         }
                         if (cancelDate === selectedDateStr) {
-                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'order_in_karigar', 'Metal Returned (Cancel)', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (${issueCategory === 'NET' ? 'Inventory Metal' : 'Mix Metal'} Recovered from Karigar)`, karigarDisplay, invoiceNo, true, issueCategory);
+                            logMetal(selectedDateStr, karigarIssuedWt, 'IN', 'merchant_in', 'Merchant Refunds & Credit', 'fas fa-undo', 'var(--in-green)', `Order Cancelled (${issueCategory === 'NET' ? 'Inventory Metal' : 'Mix Metal'} Recovered from Karigar)`, karigarDisplay, invoiceNo, true, issueCategory);
                         }
                     }
 
                     let receivedFromKarigarWt = getSafeNum(o.finalNet);
                     if (receivedFromKarigarWt > 0 && (o.status === 'completed' || o.status === 'ready' || o.status === 'billed' || o.status === 'delivered')) {
                         if (getSafeDate(o.orderDate) <= selectedDateStr && (!cancelDate || cancelDate >= selectedDateStr)) {
-                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'order_in_karigar_recv', 'Metal Received (Karigar)', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar into Stock (For ${partyName})`, karigarDisplay, invoiceNo, true, 'NET');
+                            logMetal(o.orderDate, receivedFromKarigarWt, 'IN', 'merchant_in', 'Merchant Refunds & Credit', 'fas fa-box-open', 'var(--in-green)', `Final Item Received from Karigar into Stock (For ${partyName})`, karigarDisplay, invoiceNo, true, 'NET');
                         }
                     }
                 }
