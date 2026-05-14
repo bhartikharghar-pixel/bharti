@@ -50,11 +50,16 @@
         
         .save-btn { width: 100%; padding: 15px; background: #C5A059; color: #000; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
 
-        /* LAST ENTRY SUCCESS LOG STYLE */
-        .recent-log { display: none; margin-top: 20px; background: #e8f5e9; border: 2px dashed #4caf50; padding: 15px; border-radius: 8px; text-align: center; animation: fadeIn 0.5s; }
-        .log-details { display: flex; justify-content: space-around; font-size: 1.2rem; font-weight: bold; color: #2e7d32; }
-        .log-msg { font-size: 0.85rem; color: #4caf50; margin-top: 8px; font-weight: 600; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        /* MINI ROZMEL STYLE (Aaj Ki Entry) */
+        .rozmel-box { margin-top: 25px; background: #fff; border-radius: 8px; padding: 15px; border: 2px solid #eee; }
+        .rozmel-title { text-align: center; color: #333; margin-top: 0; padding-bottom: 10px; border-bottom: 2px solid #C5A059; font-size: 1.2rem; }
+        .rozmel-list { max-height: 350px; overflow-y: auto; padding-right: 5px; }
+        .rozmel-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #eee; }
+        .r-in { background: #e8f5e9; border-left: 5px solid #4caf50; }
+        .r-out { background: #ffebee; border-left: 5px solid #f44336; }
+        .r-amt { font-weight: bold; font-size: 1.1rem; width: 35%; }
+        .r-code { font-weight: 600; color: #555; width: 40%; text-transform: uppercase; font-size: 0.95rem; }
+        .r-wt { font-weight: bold; color: #333; width: 25%; text-align: right; }
     </style>
 </head>
 <body>
@@ -89,13 +94,10 @@
         <button class="action-btn btn-neutral" onclick="resetSearch()">❌ Cancel / New Entry</button>
     </div>
 
-    <div id="recentActivity" class="recent-log">
-        <div class="log-details">
-            <span id="logAmt">₹50000</span>
-            <span id="logCode">rng0002</span>
-            <span id="logWt">5.210 g</span>
-        </div>
-        <div class="log-msg">✅ Entry Saved Successfully & Stock Updated</div>
+    <div class="rozmel-box">
+        <h3 class="rozmel-title">📝 Aaj Ki Entry (Quick Book)</h3>
+        <div id="rozmelList" class="rozmel-list">
+            </div>
     </div>
 
 </div>
@@ -126,12 +128,11 @@
     let globalGstDefault = 3;
     let selectedItemObj = null;
 
-    // Load Data at startup
     window.onload = async function() {
         await loadCoreData();
+        await loadTodayRozmel(); // Page load hote hi rozmel dikhayega
     };
 
-    // Naya function: Background me bina page load kiye stock update karne ke liye
     async function loadCoreData() {
         try {
             allCustomers = await getAllItems('customers');
@@ -141,6 +142,62 @@
             const defaults = await getSetting('billing_defaults');
             if(defaults && defaults.gst) globalGstDefault = defaults.gst;
         } catch (error) { console.error("Data load failed:", error); }
+    }
+
+    // --- ROZMEL (DAYBOOK) FETCH LOGIC ---
+    async function loadTodayRozmel() {
+        try {
+            let today = new Date().toISOString().split('T')[0];
+            let entries = [];
+            
+            // Fetch Sales
+            let sales = await getAllItems('sales');
+            sales.filter(s => s.date && s.date.startsWith(today)).forEach(s => {
+                s.items.forEach(i => {
+                    let dispAmt = s.paidAmount > 0 ? s.paidAmount : s.grandTotal;
+                    entries.push({ type: 'IN', amt: dispAmt, code: i.barcode || i.category, wt: i.weight, time: s.date });
+                });
+            });
+
+            // Fetch Loans
+            let loans = await getAllItems('loans');
+            loans.filter(l => l.date && l.date.startsWith(today)).forEach(l => {
+                let type = l.status === 'active' ? 'OUT' : 'IN'; // Loan diya=OUT, Jama kiya=IN
+                entries.push({ type: type, amt: l.amount, code: l.item || 'GIRVI', wt: l.weight, time: l.date });
+            });
+
+            // Fetch Cashflow (Payments, Expense)
+            let cashflow = await getAllItems('cashflow');
+            cashflow.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
+                // Ignore internal POS logs to avoid duplicate display
+                if(c.category !== 'POS Sale' && c.category !== 'New Gold Loan') {
+                    entries.push({ type: c.type, amt: c.amount, code: c.category, wt: '-', time: c.date });
+                }
+            });
+
+            // Sabse nayi entry sabse upar (Sort by time)
+            entries.sort((a,b) => new Date(b.time) - new Date(a.time));
+
+            let html = '';
+            if(entries.length === 0) {
+                html = '<div style="text-align:center; color:#888; padding:20px;">Aaj ki koi entry nahi hai.</div>';
+            } else {
+                entries.forEach(e => {
+                    let rowClass = e.type === 'IN' ? 'r-in' : 'r-out';
+                    let color = e.type === 'IN' ? '#2e7d32' : '#c62828';
+                    let wtDisplay = e.wt !== '-' ? parseFloat(e.wt).toFixed(3) + ' g' : '-';
+                    
+                    html += `
+                    <div class="rozmel-item ${rowClass}">
+                        <div class="r-amt" style="color:${color};">₹${e.amt.toLocaleString()}</div>
+                        <div class="r-code">${e.code}</div>
+                        <div class="r-wt">${wtDisplay}</div>
+                    </div>`;
+                });
+            }
+            
+            document.getElementById('rozmelList').innerHTML = html;
+        } catch(e) { console.error("Rozmel Load Error:", e); }
     }
 
     function getPurityFactor(key) {
@@ -200,9 +257,6 @@
                 
                 document.getElementById('customerIdHidden').value = c.id;
                 document.getElementById('customerNameHidden').value = c.name;
-                
-                // Hide recent activity if a new customer is selected
-                document.getElementById('recentActivity').style.display = 'none';
             };
             div.appendChild(item);
         });
@@ -211,7 +265,6 @@
     function resetSearch() {
         document.getElementById('searchCustomer').value = '';
         document.getElementById('actionPanel').style.display = 'none';
-        document.getElementById('recentActivity').style.display = 'none';
     }
 
     function openPopup(action) {
@@ -386,16 +439,11 @@
         let cid = document.getElementById('customerIdHidden').value;
         let dateToday = new Date().toISOString();
         
-        // Log show karne ke liye variables
-        let finalDisplayAmount = 0;
-        let finalDisplayBarcode = action;
-        let finalDisplayWt = "0.000";
-
         try {
             const db = await dbPromise;
             const tx = db.transaction(['sales', 'inventory', 'cashflow', 'loans'], 'readwrite');
 
-            if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Rakha') {
+            if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Rakha' || action === 'Girvi Jama') {
                 if(!selectedItemObj && !document.getElementById('p_item').value) return alert("Pehle Item details bharein!");
                 
                 let wt = parseFloat(document.getElementById('p_weight').value) || 0;
@@ -410,16 +458,12 @@
                 let gstAmt = baseAmt * (gstPct / 100);
                 let grandTotal = Math.round(baseAmt + gstAmt);
                 
-                // For Log UI
-                finalDisplayAmount = paid > 0 ? paid : grandTotal;
-                finalDisplayWt = wt.toFixed(3);
-                finalDisplayBarcode = selectedItemObj ? selectedItemObj.barcode : document.getElementById('p_item').value.split('|')[0].trim();
+                let barcodeVal = selectedItemObj ? selectedItemObj.barcode : document.getElementById('p_item').value.split('|')[0].trim();
                 
                 let cartItem = {
                     id: selectedItemObj ? selectedItemObj.id : 'manual_' + Date.now(),
-                    isOldGold: false,
-                    barcode: finalDisplayBarcode,
-                    category: selectedItemObj ? selectedItemObj.category : finalDisplayBarcode,
+                    isOldGold: false, barcode: barcodeVal,
+                    category: selectedItemObj ? selectedItemObj.category : barcodeVal,
                     purity: selectedItemObj ? selectedItemObj.purity : 'Unknown',
                     weight: wt, grossWt: wt, stoneWt: 0, netWt: wt, payableWt: wt, sellQty: 1,
                     rate: rate, makingType: 'flat', makingRate: mkAmt, makingAmount: mkAmt,
@@ -454,13 +498,16 @@
                     tx.objectStore('sales').add(saleData);
                     tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: 'POS Sale', amount: paid, note: 'Quick Sale Entry' });
                 }
-                else if (action === 'Girvi Rakha') {
+                else if (action === 'Girvi Rakha' || action === 'Girvi Jama') {
+                    let status = action === 'Girvi Rakha' ? 'active' : 'closed';
                     tx.objectStore('loans').add({
-                        customerId: parseInt(cid), date: dateToday.split('T')[0], status: 'active',
-                        item: finalDisplayBarcode, metal: (selectedItemObj && checkIsSilver(selectedItemObj.purity)) ? 'Silver' : 'Gold',
+                        customerId: parseInt(cid), date: dateToday.split('T')[0], status: status,
+                        item: barcodeVal, metal: (selectedItemObj && checkIsSilver(selectedItemObj.purity)) ? 'Silver' : 'Gold',
                         weight: wt, amount: grandTotal
                     });
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'New Gold Loan', amount: grandTotal });
+                    if(action === 'Girvi Rakha') {
+                        tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'New Gold Loan', amount: grandTotal });
+                    }
                 }
 
             } else {
@@ -469,15 +516,11 @@
                 let desc = document.getElementById('p_desc').value || action;
                 let type = (action === 'Payment Diya' || action === 'Expense') ? 'OUT' : 'IN';
                 
-                finalDisplayAmount = amt;
-                finalDisplayBarcode = "Payment";
-                finalDisplayWt = "-";
-                
                 tx.objectStore('cashflow').add({ date: dateToday, type: type, mode: mode, category: action, amount: amt, note: desc });
             }
 
             tx.oncomplete = () => {
-                // Background me DB refetch karna, bina reload ke
+                // Background update
                 loadCoreData();
                 
                 // Form close & clear
@@ -485,11 +528,8 @@
                 document.getElementById('searchCustomer').value = '';
                 document.getElementById('actionPanel').style.display = 'none';
                 
-                // Show Recent Log Line exactly as requested
-                document.getElementById('logAmt').innerText = "₹" + finalDisplayAmount.toLocaleString();
-                document.getElementById('logCode').innerText = finalDisplayBarcode;
-                document.getElementById('logWt').innerText = finalDisplayWt === "-" ? "" : finalDisplayWt + " g";
-                document.getElementById('recentActivity').style.display = 'block';
+                // 🔥 Naya Feature: List immediately update hogi
+                loadTodayRozmel(); 
             };
             tx.onerror = (e) => { console.error(e); alert("❌ Error saving data."); };
 
