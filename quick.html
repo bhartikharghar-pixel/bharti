@@ -151,7 +151,7 @@
             </div>
 
             <div class="action-wrapper">
-                <a href="orders.html" class="action-btn btn-in"><i class="fas fa-tools"></i> Repair Jama (In)</a>
+                <a href="repairs.html" class="action-btn btn-in"><i class="fas fa-tools"></i> Repair Jama (In)</a>
                 <div id="log-Repair In" class="mini-log"></div>
             </div>
 
@@ -195,7 +195,7 @@
             </div>
 
             <div class="action-wrapper">
-                <a href="orders.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund / Less Est.)</a>
+                <a href="repairs.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund / Less Est.)</a>
                 <div id="log-Repair Out" class="mini-log"></div>
             </div>
 
@@ -398,94 +398,130 @@
                 else sumNama += amt;
             };
 
-            // 🛒 SALES & REPAIR FINALIZATION
-            sales.filter(s => s.status !== 'cancelled').forEach(s => {
-                let cName = getCustName(s.customerId);
-                let isCreatedToday = s.date && s.date.startsWith(today);
+            // 🌟 STEP 1: EXCLUSIVE REPAIR LOGIC (DIRECT FROM CASHFLOW)
+            // repairs.html saves all repair transactions directly to Cashflow perfectly!
+            // So we will grab them directly from here and show them in Repair IN and Repair OUT
+            cFlows.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
+                let amt = Math.abs(parseNum(c.amount));
+                if(amt === 0 || getMoneyType(c.mode) === 'none') return;
                 
-                // 🌟 FIX: Check if this sale is actually a finalized Repair
-                let isRepairSale = String(s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
+                let cat = String(c.category || '').toLowerCase();
+                let note = String(c.note || '').toLowerCase();
+                let type = c.type || 'OUT';
+                if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
+                
+                let spl = getSplitStr(null, c.mode, amt, amt);
+
+                // 🔥 CATCH REPAIR AND REFUNDS DIRECTLY HERE 🔥
+                if (cat.includes('repair') || note.includes('repair') || note.includes('rep-') || cat.includes('job cancel')) {
+                    // Extract invoice number if possible
+                    let displayDesc = c.category || 'Repair';
+                    if (cat.includes('excess refund') || cat.includes('cancel refund')) {
+                        displayDesc = 'Cust. Refund';
+                    }
+
+                    if (type === 'IN') {
+                        pushLog('Repair In', amt, displayDesc, 'In', spl, true);
+                    } else {
+                        pushLog('Repair Out', amt, displayDesc, 'Out', spl, false);
+                    }
+                    
+                    // Mark as handled by adding a custom flag so regular cashflow processor skips it
+                    c.alreadyHandled = true; 
+                }
+            });
+
+
+            // 🛒 SALES ENGINE (COMPLETELY IGNORING REPAIRS)
+            sales.filter(s => s.status !== 'cancelled').forEach(s => {
+                // 🛑 NEW: Skip ANY sale that is marked as Repair
+                let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
                                    (s.items && s.items.length > 0 && String(s.items[0].category || s.items[0].itemName || s.items[0].name || s.items[0].barcode || '').toLowerCase().includes('repair'));
 
                 if (isRepairSale) {
-                    // 🛑 DONT SHOW IN 'SALE', HANDLE AS REPAIR
-                    let isFinalizedToday = (s.date && s.date.startsWith(today)) || (s.deliveryDate && s.deliveryDate.startsWith(today)) || (s.updatedAt && s.updatedAt.startsWith(today));
-                    let hasRefundPayment = false;
-                    
-                    if (s.payments && s.payments.length > 0) {
-                        s.payments.forEach(p => {
-                            let pAmt = parseNum(p.amount);
-                            if (p.date && p.date.startsWith(today)) {
-                                let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
-                                // MASTER REFUND CATCHER
-                                if (pAmt < 0 || String(p.type).toLowerCase().includes('refund') || String(p.type).toLowerCase() === 'out') {
-                                    pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund', spl, false);
-                                    hasRefundPayment = true;
-                                } else if (!isCreatedToday && pAmt > 0) {
-                                    pushLog('Repair In', pAmt, cName, 'Rep Due Rcvd', spl, true);
-                                }
-                            }
-                        });
+                    return; // Ignore completely, handled by Cashflow loop above!
+                }
+
+                // 🛒 NORMAL SALE
+                let cName = getCustName(s.customerId);
+                let isCreatedToday = s.date && s.date.startsWith(today);
+
+                if (isCreatedToday) {
+                    let gross = parseNum(s.subTotal) + parseNum(s.gst);
+                    if (gross === 0) {
+                        gross = parseNum(s.grandTotal) + parseNum(s.oldGoldDeduction) + parseNum(s.discount) + parseNum(s.bcWalletDeduction);
                     }
                     
-                    if (isFinalizedToday && !hasRefundPayment) {
-                        // Scan Every Possible Refund Property
-                        let explicitRefund = parseNum(s.refundAmount || s.changeAmount || s.refund || s.returnAmount);
-                        let bal = parseNum(s.balance || s.pendingAmount);
-                        if (bal < 0 && explicitRefund === 0) explicitRefund = Math.abs(bal); // sometimes balance is saved negative as refund
+                    let udhari = parseNum(s.pendingAmount);
+                    let og = parseNum(s.oldGoldDeduction);
+                    let discount = parseNum(s.discount);
+                    let bc = parseNum(s.bcWalletDeduction);
+                    let paid = parseNum(s.paidAmount);
+                    
+                    let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
+                    let wtStr = s.items && s.items.length > 0 ? parseNum(s.items[0].weight).toFixed(3)+'g' : '';
 
-                        let finalAmt = parseNum(s.grandTotal || s.totalAmount || s.total);
-                        let advAmt = parseNum(s.advanceAmount || s.advance || s.prePaidAmount || s.paidAmount || s.deposit);
-                        let discountAmt = parseNum(s.discount);
-
-                        if (explicitRefund > 0) {
-                            pushLog('Repair Out', explicitRefund, cName, 'Refund', '', false);
-                        } else if (advAmt > finalAmt && finalAmt > 0) {
-                            pushLog('Repair Out', (advAmt - finalAmt), cName, 'Refund/Less Est', '', false);
-                        } 
-                        
-                        if (discountAmt > 0) {
-                            pushLog('Repair Out', discountAmt, cName, 'Rep Discount', '', false);
-                        }
+                    if(gross > 0) {
+                        let spl = getSplitStr(s.payments, s.mode, paid, gross);
+                        pushLog('Sale', gross, `${cName} - ${itemStr}`, wtStr, spl, true);
                     }
-                } else {
-                    // 🛒 NORMAL SALE
-                    if (isCreatedToday) {
-                        let gross = parseNum(s.subTotal) + parseNum(s.gst);
-                        if (gross === 0) {
-                            gross = parseNum(s.grandTotal) + parseNum(s.oldGoldDeduction) + parseNum(s.discount) + parseNum(s.bcWalletDeduction);
-                        }
-                        
-                        let udhari = parseNum(s.pendingAmount);
-                        let og = parseNum(s.oldGoldDeduction);
-                        let discount = parseNum(s.discount);
-                        let bc = parseNum(s.bcWalletDeduction);
-                        let paid = parseNum(s.paidAmount);
-                        
-                        let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
-                        let wtStr = s.items && s.items.length > 0 ? parseNum(s.items[0].weight).toFixed(3)+'g' : '';
+                    if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
+                    if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
+                    if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
+                    if(bc > 0) pushLog('Other Out', bc, cName, 'BC Wallet', '', false);
+                }
 
-                        if(gross > 0) {
-                            let spl = getSplitStr(s.payments, s.mode, paid, gross);
-                            pushLog('Sale', gross, `${cName} - ${itemStr}`, wtStr, spl, true);
+                if (s.payments && s.payments.length > 0) {
+                    s.payments.forEach(p => {
+                        let pAmt = parseNum(p.amount);
+                        if (p.date && p.date.startsWith(today) && !isCreatedToday && pAmt > 0) {
+                            let spl = getSplitStr([p], p.mode, pAmt, pAmt);
+                            pushLog('SaleDueRecv', pAmt, cName, 'Due Rcvd', spl, true);
                         }
-                        if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
-                        if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
-                        if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
-                        if(bc > 0) pushLog('Other Out', bc, cName, 'BC Wallet', '', false);
-                    }
-
-                    if (s.payments && s.payments.length > 0) {
-                        s.payments.forEach(p => {
-                            let pAmt = parseNum(p.amount);
-                            if (p.date && p.date.startsWith(today) && !isCreatedToday && pAmt > 0) {
-                                let spl = getSplitStr([p], p.mode, pAmt, pAmt);
-                                pushLog('SaleDueRecv', pAmt, cName, 'Due Rcvd', spl, true);
-                            }
-                        });
-                    }
+                    });
                 }
             });
+
+
+            // 📦 REGULAR ORDERS ENGINE (COMPLETELY IGNORING REPAIRS)
+            const processRegularOrder = (data) => {
+                let isRepair = String(data.jobType || data.orderType || data.type || data.category || '').toLowerCase().includes('repair');
+                if (isRepair) return; // Ignore completely, handled by Cashflow!
+
+                let cName = getCustName(data.customerId);
+                let createdDate = data.orderDate || data.date || data.createdDate || '';
+                let isCreatedToday = createdDate.startsWith(today);
+                let hasTodayPayment = false;
+                
+                if (data.payments && data.payments.length > 0) {
+                    data.payments.forEach(p => {
+                        let pDate = p.date || p.paymentDate || createdDate; 
+                        if (pDate.startsWith(today)) {
+                            let pAmt = parseNum(p.amount);
+                            if (pAmt !== 0) {
+                                hasTodayPayment = true;
+                                let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
+                                if (pAmt < 0 || String(p.type).toLowerCase().includes('refund')) {
+                                    pushLog('Other Out', Math.abs(pAmt), cName, 'Order Refund', spl, false);
+                                } else {
+                                    let text = (p.type === 'Advance' || isCreatedToday) ? 'Advance' : 'Pay/Adv';
+                                    pushLog('Order In', pAmt, cName, text, spl, true);
+                                }
+                            }
+                        }
+                    });
+                }
+
+                if (!hasTodayPayment && isCreatedToday) {
+                    let adv = parseNum(data.advanceAmount || data.paidAmount || data.advance || data.amount);
+                    if (adv > 0) {
+                        let spl = getSplitStr(null, data.paymentMode || data.mode || 'Cash', adv, adv);
+                        pushLog('Order In', adv, cName, 'Advance', spl, true);
+                    }
+                }
+            };
+            orders.forEach(o => processRegularOrder(o));
+
 
             // PURCHASES
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
@@ -513,7 +549,6 @@
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
                     let amt = parseNum(l.amount || l.loanAmount || l.principalAmount);
                     let spl = getSplitStr(null, l.paymentMode||l.mode, amt, amt);
-                    
                     let wt = parseNum(l.weight || l.netWt || l.grossWt);
                     let displayItem = itemN;
                     if(wt > 0) displayItem += `<br><span style="font-size:0.75rem; color:#888; font-weight:normal;">${wt.toFixed(3)}g</span>`;
@@ -551,86 +586,6 @@
                 }
             });
 
-            // 🌟 SMART REPAIR & ORDERS ENGINE (WITH MASTER REFUND CHECK)
-            const processOrderOrRepair = (data, isExplicitRepairStore) => {
-                let cName = getCustName(data.customerId);
-                let isRepair = isExplicitRepairStore || String(data.orderType || data.type || data.category || '').toLowerCase().includes('repair');
-                let createdDate = data.orderDate || data.date || data.createdDate || '';
-                let isCreatedToday = createdDate.startsWith(today);
-
-                let dDate = data.deliveryDate || data.deliveredDate || data.updatedAt || '';
-                let isDeliveredToday = dDate.startsWith(today) || (data.status && String(data.status).toLowerCase().includes('deliver') && isCreatedToday);
-
-                let hasTodayPayment = false;
-                let hasRefundPayment = false;
-                
-                // 1. Check inside payments array
-                if (data.payments && data.payments.length > 0) {
-                    data.payments.forEach(p => {
-                        let pDate = p.date || p.paymentDate || createdDate; 
-                        if (pDate.startsWith(today)) {
-                            let pAmt = parseNum(p.amount);
-                            if (pAmt !== 0) {
-                                hasTodayPayment = true;
-                                let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
-                                
-                                if (isRepair) {
-                                    // ANY indication of negative amount or refund type
-                                    if (pAmt < 0 || String(p.type).toLowerCase().includes('refund') || String(p.type).toLowerCase() === 'out') {
-                                        pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund', spl, false);
-                                        hasRefundPayment = true;
-                                    } else {
-                                        let text = (p.type === 'Advance' || isCreatedToday) ? 'Rep Adv' : 'Rep Pay';
-                                        pushLog('Repair In', pAmt, cName, text, spl, true);
-                                    }
-                                } else {
-                                    if (pAmt < 0 || String(p.type).toLowerCase().includes('refund')) {
-                                        pushLog('Other Out', Math.abs(pAmt), cName, 'Order Refund', spl, false);
-                                    } else {
-                                        let text = (p.type === 'Advance' || isCreatedToday) ? 'Advance' : 'Pay/Adv';
-                                        pushLog('Order In', pAmt, cName, text, spl, true);
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // 2. If NO payment object exists today, but created today -> Check Advance Amount
-                if (!hasTodayPayment && isCreatedToday) {
-                    let adv = parseNum(data.advanceAmount || data.paidAmount || data.advance || data.amount);
-                    if (adv > 0) {
-                        let spl = getSplitStr(null, data.paymentMode || data.mode || 'Cash', adv, adv);
-                        if (isRepair) pushLog('Repair In', adv, cName, 'Rep Adv', spl, true);
-                        else pushLog('Order In', adv, cName, 'Advance', spl, true);
-                    }
-                }
-
-                // 3. MASTER REFUND CHECKER (If properties exist instead of payment array)
-                let explicitRefund = parseNum(data.refundAmount || data.changeAmount || data.refund || data.returnAmount || data.balanceAmount);
-                let bal = parseNum(data.balance || data.pendingAmount);
-                if (bal < 0 && explicitRefund === 0) explicitRefund = Math.abs(bal);
-
-                let finalAmt = parseNum(data.totalAmount || data.finalAmount || data.amount || data.grandTotal);
-                let advAmt = parseNum(data.advanceAmount || data.advance || data.paidAmount || data.prePaidAmount);
-
-                if (isRepair && (isDeliveredToday || isCreatedToday) && !hasRefundPayment) {
-                    if (explicitRefund > 0) {
-                        pushLog('Repair Out', explicitRefund, cName, 'Refund', '', false);
-                    } else if (advAmt > finalAmt && finalAmt > 0) {
-                        pushLog('Repair Out', (advAmt - finalAmt), cName, 'Refund/Less Est', '', false);
-                    }
-                    
-                    if (parseNum(data.discount) > 0) {
-                        pushLog('Repair Out', parseNum(data.discount), cName, 'Rep Discount', '', false);
-                    }
-                }
-            };
-
-            orders.forEach(o => processOrderOrRepair(o, false));
-            repairsStore.forEach(r => processOrderOrRepair(r, true));
-
-
             // SCHEMES
             schemes.forEach(s => {
                 let cName = getCustName(s.customerId);
@@ -665,7 +620,7 @@
             });
 
             // OTHER CASHFLOW
-            cFlows.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
+            cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0) return;
                 
@@ -691,15 +646,6 @@
                 let type = c.type || 'OUT';
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
                 let spl = getSplitStr(null, c.mode, amt, amt);
-
-                if (cat.includes('repair') || note.includes('repair') || note.includes('rep-')) {
-                    if (type === 'IN') {
-                        pushLog('Repair In', amt, c.note || c.category, 'Repair', spl, true);
-                    } else {
-                        pushLog('Repair Out', amt, c.note || c.category, 'Repair Out', spl, false);
-                    }
-                    return;
-                }
 
                 if (type === 'IN') {
                     pushLog('Other In', amt, c.note || c.category || 'Income', '', spl, true);
