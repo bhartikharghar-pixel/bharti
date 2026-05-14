@@ -1180,10 +1180,19 @@
                             bucketTitle = 'Order/Repair Advances & Payments'; 
                             icon = 'fas fa-hammer'; 
                         } else { 
-                            bucketId = 'order_out'; 
-                            bucketTitle = 'Order/Repair Refunds'; 
-                            icon = 'fas fa-undo'; 
-                            color = 'var(--out-red)'; 
+                            // 👇 NAYA LOGIC: Check karein ki Karigar ko payment hai ya Customer ko Refund
+                            let noteDescLower = String(f.category + " " + f.note).toLowerCase();
+                            if (noteDescLower.includes('karigar') || noteDescLower.includes('merchant') || noteDescLower.includes('pay')) {
+                                bucketId = 'merchant_out'; 
+                                bucketTitle = 'Merchant & Karigar Payments'; 
+                                icon = 'fas fa-truck'; 
+                                color = 'var(--out-red)'; 
+                            } else {
+                                bucketId = 'order_out'; 
+                                bucketTitle = 'Order/Repair Refunds'; 
+                                icon = 'fas fa-undo'; 
+                                color = 'var(--out-red)'; 
+                            }
                         }
                     }
                     else if (cat.includes('merch') || cat.includes('rate cut') || note.includes('set-')) {
@@ -1272,6 +1281,18 @@
                         if (!cancelDate || cancelDate >= selectedDateStr) {
                             let desc = `Raw Metal Returned by Karigar (For ${partyName}) | Loss: ${actualLoss.toFixed(3)}g`;
                             logMetal(auditDate, returnedRaw, 'IN', 'order_in', 'Repair Metal Flow', 'fas fa-hammer', 'var(--in-green)', desc, karigarDisplay, invoiceNo, true, 'NET');
+                        }
+                    }
+
+                    // 👉 NAYA LOGIC: Karigar Repair Cash Payment ke liye
+                    let karigarPaidAmount = getSafeNum(o.repairMeta?.karigarCharge || o.repairMeta?.karigarPaid || o.repairMeta?.repairCost || o.karigarCharge || o.merchantAmount || o.paidAmount);
+                    let paymentDate = o.repairMeta?.auditDate || o.updatedAt || o.orderDate;
+
+                    if (karigarPaidAmount > 0 && getSafeDate(paymentDate) === selectedDateStr) {
+                        if (!cancelDate || cancelDate >= selectedDateStr) {
+                            let pMode = o.repairMeta?.paymentMode || o.mode || 'Cash';
+                            addRojmel('OUT', 'merchant_out', 'Merchant & Karigar Payments', 'fas fa-truck', 'var(--out-red)', karigarPaidAmount, 0,
+                                { time: getTime(paymentDate), ref: invoiceNo, party: karigarDisplay, partyType: 'Karigar', desc: `Repair Payment Given to Karigar (For ${partyName})`, cash: karigarPaidAmount, metal: 0, mode: pMode, dataType: 'repair_pay', raw: o }, true);
                         }
                     }
 
