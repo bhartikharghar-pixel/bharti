@@ -231,6 +231,7 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
+    <!-- NEW JOB MODAL -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -326,6 +327,7 @@
         </div>
     </div>
 
+    <!-- VIEW/MANAGE JOB MODAL -->
     <div id="viewJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('viewJobModal')">&times;</button>
@@ -404,6 +406,7 @@
         </div>
     </div>
 
+    <!-- ASSIGN MODAL -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
@@ -436,6 +439,7 @@
         </div>
     </div>
 
+    <!-- RECEIVE MODAL -->
     <div id="receiveModal" class="modal">
         <div class="modal-content" style="max-width:550px;">
             <button class="close-btn" onclick="closeModal('receiveModal')">&times;</button>
@@ -495,6 +499,7 @@
         </div>
     </div>
 
+    <!-- FINAL BILLING MODAL -->
     <div id="billingModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
@@ -531,18 +536,38 @@
             </div>
 
             <div class="form-section">
-                <div class="form-section-title">Receive Final Payment</div>
-                <div class="form-grid">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Amount (₹)</label>
-                        <input type="number" id="billPayAmt">
+                <div class="form-section-title" id="paymentSectionTitle">Receive Final Payment</div>
+                
+                <!-- Section for receiving payment (Hidden if refund is due) -->
+                <div id="receivePaymentSection">
+                    <div class="form-grid">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Amount (₹)</label>
+                            <input type="number" id="billPayAmt">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Mode</label>
+                            <select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select>
+                        </div>
                     </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Mode</label>
-                        <select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select>
+                    <button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button>
+                </div>
+
+                <!-- Section for Refund processing (Shows up if advance > bill) -->
+                <div id="refundPaymentSection" style="display:none; background:#ffebee; padding:15px; border-radius:8px; margin-top:10px; border:1px solid #ffcdd2;">
+                    <div style="font-weight:bold; color:#c62828; margin-bottom:10px;">Refund Due to Customer: <span id="refundAmtDisplay">₹0</span></div>
+                    <div class="form-grid">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Refund Payment Mode</label>
+                            <select id="refundPayMode">
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button>
+
                 <div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div>
                 <div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">
                     Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong>
@@ -553,6 +578,7 @@
         </div>
     </div>
 
+    <!-- CANCEL MODAL -->
     <div id="cancelModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
@@ -1243,6 +1269,7 @@
             const allowedLoss24K = allowedLoss22K * (22 / 24);
 
             // Merchant Ledger Update - Deduct returned AND allowed loss in 24K terms
+            // Note: This logic inherently credits extra weight to Karigar and debits excess loss!
             const mStore = tx.objectStore('merchants');
             mStore.get(o.repairMeta.merchantId).onsuccess = (e) => {
                 const m = e.target.result;
@@ -1350,12 +1377,36 @@
             const remaining = netDue - paidNow;
             const remEl = document.getElementById('billRemainingDue');
 
+            const paySec = document.getElementById('receivePaymentSection');
+            const refSec = document.getElementById('refundPaymentSection');
+            const titleSec = document.getElementById('paymentSectionTitle');
+
             if (remaining < 0) {
                 remEl.innerText = "₹" + Math.abs(remaining).toLocaleString() + " (Refund to Customer)";
                 remEl.style.color = "var(--repair-purple)";
+                
+                if(paySec) paySec.style.display = 'none';
+                if(refSec) {
+                    refSec.style.display = 'block';
+                    document.getElementById('refundAmtDisplay').innerText = "₹" + Math.abs(remaining).toLocaleString();
+                }
+                if(titleSec) titleSec.innerText = "Process Customer Refund";
+
+            } else if (remaining === 0) {
+                remEl.innerText = "₹0";
+                remEl.style.color = "var(--receive-green)";
+                
+                if(paySec) paySec.style.display = 'none';
+                if(refSec) refSec.style.display = 'none';
+                if(titleSec) titleSec.innerText = "Payment Settled";
+
             } else {
                 remEl.innerText = "₹" + remaining.toLocaleString();
                 remEl.style.color = "var(--active-red)";
+                
+                if(paySec) paySec.style.display = 'block';
+                if(refSec) refSec.style.display = 'none';
+                if(titleSec) titleSec.innerText = "Receive Final Payment";
             }
         }
 
@@ -1410,8 +1461,9 @@
 
             // Automatically register cash leaving the shop for the refund
             if (refundAmount > 0) {
+                const refundMode = document.getElementById('refundPayMode') ? document.getElementById('refundPayMode').value : 'Cash';
                 tx.objectStore('cashflow').add({ 
-                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash', 
+                    date: new Date().toISOString(), type: 'OUT', mode: refundMode, 
                     category: 'Repair Excess Refund', amount: refundAmount, note: `Refunded excess advance for ${invoiceNo}` 
                 });
             }
