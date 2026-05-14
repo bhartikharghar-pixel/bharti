@@ -137,7 +137,7 @@
     let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
     let globalGstDefault = 3;
     let selectedItemObj = null;
-    let isLoanAction = false; // Flag for smart customer filter
+    let isLoanAction = false; 
 
     window.onload = async function() {
         await loadCoreData();
@@ -156,7 +156,7 @@
         } catch (error) { console.error("Data load error:", error); }
     }
 
-    // --- SMART LOG LOADER (Format exactly as requested) ---
+    // --- SMART LOG LOADER (Aapke Exact Format Mein) ---
     async function loadTodayLogs() {
         try {
             let today = new Date().toISOString().split('T')[0];
@@ -168,7 +168,6 @@
                     let dispAmt = s.paidAmount > 0 ? s.paidAmount : s.grandTotal;
                     let wtDisp = i.weight ? parseFloat(i.weight).toFixed(3) + 'g' : '';
                     let code = i.barcode || i.category;
-                    // Format: ₹50,000 | rng0002 | 5.210g
                     logsHTML['Sale'] = `<div class="log-item log-in">₹${dispAmt.toLocaleString()} | ${code} | ${wtDisp}</div>` + logsHTML['Sale'];
                 });
             });
@@ -187,25 +186,21 @@
             loans.forEach(l => {
                 let cName = allCustomers.find(c => c.id == l.customerId)?.name || 'Unknown';
                 
-                // Active Loans created today (Girvi Diya)
+                // Girvi Diya (New Loan)
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
-                    // Format: ₹50,000 Ramlal - Earring
                     logsHTML['Girvi Diya'] = `<div class="log-item log-out">₹${l.amount.toLocaleString()} ${cName} - ${l.item || 'Item'}</div>` + logsHTML['Girvi Diya'];
                 }
 
-                // Loan Payments received today (Byaaj / Chhudaya / Jama Pete)
+                // Loan Repayments
                 if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                         let itemStr = l.item || 'Item';
                         if (p.type === 'Byaaj') {
-                            // Format: ₹500 - Rina
                             logsHTML['Byaaj Jama'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} - ${cName}</div>` + logsHTML['Byaaj Jama'];
                         } else if (p.type === 'Release') {
-                            // Format: ₹50,000 Ramlal dindayal - earing (chudaya)
                             logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} ${cName} - ${itemStr} (Chhudaya)</div>` + logsHTML['Girvi Chhudaya'];
                         } else if (p.type === 'Jama Pete') {
-                            // Format: ₹25,000 Ramlal dindayal - jama pete
-                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} ${cName} - jama pete</div>` + logsHTML['Girvi Chhudaya'];
+                            logsHTML['Girvi Chhudaya'] = `<div class="log-item log-in">₹${p.amount.toLocaleString()} ${cName} - Jama pete</div>` + logsHTML['Girvi Chhudaya'];
                         }
                     });
                 }
@@ -219,7 +214,6 @@
                 if(c.category === 'Expense') logsHTML['Expense'] = `<div class="log-item ${colorClass}">₹${c.amount.toLocaleString()} - ${c.note || 'Kharcha'}</div>` + logsHTML['Expense'];
             });
 
-            // Inject into UI
             for(let key in logsHTML) {
                 let logElement = document.getElementById('log-' + key);
                 if(logElement) {
@@ -235,17 +229,17 @@
         } catch(e) { console.error("Log Update Error:", e); }
     }
 
-    // --- POPUP LOGIC ---
+    // --- POPUP LOGIC (Logic changed based on your request) ---
     function openPopup(action) {
         selectedItemObj = null;
         document.getElementById('modalTitle').innerText = action + " Entry";
         document.getElementById('actionType').value = action;
         
         isLoanAction = (action === 'Byaaj Jama' || action === 'Girvi Chhudaya');
-        
         let fieldsHTML = '';
 
-        if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Diya') {
+        // 1. SALE (Needs Inventory Dropdown)
+        if(action === 'Sale') {
             fieldsHTML = `
                 <div class="form-group" style="position:relative;">
                     <label>Customer Name</label>
@@ -253,51 +247,81 @@
                     <input type="hidden" id="p_customerId">
                     <div id="customerDropdownPopup" class="dropdown-list"></div>
                 </div>
-                
                 <div class="form-group" style="position:relative;">
-                    <label>Item Name / Barcode</label>
+                    <label>Item Name / Barcode (Shop Inventory)</label>
                     <input type="text" id="p_item" placeholder="🔍 Scan ya Type karein..." autocomplete="off" onfocus="showItemDropdown()" oninput="filterItemInPopup()" required>
                     <div id="itemDropdownPopup" class="dropdown-list"></div>
                 </div>
-                
                 <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>Net Wt (g)</label>
-                        <input type="number" step="0.001" id="p_weight" placeholder="0.000" oninput="calcSmartAmount()" required>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Rate (₹/g)</label>
-                        <input type="number" id="p_rate" placeholder="₹ Bhaav" oninput="calcSmartAmount()">
-                    </div>
+                    <div class="form-group" style="flex:1;"><label>Net Wt (g)</label><input type="number" step="0.001" id="p_weight" placeholder="0.000" oninput="calcSmartAmount()" required></div>
+                    <div class="form-group" style="flex:1;"><label>Rate (₹/g)</label><input type="number" id="p_rate" placeholder="₹ Bhaav" oninput="calcSmartAmount()"></div>
                 </div>
-
-                ${(action === 'Sale' || action === 'Purchase') ? `
                 <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>Making (₹)</label>
-                        <input type="number" id="p_making" value="0" oninput="calcSmartAmount()">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>GST (%)</label>
-                        <input type="number" id="p_gst" value="${globalGstDefault}" oninput="calcSmartAmount()">
-                    </div>
+                    <div class="form-group" style="flex:1;"><label>Making (₹)</label><input type="number" id="p_making" value="0" oninput="calcSmartAmount()"></div>
+                    <div class="form-group" style="flex:1;"><label>GST (%)</label><input type="number" id="p_gst" value="${globalGstDefault}" oninput="calcSmartAmount()"></div>
                 </div>
                 <div class="amount-box">
                     <div class="amount-row"><span>Metal Value:</span> <b id="liveMetal">₹0</b></div>
                     <div class="amount-row"><span>Making + Tax:</span> <b id="liveTax">₹0</b></div>
                     <div class="amount-total"><span>Grand Total:</span> <span id="liveTotal">₹0</span></div>
-                </div>` : `
-                <div class="amount-box"><div class="amount-total"><span>Loan Amount:</span> <span id="liveTotal">₹0</span></div></div>
-                `}
-
-                <div class="form-group">
-                    <label>Amount (₹)</label>
-                    <input type="number" id="p_paid" placeholder="Final Amount" style="font-size:1.1rem; font-weight:bold; color:${action==='Girvi Diya'?'#c62828':'#2e7d32'};" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;"><label>Amount Received (₹)</label><input type="number" id="p_paid" placeholder="Final Amount" style="font-size:1.1rem; font-weight:bold; color:#2e7d32;" required></div>
+                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
                 </div>
             `;
         } 
+        // 2. GIRVI DIYA (New Loan - No Inventory Search)
+        else if (action === 'Girvi Diya') {
+            fieldsHTML = `
+                <div class="form-group" style="position:relative;">
+                    <label>Customer Name</label>
+                    <input type="text" id="p_customer" placeholder="🔍 Type Customer Name..." autocomplete="off" onfocus="showCustomerDropdown()" oninput="filterCustomerInPopup()" style="border: 2px solid #C5A059; font-weight:bold;">
+                    <input type="hidden" id="p_customerId">
+                    <div id="customerDropdownPopup" class="dropdown-list"></div>
+                </div>
+                <div class="form-group">
+                    <label>Item Description (Customer ka Sona/Chandi)</label>
+                    <input type="text" id="p_item" placeholder="✍️ Jaise: 2 Gold Bangles..." autocomplete="off" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;"><label>Weight (g)</label><input type="number" step="0.001" id="p_weight" placeholder="0.000" required></div>
+                    <div class="form-group" style="flex:1;"><label>Interest Rate (%)</label><input type="number" step="0.1" id="p_intRate" value="2.0" required></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;"><label>Loan Amount Given (₹)</label><input type="number" id="p_paid" placeholder="₹ Amount" style="font-size:1.1rem; font-weight:bold; color:#c62828;" required></div>
+                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
+                </div>
+            `;
+        }
+        // 3. PURCHASE (No Inventory Search)
+        else if (action === 'Purchase') {
+            fieldsHTML = `
+                <div class="form-group" style="position:relative;">
+                    <label>Customer Name</label>
+                    <input type="text" id="p_customer" placeholder="🔍 Type Customer Name..." autocomplete="off" onfocus="showCustomerDropdown()" oninput="filterCustomerInPopup()" style="border: 2px solid #C5A059; font-weight:bold;">
+                    <input type="hidden" id="p_customerId">
+                    <div id="customerDropdownPopup" class="dropdown-list"></div>
+                </div>
+                <div class="form-group">
+                    <label>Item Description (Khareedi Sona/Chandi)</label>
+                    <input type="text" id="p_item" placeholder="✍️ Jaise: Old Chain..." autocomplete="off" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;"><label>Net Wt (g)</label><input type="number" step="0.001" id="p_weight" placeholder="0.000" oninput="calcPurchaseAmount()" required></div>
+                    <div class="form-group" style="flex:1;"><label>Rate (₹/g)</label><input type="number" id="p_rate" placeholder="₹ Bhaav" oninput="calcPurchaseAmount()"></div>
+                </div>
+                <div class="amount-box">
+                    <div class="amount-total"><span>Total Amount:</span> <span id="liveTotal">₹0</span></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;"><label>Amount Paid (₹)</label><input type="number" id="p_paid" placeholder="Final Amount" style="font-size:1.1rem; font-weight:bold; color:#c62828;" required></div>
+                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
+                </div>
+            `;
+        }
+        // 4. LOAN RECOVERY (Smart Customer Filter)
         else if (action === 'Byaaj Jama' || action === 'Girvi Chhudaya') {
-            // Smart Form for Loan Recoveries (Filters Active Loans Only)
             fieldsHTML = `
                 <div class="form-group" style="position:relative;">
                     <label style="color:#d32f2f;">Customer (Only Active Loans)</label>
@@ -308,28 +332,28 @@
                 
                 <div class="form-group" id="loanSelectDiv" style="display:none;">
                     <label>Select Loan Account</label>
-                    <select id="p_loanId" style="font-weight:bold; color:#1976d2;"></select>
+                    <select id="p_loanId" style="font-weight:bold; color:#1976d2; border:1px solid #1976d2; background:#e3f2fd;"></select>
                 </div>
 
                 ${action === 'Girvi Chhudaya' ? `
                 <div class="form-group">
                     <label>Entry Type</label>
-                    <select id="p_repayType" style="font-weight:bold;">
+                    <select id="p_repayType" style="font-weight:bold; border-color:#2e7d32;">
                         <option value="Jama Pete">Jama Pete (Thoda Paisa Diya)</option>
                         <option value="Release">Chhudaya (Pura Settle)</option>
                     </select>
                 </div>` : `<input type="hidden" id="p_repayType" value="Byaaj">`}
 
-                <div class="form-group">
-                    <label>Amount Received (₹)</label>
-                    <input type="number" id="p_amount" placeholder="₹ Amount" style="font-size:1.2rem; font-weight:bold; color:#2e7d32;" required>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;"><label>Amount Received (₹)</label><input type="number" id="p_amount" placeholder="₹ Amount" style="font-size:1.2rem; font-weight:bold; color:#2e7d32;" required></div>
+                    <div class="form-group" style="flex:1;"><label>Mode</label><select id="p_mode" style="font-weight:bold;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
                 </div>
             `;
         }
         else {
-            // Normal Cash Entries
             fieldsHTML = `
                 <div class="form-group"><label>Amount (₹)</label><input type="number" id="p_amount" style="font-size:1.2rem; font-weight:bold; color:#D32F2F;" required></div>
+                <div class="form-group"><label>Payment Mode</label><select id="p_mode"><option value="Cash">Cash</option><option value="UPI">UPI</option></select></div>
                 <div class="form-group"><label>Remarks / Detail</label><input type="text" id="p_desc" placeholder="Kiske liye?"></div>
             `;
         }
@@ -344,7 +368,6 @@
     function showCustomerDropdown() {
         let list = allCustomers;
         if(isLoanAction) {
-            // Agar Byaaj ya Chhudaya hai, toh sirf jinka loan chal raha hai wo dikhenge
             let activeLoanCustIds = allLoans.filter(l => l.status === 'active').map(l => l.customerId);
             list = allCustomers.filter(c => activeLoanCustIds.includes(c.id));
         }
@@ -379,14 +402,13 @@
                 document.getElementById('p_customerId').value = c.id;
                 div.style.display = 'none';
                 
-                // Loan Select Box populate karna
                 if(isLoanAction) {
                     let custLoans = allLoans.filter(l => l.status === 'active' && l.customerId == c.id);
                     let sel = document.getElementById('p_loanId');
                     sel.innerHTML = '';
                     custLoans.forEach(l => {
                         let prin = l.ledger ? l.ledger[l.ledger.length-1].closingPrincipal : l.amount;
-                        sel.innerHTML += `<option value="${l.id}">${l.item || 'Item'} (Pending: ₹${prin})</option>`;
+                        sel.innerHTML += `<option value="${l.id}">${l.item || 'Item'} (Due: ₹${prin})</option>`;
                     });
                     document.getElementById('loanSelectDiv').style.display = 'block';
                 }
@@ -395,7 +417,7 @@
         });
     }
 
-    // --- NORMAL ITEM SEARCH ---
+    // --- INVENTORY ITEM SEARCH (Only used for Sale) ---
     function showItemDropdown() { renderItemDropdown(allInventory); }
     function filterItemInPopup() {
         let txt = document.getElementById('p_item').value.trim().toUpperCase();
@@ -463,6 +485,14 @@
         if(document.getElementById('p_paid')) document.getElementById('p_paid').value = finalTotal;
     }
 
+    function calcPurchaseAmount() {
+        let wt = parseFloat(document.getElementById('p_weight').value) || 0;
+        let rate = parseFloat(document.getElementById('p_rate').value) || 0;
+        let finalTotal = Math.round(wt * rate);
+        if(document.getElementById('liveTotal')) document.getElementById('liveTotal').innerText = "₹" + finalTotal.toLocaleString();
+        if(document.getElementById('p_paid')) document.getElementById('p_paid').value = finalTotal;
+    }
+
     document.addEventListener('click', function(event) {
         let pCust = document.getElementById('p_customer'); let cList = document.getElementById('customerDropdownPopup');
         if (pCust && cList && !pCust.contains(event.target) && !cList.contains(event.target)) cList.style.display = 'none';
@@ -479,11 +509,12 @@
             const db = await dbPromise;
             const tx = db.transaction(['sales', 'purchases', 'inventory', 'cashflow', 'loans', 'customers'], 'readwrite');
 
-            // 1. SMART LOAN RECEIVE LOGIC (Byaaj / Chhudaya / Jama Pete)
+            // 1. SMART LOAN RECEIVE LOGIC
             if(action === 'Byaaj Jama' || action === 'Girvi Chhudaya') {
                 let loanId = document.getElementById('p_loanId').value;
                 let payAmt = parseFloat(document.getElementById('p_amount').value);
-                let repayType = document.getElementById('p_repayType').value; // Byaaj / Jama Pete / Release
+                let repayType = document.getElementById('p_repayType').value; 
+                let payMode = document.getElementById('p_mode').value;
                 
                 if(!loanId || !payAmt) return alert("Details bharo!");
 
@@ -498,43 +529,44 @@
                     lastEntry.paidPrincipal = (lastEntry.paidPrincipal || 0) + payAmt;
                     lastEntry.closingPrincipal = lastEntry.openPrincipal - lastEntry.paidPrincipal;
                 } else if(repayType === 'Release') {
-                    lastEntry.paidPrincipal = (lastEntry.paidPrincipal || 0) + payAmt; // They gave money to clear it
+                    lastEntry.paidPrincipal = (lastEntry.paidPrincipal || 0) + payAmt;
                     lastEntry.closingPrincipal = 0;
                     loanReq.status = 'closed';
                     loanReq.closeDate = dateToday;
                 }
 
                 if(!loanReq.payments) loanReq.payments = [];
-                loanReq.payments.push({ date: dateToday, amount: payAmt, mode: 'Cash', type: repayType });
+                loanReq.payments.push({ date: dateToday, amount: payAmt, mode: payMode, type: repayType });
                 tx.objectStore('loans').put(loanReq);
                 
-                // Add to Cashflow
-                tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: 'Cash', category: repayType==='Byaaj'?'Interest Payment':'Loan Repayment', amount: payAmt });
+                tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: repayType==='Byaaj'?'Interest Payment':'Loan Repayment', amount: payAmt });
             }
-            // 2. SALE / PURCHASE / NEW LOAN LOGIC
+            // 2. SALE / PURCHASE / NEW LOAN
             else if(action === 'Sale' || action === 'Purchase' || action === 'Girvi Diya') {
                 let custName = document.getElementById('p_customer').value.trim();
                 let cid = document.getElementById('p_customerId').value;
                 let itemNameStr = document.getElementById('p_item').value;
                 
                 if(!custName) return alert("Customer Name zaroori hai!");
-                if(!selectedItemObj && !itemNameStr) return alert("Item details bharein!");
+                if(!itemNameStr) return alert("Item details bharein!");
                 
                 if(!cid) cid = await new Promise(r => { let r1 = tx.objectStore('customers').add({name: custName, mobile:'', city:'', bcBalance:0}); r1.onsuccess = e => r(e.target.result); });
 
                 let wt = parseFloat(document.getElementById('p_weight').value) || 0;
-                let rate = parseFloat(document.getElementById('p_rate').value) || 0;
-                let mkAmt = document.getElementById('p_making') ? parseFloat(document.getElementById('p_making').value) || 0 : 0;
-                let gstPct = document.getElementById('p_gst') ? parseFloat(document.getElementById('p_gst').value) || 0 : 0;
                 let paid = parseFloat(document.getElementById('p_paid').value) || 0;
+                let payMode = document.getElementById('p_mode').value;
 
-                let metalVal = wt * rate;
-                let baseAmt = metalVal + mkAmt;
-                let gstAmt = baseAmt * (gstPct / 100);
-                let grandTotal = Math.round(baseAmt + gstAmt);
-                let barcodeVal = selectedItemObj ? selectedItemObj.barcode : itemNameStr.split('|')[0].trim();
-                
                 if(action === 'Sale') {
+                    let rate = parseFloat(document.getElementById('p_rate').value) || 0;
+                    let mkAmt = document.getElementById('p_making') ? parseFloat(document.getElementById('p_making').value) || 0 : 0;
+                    let gstPct = document.getElementById('p_gst') ? parseFloat(document.getElementById('p_gst').value) || 0 : 0;
+
+                    let metalVal = wt * rate;
+                    let baseAmt = metalVal + mkAmt;
+                    let gstAmt = baseAmt * (gstPct / 100);
+                    let grandTotal = Math.round(baseAmt + gstAmt);
+                    let barcodeVal = selectedItemObj ? selectedItemObj.barcode : itemNameStr.split('|')[0].trim();
+
                     if(selectedItemObj) {
                         let storeItem = await new Promise(r => tx.objectStore('inventory').get(selectedItemObj.id).onsuccess = e => r(e.target.result));
                         if(storeItem) {
@@ -556,25 +588,27 @@
                         items: [{ id: selectedItemObj?selectedItemObj.id:'manual', isOldGold: false, barcode: barcodeVal, category: itemNameStr, weight: wt, rate: rate, total: grandTotal }]
                     };
                     tx.objectStore('sales').add(saleData);
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: 'Cash', category: 'POS Sale', amount: paid });
+                    tx.objectStore('cashflow').add({ date: dateToday, type: 'IN', mode: payMode, category: 'POS Sale', amount: paid });
                 }
                 else if (action === 'Purchase') {
+                    let rate = parseFloat(document.getElementById('p_rate').value) || 0;
+                    let grandTotal = Math.round(wt * rate);
                     let purData = {
                         date: dateToday, customerId: parseInt(cid), grandTotal: grandTotal, paidAmount: paid, status: 'completed',
-                        items: [{ id: 'manual', barcode: barcodeVal, category: itemNameStr, weight: wt, total: grandTotal }]
+                        items: [{ id: 'manual', barcode: 'CUSTOM', category: itemNameStr, weight: wt, rate: rate, total: grandTotal }]
                     };
                     tx.objectStore('purchases').add(purData);
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: 'Cash', category: 'Purchase', amount: paid });
+                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'Purchase', amount: paid });
                 }
                 else if (action === 'Girvi Diya') {
-                    // Logic to create new loan object compatible with loans.html
+                    let intRate = parseFloat(document.getElementById('p_intRate').value) || 2.0;
                     let loanData = {
                         customerId: parseInt(cid), date: dateToday.split('T')[0], dueDate: dateToday.split('T')[0], status: 'active',
-                        item: itemNameStr, metal: 'Gold', weight: wt, amount: paid, ratePercent: 2.0, durationVal: 6,
-                        ledger: [{ month: new Date().toLocaleDateString('en-IN', { month:'short', year:'numeric' }), openPrincipal: paid, interestCharged: Math.round(paid * 0.02), paidInterest: 0, paidPrincipal: 0, closingPrincipal: paid, status: 'active' }]
+                        item: itemNameStr, metal: 'Gold', weight: wt, amount: paid, ratePercent: intRate, durationVal: 6,
+                        ledger: [{ month: new Date().toLocaleDateString('en-IN', { month:'short', year:'numeric', timeZone:'Asia/Kolkata' }), openPrincipal: paid, interestCharged: Math.round(paid * (intRate/100)), paidInterest: 0, paidPrincipal: 0, closingPrincipal: paid, status: 'active' }]
                     };
                     tx.objectStore('loans').add(loanData);
-                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: 'Cash', category: 'New Gold Loan', amount: paid });
+                    tx.objectStore('cashflow').add({ date: dateToday, type: 'OUT', mode: payMode, category: 'New Gold Loan', amount: paid });
                 }
             } 
             // 3. NORMAL CASH FLOW LOGIC
