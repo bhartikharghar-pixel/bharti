@@ -9,145 +9,234 @@
     <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; color: #333; }
-        .master-container { padding: 15px; max-width: 1050px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .master-container { padding: 15px; max-width: 1100px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px;}
         .dashboard-title { margin: 0; color: #111; font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;}
         .refresh-btn { background: #111; color: #C5A059; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .refresh-btn:hover { background: #000; transform: scale(1.02); }
         
-        /* --- ROJMEL GRID --- */
-        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        /* --- 💰 LIVE CASH DASHBOARD --- */
+        .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        @media(max-width: 768px) { .cash-dashboard { grid-template-columns: 1fr 1fr; gap: 10px; } }
+        .cash-card { padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; background: #fff; border: 1px solid #eee;}
+        .cash-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 5px; }
+        .card-open::before { background: #1976d2; }
+        .card-in::before { background: #4caf50; }
+        .card-out::before { background: #f44336; }
+        .card-close::before { background: #C5A059; }
+        
+        .c-lbl { display: block; font-size: 0.8rem; color: #777; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;}
+        .c-amt { display: block; font-size: 1.4rem; font-weight: 800; margin-bottom: 5px;}
+        .card-open .c-amt { color: #1976d2; }
+        .card-in .c-amt { color: #2e7d32; }
+        .card-out .c-amt { color: #c62828; }
+        .card-close .c-amt { color: #b08d4a; }
+        
+        .split-bal { display: flex; justify-content: space-around; font-size: 0.75rem; color: #555; border-top: 1px dashed #ccc; padding-top: 5px; font-weight: 600;}
+
+        /* --- ⚡ ACTION GRID --- */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;}
         @media(max-width: 768px) { .action-grid { grid-template-columns: 1fr; } }
         
-        .column { border-radius: 12px; background: #fafafa; border: 1px solid #e0e0e0; display: flex; flex-direction: column;}
+        .column { border-radius: 12px; background: #fdfdfd; border: 1px solid #e0e0e0; display: flex; flex-direction: column; padding: 15px;}
         .col-left { border-top: 5px solid #4caf50; } 
         .col-right { border-top: 5px solid #f44336; } 
         
-        .col-header { text-align: center; padding: 15px; font-size: 1.3rem; font-weight: 800; text-transform: uppercase; border-bottom: 1px dashed #ccc; margin-bottom: 15px;}
-        .col-left .col-header { color: #2e7d32; background: #e8f5e9; border-radius: 12px 12px 0 0;}
-        .col-right .col-header { color: #c62828; background: #ffebee; border-radius: 12px 12px 0 0;}
-        
-        .col-body { padding: 0 15px; flex: 1; }
+        .side-title { text-align: center; padding-bottom: 15px; font-size: 1.2rem; font-weight: 800; text-transform: uppercase; border-bottom: 1px dashed #ccc; margin-bottom: 15px;}
+        .col-left .side-title { color: #2e7d32; }
+        .col-right .side-title { color: #c62828; }
 
-        /* Static Balance Rows */
-        .bal-row { background: #e3f2fd; border: 2px dashed #1976d2; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 1.1rem; font-weight: 800; color: #0d47a1;}
-        .closing-row { background: #fff8e1; border-color: #C5A059; color: #b08d4a; margin-top: 15px; }
-
-        /* Action Wrappers (Button + Log Box) */
         .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #ddd; }
         .action-btn { width: 100%; padding: 14px; border: none; font-size: 1.05rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
         .btn-in { background: #e8f5e9; color: #2e7d32; border-bottom: 2px solid #c8e6c9;}
         .btn-in:hover { background: #c8e6c9; color: #1b5e20; }
         .btn-out { background: #ffebee; color: #c62828; border-bottom: 2px solid #ffcdd2;}
         .btn-out:hover { background: #ffcdd2; color: #b71c1c; }
+        
+        .btn-auto-in { background: #f1f8e9; color: #388e3c; border-bottom: 2px dashed #a5d6a7; cursor: default; }
+        .btn-auto-out { background: #fff3e0; color: #e65100; border-bottom: 2px dashed #ffcc80; cursor: default; }
 
-        /* --- MINI LOGS --- */
-        .mini-log { background: #fdfdfd; padding: 0 12px; max-height: 200px; overflow-y: auto; border-top: 1px solid #eee; }
-        .log-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #ccc; padding: 10px 0; font-size: 0.9rem; font-weight: 600; }
+        /* --- 📝 MINI LOGS --- */
+        .mini-log { padding: 0 12px; max-height: 250px; overflow-y: auto; border-top: 1px solid #eee; display: none;}
+        .log-item { display: flex; flex-direction: column; border-bottom: 1px dashed #ccc; padding: 10px 0; }
         .log-item:last-child { border-bottom: none; }
         
-        .log-amt { font-weight: 800; min-width: 80px; font-size: 1rem;}
+        .log-main { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700;}
+        .log-amt { min-width: 80px; }
         .c-in { color: #2e7d32; }
         .c-out { color: #c62828; }
+        .log-code { flex: 1; text-align: center; color: #444; font-size: 0.85rem; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 5px;}
+        .log-wt { min-width: 60px; text-align: right; color: #888; font-size: 0.85rem;}
         
-        .log-mid { flex: 1; text-align: center; color: #555; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 5px; text-transform: uppercase;}
-        .log-right { min-width: 65px; text-align: right; color: #888; font-size: 0.85rem; }
-        
+        .log-split { font-size: 0.75rem; color: #666; font-weight: 600; margin-top: 3px;}
         .empty-log { text-align: center; color: #aaa; font-size: 0.85rem; padding: 12px; font-style: italic; }
 
-        /* Totals Footer */
-        .total-footer { background: #111; color: #C5A059; padding: 15px; border-radius: 0 0 12px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 1.3rem; font-weight: 800; text-transform: uppercase; margin-top: 15px;}
+        /* --- ASLI ROJMEL (LEDGER) BOOK --- */
+        .rojmel-book { background: #fff; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #ddd; }
+        .rojmel-header { background: #111; color: #fff; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;}
+        
+        .rojmel-split { display: flex; width: 100%; border-bottom: 2px solid #333; }
+        @media(max-width: 768px) { .rojmel-split { flex-direction: column; } .jama-side { border-right: none !important; border-bottom: 2px solid #333; } }
+        
+        .jama-side, .nama-side { flex: 1; display: flex; flex-direction: column; border-right: 2px solid #333; }
+        .nama-side { border-right: none; }
+        
+        .t-jama { color: #2e7d32; background: #f1f8e9; padding: 12px; text-align: center; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; border-bottom: 1px dashed #ccc;}
+        .t-nama { color: #c62828; background: #ffebee; padding: 12px; text-align: center; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; border-bottom: 1px dashed #ccc;}
+
+        .rojmel-list { list-style: none; padding: 0; margin: 0; flex: 1; min-height: 300px;}
+        .r-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        .r-item:hover { background: #fafafa; }
+        
+        .r-detail { flex: 1; padding-right: 10px; }
+        .r-desc { font-weight: 700; color: #222; display: block; margin-bottom: 3px;}
+        .r-sub { font-size: 0.8rem; color: #666; }
+        .r-amt { font-weight: 800; font-size: 1.1rem; }
+        .amt-jama { color: #2e7d32; }
+        .amt-nama { color: #c62828; }
+
+        .row-opening { background: #e3f2fd !important; }
+        .row-closing { background: #fff8e1 !important; border-top: 2px dashed #C5A059; }
+
+        .rojmel-footer { display: flex; width: 100%; background: #111; color: #C5A059; font-size: 1.3rem; font-weight: 800; text-transform: uppercase; }
+        @media(max-width: 768px) { .rojmel-footer { flex-direction: column; } .foot-left { border-right: none !important; border-bottom: 1px solid #333; } }
+        .foot-left, .foot-right { flex: 1; display: flex; justify-content: space-between; padding: 15px 20px; border-right: 2px solid #333; }
+        .foot-right { border-right: none; }
     </style>
 </head>
 <body>
 
 <div class="master-container">
+    
     <div class="dashboard-header">
-        <h2 class="dashboard-title"><i class="fas fa-book-open"></i> Asli Rojmel Book</h2>
-        <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Sync Data</button>
+        <h1 class="dashboard-title"><i class="fas fa-book-open"></i> Asli Rojmel</h1>
+        <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
+    </div>
+
+    <div class="cash-dashboard">
+        <div class="cash-card card-open">
+            <span class="c-lbl">Opening Balance</span>
+            <strong class="c-amt" id="openBal">₹0</strong>
+            <div class="split-bal">
+                <span style="color:#2e7d32;">Cash: <span id="openCash">0</span>*</span>
+                <span style="color:#1976d2;">Bank: <span id="openBank">0</span>#</span>
+            </div>
+        </div>
+        <div class="cash-card card-in">
+            <span class="c-lbl">Today IN (Jama)</span>
+            <strong class="c-amt" id="todayIn">+₹0</strong>
+        </div>
+        <div class="cash-card card-out">
+            <span class="c-lbl">Today OUT (Nama)</span>
+            <strong class="c-amt" id="todayOut">-₹0</strong>
+        </div>
+        <div class="cash-card card-close">
+            <span class="c-lbl">Closing Balance</span>
+            <strong class="c-amt" id="closeBal">₹0</strong>
+            <div class="split-bal">
+                <span style="color:#2e7d32;">Cash: <span id="closeCash">0</span>*</span>
+                <span style="color:#1976d2;">Bank: <span id="closeBank">0</span>#</span>
+            </div>
+        </div>
     </div>
 
     <div class="action-grid">
-        
         <div class="column col-left">
-            <div class="col-header">⬇️ JAMA (IN)</div>
-            <div class="col-body">
-                
-                <div class="bal-row">
-                    <span>Opening Cash</span>
-                    <span id="openBal">₹0</span>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="sales.html" class="action-btn btn-in"><i class="fas fa-cash-register"></i> Gross Sales (Bikri)</a>
-                    <div id="log-SaleGross" class="mini-log"></div>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="sales.html#hist" class="action-btn btn-in"><i class="fas fa-hand-holding-usd"></i> Due/Udhari Received</a>
-                    <div id="log-SaleDueRecv" class="mini-log"></div>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="loans.html" class="action-btn btn-in"><i class="fas fa-coins"></i> Loan Receipts (Byaaj/Jama)</a>
-                    <div id="log-LoanIn" class="mini-log"></div>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="cashflow.html" class="action-btn btn-in"><i class="fas fa-wallet"></i> Other Income & Advances</a>
-                    <div id="log-OtherIn" class="mini-log"></div>
-                </div>
-
+            <div class="side-title">⬇️ IN (Jama / Aaya)</div>
+            
+            <div class="action-wrapper">
+                <a href="sales.html" class="action-btn btn-in"><i class="fas fa-shopping-bag"></i> Sale (Bikri)</a>
+                <div id="log-SaleGross" class="mini-log"></div>
             </div>
-            <div class="total-footer">
-                <span>Total Jama:</span>
-                <span id="totalJamaUI">₹0</span>
+
+            <div class="action-wrapper">
+                <a href="loans.html" class="action-btn btn-in"><i class="fas fa-coins"></i> Byaaj Jama</a>
+                <div id="log-Byaaj Jama" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="loans.html" class="action-btn btn-in"><i class="fas fa-unlock"></i> Girvi Chhudaya / Jama Pete</a>
+                <div id="log-Girvi Chhudaya" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="cashflow.html" class="action-btn btn-in"><i class="fas fa-wallet"></i> Other Payment In</a>
+                <div id="log-Payment In" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper" id="wrap-PurchaseDue" style="display:none;">
+                <div class="action-btn btn-auto-in"><i class="fas fa-truck-loading"></i> Vyapari Udhari (M. Credit)</div>
+                <div id="log-PurchaseDue" class="mini-log"></div>
+            </div>
+            
+            <div class="action-wrapper" id="wrap-SaleDueRecv" style="display:none;">
+                <div class="action-btn btn-auto-in"><i class="fas fa-hand-holding-usd"></i> Purani Udhari Aayi (Due Recv)</div>
+                <div id="log-SaleDueRecv" class="mini-log"></div>
             </div>
         </div>
 
         <div class="column col-right">
-            <div class="col-header">⬆️ NAMA (OUT)</div>
-            <div class="col-body">
-                
-                <div class="action-wrapper">
-                    <a href="purchases.html" class="action-btn btn-out"><i class="fas fa-cart-arrow-down"></i> Stock Purchases</a>
-                    <div id="log-Purchase" class="mini-log"></div>
-                </div>
+            <div class="side-title">⬆️ OUT (Udhar / Gaya)</div>
 
-                <div class="action-wrapper">
-                    <a href="sales.html" class="action-btn btn-out"><i class="fas fa-book"></i> Customer Udhari Given</a>
-                    <div id="log-SaleDueGiven" class="mini-log"></div>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="oldgold.html" class="action-btn btn-out"><i class="fas fa-ring"></i> Old Gold (Bill Exch + Buy)</a>
-                    <div id="log-OldGold" class="mini-log"></div>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="loans.html" class="action-btn btn-out"><i class="fas fa-hand-holding-usd"></i> New Gold Loans</a>
-                    <div id="log-LoanOut" class="mini-log"></div>
-                </div>
-
-                <div class="action-wrapper">
-                    <a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice-dollar"></i> Expenses & Payments</a>
-                    <div id="log-Expense" class="mini-log"></div>
-                </div>
-
-                <div class="bal-row closing-row">
-                    <span>Closing Cash</span>
-                    <span id="closeBal">₹0</span>
-                </div>
-
+            <div class="action-wrapper">
+                <a href="purchases.html" class="action-btn btn-out"><i class="fas fa-shopping-cart"></i> Purchase (Khareedi)</a>
+                <div id="log-Purchase" class="mini-log"></div>
             </div>
-            <div class="total-footer" style="color: #ef9a9a;">
-                <span>Total Nama:</span>
-                <span id="totalNamaUI">₹0</span>
+
+            <div class="action-wrapper">
+                <a href="loans.html" class="action-btn btn-out"><i class="fas fa-hand-holding-usd"></i> Girvi Diya (New Loan)</a>
+                <div id="log-LoanOut" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-money-bill-wave"></i> Payment Diya / Vyapari</a>
+                <div id="log-Payment Diya" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper">
+                <a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice"></i> Expense (Kharcha)</a>
+                <div id="log-Expense" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper" id="wrap-SaleDueGiven" style="display:none;">
+                <div class="action-btn btn-auto-out"><i class="fas fa-book"></i> Customer Udhari (Credit Given)</div>
+                <div id="log-SaleDueGiven" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper" id="wrap-OldGold" style="display:none;">
+                <div class="action-btn btn-auto-out"><i class="fas fa-ring"></i> Old Gold (Bill Exch / Buy)</div>
+                <div id="log-OldGold" class="mini-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rojmel-book">
+        <div class="rojmel-header">Aaj Ka Hisaab (Rojmel) - <span id="todayDateStr"></span></div>
+        
+        <div class="rojmel-split">
+            <div class="jama-side">
+                <div class="t-jama">JAMA (IN)</div>
+                <ul class="rojmel-list" id="jamaList"></ul>
+            </div>
+            <div class="nama-side">
+                <div class="t-nama">NAMA (OUT)</div>
+                <ul class="rojmel-list" id="namaList"></ul>
             </div>
         </div>
 
+        <div class="rojmel-footer">
+            <div class="foot-left">
+                <span>Total Jama:</span>
+                <span id="totalJamaAmt">₹0</span>
+            </div>
+            <div class="foot-right">
+                <span>Total Nama:</span>
+                <span id="totalNamaAmt">₹0</span>
+            </div>
+        </div>
     </div>
+
 </div>
 
 <script src="db.js"></script>
@@ -156,7 +245,6 @@
     let allCustomers = [];
     let allMerchants = [];
 
-    // --- Safe Fetcher to prevent computer crashes ---
     async function safeGetAll(storeName) {
         try {
             const db = await dbPromise;
@@ -171,89 +259,178 @@
     }
 
     window.onload = async function() {
+        document.getElementById('todayDateStr').innerText = new Date().toLocaleDateString('en-IN', {day: 'numeric', month: 'short', year: 'numeric'});
         allCustomers = await safeGetAll('customers');
         allMerchants = await safeGetAll('merchants');
         await generatePerfectRojmel();
     };
 
-    function getCustName(id) {
-        let c = allCustomers.find(x => String(x.id) === String(id));
-        return c ? c.name : 'Walk-in';
-    }
-    function getMerchName(id) {
-        let m = allMerchants.find(x => String(x.id) === String(id));
-        return m ? m.name : 'Merchant';
+    function getCustName(id) { let c = allCustomers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in'; }
+    function getMerchName(id) { let m = allMerchants.find(x => String(x.id) === String(id)); return m ? m.name : 'Merchant'; }
+
+    function getMoneyType(modeStr) {
+        if(!modeStr) return 'cash';
+        let m = String(modeStr).toLowerCase();
+        if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online')) return 'bank';
+        if (m.includes('metal') || m.includes('-')) return 'none';
+        return 'cash'; 
     }
 
-    // --- 📊 THE MASTER ROJMEL ENGINE (100% DAYBOOK MATH) ---
+    // --- ⭐ SMART SPLIT FORMATTER (* AND #) ---
+    function getSplitStr(payments, defaultMode, paidAmt, displayGrossAmt) {
+        let cAmt = 0, bAmt = 0;
+        if (paidAmt > 0) {
+            if (payments && payments.length > 0) {
+                payments.forEach(p => {
+                    let m = String(p.mode).toLowerCase();
+                    let a = parseFloat(p.amount) || 0;
+                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
+                    else cAmt += a;
+                });
+            } else {
+                let m = String(defaultMode).toLowerCase();
+                if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt = paidAmt;
+                else cAmt = paidAmt;
+            }
+        }
+        
+        if (cAmt === 0 && bAmt === 0) return ``; // Pure udhari (No Cash/Bank interaction)
+        if (cAmt === displayGrossAmt && bAmt === 0) return ``; // Pure cash, default behavior
+        if (bAmt === displayGrossAmt && cAmt === 0) return ``; // Pure bank, default behavior
+        
+        let splitParts = [];
+        if(cAmt > 0) splitParts.push(`${cAmt.toLocaleString()}*`);
+        if(bAmt > 0) splitParts.push(`${bAmt.toLocaleString()}#`);
+        return `(${splitParts.join(' + ')})`;
+    }
+
+    function getSuffix(payments, defaultMode, paidAmt, displayGrossAmt) {
+        let cAmt = 0, bAmt = 0;
+        if (paidAmt > 0) {
+            if (payments && payments.length > 0) {
+                payments.forEach(p => {
+                    if(getMoneyType(p.mode) === 'bank') bAmt += parseFloat(p.amount) || 0;
+                    else cAmt += parseFloat(p.amount) || 0;
+                });
+            } else {
+                if(getMoneyType(defaultMode) === 'bank') bAmt = paidAmt;
+                else cAmt = paidAmt;
+            }
+        }
+        if (cAmt === 0 && bAmt === 0) return ``;
+        if (cAmt === displayGrossAmt && bAmt === 0) return `*`;
+        if (bAmt === displayGrossAmt && cAmt === 0) return `#`;
+        return ``;
+    }
+
+    // ==========================================
+    // 🔥 THE MASTER ROJMEL ENGINE (100% PERFECT MATH & SAFETY NET)
+    // ==========================================
     async function generatePerfectRojmel() {
         try {
             const todayDateObj = new Date();
             const today = new Date(todayDateObj.getTime() - (todayDateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             
-            // Logs containers
+            let jamaArray = [];
+            let namaArray = [];
+
             let logs = {
-                SaleGross: [], SaleDueRecv: [], LoanIn: [], OtherIn: [],
-                Purchase: [], SaleDueGiven: [], OldGold: [], LoanOut: [], Expense: []
+                SaleGross: [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Payment In': [], SaleDueRecv: [], PurchaseDue: [],
+                Purchase: [], LoanOut: [], 'Payment Diya': [], Expense: [], SaleDueGiven: [], OldGold: []
             };
 
-            // Totals
-            let openingCash = 0;
-            let todayCashIn = 0;
-            let todayCashOut = 0;
+            let openCash = 0, openBank = 0;
+            let todayCashIn = 0, todayBankIn = 0;
+            let todayCashOut = 0, todayBankOut = 0;
 
             let cFlows = await safeGetAll('cashflow');
             let sales = await safeGetAll('sales');
             let purchases = await safeGetAll('purchases');
             let loans = await safeGetAll('loans');
             let oldGold = await safeGetAll('old_gold');
-            let orders = await safeGetAll('orders');
             let mPayments = await safeGetAll('merchant_payments');
+            let orders = await safeGetAll('orders');
 
-            // 1. CASHFLOW CALCULATION (Opening & Closing)
+            // 1. CASHFLOW CALCULATION (Live Balances)
             cFlows.forEach(c => {
                 let amt = Math.abs(parseFloat(c.amount)) || 0;
                 let cDate = c.date ? c.date.split('T')[0] : '';
-                let mType = String(c.mode).toLowerCase();
-                if(mType.includes('metal') || mType.includes('-')) return; 
+                let mType = getMoneyType(c.mode);
+                if(mType === 'none') return; 
 
                 let type = c.type || 'OUT';
                 if(parseFloat(c.amount) < 0 && c.type === 'IN') type = 'OUT';
 
                 if (cDate < today) {
-                    if (type === 'IN') openingCash += amt; else openingCash -= amt;
+                    if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
+                    else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
                 } else if (cDate === today) {
-                    if (type === 'IN') todayCashIn += amt; else todayCashOut += amt;
+                    if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
+                    else { if(mType==='bank') todayBankOut+=amt; else todayCashOut+=amt; }
                 }
             });
 
-            let closingCash = openingCash + todayCashIn - todayCashOut;
+            let closingCash = openCash + todayCashIn - todayCashOut;
+            let closingBank = openBank + todayBankIn - todayBankOut;
 
-            // 2. SALES LOGIC (Gross->Jama, Udhari/OG->Nama)
+            jamaArray.push({
+                title: 'Opening Balance', 
+                sub: `Cash: <strong style="color:#2e7d32;">₹${openCash.toLocaleString()}*</strong> &nbsp;|&nbsp; Bank: <strong style="color:#1976d2;">₹${openBank.toLocaleString()}#</strong>`, 
+                amt: openCash + openBank, 
+                isSpecial: 'row-opening'
+            });
+
+            const fmtLog = (amt, midStr, rightStr, splitStr, sfx, isIN) => {
+                let c = isIN ? 'c-in' : 'c-out';
+                let splitHTML = splitStr ? `<div class="log-split">${splitStr}</div>` : '';
+                return `
+                <div class="log-item">
+                    <div class="log-main">
+                        <span class="log-amt ${c}">₹${amt.toLocaleString()}${sfx}</span>
+                        <span class="log-code">| ${midStr} |</span>
+                        <span class="log-wt">${rightStr}</span>
+                    </div>
+                    ${splitHTML}
+                </div>`;
+            };
+
+            // 2. SALES LOGIC (Gross in Jama, Udhari/OldGold in Nama)
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
                 let cName = getCustName(s.customerId);
                 let isCreatedToday = s.date && s.date.startsWith(today);
                 
                 if (isCreatedToday) {
                     let gross = (parseFloat(s.subTotal)||0) + (parseFloat(s.gst)||0);
-                    let ogDeduct = parseFloat(s.oldGoldDeduction)||0;
                     let udhari = parseFloat(s.pendingAmount)||0;
-                    
-                    let itemsStr = s.items && s.items.length > 0 ? s.items.map(i => `${i.barcode||i.category}`).join(', ') : 'Items';
+                    let og = parseFloat(s.oldGoldDeduction)||0;
+                    let paid = parseFloat(s.paidAmount)||0;
+                    let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
+                    let wtStr = s.items && s.items.length > 0 ? parseFloat(s.items[0].weight||0).toFixed(3)+'g' : '';
 
-                    if(gross > 0) logs.SaleGross.push({ amt: gross, mid: cName, right: itemsStr, isIN: true });
-                    if(udhari > 0) logs.SaleDueGiven.push({ amt: udhari, mid: cName, right: 'Udhari', isIN: false });
-                    if(ogDeduct > 0) logs.OldGold.push({ amt: ogDeduct, mid: cName, right: 'Bill Exch', isIN: false });
+                    if(gross > 0) {
+                        jamaArray.push({ title: `Sale: ${cName}`, sub: itemStr, amt: gross });
+                        let spl = getSplitStr(s.payments, s.mode, paid, gross);
+                        let sfx = getSuffix(s.payments, s.mode, paid, gross);
+                        logs.SaleGross.push(fmtLog(gross, `${cName} - ${itemStr}`, wtStr, spl, sfx, true));
+                    }
+                    if(udhari > 0) {
+                        namaArray.push({ title: `Udhari Given: ${cName}`, sub: 'Bill me udhar', amt: udhari });
+                        logs.SaleDueGiven.push(fmtLog(udhari, cName, 'Udhari', '', '', false));
+                    }
+                    if(og > 0) {
+                        namaArray.push({ title: `Old Gold Exch: ${cName}`, sub: 'Bill me jama', amt: og });
+                        logs.OldGold.push(fmtLog(og, cName, 'Bill Exch', '', '', false));
+                    }
                 }
 
-                // Check Due Receipts
-                if (s.payments) {
+                // Due Receipts
+                if (s.payments && s.payments.length > 0) {
                     s.payments.forEach(p => {
-                        if (p.date && p.date.startsWith(today)) {
-                            let pAmt = parseFloat(p.amount)||0;
-                            if(!isCreatedToday && pAmt > 0) {
-                                logs.SaleDueRecv.push({ amt: pAmt, mid: cName, right: 'Due Pay', isIN: true });
-                            }
+                        if (p.date && p.date.startsWith(today) && !isCreatedToday && p.amount > 0) {
+                            jamaArray.push({ title: `Sale Due Recv: ${cName}`, sub: 'Past Udhari', amt: p.amount });
+                            let spl = getSplitStr([p], p.mode, p.amount, p.amount);
+                            let sfx = getSuffix([p], p.mode, p.amount, p.amount);
+                            logs.SaleDueRecv.push(fmtLog(p.amount, cName, 'Due Rcvd', spl, sfx, true));
                         }
                     });
                 }
@@ -264,105 +441,183 @@
                 let mName = getMerchName(p.merchantId);
                 let gross = p.grandTotal || 0;
                 let due = p.pendingAmount || p.dueAmount || 0;
-                let itemsStr = p.items && p.items.length > 0 ? p.items.map(i => `${i.category}`).join(', ') : 'Stock';
-                
-                if(gross > 0) logs.Purchase.push({ amt: gross, mid: mName, right: itemsStr, isIN: false });
-                if(due > 0) logs.OtherIn.push({ amt: due, mid: mName, right: 'Merchant Due', isIN: true }); // Udhari liya = JAMA
+                let paid = p.paidAmount || 0;
+                let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
+
+                if(gross > 0) {
+                    namaArray.push({ title: `Purchase (Stock)`, sub: itemStr, amt: gross });
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
+                    let sfx = getSuffix(p.payments, p.paymentMode||p.mode, paid, gross);
+                    logs.Purchase.push(fmtLog(gross, mName, itemStr, spl, sfx, false));
+                }
+                if(due > 0) {
+                    jamaArray.push({ title: `Merchant Credit`, sub: 'Paisa dena baaki', amt: due });
+                    logs.PurchaseDue.push(fmtLog(due, mName, 'Vyapari Udhari', '', '', true));
+                }
             });
 
             // 4. LOANS LOGIC
             loans.forEach(l => {
                 let cName = getCustName(l.customerId);
-                let itemStr = l.item || l.itemName || 'Item';
+                let itemStr = l.description || l.itemName || l.item || 'Item';
                 
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
-                    let amt = l.amount || l.loanAmount || 0;
-                    logs.LoanOut.push({ amt: amt, mid: `${cName}`, right: itemStr, isIN: false });
+                    let amt = l.amount || l.loanAmount || l.principalAmount || 0;
+                    namaArray.push({ title: `Girvi Diya: ${cName}`, sub: itemStr, amt: amt });
+                    let spl = getSplitStr(null, l.paymentMode||l.mode, amt, amt);
+                    let sfx = getSuffix(null, l.paymentMode||l.mode, amt, amt);
+                    logs.LoanOut.push(fmtLog(amt, cName, itemStr, spl, sfx, false));
                 }
 
-                if (l.payments) {
+                if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                         let t = p.type === 'Release' ? '(Chhudaya)' : p.type;
-                        logs.LoanIn.push({ amt: p.amount, mid: `${cName}`, right: t, isIN: true });
+                        jamaArray.push({ title: `Girvi ${t}: ${cName}`, sub: `For ${itemStr}`, amt: p.amount });
+                        let spl = getSplitStr([p], p.mode, p.amount, p.amount);
+                        let sfx = getSuffix([p], p.mode, p.amount, p.amount);
+                        
+                        if (p.type === 'Byaaj') logs['Byaaj Jama'].push(fmtLog(p.amount, cName, 'Byaaj', spl, sfx, true));
+                        else logs['Girvi Chhudaya'].push(fmtLog(p.amount, cName, t, spl, sfx, true));
                     });
                 }
             });
 
-            // 5. DIRECT OLD GOLD BUY
+            // 5. OLD GOLD DIRECT BUY
             oldGold.filter(o => o.date && o.date.startsWith(today) && o.mode !== 'POS Exchange' && o.type !== 'MELT').forEach(o => {
                 let amt = parseFloat(o.amount || o.paidAmount || o.cash || 0);
                 let wt = parseFloat(o.netWt || o.oldGoldWeight || 0).toFixed(3) + 'g';
-                if(amt > 0) logs.OldGold.push({ amt: amt, mid: getCustName(o.customerId), right: wt, isIN: false });
-            });
-
-            // 6. ORDERS & MERCHANTS
-            orders.filter(o => o.orderDate && o.orderDate.startsWith(today)).forEach(o => {
-                let amt = parseFloat(o.advanceAmount || 0);
-                if(amt > 0) logs.OtherIn.push({ amt: amt, mid: getCustName(o.customerId), right: 'Advance', isIN: true });
-            });
-            mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
-                let amt = parseFloat(m.amount || 0);
                 if(amt > 0) {
-                    if(m.paymentType === 'OUT') logs.Expense.push({ amt: amt, mid: getMerchName(m.merchantId), right: 'M. Payout', isIN: false });
-                    else logs.OtherIn.push({ amt: amt, mid: getMerchName(m.merchantId), right: 'M. Refund', isIN: true });
+                    namaArray.push({ title: `Old Gold Buy: ${getCustName(o.customerId)}`, sub: wt, amt: amt });
+                    let spl = getSplitStr(null, o.mode, amt, amt);
+                    let sfx = getSuffix(null, o.mode, amt, amt);
+                    logs.OldGold.push(fmtLog(amt, getCustName(o.customerId), wt, spl, sfx, false));
                 }
             });
 
-            // 7. CASHFLOW (EXPENSES & OTHERS)
+            // 6. ORDERS (Advances)
+            orders.filter(o => o.orderDate && o.orderDate.startsWith(today)).forEach(o => {
+                let amt = parseFloat(o.advanceAmount || o.paidAmount || 0);
+                if(amt > 0) {
+                    let cName = getCustName(o.customerId);
+                    jamaArray.push({ title: `Order Advance: ${cName}`, sub: 'Received', amt: amt });
+                    let spl = getSplitStr(o.payments, o.paymentMode||'Cash', amt, amt);
+                    let sfx = getSuffix(o.payments, o.paymentMode||'Cash', amt, amt);
+                    logs['Payment In'].push(fmtLog(amt, `${cName} (Order)`, 'Advance', spl, sfx, true));
+                }
+            });
+
+            // 7. MERCHANT PAYMENTS (The Bug Fix)
+            mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
+                let amt = parseFloat(m.amount || 0);
+                if(amt > 0) {
+                    let mName = getMerchName(m.merchantId);
+                    let spl = getSplitStr(null, m.paymentMode || m.mode || 'Cash', amt, amt);
+                    let sfx = getSuffix(null, m.paymentMode || m.mode || 'Cash', amt, amt);
+                    
+                    if(m.paymentType === 'OUT') {
+                        namaArray.push({ title: `Merchant Payment: ${mName}`, sub: m.notes || 'Sent', amt: amt });
+                        logs['Payment Diya'].push(fmtLog(amt, mName, 'Vyapari Pay', spl, sfx, false));
+                    } else {
+                        jamaArray.push({ title: `Merchant Refund: ${mName}`, sub: m.notes || 'Refund', amt: amt });
+                        logs['Payment In'].push(fmtLog(amt, mName, 'Refund', spl, sfx, true));
+                    }
+                }
+            });
+
+            // 8. THE 100% SAFETY NET (CASHFLOW FALLBACK)
             cFlows.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
                 let amt = Math.abs(parseFloat(c.amount)) || 0;
                 let cat = String(c.category || '').toLowerCase();
                 let note = String(c.note || '').toLowerCase();
                 
-                // Ignore system generated to avoid duplicates
-                if(cat.includes('sale') || cat.includes('loan') || cat.includes('purchase') || note.includes('pos')) return;
+                // Exclude the ones handled explicitly by the stores above to prevent double counting
+                let isHandled = 
+                    cat.includes('sale') || note.includes('pos') || 
+                    cat.includes('purchase') || 
+                    cat.includes('loan') || 
+                    cat.includes('old gold') || cat.includes('ur-') ||
+                    cat.includes('merch') || note.includes('set-') ||
+                    cat.includes('order') || note.includes('ord-');
+                    
+                if (isHandled) return;
 
                 let type = c.type || 'OUT';
                 if(parseFloat(c.amount) < 0 && c.type === 'IN') type = 'OUT';
 
+                let spl = getSplitStr(null, c.mode, amt, amt);
+                let sfx = getSuffix(null, c.mode, amt, amt);
+
                 if (type === 'IN') {
-                    if(!cat.includes('order') && !cat.includes('merch')) {
-                        logs.OtherIn.push({ amt: amt, mid: c.note || c.category || 'Income', right: c.mode, isIN: true });
-                    }
+                    jamaArray.push({ title: c.category || 'Receipt', sub: c.note || c.mode, amt: amt });
+                    logs['Payment In'].push(fmtLog(amt, c.note || c.category || 'Income', '', spl, sfx, true));
                 } else {
-                    if(!cat.includes('order') && !cat.includes('merch') && !cat.includes('old gold')) {
-                        logs.Expense.push({ amt: amt, mid: c.note || c.category || 'Kharcha', right: c.mode, isIN: false });
+                    namaArray.push({ title: c.category || 'Payment', sub: c.note || c.mode, amt: amt });
+                    if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
+                        logs['Expense'].push(fmtLog(amt, c.note || c.category, 'Kharcha', spl, sfx, false));
+                    } else {
+                        logs['Payment Diya'].push(fmtLog(amt, c.note || c.category, 'Paid', spl, sfx, false));
                     }
                 }
             });
 
             // --- CALCULATE AND INJECT ---
-            let totalJama = openingCash;
-            ['SaleGross', 'SaleDueRecv', 'LoanIn', 'OtherIn'].forEach(k => {
-                logs[k].forEach(x => totalJama += x.amt);
+            let totalJamaSum = jamaArray.reduce((sum, item) => sum + item.amt, 0);
+            let totalNamaSum = namaArray.reduce((sum, item) => sum + item.amt, 0);
+            
+            namaArray.push({
+                title: 'Closing Balance',
+                sub: `Cash: <strong style="color:#2e7d32;">₹${closingCash.toLocaleString()}*</strong> &nbsp;|&nbsp; Bank: <strong style="color:#1976d2;">₹${closingBank.toLocaleString()}#</strong>`,
+                amt: closingCash + closingBank,
+                isSpecial: 'row-closing'
             });
-
-            let totalNama = 0;
-            ['Purchase', 'SaleDueGiven', 'OldGold', 'LoanOut', 'Expense'].forEach(k => {
-                logs[k].forEach(x => totalNama += x.amt);
-            });
-            totalNama += closingCash;
 
             // UI Update
-            document.getElementById('openBal').innerText = "₹" + openingCash.toLocaleString();
-            document.getElementById('closeBal').innerText = "₹" + closingCash.toLocaleString();
-            document.getElementById('totalJamaUI').innerText = "₹" + totalJama.toLocaleString();
-            document.getElementById('totalNamaUI').innerText = "₹" + totalNama.toLocaleString();
+            document.getElementById('openBal').innerText = "₹" + (openCash + openBank).toLocaleString();
+            document.getElementById('openCash').innerText = openCash.toLocaleString();
+            document.getElementById('openBank').innerText = openBank.toLocaleString();
 
-            const fmt = (item) => {
-                let c = item.isIN ? 'c-in' : 'c-out';
-                return `<div class="log-item"><span class="log-amt ${c}">₹${item.amt.toLocaleString()}</span> <span class="log-mid">| ${item.mid} |</span> <span class="log-right">${item.right}</span></div>`;
+            document.getElementById('todayIn').innerText = "+₹" + (todayCashIn + todayBankIn).toLocaleString();
+            document.getElementById('todayOut').innerText = "-₹" + (todayCashOut + todayBankOut).toLocaleString();
+            
+            document.getElementById('closeBal').innerText = "₹" + (closingCash + closingBank).toLocaleString();
+            document.getElementById('closeCash').innerText = closingCash.toLocaleString();
+            document.getElementById('closeBank').innerText = closingBank.toLocaleString();
+
+            document.getElementById('totalJamaAmt').innerText = "₹" + totalJamaSum.toLocaleString();
+            document.getElementById('totalNamaAmt').innerText = "₹" + (totalNamaSum + closingCash + closingBank).toLocaleString();
+
+            const createRow = (data, isJama) => {
+                let amtColor = isJama ? 'amt-jama' : 'amt-nama';
+                let specialCls = data.isSpecial ? data.isSpecial : '';
+                return `
+                <li class="r-item ${specialCls}">
+                    <div class="r-detail">
+                        <span class="r-desc">${data.title}</span>
+                        <span class="r-sub">${data.sub}</span>
+                    </div>
+                    <div class="r-amt ${amtColor}">₹${data.amt.toLocaleString()}</div>
+                </li>`;
             };
 
+            document.getElementById('jamaList').innerHTML = jamaArray.map(d => createRow(d, true)).join('');
+            document.getElementById('namaList').innerHTML = namaArray.map(d => createRow(d, false)).join('');
+
+            // Inject Logs
             for(let key in logs) {
                 let logElement = document.getElementById('log-' + key);
+                let wrapElement = document.getElementById('wrap-' + key);
+                
                 if(logElement) {
                     if(logs[key].length > 0) {
-                        logElement.innerHTML = logs[key].map(fmt).join('');
+                        logElement.innerHTML = logs[key].join('');
                         logElement.style.display = 'block';
+                        if(wrapElement) wrapElement.style.display = 'block'; 
                     } else {
                         logElement.innerHTML = '<div class="empty-log">Aaj koi entry nahi</div>';
-                        logElement.style.display = 'block';
+                        if(wrapElement) {
+                            if(key === 'SaleDueGiven' || key === 'OldGold' || key === 'SaleDueRecv' || key === 'PurchaseDue') wrapElement.style.display = 'none';
+                            else logElement.style.display = 'block';
+                        }
                     }
                 }
             }
