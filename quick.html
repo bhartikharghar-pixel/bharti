@@ -377,6 +377,32 @@
                 }
             });
 
+            // --- 🚨 CORE BUG FIX: KARIGHAR / VYAPARI MISSING CASHFLOW RECONCILIATION ---
+            // यह कोड चेक करता है कि कोई कारीगर पेमेंट Cashflow में छूट तो नहीं गया, 
+            // अगर छूटा है तो उसे खुद Closing Balance से Less कर देगा।
+            mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
+                let amt = parseNum(m.amount);
+                let mType = getMoneyType(m.paymentMode || m.mode || 'cash');
+
+                if (amt > 0 && mType !== 'none') {
+                    let mPaymentType = m.paymentType || 'OUT';
+                    let isMissingInCFlow = !cFlows.some(c => 
+                        c.date && c.date.startsWith(today) && 
+                        Math.abs(parseNum(c.amount)) === amt &&
+                        (c.type === mPaymentType || (parseNum(c.amount) < 0 && mPaymentType === 'OUT'))
+                    );
+
+                    if (isMissingInCFlow) {
+                        if (mPaymentType === 'OUT') {
+                            if (mType === 'bank') todayBankOut += amt; else todayCashOut += amt;
+                        } else {
+                            if (mType === 'bank') todayBankIn += amt; else todayCashIn += amt;
+                        }
+                    }
+                }
+            });
+            // ---------------------------------------------------------------------------
+
             let openingTotal = openCash + openBank;
             let closingCash = openCash + todayCashIn - todayCashOut;
             let closingBank = openBank + todayBankIn - todayBankOut;
@@ -481,13 +507,11 @@
 
             // 🛒 SALES ENGINE
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
-                // Skip ANY sale that is marked as Repair
                 let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
                                    (s.items && s.items.length > 0 && String(s.items[0].category || s.items[0].itemName || s.items[0].name || s.items[0].barcode || '').toLowerCase().includes('repair'));
 
                 if (isRepairSale) return; 
 
-                // NORMAL SALE
                 let cName = getCustName(s.customerId);
                 let isCreatedToday = s.date && s.date.startsWith(today);
 
@@ -514,7 +538,6 @@
                     if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
                     if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
                     
-                    // 🔥 BC WALLET USED GOES TO BC NAMA 🔥
                     if(bc > 0) pushLog('BC Out', bc, cName, 'Wallet Used', '', false);
                 }
 
