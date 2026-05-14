@@ -150,6 +150,12 @@
                 <div id="log-Order In" class="mini-log"></div>
             </div>
 
+            <!-- NEW: Repair IN Box -->
+            <div class="action-wrapper">
+                <a href="orders.html" class="action-btn btn-in"><i class="fas fa-tools"></i> Repair Jama (In)</a>
+                <div id="log-Repair In" class="mini-log"></div>
+            </div>
+
             <div class="action-wrapper">
                 <a href="merchants.html" class="action-btn btn-in"><i class="fas fa-truck"></i> Payment Aaya / Vyapari</a>
                 <div id="log-Vyapari Aaya" class="mini-log"></div>
@@ -187,6 +193,12 @@
             <div class="action-wrapper">
                 <a href="merchants.html" class="action-btn btn-out"><i class="fas fa-truck"></i> Payment Diya / Vyapari</a>
                 <div id="log-Vyapari Diya" class="mini-log"></div>
+            </div>
+
+            <!-- NEW: Repair OUT Box (For Discount/Refund or Less Estimate) -->
+            <div class="action-wrapper">
+                <a href="orders.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund / Less Est.)</a>
+                <div id="log-Repair Out" class="mini-log"></div>
             </div>
 
             <div class="action-wrapper">
@@ -318,6 +330,7 @@
             let orders = await safeGetAll('orders');
             let schemes = await safeGetAll('schemes');
             let deposits = await safeGetAll('deposits');
+            let repairsStore = await safeGetAll('repairs'); // In case repair has its own store
 
             // 1. CASHFLOW CALCULATION (Live Balances)
             cFlows.forEach(c => {
@@ -359,11 +372,11 @@
             document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
             document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
 
-            // 2. GENERATE LOGS
+            // 2. GENERATE LOGS (NEW REPAIR ADDED)
             let logs = {
-                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Vyapari Aaya': [], 'Other In': [], 
+                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'Vyapari Aaya': [], 'Other In': [], 
                 'SaleDueRecv': [], 'PurchaseDue': [],
-                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Other Out': [], 'Expense': [],
+                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'Other Out': [], 'Expense': [],
                 'SaleDueGiven': [], 'OldGold': []
             };
 
@@ -388,13 +401,12 @@
                 else sumNama += amt;
             };
 
-            // SALES (TRUE GROSS LOGIC FIX)
+            // SALES
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
                 let cName = getCustName(s.customerId);
                 let isCreatedToday = s.date && s.date.startsWith(today);
                 
                 if (isCreatedToday) {
-                    // True Gross Calculation (SubTotal + GST)
                     let gross = parseNum(s.subTotal) + parseNum(s.gst);
                     if (gross === 0) {
                         gross = parseNum(s.grandTotal) + parseNum(s.oldGoldDeduction) + parseNum(s.discount) + parseNum(s.bcWalletDeduction);
@@ -441,7 +453,7 @@
                 if(gross > 0) {
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
                     pushLog('Purchase', gross, mName, itemStr, spl, false);
-                } else if (paid > 0) { // Unfixed Advance
+                } else if (paid > 0) { 
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
                     pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv', spl, false);
                 }
@@ -494,17 +506,31 @@
                 }
             });
 
-            // ORDERS
+            // ORDERS & REPAIRS (Separation Logic)
             orders.forEach(o => {
                 let cName = getCustName(o.customerId);
                 let hasTodayPayment = false;
+                
+                // Identify if it's a Repair
+                let isRepair = String(o.orderType || o.type || o.category || '').toLowerCase().includes('repair');
 
                 if (o.payments && o.payments.length > 0) {
                     o.payments.forEach(p => {
                         let pAmt = parseNum(p.amount);
-                        if(p.date && p.date.startsWith(today) && pAmt > 0) {
-                            let spl = getSplitStr([p], p.mode, pAmt, pAmt);
-                            pushLog('Order In', pAmt, cName, 'Pay/Adv', spl, true);
+                        if(p.date && p.date.startsWith(today) && pAmt !== 0) {
+                            let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
+                            
+                            if (isRepair) {
+                                // If payment is negative or marked as Refund -> Repair Out (Nama)
+                                if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
+                                    pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund / Less', spl, false);
+                                } else {
+                                    pushLog('Repair In', pAmt, cName, 'Repair In', spl, true);
+                                }
+                            } else {
+                                // Normal Order
+                                pushLog('Order In', pAmt, cName, 'Pay/Adv', spl, true);
+                            }
                             hasTodayPayment = true;
                         }
                     });
@@ -514,7 +540,62 @@
                     let amt = parseNum(o.advanceAmount || o.paidAmount || o.amount);
                     if(amt > 0) {
                         let spl = getSplitStr(null, o.paymentMode||'Cash', amt, amt);
-                        pushLog('Order In', amt, cName, 'Advance', spl, true);
+                        if (isRepair) {
+                            pushLog('Repair In', amt, cName, 'Repair Adv', spl, true);
+                        } else {
+                            pushLog('Order In', amt, cName, 'Advance', spl, true);
+                        }
+                    }
+                }
+
+                // 🌟 CORE FEATURE: Agar Estimate se Final Amount Kam hai, to Nama (OUT) me dalo
+                if (isRepair && (o.status === 'delivered' || o.status === 'completed') && o.deliveryDate && o.deliveryDate.startsWith(today)) {
+                    let estAmt = parseNum(o.estimateAmount || o.approxAmount);
+                    let finalAmt = parseNum(o.totalAmount || o.finalAmount || o.amount);
+                    let discountAmt = parseNum(o.discount);
+                    
+                    if (estAmt > 0 && finalAmt > 0 && finalAmt < estAmt) {
+                        let difference = estAmt - finalAmt;
+                        pushLog('Repair Out', difference, cName, 'Estimate Less (Diff)', '', false);
+                    } else if (discountAmt > 0) {
+                        pushLog('Repair Out', discountAmt, cName, 'Repair Discount', '', false);
+                    }
+                }
+            });
+
+            // EXPLICIT REPAIRS STORE (In case system uses a separate store for repairs)
+            repairsStore.forEach(r => {
+                let cName = getCustName(r.customerId);
+                let hasTodayPayment = false;
+
+                if (r.payments && r.payments.length > 0) {
+                    r.payments.forEach(p => {
+                        let pAmt = parseNum(p.amount);
+                        if(p.date && p.date.startsWith(today) && pAmt !== 0) {
+                            let spl = getSplitStr([p], p.mode, Math.abs(pAmt), Math.abs(pAmt));
+                            if (pAmt < 0 || p.type === 'Refund' || p.type === 'OUT') {
+                                pushLog('Repair Out', Math.abs(pAmt), cName, 'Refund/Less', spl, false);
+                            } else {
+                                pushLog('Repair In', pAmt, cName, 'Repair In', spl, true);
+                            }
+                            hasTodayPayment = true;
+                        }
+                    });
+                } 
+                
+                if (!hasTodayPayment && r.date && r.date.startsWith(today)) {
+                    let amt = parseNum(r.advanceAmount || r.paidAmount || r.amount);
+                    if(amt > 0) {
+                        let spl = getSplitStr(null, r.paymentMode||'Cash', amt, amt);
+                        pushLog('Repair In', amt, cName, 'Repair Adv', spl, true);
+                    }
+                }
+
+                if ((r.status === 'delivered' || r.status === 'completed') && r.deliveryDate && r.deliveryDate.startsWith(today)) {
+                    let estAmt = parseNum(r.estimateAmount || r.approxAmount);
+                    let finalAmt = parseNum(r.totalAmount || r.finalAmount);
+                    if (estAmt > 0 && finalAmt > 0 && finalAmt < estAmt) {
+                        pushLog('Repair Out', (estAmt - finalAmt), cName, 'Est. Difference', '', false);
                     }
                 }
             });
@@ -579,6 +660,16 @@
                 let type = c.type || 'OUT';
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
                 let spl = getSplitStr(null, c.mode, amt, amt);
+
+                // 🌟 NEW: Intercept Repair from Cashflow specifically
+                if (cat.includes('repair') || note.includes('repair') || note.includes('rep-')) {
+                    if (type === 'IN') {
+                        pushLog('Repair In', amt, c.note || c.category, 'Repair', spl, true);
+                    } else {
+                        pushLog('Repair Out', amt, c.note || c.category, 'Repair Out', spl, false);
+                    }
+                    return;
+                }
 
                 if (type === 'IN') {
                     pushLog('Other In', amt, c.note || c.category || 'Income', '', spl, true);
