@@ -264,7 +264,6 @@
     let allCustomers = [];
     let allMerchants = [];
 
-    // --- 🚨 CORE FIX: POWERFUL NUMBER PARSER ---
     function parseNum(val) {
         if (typeof val === 'number') return val;
         if (!val) return 0;
@@ -299,17 +298,16 @@
         return 'cash'; 
     }
 
-    // --- ⭐ SMART SPLIT FORMATTER (* AND #) ---
     function getSplitStr(payments, defaultMode, paidAmt, displayGrossAmt) {
         let cAmt = 0, bAmt = 0;
-        paidAmt = parseNum(paidAmt);
-        displayGrossAmt = parseNum(displayGrossAmt);
+        paidAmt = Math.abs(parseNum(paidAmt));
+        displayGrossAmt = Math.abs(parseNum(displayGrossAmt));
 
         if (paidAmt > 0) {
             if (payments && payments.length > 0) {
                 payments.forEach(p => {
                     let m = String(p.mode).toLowerCase();
-                    let a = parseNum(p.amount);
+                    let a = Math.abs(parseNum(p.amount));
                     if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
                     else cAmt += a;
                 });
@@ -358,7 +356,6 @@
             let deposits = await safeGetAll('deposits');
             let repairsStore = await safeGetAll('repairs'); 
 
-            // 1. CASHFLOW CALCULATION (Live Balances)
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 let cDate = c.date ? c.date.split('T')[0] : '';
@@ -377,7 +374,6 @@
                 }
             });
 
-            // --- 🚨 CORE BUG FIX: KARIGHAR / VYAPARI MISSING CASHFLOW RECONCILIATION ---
             mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
                 let amt = parseNum(m.amount);
                 let mType = getMoneyType(m.paymentMode || m.mode || 'cash');
@@ -399,14 +395,12 @@
                     }
                 }
             });
-            // ---------------------------------------------------------------------------
 
             let openingTotal = openCash + openBank;
             let closingCash = openCash + todayCashIn - todayCashOut;
             let closingBank = openBank + todayBankIn - todayBankOut;
             let closingTotal = closingCash + closingBank;
 
-            // UI Update Top Dashboard
             document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
             document.getElementById('openCash').innerText = fmtNum(openCash);
             document.getElementById('openBank').innerText = fmtNum(openBank);
@@ -421,7 +415,6 @@
             document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
             document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
 
-            // 2. GENERATE LOGS
             let logs = {
                 'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
                 'SaleDueRecv': [], 'PurchaseDue': [],
@@ -450,7 +443,6 @@
                 else sumNama += amt;
             };
 
-            // 🌟 STEP 1: EXCLUSIVE REPAIR & BC SCHEME LOGIC (FROM CASHFLOW)
             cFlows.filter(c => c.date && c.date.startsWith(today)).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0 || getMoneyType(c.mode) === 'none') return;
@@ -462,7 +454,6 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                // 🔥 CATCH BC SCHEMES 🔥
                 let isBC = cat.includes('scheme') || note.includes('sch-') || cat.includes('bc scheme');
                 if (isBC) {
                     let cName = 'BC Scheme';
@@ -485,7 +476,6 @@
                     return;
                 }
 
-                // 🔥 CATCH REPAIRS 🔥
                 if (cat.includes('repair') || note.includes('repair') || note.includes('rep-') || cat.includes('job cancel')) {
                     let displayDesc = c.category || 'Repair';
                     if (cat.includes('excess refund') || cat.includes('cancel refund')) {
@@ -503,7 +493,7 @@
             });
 
 
-            // 🛒 SALES ENGINE (UPDATED TO PREVENT JAMA-NAMA DIFFERENCE)
+            // 🛒 SALES ENGINE (🚨 FIXED: MATH.ABS AND ADVANCE ADDED TO TOTAL)
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
                 let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
                                    (s.items && s.items.length > 0 && String(s.items[0].category || s.items[0].itemName || s.items[0].name || s.items[0].barcode || '').toLowerCase().includes('repair'));
@@ -514,16 +504,26 @@
                 let isCreatedToday = s.date && s.date.startsWith(today);
 
                 if (isCreatedToday) {
-                    // 👉 NAYA LOGIC: Jama Me Poora Amount Dikhe Taki Jama-Nama Ka Farak Na Aaye
-                    let udhari = parseNum(s.pendingAmount);
-                    let og = parseNum(s.oldGoldDeduction);
-                    let discount = parseNum(s.discount);
-                    let bc = parseNum(s.bcWalletDeduction);
-                    let paid = parseNum(s.paidAmount);
+                    // Sabko Math.abs() me daala hai taki DB me koi minus (-) value ho to wo bhi plus hoke pure amount me jude
+                    let udhari = Math.abs(parseNum(s.pendingAmount));
+                    let og = Math.abs(parseNum(s.oldGoldDeduction));
+                    let discount = Math.abs(parseNum(s.discount));
+                    let bc = Math.abs(parseNum(s.bcWalletDeduction));
+                    let advance = Math.abs(parseNum(s.advanceAmount || s.advance || 0)); // Purana Order Advance yaha aayega
+                    let paid = Math.abs(parseNum(s.paidAmount));
                     
-                    // Sales Total hamesha sabhi cheezon ka exact Sum hoga jisse equation balance rahegi!
-                    let gross = paid + udhari + og + discount + bc;
+                    let subT = Math.abs(parseNum(s.subTotal));
+                    let gstAmt = Math.abs(parseNum(s.gst));
                     
+                    // Final Total Value calculation (Poora Amount)
+                    let gross = subT + gstAmt; 
+                    let sumTotal = paid + udhari + og + discount + bc + advance;
+                    
+                    // Dono me se jo bada hoga wahi lenge taki ek bhi rupya kam na dikhe
+                    if (gross === 0 || gross < sumTotal) {
+                        gross = sumTotal;
+                    }
+
                     let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
                     let wtStr = s.items && s.items.length > 0 ? parseNum(s.items[0].weight).toFixed(3)+'g' : '';
 
@@ -533,16 +533,19 @@
                         pushLog('Sale', gross, `${cName} - ${itemStr}`, wtStr, spl, true);
                     }
                     
-                    // Outgoing/Nama Adjustments
+                    // Nama adjustments so Net matches the cash drawer perfectly
                     if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
                     if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
                     if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
                     if(bc > 0) pushLog('BC Out', bc, cName, 'Wallet Used', '', false);
+                    
+                    // 🚨 Order ka jo purana advance hai, usko yaha Nama me dalna padega taki Jama-Nama barabar rahe
+                    if(advance > 0) pushLog('Other Out', advance, cName, 'Order Adv Adj.', '', false);
                 }
 
                 if (s.payments && s.payments.length > 0) {
                     s.payments.forEach(p => {
-                        let pAmt = parseNum(p.amount);
+                        let pAmt = Math.abs(parseNum(p.amount));
                         if (p.date && p.date.startsWith(today) && !isCreatedToday && pAmt > 0) {
                             let spl = getSplitStr([p], p.mode, pAmt, pAmt);
                             pushLog('SaleDueRecv', pAmt, cName, 'Due Rcvd', spl, true);
@@ -552,7 +555,6 @@
             });
 
 
-            // 📦 REGULAR ORDERS ENGINE 
             const processRegularOrder = (data) => {
                 let isRepair = String(data.jobType || data.orderType || data.type || data.category || '').toLowerCase().includes('repair');
                 if (isRepair) return; 
@@ -574,7 +576,7 @@
                                     pushLog('Other Out', Math.abs(pAmt), cName, 'Order Refund', spl, false);
                                 } else {
                                     let text = (p.type === 'Advance' || isCreatedToday) ? 'Advance' : 'Pay/Adv';
-                                    pushLog('Order In', pAmt, cName, text, spl, true);
+                                    pushLog('Order In', Math.abs(pAmt), cName, text, spl, true);
                                 }
                             }
                         }
@@ -582,7 +584,7 @@
                 }
 
                 if (!hasTodayPayment && isCreatedToday) {
-                    let adv = parseNum(data.advanceAmount || data.paidAmount || data.advance || data.amount);
+                    let adv = Math.abs(parseNum(data.advanceAmount || data.paidAmount || data.advance || data.amount));
                     if (adv > 0) {
                         let spl = getSplitStr(null, data.paymentMode || data.mode || 'Cash', adv, adv);
                         pushLog('Order In', adv, cName, 'Advance', spl, true);
@@ -592,12 +594,11 @@
             orders.forEach(o => processRegularOrder(o));
 
 
-            // PURCHASES
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                 let mName = getMerchName(p.merchantId);
-                let gross = parseNum(p.totalAmount || p.grandTotal || p.total); 
-                let due = parseNum(p.pendingAmount || p.dueAmount);
-                let paid = parseNum(p.paidAmount || p.advanceAmount);
+                let gross = Math.abs(parseNum(p.totalAmount || p.grandTotal || p.total)); 
+                let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
+                let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
                 let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
 
                 if(gross > 0) {
@@ -610,15 +611,14 @@
                 if(due > 0) pushLog('PurchaseDue', due, mName, 'M. Credit', '', true);
             });
 
-            // LOANS
             loans.forEach(l => {
                 let cName = getCustName(l.customerId);
                 let itemN = l.itemName || l.item || l.description || 'Item';
                 
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
-                    let amt = parseNum(l.amount || l.loanAmount || l.principalAmount);
+                    let amt = Math.abs(parseNum(l.amount || l.loanAmount || l.principalAmount));
                     let spl = getSplitStr(null, l.paymentMode||l.mode, amt, amt);
-                    let wt = parseNum(l.weight || l.netWt || l.grossWt);
+                    let wt = Math.abs(parseNum(l.weight || l.netWt || l.grossWt));
                     let displayItem = itemN;
                     if(wt > 0) displayItem += `<br><span style="font-size:0.75rem; color:#888; font-weight:normal;">${wt.toFixed(3)}g</span>`;
                     
@@ -626,7 +626,7 @@
                 }
                 if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
-                        let pAmt = parseNum(p.amount);
+                        let pAmt = Math.abs(parseNum(p.amount));
                         let spl = getSplitStr([p], p.mode, pAmt, pAmt);
                         if (p.type === 'Byaaj') pushLog('Byaaj Jama', pAmt, cName, 'Byaaj', spl, true);
                         else pushLog('Girvi Chhudaya', pAmt, cName, p.type === 'Release' ? '(Chhudaya)' : p.type, spl, true);
@@ -634,19 +634,17 @@
                 }
             });
 
-            // OLD GOLD DIRECT
             oldGold.filter(o => o.date && o.date.startsWith(today) && o.mode !== 'POS Exchange' && o.type !== 'MELT').forEach(o => {
-                let amt = parseNum(o.amount || o.paidAmount || o.cash);
-                let wt = parseNum(o.netWt || o.oldGoldWeight).toFixed(3) + 'g';
+                let amt = Math.abs(parseNum(o.amount || o.paidAmount || o.cash));
+                let wt = Math.abs(parseNum(o.netWt || o.oldGoldWeight)).toFixed(3) + 'g';
                 if(amt > 0) {
                     let spl = getSplitStr(null, o.mode, amt, amt);
                     pushLog('OldGold', amt, getCustName(o.customerId), wt, spl, false);
                 }
             });
 
-            // EXCLUSIVE MERCHANT PAYMENTS
             mPayments.filter(m => m.date && m.date.startsWith(today)).forEach(m => {
-                let amt = parseNum(m.amount);
+                let amt = Math.abs(parseNum(m.amount));
                 if(amt > 0) {
                     let mName = getMerchName(m.merchantId);
                     let spl = getSplitStr(null, m.paymentMode || m.mode || 'Cash', amt, amt);
@@ -655,17 +653,16 @@
                 }
             });
 
-            // DEPOSITS
             deposits.forEach(d => {
                 let cName = getCustName(d.customerId);
-                let dAmt = parseNum(d.amount);
+                let dAmt = Math.abs(parseNum(d.amount));
                 if (d.date && d.date.startsWith(today) && dAmt > 0) {
                     let spl = getSplitStr(null, d.mode||'Cash', dAmt, dAmt);
                     pushLog('Other In', dAmt, `${cName} (Deposit)`, 'Jama', spl, true);
                 }
                 if (d.withdrawals && d.withdrawals.length > 0) {
                     d.withdrawals.forEach(w => {
-                        let wAmt = parseNum(w.amount);
+                        let wAmt = Math.abs(parseNum(w.amount));
                         if(w.date && w.date.startsWith(today) && wAmt > 0) {
                             let spl = getSplitStr(null, w.mode||'Cash', wAmt, wAmt);
                             pushLog('Expense', wAmt, `${cName} (Deposit)`, 'W/D', spl, false);
@@ -674,7 +671,6 @@
                 }
             });
 
-            // OTHER CASHFLOW (Non-Repair, Non-BC Scheme)
             cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0) return;
@@ -711,13 +707,11 @@
                 }
             });
 
-            // GRAND TOTALS RENDER
             sumNama += closingTotal; 
             
             document.getElementById('uiTotalJama').innerText = `₹${fmtNum(sumJama)}`;
             document.getElementById('uiTotalNama').innerText = `₹${fmtNum(sumNama)}`;
 
-            // Render Logs under buttons
             for(let key in logs) {
                 let logElement = document.getElementById('log-' + key);
                 let wrapElement = document.getElementById('wrap-' + key);
