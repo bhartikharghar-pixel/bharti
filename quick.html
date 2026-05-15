@@ -225,6 +225,11 @@
                 <div class="action-btn btn-auto-in"><i class="fas fa-hand-holding-usd"></i> Purani Udhari Aayi</div>
                 <div id="log-SaleDueRecv" class="mini-log"></div>
             </div>
+
+            <div class="action-wrapper" id="wrap-MeltIn" style="display:none;">
+                <div class="action-btn btn-auto-in" style="background: #e1f5fe; color: #0277bd; border-bottom: 2px dashed #81d4fa; cursor: default;"><i class="fas fa-fire"></i> Refinery Recv (Pure/Mix)</div>
+                <div id="log-MeltIn" class="mini-log"></div>
+            </div>
         </div>
 
         <div class="column col-right">
@@ -268,6 +273,11 @@
             <div class="action-wrapper" id="wrap-OldGold" style="display:none;">
                 <div class="action-btn btn-auto-out"><i class="fas fa-ring"></i> Old Gold (Bill Exch / Buy)</div>
                 <div id="log-OldGold" class="mini-log"></div>
+            </div>
+
+            <div class="action-wrapper" id="wrap-MeltOut" style="display:none;">
+                <div class="action-btn btn-auto-out" style="background: #ffebee; color: #c62828; border-bottom: 2px dashed #ef9a9a; cursor: default;"><i class="fas fa-fire"></i> Refinery Sent & Loss</div>
+                <div id="log-MeltOut" class="mini-log"></div>
             </div>
 
             <div style="flex:1;"></div>
@@ -626,9 +636,9 @@
 
             let logs = {
                 'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
-                'SaleDueRecv': [], 'PurchaseDue': [],
+                'SaleDueRecv': [], 'PurchaseDue': [], 'MeltIn': [],
                 'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'BC Out': [], 'Other Out': [], 'Expense': [],
-                'SaleDueGiven': [], 'OldGold': []
+                'SaleDueGiven': [], 'OldGold': [], 'MeltOut': []
             };
 
             let sumJama = openingTotal;
@@ -920,18 +930,32 @@
                 }
             });
 
-            // --- 6. OLD GOLD LOG GENERATION ---
+            // --- 6. OLD GOLD & REFINERY LOG GENERATION ---
             oldGold.filter(o => o.date && o.date.startsWith(today) && o.mode !== 'POS Exchange').forEach(o => {
-                let isMelt = String(o.type || '').toUpperCase().includes('MELT');
+                let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
                 if(isMelt) {
-                    let sent = parseNum(o.sentWt || o.issuedWt);
-                    let recv = parseNum(o.receivedWt || o.meltedWt);
+                    let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
+                    let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
+                    let loss = parseNum(o.lossWt);
+                    
+                    if (recv > 0 && loss === 0) loss = sent - recv;
+                    if (loss > 0 && recv === 0) recv = sent - loss;
+                    if (loss < 0) loss = 0;
+                    if (recv < 0) recv = 0;
                     
                     if (sent > 0) {
-                        pushLog('Other Out', 0, 'Refinery', 'Melt Sent', '', false, [{val: sent, label:'Old'}], '<span style="color:#000;">Melt</span>');
+                        if (loss > 0) {
+                            let converted = sent - loss;
+                            if (converted > 0) {
+                                pushLog('MeltOut', 0, 'Refinery', 'Melt Sent', '', false, [{val: converted, label:'Old'}], '<span style="color:#c62828;">SENT</span>');
+                            }
+                            pushLog('MeltOut', 0, 'Refinery', 'Melting Loss', '', false, [{val: loss, label:'Old'}], '<span style="color:#d84315; font-weight:900;">LOSS</span>');
+                        } else {
+                            pushLog('MeltOut', 0, 'Refinery', 'Melt Sent', '', false, [{val: sent, label:'Old'}], '<span style="color:#c62828;">SENT</span>');
+                        }
                     }
                     if (recv > 0) {
-                        pushLog('Other In', 0, 'Refinery', 'Pure Recv', '', true, [{val: recv, label:'Mix'}], '<span style="color:#000;">Pure</span>');
+                        pushLog('MeltIn', 0, 'Refinery', 'Pure Recv', '', true, [{val: recv, label:'Mix'}], '<span style="color:#0277bd;">PURE</span>');
                     }
                 } else {
                     let amt = Math.abs(parseNum(o.amount || o.cash));
@@ -1074,7 +1098,7 @@
                         if(wrapElement) wrapElement.style.display = 'block'; 
                     } else {
                         logElement.innerHTML = '<div class="empty-log">Aaj koi entry nahi</div>';
-                        if(wrapElement && ['SaleDueGiven', 'OldGold', 'SaleDueRecv', 'PurchaseDue'].includes(key)) {
+                        if(wrapElement && ['SaleDueGiven', 'OldGold', 'SaleDueRecv', 'PurchaseDue', 'MeltIn', 'MeltOut'].includes(key)) {
                             wrapElement.style.display = 'none';
                         } else if(wrapElement) {
                             logElement.style.display = 'block';
