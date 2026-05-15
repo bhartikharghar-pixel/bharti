@@ -43,7 +43,8 @@
         .metal-bar-open { background: linear-gradient(135deg, #1e293b, #0f172a); border-left: 5px solid #1976d2; }
         .metal-bar-close { background: linear-gradient(135deg, #1e293b, #000); border-left: 5px solid #C5A059; margin-top: 20px; margin-bottom: 0; }
         .m-bar-title { font-size: 1.1rem; text-transform: uppercase; display: flex; align-items: center; gap: 8px;}
-        .m-grid { display: flex; gap: 30px; text-align: center; }
+        .m-grid { display: flex; gap: 20px; text-align: center; align-items: center; flex-wrap: wrap;}
+        .m-col { padding: 0 10px; }
         .m-col span { display: block; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 3px;}
         .m-col strong { font-size: 1.2rem; color: #fff; }
         .m-col .val-net { color: #90caf9; }
@@ -103,6 +104,20 @@
         @media(max-width: 600px) { .grand-totals-bar { flex-direction: column; gap: 10px; text-align: center; } }
         .g-jama { color: #4caf50; font-size: 1.3rem; font-weight: 800; text-transform: uppercase;}
         .g-nama { color: #f44336; font-size: 1.3rem; font-weight: 800; text-transform: uppercase;}
+
+        /* --- PHYSICAL METAL FLOW LIST --- */
+        .metal-flow-section { background: #fff; border-radius: 12px; padding: 15px; margin-top: 15px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .m-flow-title { font-size: 1.1rem; font-weight: 800; color: #333; border-bottom: 2px dashed #ccc; padding-bottom: 10px; margin-bottom: 12px; text-transform: uppercase; display:flex; align-items:center; gap:8px;}
+        .m-flow-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+        .m-flow-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #fdfdfd; border-radius: 6px; border: 1px solid #eee; border-left: 4px solid #ccc; }
+        .m-flow-row.in { border-left-color: #2e7d32; background: #f1f8e9; }
+        .m-flow-row.out { border-left-color: #c62828; background: #ffebee; }
+        .m-f-entity { font-weight: 700; color: #111; font-size: 0.95rem;}
+        .m-f-action { color: #555; font-size: 0.8rem; margin-left: 5px; font-style: italic;}
+        .m-f-wt { font-weight: 800; font-size: 1rem; }
+        .m-f-in { color: #2e7d32; }
+        .m-f-out { color: #c62828; }
+        .m-f-cat { font-size: 0.7rem; background: #fff; border: 1px solid #ccc; padding: 2px 6px; border-radius: 4px; color: #333; font-weight: 700; margin-left: 8px; text-transform: uppercase;}
 
         @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; padding: 0; }
@@ -275,18 +290,27 @@
         </div>
     </div>
 
+    <div class="grand-totals-bar">
+        <div class="g-jama">Total Jama: <span id="uiTotalJama">₹0</span></div>
+        <div class="g-nama">Total Nama: <span id="uiTotalNama">₹0</span></div>
+    </div>
+
     <div class="metal-bar metal-bar-close">
         <div class="m-bar-title"><i class="fas fa-box"></i> Closing Metal</div>
         <div class="m-grid">
             <div class="m-col"><span>Fine (Net)</span><strong class="val-net" id="uiCloseNet">0.000g</strong></div>
             <div class="m-col"><span>Old Gold</span><strong class="val-old" id="uiCloseOld">0.000g</strong></div>
             <div class="m-col"><span>Langadi (Mix)</span><strong class="val-mix" id="uiCloseMix">0.000g</strong></div>
+            <div class="m-col" style="border-left: 2px dashed #666; padding-left: 20px;">
+                <span style="color:#ccc;">Grand Total Metal</span>
+                <strong style="color:#4caf50; font-size:1.4rem;" id="uiCloseTotal">0.000g</strong>
+            </div>
         </div>
     </div>
 
-    <div class="grand-totals-bar">
-        <div class="g-jama">Total Jama: <span id="uiTotalJama">₹0</span></div>
-        <div class="g-nama">Total Nama: <span id="uiTotalNama">₹0</span></div>
+    <div class="metal-flow-section">
+        <div class="m-flow-title"><i class="fas fa-exchange-alt"></i> Today's Physical Metal Flow (Vyapari / Karigar / Refinery)</div>
+        <ul class="m-flow-list" id="uiMetalFlowList"></ul>
     </div>
 
 </div>
@@ -296,6 +320,7 @@
 <script>
     let allCustomers = [];
     let allMerchants = [];
+    let todayMetalLogs = []; // Array for physical metal entries
 
     function parseNum(val) {
         if (typeof val === 'number') return val;
@@ -393,6 +418,8 @@
             let todayOldIn = 0, todayOldOut = 0;
             let todayMixIn = 0, todayMixOut = 0;
 
+            todayMetalLogs = []; // Reset metal log array
+
             // Fetch Data
             let cFlows = await safeGetAll('cashflow');
             let sales = await safeGetAll('sales');
@@ -403,6 +430,12 @@
             let orders = await safeGetAll('orders');
             let schemes = await safeGetAll('schemes');
             let deposits = await safeGetAll('deposits');
+
+            // Helper function for logging physical metal movements
+            const pushMetalRecord = (dateStr, entity, action, wt, type, cat) => {
+                if(wt <= 0 || !dateStr || !dateStr.startsWith(today)) return;
+                todayMetalLogs.push({ entity, action, wt, type, cat });
+            };
 
             // --- 1. METAL FLOW ACCURATE LOGIC (To match exactly 5g precision) ---
             const logMetal = (dateStr, amt, isPos, category) => {
@@ -453,14 +486,22 @@
                 else mIn = parseNum(p.totalWeight || p.weight);
                 
                 logMetal(p.date, mIn, true, 'NET');
+                // LOG FOR PHYSICAL FLOW
+                pushMetalRecord(p.date, getMerchName(p.merchantId), 'Purchase Metal Recv', mIn, 'IN', 'NET');
             });
 
             // Merchant Payment Metal Tracking
             mPayments.forEach(mp => {
                 if (mp.goldType !== 'fixed') {
                     let net = parseNum(mp.gold);
-                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'NET');
-                    else logMetal(mp.date, net, true, 'NET');
+                    let mName = getMerchName(mp.merchantId);
+                    if (mp.paymentType === 'OUT') {
+                        logMetal(mp.date, net, false, 'NET');
+                        pushMetalRecord(mp.date, mName, 'Vyapari Metal Paid', net, 'OUT', 'NET');
+                    } else {
+                        logMetal(mp.date, net, true, 'NET');
+                        pushMetalRecord(mp.date, mName, 'Vyapari Metal Recv', net, 'IN', 'NET');
+                    }
                 }
             });
 
@@ -478,11 +519,20 @@
                         if (recv < 0) recv = 0;
 
                         if (recv > 0 || loss > 0) {
-                            if (recv > 0) { logMetal(o.date, recv, true, 'MIX'); logMetal(o.date, recv, false, 'OLD'); }
-                            if (loss > 0) logMetal(o.date, loss, false, 'OLD');
+                            if (recv > 0) { 
+                                logMetal(o.date, recv, true, 'MIX'); 
+                                logMetal(o.date, recv, false, 'OLD'); 
+                                pushMetalRecord(o.date, 'Refinery', 'Pure Recv', recv, 'IN', 'MIX');
+                            }
+                            if (loss > 0) {
+                                logMetal(o.date, loss, false, 'OLD');
+                                pushMetalRecord(o.date, 'Refinery', 'Melt Loss', loss, 'OUT', 'OLD');
+                            }
                         } else {
                             logMetal(o.date, sent, false, 'OLD');
                         }
+                        // Always log sent
+                        if(sent > 0) pushMetalRecord(o.date, 'Refinery', 'Melt Sent', sent, 'OUT', 'OLD');
                     } else {
                         logMetal(o.date, getSafeNet(o), true, 'OLD');
                     }
@@ -492,23 +542,38 @@
             // Orders & Repairs Metal Tracking
             orders.forEach(o => {
                 if (o.status === 'cancelled') return;
+                let cName = getCustName(o.customerId);
                 
                 if (o.jobType === 'Repair') {
                     let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
                     let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
-                    if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'NET');
-                    if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'NET');
+                    
+                    let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                    if (shopIssued > 0) {
+                        logMetal(iDate, shopIssued, false, 'NET');
+                        pushMetalRecord(iDate, cName + ' (Karigar)', 'Repair Metal Issued', shopIssued, 'OUT', 'NET');
+                    }
+                    
+                    let aDate = o.repairMeta?.auditDate || o.orderDate;
+                    if (returnedRaw > 0) {
+                        logMetal(aDate, returnedRaw, true, 'NET');
+                        pushMetalRecord(aDate, cName + ' (Karigar)', 'Repair Metal Recv', returnedRaw, 'IN', 'NET');
+                    }
                 } else {
                     let inWt = parseNum(o.oldGoldNet);
                     if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
 
                     let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
                     let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
-                    if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
+                    if (karigarIssuedWt > 0) {
+                        logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
+                        pushMetalRecord(o.orderDate, cName + ' (Karigar)', 'Order Metal Issued', karigarIssuedWt, 'OUT', issueCategory);
+                    }
 
                     let receivedFromKarigarWt = parseNum(o.finalNet);
                     if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
                         logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
+                        pushMetalRecord(o.orderDate, cName + ' (Karigar)', 'Order Ready Recv', receivedFromKarigarWt, 'IN', 'NET');
                     }
                 }
             });
@@ -541,6 +606,7 @@
             let closingNet = openNet + todayNetIn - todayNetOut;
             let closingOld = openOld + todayOldIn - todayOldOut;
             let closingMix = openMix + todayMixIn - todayMixOut;
+            let closingTotalMetal = closingNet + closingOld + closingMix;
 
             // Update UI (Cash)
             document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
@@ -561,10 +627,10 @@
             document.getElementById('uiOpenNet').innerText = openNet.toFixed(3) + "g";
             document.getElementById('uiOpenOld').innerText = openOld.toFixed(3) + "g";
             document.getElementById('uiOpenMix').innerText = openMix.toFixed(3) + "g";
-            
             document.getElementById('uiCloseNet').innerText = closingNet.toFixed(3) + "g";
             document.getElementById('uiCloseOld').innerText = closingOld.toFixed(3) + "g";
             document.getElementById('uiCloseMix').innerText = closingMix.toFixed(3) + "g";
+            document.getElementById('uiCloseTotal').innerText = closingTotalMetal.toFixed(3) + "g"; // GRAND TOTAL METAL
 
             let logs = {
                 'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
@@ -886,6 +952,30 @@
                     }
                 }
             }
+
+            // Render Physical Metal Flow Logs
+            let metalFlowUI = document.getElementById('uiMetalFlowList');
+            if(todayMetalLogs.length > 0) {
+                metalFlowUI.innerHTML = todayMetalLogs.map(m => {
+                    let cClass = m.type === 'IN' ? 'in' : 'out';
+                    let tClass = m.type === 'IN' ? 'm-f-in' : 'm-f-out';
+                    let sign = m.type === 'IN' ? '+' : '-';
+                    return `
+                    <li class="m-flow-row ${cClass}">
+                        <div style="flex:1;">
+                            <span class="m-f-entity">${m.entity}</span> 
+                            <span class="m-f-action">| ${m.action}</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span class="m-f-wt ${tClass}">${sign}${m.wt.toFixed(3)}g</span>
+                            <span class="m-f-cat">${m.cat}</span>
+                        </div>
+                    </li>`;
+                }).join('');
+            } else {
+                metalFlowUI.innerHTML = '<li style="text-align:center; color:#999; padding:15px; font-style:italic;">Aaj physical metal ka koi len-den nahi hua (Merchant / Karigar).</li>';
+            }
+
         } catch(e) { console.error("Rojmel Error:", e); }
     }
 </script>
