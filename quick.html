@@ -742,6 +742,7 @@
             // --- LOANS LOG GENERATION (FIXED to read loans.html EXACT data) ---
             loans.forEach(l => {
                 let cName = getCustName(l.customerId);
+                let cNameWithId = `${cName} [L-${l.id}]`; 
                 let itemN = l.description || l.itemName || l.item || 'Item';
                 
                 // 1. Girvi Diya (New Loan)
@@ -750,14 +751,14 @@
                     if(amt > 0) {
                         let spl = `(₹${fmtNum(amt)}*)`; // Loans.html gives cash by default
                         let wt = Math.abs(parseNum(l.weight));
-                        pushLog('Girvi Diya', amt, cName, `${itemN} ${wt.toFixed(3)}g`, spl, false);
+                        pushLog('Girvi Diya', amt, cNameWithId, `${itemN} ${wt.toFixed(3)}g`, spl, false);
                     }
                 }
                 
-                // 2. Payments (Byaaj Jama / Chhudaya)
+                // 2. Payments (Byaaj Jama / Chhudaya / Jama Pete)
                 if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
-                        // Exat property names saved by your current loans.html
+                        // Exact property names saved by your current loans.html
                         let intAmt = Math.abs(parseNum(p.interestPaid));
                         let prinAmt = Math.abs(parseNum(p.principalPaid));
                         let totalAmt = Math.abs(parseNum(p.totalAmount || p.amount));
@@ -772,17 +773,22 @@
                         if(bAmt > 0) splParts.push(`${fmtNum(bAmt)}#`);
                         let splText = splParts.length > 0 ? `(${splParts.join(' + ')})` : `(₹${fmtNum(totalAmt)}*)`;
 
+                        // NAYA: Logic to check Half Jama vs Full Chhudaya
+                        // Agar loan ka status closed hai aur ye aakhiri payment hai, toh 'Chhudaya', warna 'Jama Pete'
+                        let isLastPayment = (p === l.payments[l.payments.length - 1]);
+                        let prinLabel = (l.status === 'closed' && isLastPayment) ? 'Chhudaya' : 'Jama Pete';
+
                         // Decide routing
                         if (intAmt > 0) {
-                            pushLog('Byaaj Jama', intAmt, cName, 'Byaaj', splText, true);
+                            pushLog('Byaaj Jama', intAmt, cNameWithId, 'Byaaj', splText, true);
                         }
                         if (prinAmt > 0) {
-                            pushLog('Girvi Chhudaya', prinAmt, cName, 'Jama/Chhudaya', intAmt > 0 ? '' : splText, true);
+                            pushLog('Girvi Chhudaya', prinAmt, cNameWithId, prinLabel, intAmt > 0 ? '' : splText, true);
                         }
                         
                         // Fallback logic
                         if (intAmt === 0 && prinAmt === 0 && totalAmt > 0) {
-                             pushLog('Byaaj Jama', totalAmt, cName, 'Byaaj / Jama', splText, true);
+                             pushLog('Byaaj Jama', totalAmt, cNameWithId, 'Byaaj / Jama', splText, true);
                         }
                     });
                 }
