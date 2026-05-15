@@ -622,7 +622,10 @@
                 // Rokna hai un entries ko jinka Jama/Nama module ke through pehle se ban chuka hai
                 let isDuplicate = false;
                 if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || note.includes('invoice') || cat.includes('bikri')) isDuplicate = true;
-                if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj')) isDuplicate = true;
+                
+                // FIXED: ADDED 'interest' to duplicate blocker so raw cashflow entries don't appear in 'Other In'
+                if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || cat.includes('interest')) isDuplicate = true;
+                
                 if (cat.includes('old gold') || cat.includes('oldgold') || note.includes('exchange')) isDuplicate = true;
                 if (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi')) isDuplicate = true;
                 
@@ -736,27 +739,32 @@
                 }
             });
 
-            // Loans Log Generation
+            // Loans Log Generation (FIXED SMART ROUTING)
             loans.forEach(l => {
                 let cName = getCustName(l.customerId);
                 let itemN = l.itemName || l.item || l.itemType || l.article || l.description || 'Item';
                 
-                if (l.date && l.date.startsWith(today) && l.status === 'active') {
+                // FIXED: Removed 'l.status === active' check so that loans created and closed today still show up as Given
+                if (l.date && l.date.startsWith(today)) {
                     let amt = Math.abs(parseNum(l.amount));
                     let spl = getSplitStr(null, l.paymentMode||l.mode, amt, amt);
                     let wt = Math.abs(parseNum(l.weight));
                     pushLog('Girvi Diya', amt, cName, `${itemN} ${wt.toFixed(3)}g`, spl, false);
                 }
+                
                 if (l.payments && l.payments.length > 0) {
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                         let pAmt = Math.abs(parseNum(p.amount));
                         let spl = getSplitStr([p], p.mode, pAmt, pAmt);
                         
                         let pTypeStr = String(p.type || p.paymentType || '').toLowerCase();
-                        if (pTypeStr.includes('byaaj') || pTypeStr.includes('interest')) {
-                            pushLog('Byaaj Jama', pAmt, cName, 'Byaaj', spl, true);
-                        } else {
+                        
+                        // FIXED: Smart detection for Chhudaya vs Byaaj
+                        if (pTypeStr.includes('settlement') || pTypeStr.includes('chhudaya') || pTypeStr.includes('close') || pTypeStr.includes('full')) {
                             pushLog('Girvi Chhudaya', pAmt, cName, 'Chhudaya', spl, true);
+                        } else {
+                            // If type is empty (partial payment from loans.html) or explicitly interest/byaaj
+                            pushLog('Byaaj Jama', pAmt, cName, 'Byaaj / Jama', spl, true);
                         }
                     });
                 }
