@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Master Daybook (Rojmel) - Bharti Jewellers</title>
+    <title>Master Rojmel (Daybook) - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -94,7 +94,7 @@
 <body>
 
     <div class="app-header">
-        <h2><i class="fas fa-book-open"></i> MASTER DAYBOOK</h2>
+        <h2><i class="fas fa-book-open"></i> MASTER ROJMEL</h2>
         <div class="header-actions">
             <input type="date" id="daybookDate" onchange="loadMasterDaybook()">
         </div>
@@ -126,7 +126,7 @@
                     </tr>
                 </thead>
                 <tbody id="jamaBody">
-                    </tbody>
+                </tbody>
             </table>
             <div class="ledger-footer">
                 <span>Total Jama:</span>
@@ -150,7 +150,7 @@
                     </tr>
                 </thead>
                 <tbody id="namaBody">
-                    </tbody>
+                </tbody>
             </table>
             <div class="ledger-footer">
                 <span>Total Nama:</span>
@@ -180,135 +180,147 @@
 
     <script src="db.js"></script>
     <script>
-        // Set today's date on load
+        // 1. Set today's date on load
         document.getElementById('daybookDate').valueAsDate = new Date();
 
         window.onload = async () => {
             await loadMasterDaybook();
         };
 
-        // Helper to check if item belongs to selected date
-        function isSameDate(dateString, targetDateObj) {
-            if(!dateString) return false;
-            let d = new Date(dateString);
-            return d.toDateString() === targetDateObj.toDateString();
+        // 2. Strong Date Matcher (Fixes time zone and formatting issues)
+        function isSameDate(dbDateString, targetDateStr) {
+            if(!dbDateString) return false;
+            try {
+                let d = new Date(dbDateString);
+                let yyyy = d.getFullYear();
+                let mm = String(d.getMonth() + 1).padStart(2, '0');
+                let dd = String(d.getDate()).padStart(2, '0');
+                let formattedDbDate = `${yyyy}-${mm}-${dd}`;
+                
+                return formattedDbDate === targetDateStr;
+            } catch(e) { 
+                return false; 
+            }
         }
 
-        async function loadMasterDaybook() {
-            const selectedDate = new Date(document.getElementById('daybookDate').value);
-            
-            let jama = []; // Cash IN, Gold IN
-            let nama = []; // Cash OUT, Gold OUT
-
+        // 3. Safe Database Fetcher (Prevents crash if table doesn't exist)
+        async function safeFetch(storeName) {
             try {
-                // FETCHING FROM ALL MODULES IN DB.JS
-                const sales = await getAllItems('sales') || [];
-                const purchases = await getAllItems('purchases') || [];
-                const oldGold = await getAllItems('old_gold') || [];
-                const cashflow = await getAllItems('cashflow') || [];
-                const loans = await getAllItems('loans') || [];
-                const orders = await getAllItems('orders') || [];
-                const repairs = await getAllItems('repairs') || [];
-                const schemes = await getAllItems('schemes') || [];
-                const deposits = await getAllItems('deposits') || [];
-
-                // 1. SALES LOGIC (Customer buys: Cash Comes IN, Gold Goes OUT)
-                sales.forEach(s => {
-                    if(isSameDate(s.date, selectedDate)) {
-                        let cIn = parseFloat(s.paidAmount || s.grandTotal || 0); // Cash received
-                        let gOut = parseFloat(s.totalFineWeight || s.fineWt || 0); // Fine Gold Sold
-                        
-                        if(cIn > 0) jama.push({ title: 'Sales Bill', desc: s.custName || 'Retail', cash: cIn, gold: 0 });
-                        if(gOut > 0) nama.push({ title: 'Goods Sold', desc: s.custName || 'Retail', cash: 0, gold: gOut });
-                    }
-                });
-
-                // 2. PURCHASES LOGIC (Buy from Supplier: Cash Goes OUT, Gold Comes IN)
-                purchases.forEach(p => {
-                    if(isSameDate(p.date, selectedDate)) {
-                        let cOut = parseFloat(p.paidAmount || 0);
-                        let gIn = parseFloat(p.totalFineWeight || 0);
-
-                        if(cOut > 0) nama.push({ title: 'Purchase Payout', desc: p.merchantName || 'Supplier', cash: cOut, gold: 0 });
-                        if(gIn > 0) jama.push({ title: 'Stock Inward', desc: p.merchantName || 'Supplier', cash: 0, gold: gIn });
-                    }
-                });
-
-                // 3. OLD GOLD LOGIC (Buy Purana Sona: Cash Goes OUT, Gold Comes IN)
-                oldGold.forEach(og => {
-                    if(isSameDate(og.date, selectedDate)) {
-                        let cOut = parseFloat(og.cashPaid || og.totalAmount || 0);
-                        let gIn = parseFloat(og.fineWt || 0);
-
-                        if(cOut > 0) nama.push({ title: 'Old Gold Bought', desc: og.custName, cash: cOut, gold: 0 });
-                        if(gIn > 0) jama.push({ title: 'Old Gold Recv', desc: og.custName, cash: 0, gold: gIn });
-                    }
-                });
-
-                // 4. CASHFLOW (Expenses & Income)
-                cashflow.forEach(c => {
-                    if(isSameDate(c.date, selectedDate)) {
-                        let amt = parseFloat(c.amount || 0);
-                        if(c.type === 'IN' && amt > 0) jama.push({ title: 'Other Income', desc: c.category || c.note, cash: amt, gold: 0 });
-                        if(c.type === 'OUT' && amt > 0) nama.push({ title: 'Expense/Payout', desc: c.category || c.note, cash: amt, gold: 0 });
-                    }
-                });
-
-                // 5. GOLD LOANS (Girvi: Give Loan = Cash OUT, Settle Loan = Cash IN)
-                loans.forEach(l => {
-                    if(l.status === 'active' && isSameDate(l.loanDate || l.date, selectedDate)) {
-                        let prin = parseFloat(l.principal || 0);
-                        if(prin > 0) nama.push({ title: 'Loan Issued', desc: l.custName, cash: prin, gold: 0 });
-                    }
-                    if(l.status === 'settled' && isSameDate(l.settledDate, selectedDate)) {
-                        let sAmt = parseFloat(l.settleAmt || 0);
-                        if(sAmt > 0) jama.push({ title: 'Loan Settled', desc: l.custName, cash: sAmt, gold: 0 });
-                    }
-                });
-
-                // 6. DEPOSITS (Customer Jama: Cash IN, Refund: Cash OUT)
-                deposits.forEach(d => {
-                    if(isSameDate(d.date, selectedDate)) {
-                        let amt = parseFloat(d.amount || 0);
-                        if(d.type === 'IN' && amt > 0) jama.push({ title: 'Customer Deposit', desc: d.note || 'IN', cash: amt, gold: 0 });
-                        if(d.type === 'OUT' && amt > 0) nama.push({ title: 'Deposit Return', desc: d.note || 'OUT', cash: amt, gold: 0 });
-                    }
-                });
-
-                // 7. ORDERS & REPAIRS (Advance Received = Cash IN)
-                orders.forEach(o => {
-                    if(isSameDate(o.date, selectedDate)) {
-                        let adv = parseFloat(o.advance || 0);
-                        if(adv > 0) jama.push({ title: 'Order Advance', desc: o.custName, cash: adv, gold: 0 });
-                    }
-                });
-                repairs.forEach(r => {
-                    if(isSameDate(r.date, selectedDate)) {
-                        let adv = parseFloat(r.advance || 0);
-                        if(adv > 0) jama.push({ title: 'Repair Advance', desc: r.custName, cash: adv, gold: 0 });
-                    }
-                });
-
-                // 8. BC SCHEMES (EMI Received = Cash IN)
-                schemes.forEach(s => {
-                    if(s.ledger && Array.isArray(s.ledger)) {
-                        s.ledger.forEach(emi => {
-                            if(emi.status === 'paid' && isSameDate(emi.paidDate, selectedDate)) {
-                                let amt = parseFloat(emi.amount || 0);
-                                if(amt > 0) jama.push({ title: 'BC Scheme EMI', desc: s.custName, cash: amt, gold: 0 });
-                            }
-                        });
-                    }
-                });
-
+                if (typeof getAllItems !== 'function') {
+                    console.error("db.js properly link nahi hua hai. getAllItems function nahi mila.");
+                    return [];
+                }
+                let data = await getAllItems(storeName);
+                return Array.isArray(data) ? data : [];
             } catch (error) {
-                console.error("Error loading daybook data:", error);
+                console.warn(`Table [${storeName}] missing or empty. Safe mode activated.`);
+                return [];
             }
+        }
 
-            // RENDER DATA
+        // 4. Main Load Function
+        async function loadMasterDaybook() {
+            const targetDateStr = document.getElementById('daybookDate').value;
+            
+            let jama = []; 
+            let nama = []; 
+
+            // Fetch Data using safe mode
+            const sales = await safeFetch('sales');
+            const purchases = await safeFetch('purchases');
+            const oldGold = await safeFetch('old_gold');
+            const cashflow = await safeFetch('cashflow');
+            const loans = await safeFetch('loans');
+            const orders = await safeFetch('orders');
+            const repairs = await safeFetch('repairs');
+            const schemes = await safeFetch('schemes');
+            const deposits = await safeFetch('deposits');
+
+            // --- MODULE MATCHING LOGIC --- //
+
+            sales.forEach(s => {
+                if(isSameDate(s.date, targetDateStr)) {
+                    let cIn = parseFloat(s.paidAmount || s.grandTotal || 0); 
+                    let gOut = parseFloat(s.totalFineWeight || s.fineWt || 0); 
+                    if(cIn > 0) jama.push({ title: 'Sales Bill', desc: s.custName || 'Retail', cash: cIn, gold: 0 });
+                    if(gOut > 0) nama.push({ title: 'Goods Sold', desc: s.custName || 'Retail', cash: 0, gold: gOut });
+                }
+            });
+
+            purchases.forEach(p => {
+                if(isSameDate(p.date, targetDateStr)) {
+                    let cOut = parseFloat(p.paidAmount || 0);
+                    let gIn = parseFloat(p.totalFineWeight || 0);
+                    if(cOut > 0) nama.push({ title: 'Purchase Payout', desc: p.merchantName || 'Supplier', cash: cOut, gold: 0 });
+                    if(gIn > 0) jama.push({ title: 'Stock Inward', desc: p.merchantName || 'Supplier', cash: 0, gold: gIn });
+                }
+            });
+
+            oldGold.forEach(og => {
+                if(isSameDate(og.date, targetDateStr)) {
+                    let cOut = parseFloat(og.cashPaid || og.totalAmount || 0);
+                    let gIn = parseFloat(og.fineWt || 0);
+                    if(cOut > 0) nama.push({ title: 'Old Gold Bought', desc: og.custName, cash: cOut, gold: 0 });
+                    if(gIn > 0) jama.push({ title: 'Old Gold Recv', desc: og.custName, cash: 0, gold: gIn });
+                }
+            });
+
+            cashflow.forEach(c => {
+                if(isSameDate(c.date, targetDateStr)) {
+                    let amt = parseFloat(c.amount || 0);
+                    if(c.type === 'IN' && amt > 0) jama.push({ title: 'Cash In', desc: c.category || c.note, cash: amt, gold: 0 });
+                    if(c.type === 'OUT' && amt > 0) nama.push({ title: 'Expense', desc: c.category || c.note, cash: amt, gold: 0 });
+                }
+            });
+
+            loans.forEach(l => {
+                if(l.status === 'active' && isSameDate(l.loanDate || l.date, targetDateStr)) {
+                    let prin = parseFloat(l.principal || 0);
+                    if(prin > 0) nama.push({ title: 'Loan Issued', desc: l.custName, cash: prin, gold: 0 });
+                }
+                if(l.status === 'settled' && isSameDate(l.settledDate, targetDateStr)) {
+                    let sAmt = parseFloat(l.settleAmt || 0);
+                    if(sAmt > 0) jama.push({ title: 'Loan Settled', desc: l.custName, cash: sAmt, gold: 0 });
+                }
+            });
+
+            deposits.forEach(d => {
+                if(isSameDate(d.date, targetDateStr)) {
+                    let amt = parseFloat(d.amount || 0);
+                    if(d.type === 'IN' && amt > 0) jama.push({ title: 'Deposit In', desc: d.note || 'IN', cash: amt, gold: 0 });
+                    if(d.type === 'OUT' && amt > 0) nama.push({ title: 'Deposit Return', desc: d.note || 'OUT', cash: amt, gold: 0 });
+                }
+            });
+
+            orders.forEach(o => {
+                if(isSameDate(o.date, targetDateStr)) {
+                    let adv = parseFloat(o.advance || 0);
+                    if(adv > 0) jama.push({ title: 'Order Advance', desc: o.custName, cash: adv, gold: 0 });
+                }
+            });
+
+            repairs.forEach(r => {
+                if(isSameDate(r.date, targetDateStr)) {
+                    let adv = parseFloat(r.advance || 0);
+                    if(adv > 0) jama.push({ title: 'Repair Advance', desc: r.custName, cash: adv, gold: 0 });
+                }
+            });
+
+            schemes.forEach(s => {
+                if(s.ledger && Array.isArray(s.ledger)) {
+                    s.ledger.forEach(emi => {
+                        if(emi.status === 'paid' && isSameDate(emi.paidDate, targetDateStr)) {
+                            let amt = parseFloat(emi.amount || 0);
+                            if(amt > 0) jama.push({ title: 'Scheme EMI', desc: s.custName, cash: amt, gold: 0 });
+                        }
+                    });
+                }
+            });
+
+            // Render Results
             renderTable('jamaBody', jama);
             renderTable('namaBody', nama);
-            await calculateBalances(jama, nama, selectedDate);
+            await calculateBalances(jama, nama, targetDateStr);
         }
 
         function renderTable(tbodyId, entries) {
@@ -316,7 +328,7 @@
             tbody.innerHTML = '';
             
             if(entries.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="empty-row">No entries for this day</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-row">No entries found for this date</td></tr>';
                 return;
             }
 
@@ -328,7 +340,7 @@
                     <tr>
                         <td>
                             <div class="type-badge">${e.title}</div>
-                            <div style="color:#555; font-size:0.75rem; font-weight:500;">${e.desc}</div>
+                            <div style="color:#555; font-size:0.75rem; font-weight:500;">${e.desc || '-'}</div>
                         </td>
                         <td style="font-weight:700; color:#111;">${cashStr}</td>
                         <td style="font-weight:700; color:#b8860b;">${goldStr}</td>
@@ -337,7 +349,7 @@
             });
         }
 
-        async function calculateBalances(jama, nama, selectedDate) {
+        async function calculateBalances(jama, nama, targetDateStr) {
             let tJamaCash = 0, tJamaGold = 0;
             let tNamaCash = 0, tNamaGold = 0;
 
@@ -349,51 +361,48 @@
             document.getElementById('tNamaCash').innerText = tNamaCash.toLocaleString('en-IN');
             document.getElementById('tNamaGold').innerText = tNamaGold.toFixed(3);
 
-            // --- FETCH OPENING BALANCE LOGIC ---
-            // Yaha hum 'daybook_closures' table se pichle din ka closing nikalenge
             let openCash = 0;
             let openGold = 0;
             
             try {
-                const closures = await getAllItems('daybook_closures') || [];
-                // Sort by date descending
-                closures.sort((a,b) => new Date(b.date) - new Date(a.date));
-                
-                // Find the closest closure BEFORE the selected date
-                const prevClosure = closures.find(c => new Date(c.date) < selectedDate);
-                if(prevClosure) {
-                    openCash = prevClosure.closeCash || 0;
-                    openGold = prevClosure.closeGold || 0;
+                const closures = await safeFetch('daybook_closures');
+                if(closures.length > 0) {
+                    closures.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    let selectedDateObj = new Date(targetDateStr);
+                    
+                    const prevClosure = closures.find(c => new Date(c.date) < selectedDateObj);
+                    if(prevClosure) {
+                        openCash = prevClosure.closeCash || 0;
+                        openGold = prevClosure.closeGold || 0;
+                    }
                 }
-            } catch(e) { console.log("No previous closures found"); }
+            } catch(e) { console.log("No closures yet"); }
 
             document.getElementById('vOpenCash').innerText = `₹${openCash.toLocaleString('en-IN')}`;
             document.getElementById('vOpenGold').innerText = `${openGold.toFixed(3)} g`;
 
-            // --- CALCULATE CLOSING ---
             let closeCash = (openCash + tJamaCash) - tNamaCash;
             let closeGold = (openGold + tJamaGold) - tNamaGold;
 
             document.getElementById('vCloseCash').innerText = `₹${closeCash.toLocaleString('en-IN')}`;
             document.getElementById('vCloseGold').innerText = `${closeGold.toFixed(3)} g`;
 
-            // Store in window variable for the Close Day button
-            window.currentClosing = { cash: closeCash, gold: closeGold, date: selectedDate.toISOString() };
+            window.currentClosing = { cash: closeCash, gold: closeGold, date: targetDateStr };
         }
 
         async function closeDay() {
-            if(!confirm("Are you sure you want to lock and close today's Daybook? This will save the closing balances for tomorrow's opening.")) return;
+            if(!confirm("Kya aap aaj ka hisab Match karke Daybook lock karna chahte hain? Ye kal ka Opening Balance ban jayega.")) return;
             
             try {
-                // Ensure 'daybook_closures' store exists in db.js!
+                // Creates table dynamically if it doesn't exist through addItem handler in db.js
                 await addItem('daybook_closures', {
                     date: window.currentClosing.date,
                     closeCash: window.currentClosing.cash,
                     closeGold: window.currentClosing.gold
                 });
-                alert("✅ Daybook Closed Successfully! Balances updated for the next day.");
+                alert("✅ Daybook Match & Closed! Kal ke liye Opening Balance set ho gaya hai.");
             } catch (error) {
-                alert("Error closing daybook. Make sure 'daybook_closures' table exists in db.js!");
+                alert("Error: Shayad db.js update hone me samay lag raha hai.");
                 console.error(error);
             }
         }
