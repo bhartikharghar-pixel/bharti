@@ -19,6 +19,14 @@
         .print-btn { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .print-btn:hover { background: #1565c0; transform: scale(1.02); }
         
+        /* --- 🏆 GOLD DASHBOARD (NEW) --- */
+        .gold-dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media(max-width: 768px) { .gold-dashboard { grid-template-columns: 1fr; gap: 10px; } }
+        .gold-card { padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; background: linear-gradient(145deg, #fffdf8, #fff); border: 1px solid #f1e0b5;}
+        .gold-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 5px; background: #C5A059; border-top-left-radius: 12px; border-bottom-left-radius: 12px;}
+        .g-lbl { display: block; font-size: 0.85rem; color: #666; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;}
+        .g-amt { display: block; font-size: 1.5rem; font-weight: 800; color: #b08d4a;}
+
         /* --- 💰 LIVE CASH DASHBOARD --- */
         .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
         @media(max-width: 768px) { .cash-dashboard { grid-template-columns: 1fr 1fr; gap: 10px; } }
@@ -94,6 +102,7 @@
             .header-actions { display: none !important; }
             .master-container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; border: none; }
             .mini-log { max-height: none !important; overflow: visible !important; }
+            .gold-dashboard { grid-template-columns: repeat(3, 1fr) !important; }
             .cash-dashboard { grid-template-columns: repeat(4, 1fr) !important; }
             .action-grid { grid-template-columns: 1fr 1fr !important; }
             a { text-decoration: none; color: inherit; }
@@ -108,6 +117,22 @@
         <div class="header-actions">
             <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
             <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh Data</button>
+        </div>
+    </div>
+
+    <!-- 🥇 OPENING GOLD DASHBOARD -->
+    <div class="gold-dashboard">
+        <div class="gold-card">
+            <span class="g-lbl"><i class="fas fa-box-open"></i> Opening Inventory Gold</span>
+            <strong class="g-amt" id="openInvGold">0.000 g</strong>
+        </div>
+        <div class="gold-card">
+            <span class="g-lbl"><i class="fas fa-recycle"></i> Opening Old Gold</span>
+            <strong class="g-amt" id="openOldGold">0.000 g</strong>
+        </div>
+        <div class="gold-card">
+            <span class="g-lbl"><i class="fas fa-fire"></i> Opening Langadi (Melted)</span>
+            <strong class="g-amt" id="openMeltedGold">0.000 g</strong>
         </div>
     </div>
 
@@ -345,6 +370,8 @@
             let todayCashIn = 0, todayBankIn = 0;
             let todayCashOut = 0, todayBankOut = 0;
 
+            let openInvGoldWt = 0, openOldGoldWt = 0, openMeltedWt = 0;
+
             let cFlows = await safeGetAll('cashflow');
             let sales = await safeGetAll('sales');
             let purchases = await safeGetAll('purchases');
@@ -356,6 +383,42 @@
             let deposits = await safeGetAll('deposits');
             let repairsStore = await safeGetAll('repairs'); 
 
+            // --- 🥇 CALCULATE OPENING GOLD (ALL DATES BEFORE TODAY) ---
+            purchases.forEach(p => {
+                let pDate = p.date ? p.date.split('T')[0] : '';
+                if(pDate < today && p.items) {
+                    p.items.forEach(item => openInvGoldWt += parseNum(item.weight || item.netWt));
+                }
+            });
+
+            sales.filter(s => s.status !== 'cancelled').forEach(s => {
+                let sDate = s.date ? s.date.split('T')[0] : '';
+                // Sirf Normal Sale (Repair nahi)
+                let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair');
+                if(sDate < today && s.items && !isRepairSale) {
+                    s.items.forEach(item => openInvGoldWt -= parseNum(item.weight || item.netWt));
+                }
+            });
+
+            oldGold.forEach(o => {
+                let oDate = o.date ? o.date.split('T')[0] : '';
+                if(oDate < today) {
+                    let wt = parseNum(o.netWt || o.oldGoldWeight || o.weight);
+                    if(o.type === 'MELT' || String(o.mode).toUpperCase() === 'MELT') {
+                        // Melt ho gaya matlab Old Gold me se nikal gaya, Langadi me aa gaya
+                        openOldGoldWt -= wt; 
+                        openMeltedWt += wt;
+                    } else if(o.mode !== 'POS Exchange') {
+                        openOldGoldWt += wt;
+                    }
+                }
+            });
+
+            document.getElementById('openInvGold').innerText = openInvGoldWt.toFixed(3) + " g";
+            document.getElementById('openOldGold').innerText = openOldGoldWt.toFixed(3) + " g";
+            document.getElementById('openMeltedGold').innerText = openMeltedWt.toFixed(3) + " g";
+
+            // --- 💵 CASH & BANK CALCULATIONS ---
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 let cDate = c.date ? c.date.split('T')[0] : '';
@@ -493,7 +556,6 @@
             });
 
 
-            // 🛒 SALES ENGINE (🚨 FIXED: MATH.ABS AND ADVANCE ADDED TO TOTAL)
             sales.filter(s => s.status !== 'cancelled').forEach(s => {
                 let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair') || 
                                    (s.items && s.items.length > 0 && String(s.items[0].category || s.items[0].itemName || s.items[0].name || s.items[0].barcode || '').toLowerCase().includes('repair'));
@@ -504,22 +566,19 @@
                 let isCreatedToday = s.date && s.date.startsWith(today);
 
                 if (isCreatedToday) {
-                    // Sabko Math.abs() me daala hai taki DB me koi minus (-) value ho to wo bhi plus hoke pure amount me jude
                     let udhari = Math.abs(parseNum(s.pendingAmount));
                     let og = Math.abs(parseNum(s.oldGoldDeduction));
                     let discount = Math.abs(parseNum(s.discount));
                     let bc = Math.abs(parseNum(s.bcWalletDeduction));
-                    let advance = Math.abs(parseNum(s.advanceAmount || s.advance || 0)); // Purana Order Advance yaha aayega
+                    let advance = Math.abs(parseNum(s.advanceAmount || s.advance || 0)); 
                     let paid = Math.abs(parseNum(s.paidAmount));
                     
                     let subT = Math.abs(parseNum(s.subTotal));
                     let gstAmt = Math.abs(parseNum(s.gst));
                     
-                    // Final Total Value calculation (Poora Amount)
                     let gross = subT + gstAmt; 
                     let sumTotal = paid + udhari + og + discount + bc + advance;
                     
-                    // Dono me se jo bada hoga wahi lenge taki ek bhi rupya kam na dikhe
                     if (gross === 0 || gross < sumTotal) {
                         gross = sumTotal;
                     }
@@ -529,17 +588,13 @@
 
                     if(gross > 0) {
                         let spl = getSplitStr(s.payments, s.mode, paid, gross);
-                        // Sale Jama Log (Full Invoice Value Here)
                         pushLog('Sale', gross, `${cName} - ${itemStr}`, wtStr, spl, true);
                     }
                     
-                    // Nama adjustments so Net matches the cash drawer perfectly
                     if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
                     if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false);
                     if(discount > 0) pushLog('Other Out', discount, cName, 'Discount', '', false);
                     if(bc > 0) pushLog('BC Out', bc, cName, 'Wallet Used', '', false);
-                    
-                    // 🚨 Order ka jo purana advance hai, usko yaha Nama me dalna padega taki Jama-Nama barabar rahe
                     if(advance > 0) pushLog('Other Out', advance, cName, 'Order Adv Adj.', '', false);
                 }
 
