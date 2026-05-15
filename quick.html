@@ -980,10 +980,8 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                // NAYA LOGIC: Check karo ki Vyapari payment to nahi hai
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
 
-                // Agar vyapari payment NAHI hai, tabhi purani conditions se skip karo
                 if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
                     cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') ||
                     cat.includes('old gold') || cat.includes('oldgold') ||
@@ -991,22 +989,29 @@
                     return;
                 }
 
-                // ---- FIX: MERCHANT NAME EXTRACTION ----
-                // Try to find the merchant name from all possible keys
+                // ---- FIX: DEEP MERCHANT NAME EXTRACTION ----
                 let vyapariName = '';
-                if (c.merchantId) vyapariName = getMerchName(c.merchantId);
-                else if (c.partyId) vyapariName = getMerchName(c.partyId);
-                else if (c.merchantName) vyapariName = c.merchantName;
-                else if (c.partyName) vyapariName = c.partyName;
-                else if (c.party) vyapariName = c.party;
+                let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id;
+                
+                if (mId) {
+                    vyapariName = getMerchName(mId);
+                } else if (c.purchaseId || c.billId || c.refId || c.referenceId) {
+                    let ref = c.purchaseId || c.billId || c.refId || c.referenceId;
+                    let p = purchases.find(x => String(x.id) === String(ref) || String(x.billNo) === String(ref));
+                    if (p && p.merchantId) vyapariName = getMerchName(p.merchantId);
+                }
+                
+                if (!vyapariName || vyapariName === 'Merchant') {
+                    vyapariName = c.merchantName || c.partyName || c.party || c.name || c.entityName || c.ledgerName || '';
+                }
 
                 let entityName = c.note || c.category || '';
                 if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
                     entityName = `${getCustName(c.customerId)} - ${entityName}`;
-                } else if (vyapariName) {
-                    entityName = vyapariName; // Force to show only Merchant Name, hiding "ledger settlement id"
+                } else if (isVyapariPayment) {
+                    entityName = vyapariName && vyapariName !== 'Merchant' ? vyapariName : 'Vyapari';
                 }
-                // ----------------------------------------
+                // ---------------------------------------------
 
                 if (cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) {
                     let bcTitle = c.note || 'BC Scheme';
@@ -1029,10 +1034,9 @@
                 else if (cat.includes('order') || note.includes('ord-')) {
                     if (type === 'IN') pushLog('Order In', amt, entityName, 'Payment', spl, true);
                 }
-                else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
-                    let finalName = vyapariName || (entityName.toLowerCase().includes('settlement') ? 'Vyapari' : entityName);
-                    if (type === 'IN') pushLog('Vyapari Aaya', amt, finalName, 'Recv', spl, true);
-                    else pushLog('Vyapari Diya', amt, finalName, 'Paid', spl, false);
+                else if (isVyapariPayment) {
+                    if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
+                    else pushLog('Vyapari Diya', amt, entityName, 'Paid', spl, false);
                 }
                 else {
                     if (type === 'IN') {
