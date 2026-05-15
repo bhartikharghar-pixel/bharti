@@ -279,13 +279,11 @@
         </div>
     </div>
 
-    <!-- CASH GRAND TOTAL -->
     <div class="grand-totals-bar">
         <div class="g-jama">Total Jama: <span id="uiTotalJama">₹0</span></div>
         <div class="g-nama">Total Nama: <span id="uiTotalNama">₹0</span></div>
     </div>
 
-    <!-- CLOSING METAL -->
     <div class="metal-bar metal-bar-close">
         <div class="m-bar-title"><i class="fas fa-box"></i> Closing Metal</div>
         <div class="m-grid">
@@ -295,13 +293,11 @@
         </div>
     </div>
 
-    <!-- METAL GRAND TALLY BALANCING -->
     <div class="grand-metal-tally" style="background: #1e293b; color: #fff; padding: 15px 25px; border-radius: 12px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); border: 2px solid #C5A059;">
         <div style="font-size: 1.1rem; text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px dashed #555; padding-bottom: 8px; text-align: center; color: #C5A059; font-weight: 800;">
             <i class="fas fa-balance-scale"></i> Metal Grand Tally
         </div>
         <div style="display: flex; justify-content: space-between; gap: 20px;">
-            <!-- JAMA -->
             <div style="flex: 1; border-right: 1px dashed #555; padding-right: 15px;">
                 <div style="color: #4caf50; font-weight: 800; margin-bottom: 8px; font-size:1.05rem;">JAMA (Opening + IN)</div>
                 <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Fine (Net):</span> <span id="tJamaNet">0.000g</span></div>
@@ -309,7 +305,6 @@
                 <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Langadi (Mix):</span> <span id="tJamaMix">0.000g</span></div>
                 <div style="display:flex; justify-content:space-between; font-size: 1.1rem; font-weight: bold; margin-top: 8px; border-top: 1px dashed #555; padding-top: 8px; color:#81c784;"><span>Total Metal Jama:</span> <span id="tJamaTotal">0.000g</span></div>
             </div>
-            <!-- NAMA -->
             <div style="flex: 1; padding-left: 5px;">
                 <div style="color: #f44336; font-weight: 800; margin-bottom: 8px; font-size:1.05rem;">NAMA (OUT + Closing)</div>
                 <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Fine (Net):</span> <span id="tNamaNet">0.000g</span></div>
@@ -347,7 +342,7 @@
     // Function to safely extract explicit Fine weight if available
     function getSafeFine(item) {
         if (!item) return 0;
-        return parseNum(item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
+        return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
     }
 
     function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
@@ -743,7 +738,8 @@
                     }
 
                     let receivedFromKarigarWt = parseNum(o.finalNet);
-                    let fRecv = parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
+                    // FIXED: Used getSafeFine to look for finalFineWt or other standard fine property names
+                    let fRecv = getSafeFine(o) || parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
                     if (o.orderDate && o.orderDate.startsWith(today) && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
                         let customAmt = fRecv > 0 ? `${fRecv.toFixed(3)}gF` : `0.000gF`;
                         pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}], customAmt);
@@ -863,7 +859,11 @@
             mPayments.forEach(mp => {
                 if (mp.goldType !== 'fixed' && mp.date.startsWith(today)) {
                     let net = parseNum(mp.gold);
-                    let fine = getSafeFine(mp) || parseNum(mp.fineWeight || mp.fineWt);
+                    // Check if explicit fine exists, otherwise fallback to purity calculation or assume 24K (same as net)
+                    let fine = getSafeFine(mp);
+                    if (fine === 0 && mp.purity) fine = net * (getPurityFactor(mp.purity)); 
+                    if (fine === 0) fine = net; // Fallback to net if fine is absolutely unfindable
+                    
                     let mName = getMerchName(mp.merchantId);
                     
                     let customAmt = fine > 0 ? `${fine.toFixed(3)}gF` : `0.000gF`;
