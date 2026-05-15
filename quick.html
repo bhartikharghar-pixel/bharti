@@ -101,9 +101,12 @@
 
         /* --- GRAND TOTAL BARS --- */
         .grand-totals-bar { display: flex; justify-content: space-between; align-items: center; background: #111; color: #fff; padding: 15px 25px; border-radius: 12px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); border: 2px solid #C5A059;}
-        @media(max-width: 600px) { .grand-totals-bar { flex-direction: column; gap: 10px; text-align: center; } }
+        .metal-totals-bar { display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: #fff; padding: 12px 25px; border-radius: 12px; margin-top: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); border: 2px solid #1976d2;}
+        @media(max-width: 600px) { .grand-totals-bar, .metal-totals-bar { flex-direction: column; gap: 10px; text-align: center; } }
         .g-jama { color: #4caf50; font-size: 1.3rem; font-weight: 800; text-transform: uppercase;}
         .g-nama { color: #f44336; font-size: 1.3rem; font-weight: 800; text-transform: uppercase;}
+        .m-jama { color: #81c784; font-size: 1.1rem; font-weight: 800; text-transform: uppercase;}
+        .m-nama { color: #e57373; font-size: 1.1rem; font-weight: 800; text-transform: uppercase;}
 
         @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; padding: 0; }
@@ -637,8 +640,8 @@
             let sumJama = openingTotal;
             let sumNama = 0;
 
-            const pushLog = (key, amt, midStr, rightStr, splitStr, isIN, metalFlows = []) => {
-                if(amt === 0 && metalFlows.length === 0) return;
+            const pushLog = (key, amt, midStr, rightStr, splitStr, isIN, metalFlows = [], amtOverride = null) => {
+                if(amt === 0 && metalFlows.length === 0 && !amtOverride) return;
                 
                 let c = isIN ? 'c-in' : 'c-out';
                 let splitHTML = splitStr ? `<div class="log-split">${splitStr}</div>` : '';
@@ -653,10 +656,12 @@
                     }
                 });
 
+                let displayAmt = amtOverride !== null ? amtOverride : `₹${fmtNum(amt)}`;
+
                 logs[key].push(`
                 <div class="log-item">
                     <div class="log-main">
-                        <span class="log-amt ${c}">₹${fmtNum(amt)}</span>
+                        <span class="log-amt ${c}">${displayAmt}</span>
                         <span class="log-code">| ${midStr} |</span>
                         <span class="log-wt">${metalHTML}</span>
                     </div>
@@ -704,7 +709,7 @@
                     }
                 }
 
-                // INJECT KARIGAR PHYSICAL METAL FLOW (₹0 Amount in Vyapari Boxes)
+                // INJECT KARIGAR PHYSICAL METAL FLOW (Fine Weight in Left Col)
                 let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
                 if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
                 let kName = kNameRaw + ' (Karigar)';
@@ -716,17 +721,15 @@
                     
                     let iDate = o.repairMeta?.issuedDate || o.orderDate;
                     if (iDate && iDate.startsWith(today) && shopIssued > 0) {
-                        let desc = 'Repair Metal Issued';
-                        if (fIssue > 0) desc += ` (Fine: ${fIssue.toFixed(3)}g)`;
-                        pushLog('Vyapari Diya', 0, kName, desc, '', false, [{val: shopIssued, label: 'NET'}]);
+                        let customAmt = fIssue > 0 ? `${fIssue.toFixed(3)}gF` : `0.000gF`;
+                        pushLog('Vyapari Diya', 0, kName, 'Repair Metal Issued', '', false, [{val: shopIssued, label: 'NET'}], customAmt);
                     }
                     
                     let aDate = o.repairMeta?.auditDate || o.orderDate;
                     if (aDate && aDate.startsWith(today) && returnedRaw > 0) {
                         let fRet = parseNum(o.repairMeta?.fineReturned || o.repairMeta?.returnedFineWt); 
-                        let desc = 'Repair Metal Recv';
-                        if (fRet > 0) desc += ` (Fine: ${fRet.toFixed(3)}g)`;
-                        pushLog('Vyapari Aaya', 0, kName, desc, '', true, [{val: returnedRaw, label: 'NET'}]);
+                        let customAmt = fRet > 0 ? `${fRet.toFixed(3)}gF` : `0.000gF`;
+                        pushLog('Vyapari Aaya', 0, kName, 'Repair Metal Recv', '', true, [{val: returnedRaw, label: 'NET'}], customAmt);
                     }
                 } else {
                     let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
@@ -735,17 +738,15 @@
 
                     if (o.orderDate && o.orderDate.startsWith(today) && karigarIssuedWt > 0) {
                         let wtDesc = `${o.issuedGrossWt || karigarIssuedWt}g + Wst`;
-                        let desc = `Metal Issue (${wtDesc})`;
-                        if (fIssue > 0) desc += ` (Fine: ${fIssue.toFixed(3)}g)`;
-                        pushLog('Vyapari Diya', 0, kName, desc, '', false, [{val: karigarIssuedWt, label: issueCategory}]);
+                        let customAmt = fIssue > 0 ? `${fIssue.toFixed(3)}gF` : `0.000gF`;
+                        pushLog('Vyapari Diya', 0, kName, `Metal Issue (${wtDesc})`, '', false, [{val: karigarIssuedWt, label: issueCategory}], customAmt);
                     }
 
                     let receivedFromKarigarWt = parseNum(o.finalNet);
                     let fRecv = parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
                     if (o.orderDate && o.orderDate.startsWith(today) && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                        let desc = `Order Metal Recv`;
-                        if (fRecv > 0) desc += ` (Fine: ${fRecv.toFixed(3)}g)`;
-                        pushLog('Vyapari Aaya', 0, kName, desc, '', true, [{val: receivedFromKarigarWt, label: 'NET'}]);
+                        let customAmt = fRecv > 0 ? `${fRecv.toFixed(3)}gF` : `0.000gF`;
+                        pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}], customAmt);
                     }
                 }
             });
@@ -800,7 +801,7 @@
                     let spl = getSplitStr(s.payments, s.mode, paid, jamaAmt);
                     pushLog('Sale', jamaAmt, `${cName} - ${itemStr}`, '', spl, true, [{val: -netWtSold, label:'Net'}]);
                 } else if (netWtSold > 0) {
-                    pushLog('Sale', 0, `${cName} - ${itemStr}`, 'Delivered', '', true, [{val: -netWtSold, label:'Net'}]);
+                    pushLog('Sale', 0, `${cName} - ${itemStr}`, 'Delivered', '', true, [{val: -netWtSold, label:'Net'}], '₹0');
                 }
                 
                 if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
@@ -851,9 +852,8 @@
                     });
                     if (!isDouble && netWtBought > 0) {
                         let f = getSafeFine(p);
-                        let desc = 'Unfixed Metal Recv';
-                        if (f > 0) desc += ` (Fine: ${f.toFixed(3)}g)`;
-                        pushLog('Vyapari Aaya', 0, mName, desc, '', true, [{val: netWtBought, label:'Net'}]);
+                        let customAmt = f > 0 ? `${f.toFixed(3)}gF` : `0.000gF`;
+                        pushLog('Vyapari Aaya', 0, mName, 'Unfixed Metal Recv', '', true, [{val: netWtBought, label:'Net'}], customAmt);
                     }
                 }
                 if(due > 0) pushLog('PurchaseDue', due, mName, 'Credit', '', true);
@@ -866,13 +866,12 @@
                     let fine = getSafeFine(mp) || parseNum(mp.fineWeight || mp.fineWt);
                     let mName = getMerchName(mp.merchantId);
                     
-                    let desc = `Unfixed`;
-                    if (fine > 0) desc += ` (Fine: ${fine.toFixed(3)}g)`;
+                    let customAmt = fine > 0 ? `${fine.toFixed(3)}gF` : `0.000gF`;
 
                     if (mp.paymentType === 'OUT') {
-                        pushLog('Vyapari Diya', 0, mName, `Paid ${desc}`, '', false, [{val: net, label: 'NET'}]);
+                        pushLog('Vyapari Diya', 0, mName, `Paid Unfixed`, '', false, [{val: net, label: 'NET'}], customAmt);
                     } else {
-                        pushLog('Vyapari Aaya', 0, mName, `Recv ${desc}`, '', true, [{val: net, label: 'NET'}]);
+                        pushLog('Vyapari Aaya', 0, mName, `Recv Unfixed`, '', true, [{val: net, label: 'NET'}], customAmt);
                     }
                 }
             });
@@ -932,10 +931,10 @@
                     let recv = parseNum(o.receivedWt || o.meltedWt);
                     
                     if (sent > 0) {
-                        pushLog('Other Out', 0, 'Refinery', 'Melt Sent', '', false, [{val: sent, label:'Old'}]);
+                        pushLog('Other Out', 0, 'Refinery', 'Melt Sent', '', false, [{val: sent, label:'Old'}], 'Melt');
                     }
                     if (recv > 0) {
-                        pushLog('Other In', 0, 'Refinery', 'Pure Recv', '', true, [{val: recv, label:'Mix'}]);
+                        pushLog('Other In', 0, 'Refinery', 'Pure Recv', '', true, [{val: recv, label:'Mix'}], 'Pure');
                     }
                 } else {
                     let amt = Math.abs(parseNum(o.amount || o.cash));
