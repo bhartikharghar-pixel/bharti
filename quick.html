@@ -855,8 +855,8 @@
 
             // --- 4. MERCHANT UNFIXED METAL LOG GENERATION ---
             mPayments.forEach(mp => {
-                if (mp.goldType !== 'fixed' && mp.date.startsWith(today)) {
-                    let net = parseNum(mp.gold);
+                let net = parseNum(mp.gold);
+                if (mp.goldType !== 'fixed' && mp.date.startsWith(today) && net > 0) {
                     let fine = getSafeFine(mp);
                     if (fine === 0 && mp.purity) fine = net * (getPurityFactor(mp.purity)); 
                     if (fine === 0) fine = net; 
@@ -980,10 +980,14 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                if (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
+                // NAYA LOGIC: Check karo ki Vyapari payment to nahi hai
+                let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant');
+
+                // Agar vyapari payment NAHI hai, tabhi purani conditions se skip karo
+                if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
                     cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') ||
                     cat.includes('old gold') || cat.includes('oldgold') ||
-                    cat.includes('purchase') || cat.includes('khareedi')) {
+                    cat.includes('purchase') || cat.includes('khareedi'))) {
                     return;
                 }
 
