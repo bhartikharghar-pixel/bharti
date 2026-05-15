@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Master Daybook (Rojmel) - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #D4AF37;
+            --bg-light: #f4f6f9; --border-color: #2a2a2a; 
+            --in-green: #2e7d32; --out-red: #d32f2f; --white: #ffffff;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 70px; color: #333; }
+        * { box-sizing: border-box; }
+
+        /* HEADER */
+        .app-header {
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+            background: var(--header-bg); display: flex; align-items: center;
+            justify-content: space-between; padding: 0 20px; z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold);
+        }
+        .app-header h2 { color: var(--accent-gold); margin: 0; font-size: 1.3rem; letter-spacing: 1px; }
+        .header-actions input {
+            padding: 8px 12px; border-radius: 5px; border: 1px solid var(--accent-gold);
+            background: #222; color: var(--accent-gold); font-family: 'Poppins'; font-weight: 600;
+        }
+
+        /* BALANCES SECTION */
+        .balance-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 15px; }
+        .b-card {
+            background: var(--white); padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center;
+            border-bottom: 4px solid #ccc;
+        }
+        .b-card.cash { border-color: var(--in-green); }
+        .b-card.gold { border-color: var(--accent-gold); }
+        .b-card h4 { margin: 0 0 5px 0; color: #666; font-size: 0.9rem; text-transform: uppercase; }
+        .b-card h2 { margin: 0; font-size: 1.6rem; color: #111; font-weight: 700; }
+
+        /* DAYBOOK GRID (JAMA / NAMA) */
+        .daybook-container { display: flex; gap: 15px; padding: 0 15px 20px 15px; flex-wrap: wrap; }
+        .ledger-side {
+            flex: 1; min-width: 320px; background: var(--white);
+            border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+        .ledger-header {
+            padding: 15px; text-align: center; font-weight: 700; color: var(--white);
+            font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .jama-bg { background: var(--in-green); }
+        .nama-bg { background: var(--out-red); }
+
+        .ledger-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .ledger-table th, .ledger-table td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: right; }
+        .ledger-table th { background: #f9f9f9; color: #555; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        .ledger-table th:first-child, .ledger-table td:first-child { text-align: left; }
+        
+        .type-badge {
+            background: #eee; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;
+            color: #222; display: inline-block; margin-bottom: 4px; font-weight: 600;
+        }
+
+        .ledger-footer {
+            background: #f1f5f9; padding: 15px; font-weight: 700; font-size: 1.1rem;
+            display: flex; justify-content: space-between; border-top: 2px solid #ccc;
+        }
+
+        /* CLOSING SUMMARY */
+        .closing-summary {
+            margin: 15px; background: #111; color: var(--white); padding: 25px;
+            border-radius: 8px; display: flex; justify-content: space-around; align-items: center;
+            border: 1px solid #333; border-left: 6px solid var(--accent-gold); flex-wrap: wrap; gap: 15px;
+        }
+        .closing-box { text-align: center; }
+        .closing-box h4 { margin: 0 0 5px 0; color: #aaa; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; }
+        .closing-box h2 { margin: 0; color: var(--accent-gold); font-size: 1.8rem; }
+        
+        .match-btn {
+            background: var(--accent-gold); color: #000; border: none; padding: 12px 25px;
+            font-weight: 700; border-radius: 5px; cursor: pointer; font-family: 'Poppins';
+            font-size: 1.1rem; transition: 0.3s;
+        }
+        .match-btn:hover { background: #e5c158; transform: scale(1.02); }
+
+        .empty-row { text-align: center; padding: 20px !important; color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <div class="app-header">
+        <h2><i class="fas fa-book-open"></i> MASTER DAYBOOK</h2>
+        <div class="header-actions">
+            <input type="date" id="daybookDate" onchange="loadMasterDaybook()">
+        </div>
+    </div>
+
+    <div class="balance-cards">
+        <div class="b-card cash">
+            <h4><i class="fas fa-wallet"></i> Opening Cash</h4>
+            <h2 id="vOpenCash">₹0</h2>
+        </div>
+        <div class="b-card gold">
+            <h4><i class="fas fa-weight-hanging"></i> Opening Gold (Fine)</h4>
+            <h2 id="vOpenGold">0.000 g</h2>
+        </div>
+    </div>
+
+    <div class="daybook-container">
+        
+        <div class="ledger-side">
+            <div class="ledger-header jama-bg">
+                🟢 JAMA (INWARD / AAVAK)
+            </div>
+            <table class="ledger-table" id="jamaTable">
+                <thead>
+                    <tr>
+                        <th>Particulars</th>
+                        <th>Cash IN (₹)</th>
+                        <th>Gold IN (g)</th>
+                    </tr>
+                </thead>
+                <tbody id="jamaBody">
+                    </tbody>
+            </table>
+            <div class="ledger-footer">
+                <span>Total Jama:</span>
+                <div>
+                    <span style="color:var(--in-green);">₹<span id="tJamaCash">0</span></span> | 
+                    <span style="color:#b8860b;"><span id="tJamaGold">0.000</span> g</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ledger-side">
+            <div class="ledger-header nama-bg">
+                🔴 NAMA (OUTWARD / JAAVAK)
+            </div>
+            <table class="ledger-table" id="namaTable">
+                <thead>
+                    <tr>
+                        <th>Particulars</th>
+                        <th>Cash OUT (₹)</th>
+                        <th>Gold OUT (g)</th>
+                    </tr>
+                </thead>
+                <tbody id="namaBody">
+                    </tbody>
+            </table>
+            <div class="ledger-footer">
+                <span>Total Nama:</span>
+                <div>
+                    <span style="color:var(--out-red);">₹<span id="tNamaCash">0</span></span> | 
+                    <span style="color:#b8860b;"><span id="tNamaGold">0.000</span> g</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="closing-summary">
+        <div class="closing-box">
+            <h4>Closing Cash In Hand</h4>
+            <h2 id="vCloseCash">₹0</h2>
+        </div>
+        <div>
+            <i class="fas fa-equals" style="font-size: 2rem; color: #555;"></i>
+        </div>
+        <div class="closing-box">
+            <h4>Closing Fine Gold</h4>
+            <h2 id="vCloseGold">0.000 g</h2>
+        </div>
+        <button class="match-btn" onclick="closeDay()"><i class="fas fa-lock"></i> Match & Close Day</button>
+    </div>
+
+    <script src="db.js"></script>
+    <script>
+        // Set today's date on load
+        document.getElementById('daybookDate').valueAsDate = new Date();
+
+        window.onload = async () => {
+            await loadMasterDaybook();
+        };
+
+        // Helper to check if item belongs to selected date
+        function isSameDate(dateString, targetDateObj) {
+            if(!dateString) return false;
+            let d = new Date(dateString);
+            return d.toDateString() === targetDateObj.toDateString();
+        }
+
+        async function loadMasterDaybook() {
+            const selectedDate = new Date(document.getElementById('daybookDate').value);
+            
+            let jama = []; // Cash IN, Gold IN
+            let nama = []; // Cash OUT, Gold OUT
+
+            try {
+                // FETCHING FROM ALL MODULES IN DB.JS
+                const sales = await getAllItems('sales') || [];
+                const purchases = await getAllItems('purchases') || [];
+                const oldGold = await getAllItems('old_gold') || [];
+                const cashflow = await getAllItems('cashflow') || [];
+                const loans = await getAllItems('loans') || [];
+                const orders = await getAllItems('orders') || [];
+                const repairs = await getAllItems('repairs') || [];
+                const schemes = await getAllItems('schemes') || [];
+                const deposits = await getAllItems('deposits') || [];
+
+                // 1. SALES LOGIC (Customer buys: Cash Comes IN, Gold Goes OUT)
+                sales.forEach(s => {
+                    if(isSameDate(s.date, selectedDate)) {
+                        let cIn = parseFloat(s.paidAmount || s.grandTotal || 0); // Cash received
+                        let gOut = parseFloat(s.totalFineWeight || s.fineWt || 0); // Fine Gold Sold
+                        
+                        if(cIn > 0) jama.push({ title: 'Sales Bill', desc: s.custName || 'Retail', cash: cIn, gold: 0 });
+                        if(gOut > 0) nama.push({ title: 'Goods Sold', desc: s.custName || 'Retail', cash: 0, gold: gOut });
+                    }
+                });
+
+                // 2. PURCHASES LOGIC (Buy from Supplier: Cash Goes OUT, Gold Comes IN)
+                purchases.forEach(p => {
+                    if(isSameDate(p.date, selectedDate)) {
+                        let cOut = parseFloat(p.paidAmount || 0);
+                        let gIn = parseFloat(p.totalFineWeight || 0);
+
+                        if(cOut > 0) nama.push({ title: 'Purchase Payout', desc: p.merchantName || 'Supplier', cash: cOut, gold: 0 });
+                        if(gIn > 0) jama.push({ title: 'Stock Inward', desc: p.merchantName || 'Supplier', cash: 0, gold: gIn });
+                    }
+                });
+
+                // 3. OLD GOLD LOGIC (Buy Purana Sona: Cash Goes OUT, Gold Comes IN)
+                oldGold.forEach(og => {
+                    if(isSameDate(og.date, selectedDate)) {
+                        let cOut = parseFloat(og.cashPaid || og.totalAmount || 0);
+                        let gIn = parseFloat(og.fineWt || 0);
+
+                        if(cOut > 0) nama.push({ title: 'Old Gold Bought', desc: og.custName, cash: cOut, gold: 0 });
+                        if(gIn > 0) jama.push({ title: 'Old Gold Recv', desc: og.custName, cash: 0, gold: gIn });
+                    }
+                });
+
+                // 4. CASHFLOW (Expenses & Income)
+                cashflow.forEach(c => {
+                    if(isSameDate(c.date, selectedDate)) {
+                        let amt = parseFloat(c.amount || 0);
+                        if(c.type === 'IN' && amt > 0) jama.push({ title: 'Other Income', desc: c.category || c.note, cash: amt, gold: 0 });
+                        if(c.type === 'OUT' && amt > 0) nama.push({ title: 'Expense/Payout', desc: c.category || c.note, cash: amt, gold: 0 });
+                    }
+                });
+
+                // 5. GOLD LOANS (Girvi: Give Loan = Cash OUT, Settle Loan = Cash IN)
+                loans.forEach(l => {
+                    if(l.status === 'active' && isSameDate(l.loanDate || l.date, selectedDate)) {
+                        let prin = parseFloat(l.principal || 0);
+                        if(prin > 0) nama.push({ title: 'Loan Issued', desc: l.custName, cash: prin, gold: 0 });
+                    }
+                    if(l.status === 'settled' && isSameDate(l.settledDate, selectedDate)) {
+                        let sAmt = parseFloat(l.settleAmt || 0);
+                        if(sAmt > 0) jama.push({ title: 'Loan Settled', desc: l.custName, cash: sAmt, gold: 0 });
+                    }
+                });
+
+                // 6. DEPOSITS (Customer Jama: Cash IN, Refund: Cash OUT)
+                deposits.forEach(d => {
+                    if(isSameDate(d.date, selectedDate)) {
+                        let amt = parseFloat(d.amount || 0);
+                        if(d.type === 'IN' && amt > 0) jama.push({ title: 'Customer Deposit', desc: d.note || 'IN', cash: amt, gold: 0 });
+                        if(d.type === 'OUT' && amt > 0) nama.push({ title: 'Deposit Return', desc: d.note || 'OUT', cash: amt, gold: 0 });
+                    }
+                });
+
+                // 7. ORDERS & REPAIRS (Advance Received = Cash IN)
+                orders.forEach(o => {
+                    if(isSameDate(o.date, selectedDate)) {
+                        let adv = parseFloat(o.advance || 0);
+                        if(adv > 0) jama.push({ title: 'Order Advance', desc: o.custName, cash: adv, gold: 0 });
+                    }
+                });
+                repairs.forEach(r => {
+                    if(isSameDate(r.date, selectedDate)) {
+                        let adv = parseFloat(r.advance || 0);
+                        if(adv > 0) jama.push({ title: 'Repair Advance', desc: r.custName, cash: adv, gold: 0 });
+                    }
+                });
+
+                // 8. BC SCHEMES (EMI Received = Cash IN)
+                schemes.forEach(s => {
+                    if(s.ledger && Array.isArray(s.ledger)) {
+                        s.ledger.forEach(emi => {
+                            if(emi.status === 'paid' && isSameDate(emi.paidDate, selectedDate)) {
+                                let amt = parseFloat(emi.amount || 0);
+                                if(amt > 0) jama.push({ title: 'BC Scheme EMI', desc: s.custName, cash: amt, gold: 0 });
+                            }
+                        });
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error loading daybook data:", error);
+            }
+
+            // RENDER DATA
+            renderTable('jamaBody', jama);
+            renderTable('namaBody', nama);
+            await calculateBalances(jama, nama, selectedDate);
+        }
+
+        function renderTable(tbodyId, entries) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+            
+            if(entries.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-row">No entries for this day</td></tr>';
+                return;
+            }
+
+            entries.forEach(e => {
+                let cashStr = e.cash > 0 ? `₹${e.cash.toLocaleString('en-IN')}` : '-';
+                let goldStr = e.gold > 0 ? `${e.gold.toFixed(3)} g` : '-';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>
+                            <div class="type-badge">${e.title}</div>
+                            <div style="color:#555; font-size:0.75rem; font-weight:500;">${e.desc}</div>
+                        </td>
+                        <td style="font-weight:700; color:#111;">${cashStr}</td>
+                        <td style="font-weight:700; color:#b8860b;">${goldStr}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function calculateBalances(jama, nama, selectedDate) {
+            let tJamaCash = 0, tJamaGold = 0;
+            let tNamaCash = 0, tNamaGold = 0;
+
+            jama.forEach(e => { tJamaCash += e.cash; tJamaGold += e.gold; });
+            nama.forEach(e => { tNamaCash += e.cash; tNamaGold += e.gold; });
+
+            document.getElementById('tJamaCash').innerText = tJamaCash.toLocaleString('en-IN');
+            document.getElementById('tJamaGold').innerText = tJamaGold.toFixed(3);
+            document.getElementById('tNamaCash').innerText = tNamaCash.toLocaleString('en-IN');
+            document.getElementById('tNamaGold').innerText = tNamaGold.toFixed(3);
+
+            // --- FETCH OPENING BALANCE LOGIC ---
+            // Yaha hum 'daybook_closures' table se pichle din ka closing nikalenge
+            let openCash = 0;
+            let openGold = 0;
+            
+            try {
+                const closures = await getAllItems('daybook_closures') || [];
+                // Sort by date descending
+                closures.sort((a,b) => new Date(b.date) - new Date(a.date));
+                
+                // Find the closest closure BEFORE the selected date
+                const prevClosure = closures.find(c => new Date(c.date) < selectedDate);
+                if(prevClosure) {
+                    openCash = prevClosure.closeCash || 0;
+                    openGold = prevClosure.closeGold || 0;
+                }
+            } catch(e) { console.log("No previous closures found"); }
+
+            document.getElementById('vOpenCash').innerText = `₹${openCash.toLocaleString('en-IN')}`;
+            document.getElementById('vOpenGold').innerText = `${openGold.toFixed(3)} g`;
+
+            // --- CALCULATE CLOSING ---
+            let closeCash = (openCash + tJamaCash) - tNamaCash;
+            let closeGold = (openGold + tJamaGold) - tNamaGold;
+
+            document.getElementById('vCloseCash').innerText = `₹${closeCash.toLocaleString('en-IN')}`;
+            document.getElementById('vCloseGold').innerText = `${closeGold.toFixed(3)} g`;
+
+            // Store in window variable for the Close Day button
+            window.currentClosing = { cash: closeCash, gold: closeGold, date: selectedDate.toISOString() };
+        }
+
+        async function closeDay() {
+            if(!confirm("Are you sure you want to lock and close today's Daybook? This will save the closing balances for tomorrow's opening.")) return;
+            
+            try {
+                // Ensure 'daybook_closures' store exists in db.js!
+                await addItem('daybook_closures', {
+                    date: window.currentClosing.date,
+                    closeCash: window.currentClosing.cash,
+                    closeGold: window.currentClosing.gold
+                });
+                alert("✅ Daybook Closed Successfully! Balances updated for the next day.");
+            } catch (error) {
+                alert("Error closing daybook. Make sure 'daybook_closures' table exists in db.js!");
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
