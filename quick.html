@@ -736,10 +736,9 @@
                 }
             });
 
-            // Loans Log Generation (UPDATED SECTION FOR ITEM NAME)
+            // Loans Log Generation
             loans.forEach(l => {
                 let cName = getCustName(l.customerId);
-                // Added multiple fallbacks to ensure the actual item name is picked up instead of just 'Item'
                 let itemN = l.itemName || l.item || l.itemType || l.article || l.description || 'Item';
                 
                 if (l.date && l.date.startsWith(today) && l.status === 'active') {
@@ -752,8 +751,13 @@
                     l.payments.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                         let pAmt = Math.abs(parseNum(p.amount));
                         let spl = getSplitStr([p], p.mode, pAmt, pAmt);
-                        if (p.type === 'Byaaj') pushLog('Byaaj Jama', pAmt, cName, 'Byaaj', spl, true);
-                        else pushLog('Girvi Chhudaya', pAmt, cName, 'Chhudaya', spl, true);
+                        
+                        let pTypeStr = String(p.type || p.paymentType || '').toLowerCase();
+                        if (pTypeStr.includes('byaaj') || pTypeStr.includes('interest')) {
+                            pushLog('Byaaj Jama', pAmt, cName, 'Byaaj', spl, true);
+                        } else {
+                            pushLog('Girvi Chhudaya', pAmt, cName, 'Chhudaya', spl, true);
+                        }
                     });
                 }
             });
