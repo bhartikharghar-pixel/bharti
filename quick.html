@@ -339,7 +339,6 @@
         return 0;
     }
     
-    // Function to safely extract explicit Fine weight if available
     function getSafeFine(item) {
         if (!item) return 0;
         return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
@@ -944,7 +943,32 @@
                 }
             });
 
-            // --- 7. CATCH-ALL ROUTING FOR REMAINING CASHFLOWS ---
+            // --- 7. SCHEMES (BC) LOG GENERATION ---
+            schemes.forEach(sch => {
+                let cName = getCustName(sch.customerId);
+                let schTitle = `${cName} [BC-${sch.id}]`;
+                
+                let payments = sch.payments || sch.installments || [];
+                payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
+                    let pAmt = Math.abs(parseNum(p.amount || p.paidAmount || p.totalAmount));
+                    if (pAmt > 0) {
+                        let spl = getSplitStr([p], p.mode || p.paymentMode || 'Cash', pAmt, pAmt);
+                        pushLog('BC In', pAmt, schTitle, 'Inst.', spl, true);
+                        
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                if ((cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) && Math.abs(parseNum(c.amount)) === pAmt) {
+                                    c.alreadyHandled = true;
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+
+            // --- 8. CATCH-ALL ROUTING FOR REMAINING CASHFLOWS ---
             cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0 || getMoneyType(c.mode) === 'none') return;
@@ -963,29 +987,43 @@
                     return;
                 }
 
+                let entityName = c.note || c.category || '';
+                if (c.customerId && getCustName(c.customerId) !== 'Walk-in') entityName = `${getCustName(c.customerId)} - ${entityName}`;
+                else if (c.merchantId) entityName = `${getMerchName(c.merchantId)} - ${entityName}`;
+
                 if (cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) {
-                    if (type === 'IN') pushLog('BC In', amt, c.note || 'BC Scheme', 'Inst.', spl, true);
-                    else pushLog('BC Out', amt, c.note || 'BC Scheme', 'Matured', spl, false);
+                    let bcTitle = c.note || 'BC Scheme';
+                    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+                        bcTitle = `${getCustName(c.customerId)} - ${bcTitle}`;
+                    } else {
+                        let match = note.match(/(?:sch|scheme|bc)\s*[-#]?\s*(\d+)/i);
+                        if (match && match[1]) {
+                            let sch = schemes.find(x => String(x.id) === String(match[1]));
+                            if (sch && sch.customerId) bcTitle = `${getCustName(sch.customerId)} [BC-${match[1]}]`;
+                        }
+                    }
+                    if (type === 'IN') pushLog('BC In', amt, bcTitle, 'Inst.', spl, true);
+                    else pushLog('BC Out', amt, bcTitle, 'Matured', spl, false);
                 }
                 else if (cat.includes('repair') || note.includes('repair') || note.includes('rep-')) {
-                    if (type === 'IN') pushLog('Repair In', amt, c.note || 'Repair', 'In', spl, true);
-                    else pushLog('Repair Out', amt, c.note || 'Repair', 'Refund', spl, false);
+                    if (type === 'IN') pushLog('Repair In', amt, entityName, 'In', spl, true);
+                    else pushLog('Repair Out', amt, entityName, 'Refund', spl, false);
                 }
                 else if (cat.includes('order') || note.includes('ord-')) {
-                    if (type === 'IN') pushLog('Order In', amt, c.note || 'Order', 'Payment', spl, true);
+                    if (type === 'IN') pushLog('Order In', amt, entityName, 'Payment', spl, true);
                 }
                 else if (cat.includes('vyapari') || cat.includes('merchant')) {
-                    if (type === 'IN') pushLog('Vyapari Aaya', amt, c.note || 'Merchant', 'Recv', spl, true);
-                    else pushLog('Vyapari Diya', amt, c.note || 'Merchant', 'Paid', spl, false);
+                    if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
+                    else pushLog('Vyapari Diya', amt, entityName, 'Paid', spl, false);
                 }
                 else {
                     if (type === 'IN') {
-                        pushLog('Other In', amt, c.note || c.category || 'Income', '', spl, true);
+                        pushLog('Other In', amt, entityName || 'Income', '', spl, true);
                     } else {
                         if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
-                            pushLog('Expense', amt, c.note || c.category, 'Kharcha', spl, false);
+                            pushLog('Expense', amt, entityName || 'Kharcha', 'Kharcha', spl, false);
                         } else {
-                            pushLog('Other Out', amt, c.note || c.category || 'Paid', '', spl, false);
+                            pushLog('Other Out', amt, entityName || 'Paid', '', spl, false);
                         }
                     }
                 }
