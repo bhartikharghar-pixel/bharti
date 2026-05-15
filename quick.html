@@ -43,8 +43,7 @@
         .metal-bar-open { background: linear-gradient(135deg, #1e293b, #0f172a); border-left: 5px solid #1976d2; }
         .metal-bar-close { background: linear-gradient(135deg, #1e293b, #000); border-left: 5px solid #C5A059; margin-top: 20px; margin-bottom: 0; }
         .m-bar-title { font-size: 1.1rem; text-transform: uppercase; display: flex; align-items: center; gap: 8px;}
-        .m-grid { display: flex; gap: 20px; text-align: center; align-items: center; flex-wrap: wrap;}
-        .m-col { padding: 0 10px; }
+        .m-grid { display: flex; gap: 30px; text-align: center; }
         .m-col span { display: block; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 3px;}
         .m-col strong { font-size: 1.2rem; color: #fff; }
         .m-col .val-net { color: #90caf9; }
@@ -327,6 +326,12 @@
         if(g > 0) return g - s;
         return 0;
     }
+    
+    // Function to safely extract explicit Fine weight if available
+    function getSafeFine(item) {
+        if (!item) return 0;
+        return parseNum(item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
+    }
 
     function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
 
@@ -450,8 +455,8 @@
                 
                 if (metalIn === 0) metalIn = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
 
-                logMetal(s.date, metalIn, true, 'OLD');
-                if (!isOrderBill && metalOut > 0) logMetal(s.date, metalOut, false, 'NET');
+                logMetal(s.date, metalIn, true, 'OLD'); 
+                if (!isOrderBill && metalOut > 0) logMetal(s.date, metalOut, false, 'NET'); 
                 else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') logMetal(s.date, metalOut, false, 'NET');
             });
 
@@ -635,7 +640,7 @@
                 else sumNama += amt;
             };
 
-            // --- 1. ORDERS LOG GENERATION (Advances & Initial Old Gold) ---
+            // --- 1. ORDERS LOG GENERATION (Advances, Old Gold & Karigar Metal Flow) ---
             orders.forEach(o => {
                 if (o.status === 'cancelled') return;
                 let oDate = o.orderDate || o.date || '';
@@ -672,32 +677,46 @@
                     }
                 }
 
-                // INJECT KARIGAR PHYSICAL METAL FLOW INTO MAIN ACTION GRID (₹0 Amount)
-                let kName = cName + ' (Karigar)';
+                // INJECT KARIGAR PHYSICAL METAL FLOW (₹0 Amount in Vyapari Boxes)
+                let kName = o.karigarName || o.karigar || 'Karigar';
                 if (o.jobType === 'Repair') {
                     let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
                     let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                    let fIssue = getSafeFine(o.repairMeta);
                     
                     let iDate = o.repairMeta?.issuedDate || o.orderDate;
-                    if (iDate.startsWith(today) && shopIssued > 0) {
-                        pushLog('Purchase', 0, kName, 'Repair Metal Issued', '', false, [{val: shopIssued, label: 'NET'}]);
+                    if (iDate && iDate.startsWith(today) && shopIssued > 0) {
+                        let desc = 'Repair Metal Issued';
+                        if (fIssue > 0) desc += ` (Fine: ${fIssue.toFixed(3)}g)`;
+                        pushLog('Vyapari Diya', 0, kName, desc, '', false, [{val: shopIssued, label: 'NET'}]);
                     }
                     
                     let aDate = o.repairMeta?.auditDate || o.orderDate;
-                    if (aDate.startsWith(today) && returnedRaw > 0) {
-                        pushLog('Vyapari Aaya', 0, kName, 'Repair Metal Recv', '', true, [{val: returnedRaw, label: 'NET'}]);
+                    if (aDate && aDate.startsWith(today) && returnedRaw > 0) {
+                        // In repair, fine returned might not be tracked, but if it is:
+                        let fRet = parseNum(o.repairMeta?.fineReturned); 
+                        let desc = 'Repair Metal Recv';
+                        if (fRet > 0) desc += ` (Fine: ${fRet.toFixed(3)}g)`;
+                        pushLog('Vyapari Aaya', 0, kName, desc, '', true, [{val: returnedRaw, label: 'NET'}]);
                     }
                 } else {
                     let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
                     let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
-                    if (o.orderDate.startsWith(today) && karigarIssuedWt > 0) {
+                    let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight);
+
+                    if (o.orderDate && o.orderDate.startsWith(today) && karigarIssuedWt > 0) {
                         let wtDesc = `${o.issuedGrossWt || karigarIssuedWt}g + Wst`;
-                        pushLog('Purchase', 0, kName, `Metal Issue (${wtDesc})`, '', false, [{val: karigarIssuedWt, label: issueCategory}]);
+                        let desc = `Metal Issue (${wtDesc})`;
+                        if (fIssue > 0) desc += ` (Fine: ${fIssue.toFixed(3)}g)`;
+                        pushLog('Vyapari Diya', 0, kName, desc, '', false, [{val: karigarIssuedWt, label: issueCategory}]);
                     }
 
                     let receivedFromKarigarWt = parseNum(o.finalNet);
-                    if (o.orderDate.startsWith(today) && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                        pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}]);
+                    let fRecv = parseNum(o.finalFine || o.fineNet || o.totalFineWeight);
+                    if (o.orderDate && o.orderDate.startsWith(today) && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                        let desc = `Order Metal Recv`;
+                        if (fRecv > 0) desc += ` (Fine: ${fRecv.toFixed(3)}g)`;
+                        pushLog('Vyapari Aaya', 0, kName, desc, '', true, [{val: receivedFromKarigarWt, label: 'NET'}]);
                     }
                 }
             });
@@ -795,8 +814,19 @@
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
                     pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv', spl, false, [{val: netWtBought, label:'Net'}]);
                 } else {
-                    // It's a pure unfixed metal purchase
-                    pushLog('Purchase', 0, mName, 'Unfixed Metal Recv', '', false, [{val: netWtBought, label:'Net'}]);
+                    // Check to avoid duplicate with mPayments
+                    let isDouble = false;
+                    mPayments.forEach(mp => {
+                        if (mp.goldType !== 'fixed' && mp.date.startsWith(today) && parseNum(mp.gold) === netWtBought && String(mp.merchantId) === String(p.merchantId)) {
+                            isDouble = true;
+                        }
+                    });
+                    if (!isDouble && netWtBought > 0) {
+                        let f = getSafeFine(p);
+                        let desc = 'Unfixed Metal Recv';
+                        if (f > 0) desc += ` (Fine: ${f.toFixed(3)}g)`;
+                        pushLog('Vyapari Aaya', 0, mName, desc, '', true, [{val: netWtBought, label:'Net'}]);
+                    }
                 }
                 if(due > 0) pushLog('PurchaseDue', due, mName, 'Credit', '', true);
             });
@@ -805,11 +835,17 @@
             mPayments.forEach(mp => {
                 if (mp.goldType !== 'fixed' && mp.date.startsWith(today)) {
                     let net = parseNum(mp.gold);
+                    let fine = getSafeFine(mp);
                     let mName = getMerchName(mp.merchantId);
-                    let desc = `${mp.gold}g Unfixed`;
+                    
+                    let desc = `Unfixed`;
+                    if (fine > 0) desc += ` (Fine: ${fine.toFixed(3)}g)`;
+
                     if (mp.paymentType === 'OUT') {
-                        pushLog('Purchase', 0, mName, `Paid ${desc}`, '', false, [{val: net, label: 'NET'}]);
+                        // Return metal to merchant -> Vyapari Diya (Nama)
+                        pushLog('Vyapari Diya', 0, mName, `Paid ${desc}`, '', false, [{val: net, label: 'NET'}]);
                     } else {
+                        // Receive metal from merchant -> Vyapari Aaya (Jama)
                         pushLog('Vyapari Aaya', 0, mName, `Recv ${desc}`, '', true, [{val: net, label: 'NET'}]);
                     }
                 }
