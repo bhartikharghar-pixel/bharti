@@ -381,39 +381,64 @@
             let orders = await safeGetAll('orders');
             let schemes = await safeGetAll('schemes');
             let deposits = await safeGetAll('deposits');
-            let repairsStore = await safeGetAll('repairs'); 
+            let allItems = await safeGetAll('items'); // 👈 Current stock fetch kar rahe hain
 
-            // --- 🥇 CALCULATE OPENING GOLD (ALL DATES BEFORE TODAY) ---
-            purchases.forEach(p => {
-                let pDate = p.date ? p.date.split('T')[0] : '';
-                if(pDate < today && p.items) {
-                    p.items.forEach(item => openInvGoldWt += parseNum(item.weight || item.netWt));
-                }
-            });
+            // --- 🥇 CALCULATE OPENING GOLD (FIXED LOGIC) ---
+            
+            // 1. INVENTORY GOLD (Using Reverse Calculation: Current Stock + Today Sold - Today Purchased)
+            if (allItems.length > 0) {
+                let currentLiveStock = 0;
+                allItems.forEach(item => {
+                    currentLiveStock += parseNum(item.weight || item.netWt || item.grossWt);
+                });
 
-            sales.filter(s => s.status !== 'cancelled').forEach(s => {
-                let sDate = s.date ? s.date.split('T')[0] : '';
-                // Sirf Normal Sale (Repair nahi)
-                let isRepairSale = String(s.jobType || s.orderType || s.type || s.category || s.invoiceType || '').toLowerCase().includes('repair');
-                if(sDate < today && s.items && !isRepairSale) {
-                    s.items.forEach(item => openInvGoldWt -= parseNum(item.weight || item.netWt));
-                }
-            });
+                let todaySoldWt = 0;
+                sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
+                    let isRepair = String(s.jobType || s.orderType || s.category || '').toLowerCase().includes('repair');
+                    if (!isRepair && s.items) {
+                        s.items.forEach(i => todaySoldWt += parseNum(i.weight || i.netWt));
+                    }
+                });
 
+                let todayPurchasedWt = 0;
+                purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
+                    if (p.items) {
+                        p.items.forEach(i => todayPurchasedWt += parseNum(i.weight || i.netWt));
+                    }
+                });
+
+                // Kal ka closing = Aaj ka maujuda stock + Aaj jo bika - Aaj jo kharida
+                openInvGoldWt = currentLiveStock + todaySoldWt - todayPurchasedWt;
+
+            } else {
+                // Agar items table nahi hai to purana tarika
+                purchases.forEach(p => {
+                    let pDate = p.date ? p.date.split('T')[0] : '';
+                    if(pDate < today && p.items) p.items.forEach(i => openInvGoldWt += parseNum(i.weight || i.netWt));
+                });
+                sales.filter(s => s.status !== 'cancelled').forEach(s => {
+                    let sDate = s.date ? s.date.split('T')[0] : '';
+                    let isRepair = String(s.jobType || s.orderType || s.category || '').toLowerCase().includes('repair');
+                    if(sDate < today && s.items && !isRepair) s.items.forEach(i => openInvGoldWt -= parseNum(i.weight || i.netWt));
+                });
+            }
+
+            // 2. OLD GOLD & MELTED GOLD (Fixed POS Exchange Bug)
             oldGold.forEach(o => {
                 let oDate = o.date ? o.date.split('T')[0] : '';
                 if(oDate < today) {
                     let wt = parseNum(o.netWt || o.oldGoldWeight || o.weight);
-                    if(o.type === 'MELT' || String(o.mode).toUpperCase() === 'MELT') {
-                        // Melt ho gaya matlab Old Gold me se nikal gaya, Langadi me aa gaya
+                    if(o.type === 'MELT' || String(o.mode).toUpperCase() === 'MELT' || o.status === 'melted') {
                         openOldGoldWt -= wt; 
                         openMeltedWt += wt;
-                    } else if(o.mode !== 'POS Exchange') {
+                    } else {
+                        // Sabhi Old Gold count honge, chahe cash pe liya ho ya POS (Sale) pe
                         openOldGoldWt += wt;
                     }
                 }
             });
 
+            // Updating Gold Dashboard UI
             document.getElementById('openInvGold').innerText = openInvGoldWt.toFixed(3) + " g";
             document.getElementById('openOldGold').innerText = openOldGoldWt.toFixed(3) + " g";
             document.getElementById('openMeltedGold').innerText = openMeltedWt.toFixed(3) + " g";
