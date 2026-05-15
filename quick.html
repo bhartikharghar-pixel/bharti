@@ -43,8 +43,7 @@
         .metal-bar-open { background: linear-gradient(135deg, #1e293b, #0f172a); border-left: 5px solid #1976d2; }
         .metal-bar-close { background: linear-gradient(135deg, #1e293b, #000); border-left: 5px solid #C5A059; margin-top: 20px; margin-bottom: 0; }
         .m-bar-title { font-size: 1.1rem; text-transform: uppercase; display: flex; align-items: center; gap: 8px;}
-        .m-grid { display: flex; gap: 20px; text-align: center; align-items: center; flex-wrap: wrap;}
-        .m-col { padding: 0 10px; }
+        .m-grid { display: flex; gap: 30px; text-align: center; }
         .m-col span { display: block; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 3px;}
         .m-col strong { font-size: 1.2rem; color: #fff; }
         .m-col .val-net { color: #90caf9; }
@@ -311,6 +310,10 @@
     <div class="metal-flow-section">
         <div class="m-flow-title"><i class="fas fa-exchange-alt"></i> Today's Physical Metal Flow (Vyapari / Karigar / Refinery)</div>
         <ul class="m-flow-list" id="uiMetalFlowList"></ul>
+        <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 12px; border-top: 2px dashed #ccc; font-weight: 800; font-size: 1.1rem;">
+            <div style="color: #2e7d32;">Total Jama (IN): <span id="uiMetalJama">0.000g</span></div>
+            <div style="color: #c62828;">Total Nama (OUT): <span id="uiMetalNama">0.000g</span></div>
+        </div>
     </div>
 
 </div>
@@ -627,6 +630,7 @@
             document.getElementById('uiOpenNet').innerText = openNet.toFixed(3) + "g";
             document.getElementById('uiOpenOld').innerText = openOld.toFixed(3) + "g";
             document.getElementById('uiOpenMix').innerText = openMix.toFixed(3) + "g";
+            
             document.getElementById('uiCloseNet').innerText = closingNet.toFixed(3) + "g";
             document.getElementById('uiCloseOld').innerText = closingOld.toFixed(3) + "g";
             document.getElementById('uiCloseMix').innerText = closingMix.toFixed(3) + "g";
@@ -955,11 +959,18 @@
 
             // Render Physical Metal Flow Logs
             let metalFlowUI = document.getElementById('uiMetalFlowList');
+            let mTotalIn = 0;
+            let mTotalOut = 0;
+            
             if(todayMetalLogs.length > 0) {
                 metalFlowUI.innerHTML = todayMetalLogs.map(m => {
                     let cClass = m.type === 'IN' ? 'in' : 'out';
                     let tClass = m.type === 'IN' ? 'm-f-in' : 'm-f-out';
                     let sign = m.type === 'IN' ? '+' : '-';
+                    
+                    if(m.type === 'IN') mTotalIn += m.wt;
+                    else mTotalOut += m.wt;
+                    
                     return `
                     <li class="m-flow-row ${cClass}">
                         <div style="flex:1;">
@@ -975,6 +986,9 @@
             } else {
                 metalFlowUI.innerHTML = '<li style="text-align:center; color:#999; padding:15px; font-style:italic;">Aaj physical metal ka koi len-den nahi hua (Merchant / Karigar).</li>';
             }
+            
+            document.getElementById('uiMetalJama').innerText = mTotalIn.toFixed(3) + 'g';
+            document.getElementById('uiMetalNama').innerText = mTotalOut.toFixed(3) + 'g';
 
         } catch(e) { console.error("Rojmel Error:", e); }
     }
