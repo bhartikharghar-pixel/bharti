@@ -981,7 +981,7 @@
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
                 // NAYA LOGIC: Check karo ki Vyapari payment to nahi hai
-                let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant');
+                let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
 
                 // Agar vyapari payment NAHI hai, tabhi purani conditions se skip karo
                 if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
@@ -991,9 +991,22 @@
                     return;
                 }
 
+                // ---- FIX: MERCHANT NAME EXTRACTION ----
+                // Try to find the merchant name from all possible keys
+                let vyapariName = '';
+                if (c.merchantId) vyapariName = getMerchName(c.merchantId);
+                else if (c.partyId) vyapariName = getMerchName(c.partyId);
+                else if (c.merchantName) vyapariName = c.merchantName;
+                else if (c.partyName) vyapariName = c.partyName;
+                else if (c.party) vyapariName = c.party;
+
                 let entityName = c.note || c.category || '';
-                if (c.customerId && getCustName(c.customerId) !== 'Walk-in') entityName = `${getCustName(c.customerId)} - ${entityName}`;
-                else if (c.merchantId) entityName = `${getMerchName(c.merchantId)} - ${entityName}`;
+                if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+                    entityName = `${getCustName(c.customerId)} - ${entityName}`;
+                } else if (vyapariName) {
+                    entityName = vyapariName; // Force to show only Merchant Name, hiding "ledger settlement id"
+                }
+                // ----------------------------------------
 
                 if (cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) {
                     let bcTitle = c.note || 'BC Scheme';
@@ -1016,9 +1029,10 @@
                 else if (cat.includes('order') || note.includes('ord-')) {
                     if (type === 'IN') pushLog('Order In', amt, entityName, 'Payment', spl, true);
                 }
-                else if (cat.includes('vyapari') || cat.includes('merchant')) {
-                    if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
-                    else pushLog('Vyapari Diya', amt, entityName, 'Paid', spl, false);
+                else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
+                    let finalName = vyapariName || (entityName.toLowerCase().includes('settlement') ? 'Vyapari' : entityName);
+                    if (type === 'IN') pushLog('Vyapari Aaya', amt, finalName, 'Recv', spl, true);
+                    else pushLog('Vyapari Diya', amt, finalName, 'Paid', spl, false);
                 }
                 else {
                     if (type === 'IN') {
