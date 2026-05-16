@@ -453,7 +453,7 @@
 
         let allMerchants = [];
         let currentReportData = [];
-        let currentReportMeta = { name: '', cash: 0, gold: 0, silver: 0 };
+        let currentReportMeta = { name: '', category: 'Both', cash: 0, gold: 0, silver: 0 };
         let goldRates = { rate22k: 0, rate24k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
 
         window.onload = async function() {
@@ -1159,19 +1159,34 @@
                     newTbody.appendChild(tr);
                 });
             }
-            currentReportMeta = { name: name, cash: finalCash, gold: finalNetGold, silver: finalNetSilver }; 
+            currentReportMeta = { name: name, category: cat, cash: finalCash, gold: finalNetGold, silver: finalNetSilver }; 
         }
 
         function downloadCSV() {
             if(currentReportData.length === 0) return showToast("No data to export", "error");
+            
+            let cat = currentReportMeta.category || 'Both';
+            let showGold = cat !== 'Silver';
+            let showSilver = cat !== 'Gold';
+
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += `Merchant Report: ${currentReportMeta.name}\n\n`;
-            csvContent += "Date,Type,Description,Gold Jama (In),Gold Nama (Out),Silver Jama (In),Silver Nama (Out),Cash Jama (In),Cash Nama (Out)\n";
+            
+            let headStr = "Date,Type,Description";
+            if(showGold) headStr += ",Gold Jama (In),Gold Nama (Out)";
+            if(showSilver) headStr += ",Silver Jama (In),Silver Nama (Out)";
+            headStr += ",Cash Jama (In),Cash Nama (Out)\n";
+            csvContent += headStr;
+
             currentReportData.forEach(row => {
                 let gJ = row.gold > 0 ? row.gold : 0; let gN = row.gold < 0 ? Math.abs(row.gold) : 0;
                 let sJ = row.silver > 0 ? row.silver : 0; let sN = row.silver < 0 ? Math.abs(row.silver) : 0;
                 let cJ = row.cash > 0 ? row.cash : 0; let cN = row.cash < 0 ? Math.abs(row.cash) : 0;
-                let rowStr = `${new Date(row.date).toLocaleDateString()},${row.type},"${row.desc}",${gJ},${gN},${sJ},${sN},${cJ},${cN}`;
+                
+                let rowStr = `${new Date(row.date).toLocaleDateString()},${row.type},"${row.desc}"`;
+                if(showGold) rowStr += `,${gJ},${gN}`;
+                if(showSilver) rowStr += `,${sJ},${sN}`;
+                rowStr += `,${cJ},${cN}`;
                 csvContent += rowStr + "\n";
             });
             const encodedUri = encodeURI(csvContent);
