@@ -971,8 +971,35 @@
                 const isSilv = (invItem.purity && (invItem.purity.toUpperCase().includes('SIL') || invItem.purity.includes('92.5')));
 
                 if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
-                    cashChange = parseFloat(p.dueAmount) || 0; 
-                    desc += ` (Tot: ₹${p.totalAmount})`;
+                    // Update: Poora Bill Amount Jama karenge
+                    cashChange = parseFloat(p.totalAmount) || 0; 
+                    desc += ` (Total Bill: ₹${p.totalAmount})`;
+
+                    // Agar instantly kuch pay kiya hai, to usko alag se Nama karenge
+                    let currentPaid = parseFloat(p.paidAmount) || 0;
+                    let laterNama = 0;
+                    
+                    // Pata karte hain ki baad me kitna payment hua hai 'merchant_payments' ke jariye
+                    myPayments.filter(pmt => pmt.purchaseId == p.id).forEach(pmt => {
+                        let mult = pmt.paymentType === 'IN' ? -1 : 1; 
+                        let amt = parseFloat(pmt.amount || 0);
+                        if (pmt.goldType === 'fixed' && pmt.gold > 0) {
+                            amt += (parseFloat(pmt.gold) * parseFloat(pmt.rate));
+                        }
+                        laterNama += (amt * mult);
+                    });
+                    
+                    let instantPayment = Math.round(currentPaid - laterNama);
+
+                    if (instantPayment > 0) {
+                        transactions.push({
+                            date: new Date(new Date(p.date).getTime() + 1000).toISOString(), // 1 sec later to show just below bill
+                            type: 'Advance Paid',
+                            desc: `Cash Paid instantly for PUR-${p.id}`,
+                            gold: 0, silver: 0, cash: -instantPayment, // Minus means Nama
+                            badge: 'b-pay'
+                        });
+                    }
                 } 
                 if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
                     if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0; 
