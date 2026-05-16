@@ -88,8 +88,8 @@
         .bal-sub { font-size: 0.7rem; font-weight: 600; padding:3px 8px; border-radius:12px; display:inline-block; margin-top:6px;}
 
         /* Logic Colors */
-        .val-owe { color: var(--active-red) !important; } /* Shop owes Merchant */
-        .val-due { color: var(--success-green) !important; } /* Merchant owes Shop */
+        .val-owe { color: var(--active-red) !important; } /* We owe them (Dena Hai) */
+        .val-due { color: var(--success-green) !important; } /* They owe us (Lena Hai) */
         .val-zero { color: #94a3b8 !important; }
         
         .bg-owe { background: #fee2e2; color: var(--active-red); }
@@ -240,23 +240,23 @@
 
         <div class="stats-grid">
             <div class="stat-card" style="border-top-color: var(--receive-blue);">
-                <div class="stat-lbl">Net Cash Liability</div>
+                <div class="stat-lbl">Cash Liability</div>
                 <div class="stat-val" id="globalCashOwe">₹0</div>
             </div>
             <div class="stat-card" style="border-top-color: var(--accent-gold);">
-                <div class="stat-lbl" style="color:var(--accent-gold);">Gold Owed (Shop)</div>
+                <div class="stat-lbl" style="color:var(--accent-gold);">Gold Dena Hai (Shop)</div>
                 <div class="stat-val" id="globalGoldOwe">0.000 g</div>
             </div>
             <div class="stat-card" style="border-top-color: var(--success-green);">
-                <div class="stat-lbl" style="color:var(--success-green);">Gold Due (Field)</div>
+                <div class="stat-lbl" style="color:var(--success-green);">Gold Lena Hai (Field)</div>
                 <div class="stat-val" id="globalGoldDue">0.000 g</div>
             </div>
             <div class="stat-card" style="border-top-color: var(--accent-silver);">
-                <div class="stat-lbl" style="color:var(--accent-silver);">Silver Owed (Shop)</div>
+                <div class="stat-lbl" style="color:var(--accent-silver);">Silver Dena Hai (Shop)</div>
                 <div class="stat-val" id="globalSilverOwe">0.000 g</div>
             </div>
             <div class="stat-card" style="border-top-color: #64748b;">
-                <div class="stat-lbl" style="color:#64748b;">Silver Due (Field)</div>
+                <div class="stat-lbl" style="color:#64748b;">Silver Lena Hai (Field)</div>
                 <div class="stat-val" id="globalSilverDue">0.000 g</div>
             </div>
         </div>
@@ -289,7 +289,7 @@
                 <div class="form-group">
                     <label>Cash Balance (₹)</label>
                     <input type="number" id="mBalance" value="0">
-                    <small style="color:#64748b; font-size:0.75rem;">Positive = We Owe Them. Negative (-) = They Owe Us.</small>
+                    <small style="color:#64748b; font-size:0.75rem;">Positive (+) = Party ko Dena Hai. Negative (-) = Party se Lena Hai.</small>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -302,7 +302,7 @@
                         <input type="number" id="mSilverBalance" value="0" step="0.001">
                     </div>
                 </div>
-                <small style="color:#64748b; font-size:0.75rem; display:block;">Metal Positive = We Owe. Negative (-) = Field Advance.</small>
+                <small style="color:#64748b; font-size:0.75rem; display:block;">Positive (+) = Metal Dena Hai. Negative (-) = Metal Lena Hai.</small>
             </div>
 
             <button class="btn-block btn-primary" onclick="saveMerchant()" style="margin-top: 25px;">Save Details</button>
@@ -415,7 +415,7 @@
 
             <div class="report-body-area">
                 <div style="margin-bottom:15px; font-size:0.9rem; color:#475569; background:#e0f2fe; padding:10px 15px; border-radius:8px; border-left:4px solid var(--receive-blue);">
-                    <strong>Accounting Rule:</strong> Jama (In) = We Owe The Party (Credit). Nama (Out) = The Party Owes Us (Debit).
+                    <strong>Hisab Rule:</strong> Final Balance agar <strong>Positive (+)</strong> hai matlab party ko humne <strong>DENA</strong> hai. Agar <strong>Negative (-)</strong> hai matlab party se humne <strong>LENA</strong> hai.
                 </div>
                 
                 <div class="table-responsive">
@@ -547,9 +547,11 @@
                 const netSilver = m._netSilver;
 
                 const getStatus = (val) => {
-                    if (val > 0) return { text: '(You Owe)', cClass: 'val-owe', bgClass: 'bg-owe' };
-                    if (val < 0) return { text: '(They Owe)', cClass: 'val-due', bgClass: 'bg-due' };
-                    return { text: 'Settled', cClass: 'val-zero', bgClass: 'bg-zero' };
+                    // Positive (val > 0) = Unka hamare paas jama hai = Humne Dena Hai (Red color to denote liability)
+                    if (val > 0) return { text: '(Dena Hai)', cClass: 'val-owe', bgClass: 'bg-owe' };
+                    // Negative (val < 0) = Hamara unke paas jama hai = Humne Lena Hai (Green color to denote asset)
+                    if (val < 0) return { text: '(Lena Hai)', cClass: 'val-due', bgClass: 'bg-due' };
+                    return { text: 'Clear', cClass: 'val-zero', bgClass: 'bg-zero' };
                 };
 
                 const cs = getStatus(cashBal);
@@ -568,7 +570,7 @@
                         
                         <div class="bal-grid">
                             <div class="bal-item cash-box">
-                                <span class="bal-lbl">Net Cash Liability</span>
+                                <span class="bal-lbl">Cash Liability</span>
                                 <div style="display:flex; justify-content:center; align-items:center; gap:10px;">
                                     <span class="bal-val ${cs.cClass}">₹${Math.abs(cashBal).toLocaleString()}</span>
                                     <span class="bal-sub ${cs.bgClass}">${cs.text}</span>
@@ -961,7 +963,7 @@
 
             let transactions = [];
 
-            // 1. Purchases (In = We Owe = Positive = Jama)
+            // 1. Purchases (In = Jama)
             myPurchases.forEach(p => {
                 let desc = `${p.category} - Ref #${p.id}`;
                 let goldChange = 0; let silverChange = 0; let cashChange = 0;
@@ -969,7 +971,7 @@
                 const isSilv = (invItem.purity && (invItem.purity.toUpperCase().includes('SIL') || invItem.purity.includes('92.5')));
 
                 if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
-                    cashChange = parseFloat(p.dueAmount) || 0; // The amount left to pay is credited to them (Jama)
+                    cashChange = parseFloat(p.dueAmount) || 0; 
                     desc += ` (Tot: ₹${p.totalAmount})`;
                 } 
                 if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
@@ -980,7 +982,7 @@
                 transactions.push({ date: p.date, type: p.type, desc: desc, gold: goldChange, silver: silverChange, cash: cashChange, badge: p.type === 'Unfixed' ? 'b-unfix' : 'b-fix' });
             });
 
-            // 2. Active Jobwork (Out = They Owe = Negative = Nama)
+            // 2. Active Jobwork (Out = Nama)
             let pendingGoldAcc = 0; let pendingSilverAcc = 0;
             myOrders.filter(o => o.status === 'in_progress').forEach(o => {
                 if(o.issuedFineWt > 0) {
@@ -995,7 +997,7 @@
                 }
             });
 
-            // 3. Payments / Settlements (IN = + = Jama, OUT = - = Nama)
+            // 3. Payments / Settlements (IN = Jama, OUT = Nama)
             myPayments.forEach(p => {
                 let descParts = [];
                 let mult = p.paymentType === 'IN' ? 1 : -1;
@@ -1037,13 +1039,12 @@
             let runSilver = finalNetSilver - sumSilver;
             let runCash = finalCash - sumCash;
 
-            // Formatter Helper
+            // Formatter Helper with Dena / Lena specific logic
             const formatB = (val, isCash=false) => {
                 let v = Math.abs(val);
-                let s = val >= 0 ? ' Jama' : ' Nama';
-                let sCol = val >= 0 ? 'var(--success-green)' : 'var(--active-red)';
-                if(val === 0) s = '';
-                let t = `<small style="color:${sCol}; font-size:0.75rem; display:block; line-height:1;">${s}</small>`;
+                let s = val > 0 ? ' Dena' : (val < 0 ? ' Lena' : '');
+                let sCol = val > 0 ? 'var(--active-red)' : (val < 0 ? 'var(--success-green)' : '#94a3b8');
+                let t = val !== 0 ? `<small style="color:${sCol}; font-size:0.75rem; display:block; line-height:1; margin-top:2px; font-weight:700;">${s}</small>` : '';
                 if(isCash) return `₹${v.toLocaleString()}${t}`;
                 return `${v.toFixed(3)}${t}`;
             };
