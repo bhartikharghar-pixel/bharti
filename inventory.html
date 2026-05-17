@@ -951,6 +951,20 @@
             return code;
         }
 
+        function generateBulkBarcode(category) {
+            const prefix = category === 'MIX' ? 'BLMIX' : 'BL' + (category.length >= 3 ? category.substring(0, 3).toUpperCase() : category.toUpperCase());
+            let maxNum = 0;
+            allInventory.forEach(i => {
+                if (i.barcode && i.barcode.toUpperCase().startsWith(prefix)) {
+                    const num = parseInt(i.barcode.substring(prefix.length), 10);
+                    if (!isNaN(num) && num > maxNum) maxNum = num;
+                }
+            });
+            const code = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
+            allInventory.push({ barcode: code }); // reserve
+            return code;
+        }
+
         async function loadInventory() {
             allInventory = await getAllItems('inventory');
             allSalesData = await getAllItems('sales').catch(()=>[]);
@@ -1056,9 +1070,15 @@
             document.getElementById('manualEntryModal').style.display = 'flex';
             document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
             handleManualMetalChange(); document.getElementById('manName').value = ''; document.getElementById('manGross').value = '';
+            document.getElementById('manStockMode').disabled = true;
         }
         function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
-        function handleManCategoryChange() { document.getElementById('manStockMode').value = getCategoryMode(document.getElementById('manCategory').value); generateManPieceInputs(); }
+        function handleManCategoryChange() { 
+            const modeSelect = document.getElementById('manStockMode');
+            modeSelect.value = getCategoryMode(document.getElementById('manCategory').value);
+            modeSelect.disabled = true;
+            generateManPieceInputs(); 
+        }
         function generateManPieceInputs() {
             const mode = document.getElementById('manStockMode').value;
             const pieces = parseInt(document.getElementById('manPieces').value) || 1;
@@ -1092,7 +1112,7 @@
             const prefix = cat === 'MIX' ? 'MIX' : cat.substring(0,3).toUpperCase();
 
             if (getCategoryMode(cat) === 'bulk') {
-                const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : `BULK${prefix}-${Date.now().toString().slice(-4)}`;
+                const barcode = generateBulkBarcode(cat);
                 const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
                 await addItem('inventory', item); newlyAddedItems.push(item);
             } else {
@@ -1143,11 +1163,16 @@
             document.getElementById('tagPurity').value = item.purity; document.getElementById('tagPieces').value = 1;
             populateCategoryDropdowns(); handleTagCategoryChange(); openModal('tagModal');
         }
-        function handleTagCategoryChange() { document.getElementById('tagStockMode').value = getCategoryMode(document.getElementById('tagCategory').value); generateTagInputs(); }
+        function handleTagCategoryChange() { 
+            const modeSelect = document.getElementById('tagStockMode');
+            modeSelect.value = getCategoryMode(document.getElementById('tagCategory').value); 
+            modeSelect.disabled = true;
+            generateTagInputs(); 
+        }
         function generateTagInputs() {
             const container = document.getElementById('tagInputsContainer'); container.innerHTML = '';
             const mode = document.getElementById('tagStockMode').value; const count = parseInt(document.getElementById('tagPieces').value)||1;
-            if(mode==='loose') {
+            if(mode==='bulk') {
                 container.innerHTML = `<input type="number" class="tag-input tag-gross" placeholder="Total Bulk Gross" step="0.001" oninput="calcTagTotal()">`;
             } else {
                 for(let i=0; i<count; i++) container.innerHTML += `<div style="display:flex;gap:10px;margin-bottom:10px;"><input type="number" class="tag-input tag-gross" placeholder="Piece ${i+1} Gross" oninput="calcTagTotal()"></div>`;
@@ -1165,12 +1190,15 @@
             if(sum > available+0.1) return appAlert("Weight Exceeds Source");
             
             const cat = document.getElementById('tagCategory').value; const purity = item.purity;
+            const stockMode = document.getElementById('tagStockMode').value;
+            const count = parseInt(document.getElementById('tagPieces').value)||1;
             let newlyAddedItems = [];
             
             document.querySelectorAll('.tag-gross').forEach(async (inp, i) => {
                 const g = parseFloat(inp.value)||0; if(g>0) {
-                    const barcode = generateSafeBarcode(cat);
-                    const newItem = { barcode, category: cat, name:`${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString() };
+                    const barcode = stockMode === 'bulk' ? generateBulkBarcode(cat) : generateSafeBarcode(cat);
+                    const pcs = stockMode === 'bulk' ? count : 1;
+                    const newItem = { barcode, category: cat, name:`${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g*getPurityFactor(purity), pieces: pcs, status: 'stock', addedDate: new Date().toISOString() };
                     await addItem('inventory', newItem); newlyAddedItems.push(newItem);
                 }
             });
