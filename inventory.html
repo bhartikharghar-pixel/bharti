@@ -501,6 +501,14 @@
                     <span style="color:#334155;">Remaining Source Gross:</span>
                     <span id="tagRemainingWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
                 </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Stone:</span>
+                    <span id="tagRemainingStoneWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Net:</span>
+                    <span id="tagRemainingNetWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
             </div>
 
             <button class="btn-block btn-primary" onclick="confirmTagging()"><i class="fas fa-barcode"></i> GENERATE STOCK</button>
@@ -762,50 +770,55 @@
         let activeCatManagerMode = 'Gold'; 
 
         window.onload = async function() {
-            const r = await getSetting('gold_rates');
-            if(r) goldRates = r;
-            
-            const savedGoldCats = await getSetting('gold_categories');
-            const savedSilvCats = await getSetting('silver_categories');
-            
-            if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
-            else await updateItem('settings', {key: 'gold_categories', value: goldCategories});
-            
-            if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
-            else await updateItem('settings', {key: 'silver_categories', value: silverCategories});
+            try {
+                const r = await getSetting('gold_rates');
+                if(r) goldRates = r;
+                
+                const savedGoldCats = await getSetting('gold_categories');
+                const savedSilvCats = await getSetting('silver_categories');
+                
+                if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
+                else await updateItem('settings', {key: 'gold_categories', value: goldCategories});
+                
+                if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
+                else await updateItem('settings', {key: 'silver_categories', value: silverCategories});
 
-            populatePurityDropdowns('Gold', 'editPurity');
-            populatePurityDropdowns('Gold', 'manPurity');
-            
-            buildFilterBar();
-            await loadInventory();
-            setupBarcodeScanner();
+                populatePurityDropdowns('Gold', 'editPurity');
+                populatePurityDropdowns('Gold', 'manPurity');
+                
+                buildFilterBar();
+                await loadInventory();
+                setupBarcodeScanner();
+            } catch (e) {
+                console.error("Initialization Error: ", e);
+            }
         };
 
         function checkIsSilver(purity) {
             if(!purity) return false;
-            const p = purity.toUpperCase();
+            const p = String(purity).toUpperCase();
             if (p.includes('SIL') || p.includes('%') || p.includes('92.5') || p.includes('99.9')) return true;
-            let customS = goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
+            let customS = goldRates.customSilverPurities?.find(cp => String(cp.name).toUpperCase() === p);
             if (customS) return true;
             return false;
         }
 
         const getPurityFactor = (key) => {
             if (!key) return 1.000;
-            if (key === '24K' || key === 'Silver') return 1.000;
-            if (key === '22K') return 0.9166;
-            if (key === '18K') return 0.7500;
-            if (key === 'Silver 92.5%') return 0.925;
+            const strKey = String(key);
+            if (strKey === '24K' || strKey === 'Silver') return 1.000;
+            if (strKey === '22K') return 0.9166;
+            if (strKey === '18K') return 0.7500;
+            if (strKey === 'Silver 92.5%') return 0.925;
             
-            let customG = goldRates.customPurities?.find(cp => cp.name === key);
+            let customG = goldRates.customPurities?.find(cp => String(cp.name) === strKey);
             if (customG) return customG.pct / 100;
             
-            let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
+            let customS = goldRates.customSilverPurities?.find(cp => String(cp.name) === strKey);
             if (customS) return customS.pct / 100;
             
-            if(key.toString().includes('%')) {
-                const val = parseFloat(key.toString().replace('%', ''));
+            if(strKey.includes('%')) {
+                const val = parseFloat(strKey.replace('%', ''));
                 if(!isNaN(val)) return val / 100;
             }
             return 1.0;
@@ -814,8 +827,8 @@
         function calculateFineWeight(item) {
             const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
             if (!item.purity) return net;
-            if (item.purity.includes('%')) {
-                const pct = parseFloat(item.purity.replace('%', '').trim()) / 100;
+            if (String(item.purity).includes('%')) {
+                const pct = parseFloat(String(item.purity).replace('%', '').trim()) / 100;
                 if (!isNaN(pct)) return net * pct;
             }
             return net * getPurityFactor(item.purity);
@@ -825,7 +838,9 @@
         function checkCategoryConflict(cat, intendedMode) {
             if(cat === 'MIX' || cat === 'Other' || cat === 'ALL') return null;
             
-            const existing = allInventory.find(i => i.category === cat && i.status === 'stock');
+            // Convert everything to string safely to avoid matching errors
+            const safeCat = String(cat).toUpperCase();
+            const existing = allInventory.find(i => String(i.category || '').toUpperCase() === safeCat);
             if(existing) {
                 // If existing item has no stock mode, we consider it TAGGED (Legacy compatibility)
                 let existingMode = existing.stockMode || 'TAGGED';
@@ -1014,8 +1029,8 @@
             searchInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault(); 
-                    const term = this.value.toUpperCase().trim();
-                    const exactMatch = allInventory.find(i => i.barcode && i.barcode.toUpperCase() === term);
+                    const term = String(this.value).toUpperCase().trim();
+                    const exactMatch = allInventory.find(i => i.barcode && String(i.barcode).toUpperCase() === term);
                     
                     if (exactMatch) {
                         openItemDetails(exactMatch.id);
@@ -1028,7 +1043,8 @@
 
         // --- UPDATE: SECURE BARCODE GENERATOR WITH 3 MODES ---
         function generateSafeBarcode(category, mode = 'TAGGED') {
-            const basePrefix = category.substring(0, 3).toUpperCase();
+            const safeCat = category ? String(category) : 'ITM';
+            const basePrefix = safeCat.substring(0, 3).toUpperCase();
             let prefix = basePrefix;
             if(mode === 'LOOSE') prefix = 'L-' + basePrefix;
             if(mode === 'PIECE') prefix = 'P-' + basePrefix;
@@ -1036,8 +1052,8 @@
             let maxNum = 0;
             
             allInventory.forEach(i => {
-                if (i.barcode && i.barcode.startsWith(prefix)) {
-                    const numPart = i.barcode.substring(prefix.length);
+                if (i.barcode && String(i.barcode).startsWith(prefix)) {
+                    const numPart = String(i.barcode).substring(prefix.length);
                     const num = parseInt(numPart, 10);
                     if (!isNaN(num) && num > maxNum) maxNum = num;
                 }
@@ -1049,12 +1065,20 @@
         }
 
         async function loadInventory() {
-            allInventory = await getAllItems('inventory');
-            allSalesData = await getAllItems('sales').catch(()=>[]);
-            allCustomersData = await getAllItems('customers').catch(()=>[]);
-            
-            allInventory.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0));
-            applyFilters();
+            try {
+                allInventory = (await getAllItems('inventory')) || [];
+                allSalesData = (await getAllItems('sales').catch(()=>[])) || [];
+                allCustomersData = (await getAllItems('customers').catch(()=>[])) || [];
+                
+                allInventory.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0));
+                applyFilters();
+            } catch(e) {
+                console.error("Error loading inventory:", e);
+                const container = document.getElementById('inventory-list');
+                if(container) {
+                    container.innerHTML = `<tr><td colspan="9" style="color:red; text-align:center;">Error loading data: ${e.message}</td></tr>`;
+                }
+            }
         }
 
         function setMetalFilter(metalFilter) {
@@ -1108,120 +1132,133 @@
         }
 
         function applyFilters() {
-            const searchTerm = document.getElementById('searchInput').value.toUpperCase().trim();
-            const viewType = document.getElementById('filterType').value;
-            const catType = document.getElementById('filterCategory').value;
-            
-            if (viewType === 'SOLD') {
-                let soldItems = [];
-                allSalesData.forEach(sale => {
-                    if (sale.status === 'cancelled') return;
-                    (sale.items || []).forEach(si => {
-                        if (si.isOldGold) return; 
+            try {
+                const searchInput = document.getElementById('searchInput');
+                const searchTerm = searchInput ? searchInput.value.toUpperCase().trim() : '';
+                const viewType = document.getElementById('filterType').value;
+                const catType = document.getElementById('filterCategory').value;
+                
+                if (viewType === 'SOLD') {
+                    let soldItems = [];
+                    allSalesData.forEach(sale => {
+                        if (sale.status === 'cancelled') return;
+                        (sale.items || []).forEach(si => {
+                            if (si.isOldGold) return; 
 
-                        const isSilv = checkIsSilver(si.purity);
-                        
-                        // Handle strict tab visibility for sold items
-                        if (currentMetalFilter === 'SILVER' && !isSilv) return;
-                        if (currentMetalFilter.startsWith('GOLD_') && isSilv) return;
+                            const isSilv = checkIsSilver(si.purity);
+                            
+                            // Handle strict tab visibility for sold items
+                            if (currentMetalFilter === 'SILVER' && !isSilv) return;
+                            if (currentMetalFilter.startsWith('GOLD_') && isSilv) return;
 
-                        if (catType !== 'ALL' && si.category !== catType) return;
-                        if (searchTerm && !(si.barcode.toUpperCase().includes(searchTerm) || (si.category && si.category.toUpperCase().includes(searchTerm)) || (si.huid && si.huid.toUpperCase().includes(searchTerm)))) return;
+                            if (catType !== 'ALL' && si.category !== catType) return;
+                            if (searchTerm && !(String(si.barcode).toUpperCase().includes(searchTerm) || (si.category && String(si.category).toUpperCase().includes(searchTerm)) || (si.huid && String(si.huid).toUpperCase().includes(searchTerm)))) return;
 
-                        const cust = allCustomersData.find(c => String(c.id) === String(sale.customerId));
-                        
-                        soldItems.push({
-                            virtualId: si.id + '_' + sale.id,
-                            saleId: sale.id, barcode: si.barcode, category: si.category, name: si.name || si.category,
-                            purity: si.purity, grossWt: si.grossWt || si.weight, stoneWt: si.stoneWt || 0,
-                            netWt: getSafeNet(si), fineWt: si.fineWt || (getSafeNet(si) * getPurityFactor(si.purity)),
-                            pieces: si.sellQty || 1, status: 'sold_record', huid: si.huid || '',
-                            itemTotal: si.total, paidAmount: sale.paidAmount, pendingAmount: sale.pendingAmount,
-                            customerName: cust ? cust.name : 'Walk-in Customer', date: sale.date
+                            const cust = allCustomersData.find(c => String(c.id) === String(sale.customerId));
+                            
+                            soldItems.push({
+                                virtualId: si.id + '_' + sale.id,
+                                saleId: sale.id, barcode: si.barcode, category: si.category, name: si.name || si.category,
+                                purity: si.purity, grossWt: si.grossWt || si.weight, stoneWt: si.stoneWt || 0,
+                                netWt: getSafeNet(si), fineWt: si.fineWt || (getSafeNet(si) * getPurityFactor(si.purity)),
+                                pieces: si.sellQty || 1, status: 'sold_record', huid: si.huid || '',
+                                itemTotal: si.total, paidAmount: sale.paidAmount, pendingAmount: sale.pendingAmount,
+                                customerName: cust ? cust.name : 'Walk-in Customer', date: sale.date
+                            });
                         });
                     });
-                });
-                renderSoldList(soldItems);
-                return;
-            }
-
-            // ONLY show active stock
-            let filtered = allInventory.filter(i => {
-                const stat = String(i.status || '').toLowerCase();
-                const net = parseFloat(i.netWt !== undefined ? i.netWt : (i.grossWt || i.weight || 0));
-                // Allow pieces to bypass weight requirement if mode is PIECE
-                if(i.stockMode === 'PIECE' && stat !== 'sold' && stat !== 'delivered' && parseInt(i.pieces) > 0) return true;
-                return stat !== 'sold' && stat !== 'delivered' && net > 0;
-            });
-
-            // --- THE CORE TAB LOGIC ---
-            filtered = filtered.filter(i => {
-                const isSilv = checkIsSilver(i.purity);
-                
-                if (currentMetalFilter === 'ALL') return true;
-                if (currentMetalFilter === 'SILVER') return isSilv;
-
-                // Rest are GOLD variants. If it's silver, block it.
-                if (isSilv) return false;
-
-                const isOrder = (i.barcode && i.barcode.startsWith('ORD-')) || (i.source && i.source.startsWith('order_'));
-                // Identify raw/fine/melting stock
-                const isFineOrMelt = i.purity === '24K' || (i.category && i.category.toUpperCase().includes('MELT')) || (i.category && i.category.toUpperCase().includes('FINE')) || (i.name && i.name.toUpperCase().includes('MELT'));
-                
-                if (currentMetalFilter === 'GOLD_ORDER') {
-                    return isOrder;
-                } else if (currentMetalFilter === 'GOLD_FINE') {
-                    return isFineOrMelt && !isOrder;
-                } else if (currentMetalFilter === 'GOLD_TAGGED') {
-                    // Tagged means not an order, not a melting slab/fine gold.
-                    return !isOrder && !isFineOrMelt;
+                    renderSoldList(soldItems);
+                    return;
                 }
-                
-                return true;
-            });
 
-            // View Type Dropdown
-            if (viewType === 'MIX') {
-                filtered = filtered.filter(i => i.category === 'MIX');
+                // ONLY show active stock safely
+                let filtered = allInventory.filter(i => {
+                    const stat = String(i.status || '').toLowerCase();
+                    const net = parseFloat(i.netWt !== undefined ? i.netWt : (i.grossWt || i.weight || 0));
+                    // Allow pieces to bypass weight requirement if mode is PIECE
+                    if(i.stockMode === 'PIECE' && stat !== 'sold' && stat !== 'delivered' && parseInt(i.pieces) > 0) return true;
+                    return stat !== 'sold' && stat !== 'delivered' && net > 0;
+                });
+
+                // --- THE CORE TAB LOGIC ---
+                filtered = filtered.filter(i => {
+                    const isSilv = checkIsSilver(i.purity);
+                    
+                    if (currentMetalFilter === 'ALL') return true;
+                    if (currentMetalFilter === 'SILVER') return isSilv;
+
+                    // Rest are GOLD variants. If it's silver, block it.
+                    if (isSilv) return false;
+
+                    const isOrder = (i.barcode && String(i.barcode).startsWith('ORD-')) || (i.source && String(i.source).startsWith('order_'));
+                    // Identify raw/fine/melting stock
+                    const isFineOrMelt = String(i.purity) === '24K' || (i.category && String(i.category).toUpperCase().includes('MELT')) || (i.category && String(i.category).toUpperCase().includes('FINE')) || (i.name && String(i.name).toUpperCase().includes('MELT'));
+                    
+                    if (currentMetalFilter === 'GOLD_ORDER') {
+                        return isOrder;
+                    } else if (currentMetalFilter === 'GOLD_FINE') {
+                        return isFineOrMelt && !isOrder;
+                    } else if (currentMetalFilter === 'GOLD_TAGGED') {
+                        // Tagged means not an order, not a melting slab/fine gold.
+                        return !isOrder && !isFineOrMelt;
+                    }
+                    
+                    return true;
+                });
+
+                // View Type Dropdown
+                if (viewType === 'MIX') {
+                    filtered = filtered.filter(i => i.category === 'MIX');
+                }
+
+                // Category Dropdown
+                if (catType !== 'ALL') {
+                    filtered = filtered.filter(i => i.category === catType);
+                }
+
+                // Search Bar
+                if (searchTerm) {
+                    filtered = filtered.filter(i => 
+                        (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                        (i.name && String(i.name).toUpperCase().includes(searchTerm)) ||
+                        (i.huid && String(i.huid).toUpperCase().includes(searchTerm)) ||
+                        (i.category && String(i.category).toUpperCase().includes(searchTerm))
+                    );
+                }
+
+                renderList(filtered);
+            } catch(e) {
+                console.error("Filter error:", e);
+                const container = document.getElementById('inventory-list');
+                if(container) {
+                    container.innerHTML = `<tr><td colspan="9" style="color:red; text-align:center;">Filter Error: ${e.message}</td></tr>`;
+                }
             }
-
-            // Category Dropdown
-            if (catType !== 'ALL') {
-                filtered = filtered.filter(i => i.category === catType);
-            }
-
-            // Search Bar
-            if (searchTerm) {
-                filtered = filtered.filter(i => 
-                    (i.barcode && i.barcode.toUpperCase().includes(searchTerm)) || 
-                    (i.name && i.name.toUpperCase().includes(searchTerm)) ||
-                    (i.huid && i.huid.toUpperCase().includes(searchTerm)) ||
-                    (i.category && i.category.toUpperCase().includes(searchTerm))
-                );
-            }
-
-            renderList(filtered);
         }
 
         // --- UPDATE: RENDER LIST WITH 3 DIFFERENT MODES (TAGGED, LOOSE, PIECE) ---
         function renderList(items) {
             const container = document.getElementById('inventory-list');
+            if(!container) return;
             container.innerHTML = '';
             groupedInventory = {}; 
 
-            document.querySelector('.inv-table thead').innerHTML = `
-                <tr>
-                    <th>Category</th>
-                    <th>Barcodes / Ref</th>
-                    <th>Purity</th>
-                    <th>Stock Qty</th>
-                    <th>Gross Wt</th>
-                    <th>Net Wt</th>
-                    <th style="color:#8e24aa;">Stone Wt</th>
-                    <th>Fine Wt</th>
-                    <th style="text-align:center;">Action</th>
-                </tr>
-            `;
+            const thead = document.querySelector('.inv-table thead');
+            if(thead) {
+                thead.innerHTML = `
+                    <tr>
+                        <th>Category</th>
+                        <th>Barcodes / Ref</th>
+                        <th>Purity</th>
+                        <th>Stock Qty</th>
+                        <th>Gross Wt</th>
+                        <th>Net Wt</th>
+                        <th style="color:#8e24aa;">Stone Wt</th>
+                        <th>Fine Wt</th>
+                        <th style="text-align:center;">Action</th>
+                    </tr>
+                `;
+            }
             
             let totalWt = 0; let totalVal = 0; let totalCount = 0;
 
@@ -1237,7 +1274,7 @@
                 const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
                 
                 const isMix = (item.category === 'MIX');
-                const isOrder = item.source && item.source.startsWith('order_') || (item.barcode && item.barcode.startsWith('ORD-'));
+                const isOrder = (item.source && String(item.source).startsWith('order_')) || (item.barcode && String(item.barcode).startsWith('ORD-'));
                 
                 // LOGIC: Check Mode. Default to TAGGED.
                 const mode = item.stockMode || 'TAGGED';
@@ -1315,7 +1352,7 @@
                 
                 let purityBadge = 'badge-22k';
                 if(group.purity === '24K') purityBadge = 'badge-24k'; 
-                if(group.purity.includes('18')) purityBadge = 'badge-18k';
+                if(String(group.purity).includes('18')) purityBadge = 'badge-18k';
                 if(checkIsSilver(group.purity)) purityBadge = 'badge-silver';
                 
                 if(group.isMix) { purityBadge = 'badge-mix'; tr.className = 'row-mix'; }
@@ -1717,7 +1754,6 @@
             loadInventory();
         }
 
-        // --- CANCEL & REFUND BILL FROM INVENTORY ---
         async function openCancelModal(saleId) {
             const sale = allSalesData.find(s => s.id === saleId);
             if(!sale) return;
@@ -1803,7 +1839,7 @@
                 if(items.length === 0) resolve();
 
                 for(const i of items) {
-                    if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
+                    if (typeof i.id === 'string' && String(i.id).startsWith('manual_')) {
                         count++;
                         if(count === items.length) resolve();
                         continue;
@@ -1836,8 +1872,6 @@
             });
         }
 
-
-        // --- EDIT LOGIC ---
         function calcEditNet() {
             const g = parseFloat(document.getElementById('editGross').value) || 0;
             const s = parseFloat(document.getElementById('editStone').value) || 0;
@@ -1858,7 +1892,7 @@
 
             if (item.status === 'sold') { appAlert("Cannot edit a sold item."); return; }
 
-            if((item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'))) {
+            if((item.barcode && String(item.barcode).startsWith('ORD-')) || (item.source && String(item.source).startsWith('order_'))) {
                 appAlert("Cannot edit Custom Order items directly from Inventory. Please manage them in the Custom Orders tab.");
                 return;
             }
@@ -1892,7 +1926,6 @@
 
                 item.name = document.getElementById('editName').value;
                 
-                // Allow changing category, but ensure no conflict
                 const newCat = document.getElementById('editCategory').value;
                 if(newCat !== item.category) {
                     const mode = item.stockMode || 'TAGGED';
@@ -1919,14 +1952,13 @@
             };
         }
 
-        // --- DELETE (WITH RESTORE) ---
         async function deleteItem(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
 
             if(item.status === 'sold') { appAlert("Cannot delete an item that has already been sold."); return; }
 
-            if((item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'))) {
+            if((item.barcode && String(item.barcode).startsWith('ORD-')) || (item.source && String(item.source).startsWith('order_'))) {
                 appAlert("Cannot delete Custom Order items from Inventory. Cancel the original order to reverse the stock.");
                 return;
             }
@@ -1934,7 +1966,7 @@
             const proceed = await appConfirm("Delete this item? If it came from Mix, weight will return to Mix.");
             if(!proceed) return;
 
-            if (item.source && item.source.startsWith('mix_')) {
+            if (item.source && String(item.source).startsWith('mix_')) {
                 restoreMixWeight(item).then(() => {
                     deleteItemReal(id).then(() => {
                         closeModal('detailsModal');
