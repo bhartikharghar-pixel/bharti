@@ -140,7 +140,7 @@
         /* Clean Inputs */
         input, select { width: 100%; padding: 12px 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; background: #fff; font-family: inherit; transition: 0.2s; height: 45px;}
         input:focus, select:focus { border-color: var(--accent-gold); outline: none; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);}
-        input[readonly] { background: #f0f4f8; color: #1976d2; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; box-shadow: none;}
+        input[readonly], select:disabled { background: #f0f4f8; color: #1976d2; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; box-shadow: none; opacity: 1;}
 
         /* Dynamic Individual Inputs */
         .piece-gross, .piece-stone { height: 40px !important; padding: 8px 12px !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; font-size: 0.9rem !important; }
@@ -351,18 +351,18 @@
                     <div class="grid-3">
                         <div class="form-group">
                             <label>Metal</label>
-                            <select id="itemMetal" onchange="populateCategoryDropdown(); populatePurityDropdowns(); autoFillRate(); autoSetStockMode();">
+                            <select id="itemMetal" onchange="populateCategoryDropdown(); populatePurityDropdowns(); autoFillRate(); handlePurchaseCategoryChange();">
                                 <option value="Gold">Gold</option>
                                 <option value="Silver">Silver</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Category</label>
-                            <select id="itemCategory"></select>
+                            <select id="itemCategory" onchange="handlePurchaseCategoryChange()"></select>
                         </div>
                         <div class="form-group">
                             <label>Stock Generation Mode</label>
-                            <select id="stockMode" onchange="generatePieceInputs()">
+                            <select id="stockMode">
                                 <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
                                 <option value="bulk">Bulk Stock (Single Barcode for all Pieces)</option>
                             </select>
@@ -529,7 +529,7 @@
             document.getElementById('billPayMode').value = 'Cash';
             
             toggleTypeUI();
-            autoSetStockMode(); // This will trigger generatePieceInputs correctly
+            handlePurchaseCategoryChange(); // This will lock dropdown and trigger generatePieceInputs
             calcTotals();
         }
         function closeModal(modalId = 'entryModal') { 
@@ -539,6 +539,7 @@
         
         let allPurchasesData = [];
         let currentMetalFilter = 'GOLD';
+        let categoryModes = {};
 
         let currentGoldRates = { 
             rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] 
@@ -589,36 +590,52 @@
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
             document.getElementById('filterFrom').value = firstDay.toISOString().split('T')[0];
 
-            // Load Rates
+            // Load Rates & Categories
             const r = await getSetting('gold_rates');
             if(r) currentGoldRates = r;
 
-            // Load Custom Categories
             const savedGoldCats = await getSetting('gold_categories');
             const savedSilvCats = await getSetting('silver_categories');
+            const savedModes = await getSetting('category_modes');
+
             if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
             if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
+            
+            if (savedModes) {
+                categoryModes = savedModes;
+            } else {
+                const BASE_GOLD_CATS = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
+                const BASE_SILVER_CATS = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
+                [...BASE_GOLD_CATS, ...BASE_SILVER_CATS].forEach(c => categoryModes[c] = 'individual');
+                categoryModes['MIX'] = 'bulk';
+            }
 
             // Initialize UI
             document.getElementById('itemMetal').value = 'Gold';
             populateCategoryDropdown();
             populatePurityDropdowns();
-            autoSetStockMode();
+            handlePurchaseCategoryChange(); 
 
             await loadMerchants();
             autoFillRate();
             await loadHistory();
         };
 
-        function autoSetStockMode() {
-            const metal = document.getElementById('itemMetal').value;
-            const stockMode = document.getElementById('stockMode');
-            if(stockMode) {
-                if(metal === 'Silver') {
-                    stockMode.value = 'bulk';
-                } else {
-                    stockMode.value = 'individual';
-                }
+        function getCategoryMode(catName) {
+            if (!catName) return 'individual';
+            const upper = catName.toUpperCase();
+            if (upper === 'MIX') return 'bulk';
+            if (categoryModes[catName]) return categoryModes[catName];
+            if (upper.includes('LOOSE') || upper.includes('BULK')) return 'bulk';
+            return 'individual';
+        }
+
+        function handlePurchaseCategoryChange() {
+            const cat = document.getElementById('itemCategory').value;
+            const modeEl = document.getElementById('stockMode');
+            if (modeEl) {
+                modeEl.value = getCategoryMode(cat);
+                modeEl.disabled = true;
                 generatePieceInputs();
             }
         }
@@ -889,21 +906,20 @@
             else if (cat && cat.length >= 3) catPrefix = cat.substring(0, 3).toUpperCase();
             else if (cat) catPrefix = cat.toUpperCase();
 
-            // Get Stock Generation Mode
-            const stockMode = document.getElementById('stockMode').value;
-            const finalMode = (cat === 'MIX') ? 'bulk' : stockMode;
+            // Get Stock Generation Mode directly since it's locked properly
+            const finalMode = document.getElementById('stockMode').value;
 
             // --- VALIDATION: Prevent Bulk Entry if Item is already tracking as Individual ---
             if (finalMode === 'bulk' || pieces <= 1) {
-                if (stockMode === 'bulk' || cat === 'MIX') {
+                if (finalMode === 'bulk' || cat === 'MIX') {
                     const currentInv = await getAllItems('inventory');
                     const hasIndividual = currentInv.some(inv => 
                         inv.category === cat && 
                         inv.status === 'stock' && 
-                        (!inv.barcode || !inv.barcode.toUpperCase().includes('BULK'))
+                        (!inv.barcode || (!inv.barcode.toUpperCase().includes('BULK') && !inv.barcode.toUpperCase().startsWith('SIL-')))
                     );
-                    if (hasIndividual) {
-                        return showToast("यह आइटम पहले से Unique (Individual) मोड में मौजूद है। आप इसे Bulk में नहीं खरीद सकते!", "error");
+                    if (hasIndividual && cat !== 'MIX') {
+                        return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
                     }
                 }
             }
@@ -923,19 +939,24 @@
             }
             
             let itemDetailsArray = [];
+            const isSilv = checkIsSilver(purity);
             
             // BULK GENERATION
             if (finalMode === 'bulk' || pieces <= 1) {
+                
                 let barcode = '';
                 const uniqueSuffix = Date.now().toString().slice(-4);
                 
                 if (cat === 'MIX') {
                     barcode = `BULKMIX-${uniqueSuffix}`;
+                } else if (isSilv) {
+                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
                 } else {
-                    // This generates formats like BULKRNG-1234
                     barcode = `BULK${catPrefix}-${uniqueSuffix}`;
                 }
 
+                // If editing, we just recreate the item. But wait, in purchases we probably don't merge.
+                // Purchases generates new distinct items per purchase batch.
                 const itemData = {
                     barcode: barcode,
                     merchantId: mId,
@@ -980,7 +1001,11 @@
                     
                     if (grossPP <= 0) continue;
 
-                    const barcode = await getNewBarcode(catPrefix); 
+                    let barcode = await getNewBarcode(catPrefix); 
+                    if (isSilv) {
+                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-4) + i}`;
+                    }
+
                     const npp = Math.max(0, grossPP - stonePP);
                     
                     const singleWastage = wastMode === 'pct' ? (npp * wastValInput / 100) : wastValPP;
@@ -1216,7 +1241,7 @@
                 const barcodeText = invItem.barcode || `Ref: ${p.id}`;
                 
                 // Check if this is a BULK entry for Red Highlighting
-                const isBulkEntry = barcodeText.toUpperCase().includes('BULK');
+                const isBulkEntry = barcodeText.toUpperCase().includes('BULK') || barcodeText.toUpperCase().startsWith('SIL-') && p.totalPieces > 1;
                 const rowTextColor = isBulkEntry ? 'color: var(--active-red);' : 'color: #111;';
                 const descTextColor = isBulkEntry ? 'color: #D32F2F;' : '';
 
@@ -1306,7 +1331,7 @@
                 document.getElementById('itemPieces').value = p.totalPieces || 1;
                 
                 // Detect Stock Mode
-                if (item.barcode && item.barcode.includes('BULK') || item.category === 'MIX') {
+                if (item.barcode && (item.barcode.includes('BULK') || item.barcode.startsWith('SIL-')) || item.category === 'MIX') {
                     document.getElementById('stockMode').value = 'bulk';
                     document.getElementById('totalGrossWt').value = p.totalWeight !== undefined ? p.totalWeight : 0;
                     document.getElementById('totalStoneWt').value = p.totalStoneWeight !== undefined ? p.totalStoneWeight : 0;
@@ -1325,6 +1350,8 @@
                     sumPieceWeights();
                 }
                 
+                document.getElementById('stockMode').disabled = true; // Lock on edit view
+
                 document.getElementById('wastageVal').value = p.wastageVal !== undefined ? p.wastageVal : 0;
                 document.getElementById('wastageMode').value = p.wastageMode || 'pct';
                 document.getElementById('itemMark').value = item.mark || '';
