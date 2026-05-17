@@ -122,7 +122,7 @@
         label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
         input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; font-family: inherit; transition: 0.2s;}
         input:focus, select:focus, textarea:focus { border-color: var(--active-red); outline: none; background: white; box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);}
-        input[readonly] { background: #e2e8f0; color: #334155; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; }
+        input[readonly], select:disabled { background: #e2e8f0; color: #334155; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; opacity: 1;}
         
         .btn-block { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-top: 15px; transition: 0.2s;}
         .btn-primary { background: var(--active-red); color: white; }
@@ -146,6 +146,7 @@
         .cat-item:last-child { border-bottom: none; }
         .cat-del { color: var(--active-red); cursor: pointer; font-weight: bold; transition: 0.2s;}
         .cat-del:hover { transform: scale(1.2); }
+        .mode-badge { font-size:0.7rem; padding:3px 6px; border-radius:4px; margin-left:8px; font-weight:700; text-transform:uppercase;}
 
         #toast {
             visibility: hidden; min-width: 250px; background-color: #1e293b; color: #fff;
@@ -326,10 +327,10 @@
     </div>
 
     <div id="catModal" class="modal">
-        <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-content" style="max-width: 550px;">
             <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-tags"></i> Manage Categories</h3>
-            <p style="font-size:0.85rem; color:#64748b; margin-top:-5px; margin-bottom:15px;">These categories appear in Inventory, Purchases, and Billing.</p>
+            <p style="font-size:0.85rem; color:#64748b; margin-top:-5px; margin-bottom:15px;">Lock categories to either Unique (Individual Tags) or Loose (Bulk Stock).</p>
             
             <div class="cat-tabs">
                 <div class="cat-tab active" id="catTabGold" onclick="switchCatMode('Gold')">Gold Categories</div>
@@ -338,8 +339,12 @@
 
             <ul class="cat-list" id="catListDisplay"></ul>
             
-            <div style="display:flex; gap:10px; align-items:center; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0;">
-                <input type="text" id="newCatName" placeholder="e.g. Mangalsutra" style="margin:0; flex:1;">
+            <div style="display:flex; gap:10px; align-items:center; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0; flex-wrap: wrap;">
+                <input type="text" id="newCatName" placeholder="Category Name" style="margin:0; flex:1; min-width:150px;">
+                <select id="newCatMode" style="margin:0; width:auto; padding:12px; font-weight:600; color:#333;">
+                    <option value="individual">Unique Item</option>
+                    <option value="bulk">Bulk / Loose Item</option>
+                </select>
                 <button class="btn-primary" style="margin:0; width:auto; padding:12px 20px;" onclick="addCategory()">Add</button>
             </div>
         </div>
@@ -433,7 +438,7 @@
         </div>
     </div>
 
-    <!-- UPDATE 1: Tag/Extract Modal with Dropdown Lock Event -->
+    <!-- Tag/Extract Modal with Dropdown Lock Event -->
     <div id="tagModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
@@ -469,9 +474,9 @@
             <div class="grid-2">
                 <div class="form-group">
                     <label>Stock Management Mode</label>
-                    <select id="tagStockMode" onchange="generateTagInputs()">
-                        <option value="tagged">Tag-wise (Unique Barcode per piece)</option>
-                        <option value="loose">Loose Stock (Bulk / Single Barcode)</option>
+                    <select id="tagStockMode">
+                        <option value="individual">Individual Tags (Unique Barcode per piece)</option>
+                        <option value="bulk">Loose Stock (Bulk / Single Barcode)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -517,7 +522,7 @@
         </div>
     </div>
 
-    <!-- UPDATE 2: Manual Entry Modal with Dropdown Lock Event -->
+    <!-- Manual Entry Modal with Dropdown Lock Event -->
     <div id="manualEntryModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -549,7 +554,7 @@
                 </div>
                 <div class="form-group">
                     <label>Stock Generation Mode</label>
-                    <select id="manStockMode" onchange="generateManPieceInputs()">
+                    <select id="manStockMode">
                         <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
                         <option value="bulk">Bulk Stock (Single Barcode for all)</option>
                     </select>
@@ -588,7 +593,7 @@
         </div>
     </div>
 
-    <!-- Edit and Cancel Modals... -->
+    <!-- Edit and Cancel Modals -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
@@ -767,6 +772,7 @@
         
         let goldCategories = [...BASE_GOLD_CATS];
         let silverCategories = [...BASE_SILVER_CATS];
+        let categoryModes = {}; 
 
         let currentMetalFilter = 'GOLD_TAGGED'; 
         let activeCatManagerMode = 'Gold'; 
@@ -777,12 +783,21 @@
             
             const savedGoldCats = await getSetting('gold_categories');
             const savedSilvCats = await getSetting('silver_categories');
+            const savedModes = await getSetting('category_modes');
             
             if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
             else await updateItem('settings', {key: 'gold_categories', value: goldCategories});
             
             if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
             else await updateItem('settings', {key: 'silver_categories', value: silverCategories});
+
+            if (savedModes) {
+                categoryModes = savedModes;
+            } else {
+                [...BASE_GOLD_CATS, ...BASE_SILVER_CATS].forEach(c => categoryModes[c] = 'individual');
+                categoryModes['MIX'] = 'bulk';
+                await updateItem('settings', { key: 'category_modes', value: categoryModes });
+            }
 
             populatePurityDropdowns('Gold', 'editPurity');
             populatePurityDropdowns('Gold', 'manPurity');
@@ -791,6 +806,15 @@
             await loadInventory();
             setupBarcodeScanner();
         };
+
+        function getCategoryMode(catName) {
+            if (!catName) return 'individual';
+            const upper = catName.toUpperCase();
+            if (upper === 'MIX') return 'bulk';
+            if (categoryModes[catName]) return categoryModes[catName];
+            if (upper.includes('LOOSE') || upper.includes('BULK')) return 'bulk';
+            return 'individual';
+        }
 
         function checkIsSilver(purity) {
             if(!purity) return false;
@@ -922,9 +946,13 @@
             cats.forEach((cat, idx) => {
                 const isBase = baseCats.includes(cat);
                 const delBtn = isBase ? '<span style="color:#94a3b8; font-size:0.75rem;">System</span>' : `<i class="fas fa-trash cat-del" onclick="deleteCategory(${idx})"></i>`;
+                const modeLabel = getCategoryMode(cat) === 'bulk' 
+                    ? '<span class="mode-badge" style="background:#fef08a; color:#854d0e;">Bulk</span>' 
+                    : '<span class="mode-badge" style="background:#dcfce7; color:#166534;">Unique</span>';
+                
                 list.innerHTML += `
                     <li class="cat-item">
-                        <span>${cat}</span>
+                        <span>${cat} ${modeLabel}</span>
                         ${delBtn}
                     </li>
                 `;
@@ -933,6 +961,7 @@
 
         async function addCategory() {
             const val = document.getElementById('newCatName').value.trim();
+            const mode = document.getElementById('newCatMode').value;
             if(!val) return showToast("Enter category name", "error");
             
             const formatted = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
@@ -946,6 +975,9 @@
                 silverCategories.push(formatted);
                 await updateItem('settings', { key: 'silver_categories', value: silverCategories });
             }
+            
+            categoryModes[formatted] = mode;
+            await updateItem('settings', { key: 'category_modes', value: categoryModes });
             
             document.getElementById('newCatName').value = '';
             renderCatList();
@@ -1396,28 +1428,21 @@
             document.getElementById('total-count').innerText = totalCount;
         }
 
-        // --- UPDATE: New Lock Handlers ---
         function handleTagCategoryChange() {
-            const cat = document.getElementById('tagCategory').value.toUpperCase();
+            const cat = document.getElementById('tagCategory').value;
             const modeEl = document.getElementById('tagStockMode');
-            if (cat === 'MIX' || cat.includes('LOOSE') || cat.includes('BULK')) {
-                modeEl.value = 'loose';
-                modeEl.disabled = true;
-            } else {
-                modeEl.disabled = false;
-            }
+            const mode = getCategoryMode(cat);
+            modeEl.value = mode;
+            modeEl.disabled = true;
             generateTagInputs();
         }
 
         function handleManCategoryChange() {
-            const cat = document.getElementById('manCategory').value.toUpperCase();
+            const cat = document.getElementById('manCategory').value;
             const modeEl = document.getElementById('manStockMode');
-            if (cat === 'MIX' || cat.includes('LOOSE') || cat.includes('BULK')) {
-                modeEl.value = 'bulk';
-                modeEl.disabled = true;
-            } else {
-                modeEl.disabled = false;
-            }
+            const mode = getCategoryMode(cat);
+            modeEl.value = mode;
+            modeEl.disabled = true;
             generateManPieceInputs();
         }
 
@@ -1438,16 +1463,7 @@
             const metal = document.getElementById('manMetal').value;
             populateCategoryDropdowns(metal);
             populatePurityDropdowns(metal, 'manPurity');
-            
-            const stockMode = document.getElementById('manStockMode');
-            if(stockMode) {
-                if(metal === 'Silver') {
-                    stockMode.value = 'bulk';
-                } else {
-                    stockMode.value = 'individual';
-                }
-            }
-            handleManCategoryChange(); // Apply bulk locking automatically
+            handleManCategoryChange();
         }
 
         function generateManPieceInputs() {
@@ -1531,10 +1547,7 @@
             const purity = document.getElementById('manPurity').value;
             const pieces = parseInt(document.getElementById('manPieces').value) || 1;
             
-            const catUpper = cat.toUpperCase();
-            const stockMode = document.getElementById('manStockMode').value;
-            const finalMode = (catUpper === 'MIX' || catUpper.includes('LOOSE') || catUpper.includes('BULK')) ? 'bulk' : stockMode;
-
+            const finalMode = getCategoryMode(cat);
             const totalGross = parseFloat(document.getElementById('manGross').value) || 0;
             const totalStone = parseFloat(document.getElementById('manStone').value) || 0;
             
@@ -1544,7 +1557,6 @@
             const isSilv = checkIsSilver(purity);
             const catPrefix = cat === 'MIX' ? 'MIX' : (cat && cat.length >= 3 ? cat.substring(0, 3).toUpperCase() : cat.toUpperCase());
             
-            // UPDATE: BULK GENERATION (WITH MERGE LOGIC)
             if (finalMode === 'bulk') {
                 const net = Math.max(0, totalGross - totalStone);
                 const fine = net * getPurityFactor(purity);
@@ -1558,7 +1570,6 @@
                 );
 
                 if (existingBulk) {
-                    // Update Exisiting Bulk Stock
                     existingBulk.grossWt = (parseFloat(existingBulk.grossWt) || 0) + totalGross;
                     existingBulk.stoneWt = (parseFloat(existingBulk.stoneWt) || 0) + totalStone;
                     existingBulk.netWt = (parseFloat(existingBulk.netWt) || 0) + net;
@@ -1568,7 +1579,6 @@
 
                     await updateItem('inventory', existingBulk);
                 } else {
-                    // Create New Bulk Stock
                     let barcode = '';
                     const uniqueSuffix = Date.now().toString().slice(-4);
                     
@@ -1584,11 +1594,8 @@
                     
                     await addItem('inventory', newItem);
                 }
-            } 
-            // INDIVIDUAL PIECE GENERATION
-            else {
+            } else {
                 if (pieces <= 1) {
-                    // Generate 1 item from master input
                     const g = parseFloat(document.getElementById('manGross').value) || 0;
                     const s = parseFloat(document.getElementById('manStone').value) || 0;
                     const n = Math.max(0, g - s);
@@ -1603,7 +1610,6 @@
                     };
                     await addItem('inventory', newItem);
                 } else {
-                    // Generate multiple from sub inputs
                     const grossInputs = document.querySelectorAll('.man-piece-gross');
                     const stoneInputs = document.querySelectorAll('.man-piece-stone');
 
@@ -1637,7 +1643,6 @@
             loadInventory();
         }
 
-        // --- SINGLE ITEM DETAILS ---
         async function openItemDetails(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
@@ -1681,7 +1686,6 @@
             openModal('itemDetailsModal');
         }
 
-        // --- GROUP DETAILS MODAL ---
         function openGroupDetails(key) {
             const group = groupedInventory[key];
             if(!group) return;
@@ -1737,7 +1741,6 @@
             openModal('detailsModal');
         }
 
-        // --- TAGGING LOGIC ---
         async function openTagModal(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
@@ -1765,7 +1768,6 @@
             
             document.getElementById('dispTolerance').innerText = `±${tol.toFixed(3)} g`;
             
-            document.getElementById('tagStockMode').value = 'tagged';
             document.getElementById('tagPieces').value = 1;
             
             populateCategoryDropdowns(); 
@@ -1777,7 +1779,7 @@
                 }
             }
 
-            handleTagCategoryChange(); // Apply bulk lock check
+            handleTagCategoryChange(); 
             openModal('tagModal');
         }
 
@@ -1910,12 +1912,7 @@
             const purity = batchItem.purity; 
             const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
             
-            const catUpper = cat.toUpperCase();
-            let mode = document.getElementById('tagStockMode').value;
-            if (catUpper === 'MIX' || catUpper.includes('LOOSE') || catUpper.includes('BULK')) {
-                mode = 'loose'; // Hard override just in case
-            }
-
+            const mode = getCategoryMode(cat);
             const grossInputs = document.querySelectorAll('.tag-gross');
             const stoneInputs = document.querySelectorAll('.tag-stone');
             const catPrefix = cat.substring(0,3).toUpperCase();
@@ -1924,8 +1921,7 @@
             let totalExtractedNet = 0;
             let sumStone = 0;
 
-            // UPDATE: BULK MERGE LOGIC DURING TAGGING
-            if (mode === 'loose') {
+            if (mode === 'bulk') {
                 const g = parseFloat(grossInputs[0].value) || 0;
                 const s = parseFloat(stoneInputs[0].value) || 0;
                 const n = Math.max(0, g - s);
@@ -1997,7 +1993,6 @@
                 batchItem.weight = batchItem.grossWt; 
                 batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
                 
-                // Pieces deduction check
                 batchItem.pieces = Math.max(0, (batchItem.pieces || 1) - piecesCount);
                 if(batchItem.pieces === 0 && batchItem.grossWt > 0) {
                     batchItem.pieces = 1; 
@@ -2011,7 +2006,6 @@
             loadInventory();
         }
 
-        // --- CANCEL & REFUND BILL FROM INVENTORY ---
         async function openCancelModal(saleId) {
             const sale = allSalesData.find(s => s.id === saleId);
             if(!sale) return;
@@ -2130,7 +2124,6 @@
             });
         }
 
-        // --- EDIT LOGIC ---
         function calcEditNet() {
             const g = parseFloat(document.getElementById('editGross').value) || 0;
             const s = parseFloat(document.getElementById('editStone').value) || 0;
@@ -2203,7 +2196,6 @@
             };
         }
 
-        // --- DELETE (WITH RESTORE) ---
         async function deleteItem(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
