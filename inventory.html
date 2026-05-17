@@ -122,6 +122,7 @@
         label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
         input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; font-family: inherit; transition: 0.2s;}
         input:focus, select:focus, textarea:focus { border-color: var(--active-red); outline: none; background: white; box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);}
+        input[readonly] { background: #e2e8f0; color: #334155; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; }
         
         .btn-block { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-top: 15px; transition: 0.2s;}
         .btn-primary { background: var(--active-red); color: white; }
@@ -130,6 +131,7 @@
         .btn-danger { background: #d32f2f; color: white; padding: 14px; width: 100%; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;}
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
 
         .item-detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
         .item-detail-lbl { color: #64748b; font-weight: 600; }
@@ -176,7 +178,7 @@
             .filter-group { min-width: 100%; }
             .btn-manage-cats { width: 100%; justify-content: center; margin-top: 5px;}
 
-            .grid-2 { grid-template-columns: 1fr !important; gap: 15px; }
+            .grid-2, .grid-3 { grid-template-columns: 1fr !important; gap: 15px; }
             .modal-content { padding: 20px; width: 95%; max-height: 90vh; }
             .btn-sm { padding: 8px; }
             .btn-sm i { margin: 0; }
@@ -301,6 +303,8 @@
 
         <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
     </div>
+
+    <!-- Modals below remain mostly identical except for manualEntryModal -->
 
     <div id="customConfirmModal" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
@@ -512,38 +516,46 @@
         </div>
     </div>
 
+    <!-- UPDATED: MANUAL ENTRY MODAL WITH INDIVIDUAL WEIGHTS LOGIC -->
     <div id="manualEntryModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-plus-circle"></i> Add Custom Stock</h3>
             
-            <div class="form-group">
-                <label>Metal Type</label>
-                <select id="manMetal" onchange="handleManualMetalChange()">
-                    <option value="Gold">Gold</option>
-                    <option value="Silver">Silver</option>
-                </select>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Metal Type</label>
+                    <select id="manMetal" onchange="handleManualMetalChange()">
+                        <option value="Gold">Gold</option>
+                        <option value="Silver">Silver</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="manCategory"></select>
+                </div>
             </div>
 
             <div class="form-group">
                 <label>Item Description / Name</label>
-                <input type="text" id="manName" placeholder="e.g. Silver Payal Bulk">
+                <input type="text" id="manName" placeholder="e.g. Unique Ring Batch">
             </div>
             
-            <div class="form-group">
-                <label>Category</label>
-                <select id="manCategory"></select>
-            </div>
-            
-            <div class="grid-2">
+            <div class="grid-3">
                 <div class="form-group">
                     <label>Purity</label>
                     <select id="manPurity"></select>
                 </div>
                 <div class="form-group">
-                    <label>Quantity (Pieces)</label>
-                    <input type="number" id="manPieces" value="1" min="1">
-                    <small style="color:var(--info-blue); font-size:0.75rem;">Set > 1 for Loose Stock</small>
+                    <label>Stock Generation Mode</label>
+                    <select id="manStockMode" onchange="generateManPieceInputs()">
+                        <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
+                        <option value="bulk">Bulk Stock (Single Barcode for all)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Total Pieces / Qty</label>
+                    <input type="number" id="manPieces" value="1" min="1" oninput="generateManPieceInputs()">
                 </div>
             </div>
             
@@ -557,6 +569,9 @@
                     <input type="number" id="manStone" step="0.001" value="0" oninput="calcManNet()">
                 </div>
             </div>
+
+            <!-- Dynamic Input Container for Individual Mode -->
+            <div id="dynamicManPieceInputs" style="display:none; background:#f1f5f9; padding:15px; border-radius:10px; border:1px dashed #cbd5e1; margin-bottom:15px; grid-column: 1 / -1;"></div>
             
             <div class="grid-2">
                 <div class="form-group">
@@ -752,8 +767,6 @@
         let goldCategories = [...BASE_GOLD_CATS];
         let silverCategories = [...BASE_SILVER_CATS];
 
-        // --- MASTER FILTER STATES ---
-        // NEW STATES: GOLD_TAGGED, GOLD_FINE, GOLD_ORDER, SILVER, ALL
         let currentMetalFilter = 'GOLD_TAGGED'; 
         let activeCatManagerMode = 'Gold'; 
 
@@ -972,12 +985,7 @@
                     rowData.push(`"${text}"`);
                 });
                 
-                if (row.querySelector('th')) {
-                     // don't add action to header
-                } else {
-                    csvContent += rowData.join(",") + "\n";
-                }
-                
+                if (row.querySelector('th')) { } else { csvContent += rowData.join(",") + "\n"; }
                 if (row.querySelector('th')) csvContent += rowData.join(",") + "\n";
             });
 
@@ -1008,7 +1016,7 @@
         }
 
         function generateSafeBarcode(category) {
-            const prefix = category.substring(0, 3).toUpperCase();
+            const prefix = category === 'MIX' ? 'MIX' : (category.length >= 3 ? category.substring(0, 3).toUpperCase() : category.toUpperCase());
             let maxNum = 0;
             
             allInventory.forEach(i => {
@@ -1033,7 +1041,6 @@
             applyFilters();
         }
 
-        // --- NEW METAL FILTER LOGIC FOR TABS ---
         function setMetalFilter(metalFilter) {
             currentMetalFilter = metalFilter;
             document.getElementById('filterCategory').value = 'ALL';
@@ -1098,7 +1105,6 @@
 
                         const isSilv = checkIsSilver(si.purity);
                         
-                        // Handle strict tab visibility for sold items
                         if (currentMetalFilter === 'SILVER' && !isSilv) return;
                         if (currentMetalFilter.startsWith('GOLD_') && isSilv) return;
 
@@ -1122,25 +1128,21 @@
                 return;
             }
 
-            // ONLY show active stock
             let filtered = allInventory.filter(i => {
                 const stat = String(i.status || '').toLowerCase();
                 const net = parseFloat(i.netWt !== undefined ? i.netWt : (i.grossWt || i.weight || 0));
                 return stat !== 'sold' && stat !== 'delivered' && net > 0;
             });
 
-            // --- THE CORE TAB LOGIC ---
             filtered = filtered.filter(i => {
                 const isSilv = checkIsSilver(i.purity);
                 
                 if (currentMetalFilter === 'ALL') return true;
                 if (currentMetalFilter === 'SILVER') return isSilv;
 
-                // Rest are GOLD variants. If it's silver, block it.
                 if (isSilv) return false;
 
                 const isOrder = (i.barcode && i.barcode.startsWith('ORD-')) || (i.source && i.source.startsWith('order_'));
-                // Identify raw/fine/melting stock
                 const isFineOrMelt = i.purity === '24K' || (i.category && i.category.toUpperCase().includes('MELT')) || (i.category && i.category.toUpperCase().includes('FINE')) || (i.name && i.name.toUpperCase().includes('MELT'));
                 
                 if (currentMetalFilter === 'GOLD_ORDER') {
@@ -1148,24 +1150,20 @@
                 } else if (currentMetalFilter === 'GOLD_FINE') {
                     return isFineOrMelt && !isOrder;
                 } else if (currentMetalFilter === 'GOLD_TAGGED') {
-                    // Tagged means not an order, not a melting slab/fine gold. (Rings, Necklaces, etc.)
                     return !isOrder && !isFineOrMelt;
                 }
                 
                 return true;
             });
 
-            // View Type Dropdown
             if (viewType === 'MIX') {
                 filtered = filtered.filter(i => i.category === 'MIX');
             }
 
-            // Category Dropdown
             if (catType !== 'ALL') {
                 filtered = filtered.filter(i => i.category === catType);
             }
 
-            // Search Bar
             if (searchTerm) {
                 filtered = filtered.filter(i => 
                     (i.barcode && i.barcode.toUpperCase().includes(searchTerm)) || 
@@ -1301,7 +1299,6 @@
 
             items.forEach(item => {
                 const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
-                
                 const isMix = (item.category === 'MIX');
                 const isOrder = item.source && item.source.startsWith('order_') || (item.barcode && item.barcode.startsWith('ORD-'));
                 
@@ -1398,7 +1395,7 @@
             document.getElementById('total-count').innerText = totalCount;
         }
 
-        // --- MANUAL ENTRY LOGIC ---
+        // --- NEW UPDATED MANUAL ENTRY LOGIC ---
         function openManualEntry() {
             document.getElementById('manualEntryModal').style.display = 'flex';
             document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
@@ -1408,13 +1405,92 @@
             document.getElementById('manPieces').value = 1;
             document.getElementById('manGross').value = '';
             document.getElementById('manStone').value = 0;
+            
             calcManNet();
+        }
+
+        function autoSetManStockMode() {
+            const metal = document.getElementById('manMetal').value;
+            const stockMode = document.getElementById('manStockMode');
+            if(stockMode) {
+                if(metal === 'Silver') {
+                    stockMode.value = 'bulk';
+                } else {
+                    stockMode.value = 'individual';
+                }
+                generateManPieceInputs();
+            }
         }
 
         function handleManualMetalChange() {
             const metal = document.getElementById('manMetal').value;
             populateCategoryDropdowns(metal);
             populatePurityDropdowns(metal, 'manPurity');
+            autoSetManStockMode();
+        }
+
+        function generateManPieceInputs() {
+            const mode = document.getElementById('manStockMode').value;
+            const pieces = parseInt(document.getElementById('manPieces').value) || 1;
+            const container = document.getElementById('dynamicManPieceInputs');
+            
+            const grossMain = document.getElementById('manGross');
+            const stoneMain = document.getElementById('manStone');
+
+            if (mode === 'bulk' || pieces <= 1) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                grossMain.readOnly = false;
+                stoneMain.readOnly = false;
+                grossMain.style.background = '#f8fafc';
+                stoneMain.style.background = '#f8fafc';
+                
+                grossMain.oninput = calcManNet;
+                stoneMain.oninput = calcManNet;
+                calcManNet();
+                return;
+            }
+
+            container.style.display = 'block';
+            grossMain.readOnly = true;
+            stoneMain.readOnly = true;
+            grossMain.style.background = '#e2e8f0';
+            stoneMain.style.background = '#e2e8f0';
+            
+            grossMain.oninput = null; 
+            stoneMain.oninput = null;
+
+            let html = `<div style="font-weight:700; font-size:0.85rem; color:var(--active-red); margin-bottom:10px;"><i class="fas fa-list-ol"></i> Enter Individual Item Weights:</div>`;
+            html += `<div style="max-height: 200px; overflow-y: auto; padding-right:5px;">`;
+            for (let i = 1; i <= pieces; i++) {
+                html += `
+                    <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
+                        <span style="font-size:0.8rem; font-weight:bold; width: 65px; color:#555;">Piece ${i}</span>
+                        <input type="number" class="man-piece-gross" placeholder="Gross Wt" step="0.001" oninput="sumManPieceWeights()" style="height: 40px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <input type="number" class="man-piece-stone" placeholder="Stone Wt" step="0.001" value="0" oninput="sumManPieceWeights()" style="height: 40px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                    </div>
+                `;
+            }
+            html += `</div>`;
+            container.innerHTML = html;
+            
+            sumManPieceWeights();
+        }
+
+        function sumManPieceWeights() {
+            const grossInputs = document.querySelectorAll('.man-piece-gross');
+            const stoneInputs = document.querySelectorAll('.man-piece-stone');
+            
+            let totalGross = 0;
+            let totalStone = 0;
+            
+            grossInputs.forEach(inp => totalGross += parseFloat(inp.value) || 0);
+            stoneInputs.forEach(inp => totalStone += parseFloat(inp.value) || 0);
+            
+            document.getElementById('manGross').value = totalGross > 0 ? totalGross.toFixed(3) : '';
+            document.getElementById('manStone').value = totalStone > 0 ? totalStone.toFixed(3) : 0;
+            
+            calcManNet();
         }
 
         function calcManNet() {
@@ -1434,31 +1510,95 @@
             const purity = document.getElementById('manPurity').value;
             const pieces = parseInt(document.getElementById('manPieces').value) || 1;
             
-            const gross = parseFloat(document.getElementById('manGross').value) || 0;
-            const stone = parseFloat(document.getElementById('manStone').value) || 0;
-            const net = Math.max(0, gross - stone);
-            const fine = net * getPurityFactor(purity);
+            const stockMode = document.getElementById('manStockMode').value;
+            const finalMode = (cat === 'MIX') ? 'bulk' : stockMode;
 
-            if(!name) { appAlert("Enter Description"); return; }
-            if(gross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
-
-            const isSilv = checkIsSilver(purity);
+            const totalGross = parseFloat(document.getElementById('manGross').value) || 0;
+            const totalStone = parseFloat(document.getElementById('manStone').value) || 0;
             
-            let barcode = '';
-            if (isSilv && pieces > 1) {
-                const uniqueSuffix = Date.now().toString().slice(-6);
-                barcode = `SIL-${cat.substring(0,3).toUpperCase()}-${uniqueSuffix}`;
-            } else {
-                barcode = generateSafeBarcode(cat);
+            if(!name) { appAlert("Enter Description"); return; }
+            if(!totalGross || totalGross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
+
+            // Bulk Mode validation to not conflict with existing individual stock
+            if (finalMode === 'bulk' || pieces <= 1) {
+                if (stockMode === 'bulk' || cat === 'MIX') {
+                    const currentInv = await getAllItems('inventory');
+                    const hasIndividual = currentInv.some(inv => 
+                        inv.category === cat && 
+                        inv.status === 'stock' && 
+                        (!inv.barcode || (!inv.barcode.toUpperCase().includes('BULK') && !inv.barcode.toUpperCase().includes('SIL-')))
+                    );
+                    if (hasIndividual && cat !== 'MIX') {
+                        return showToast("This item already exists as Individual stock. Cannot mix Bulk and Individual items of same category!", "error");
+                    }
+                }
             }
 
-            const newItem = {
-                barcode: barcode, category: cat, name: name,
-                purity: purity, grossWt: gross, stoneWt: stone, netWt: net, fineWt: fine, pieces: pieces,
-                status: 'stock', source: 'manual', addedDate: new Date().toISOString()
-            };
+            const isSilv = checkIsSilver(purity);
+            const catPrefix = cat === 'MIX' ? 'MIX' : (cat && cat.length >= 3 ? cat.substring(0, 3).toUpperCase() : cat.toUpperCase());
             
-            await addItem('inventory', newItem);
+            // BULK GENERATION
+            if (finalMode === 'bulk' || pieces <= 1) {
+                let barcode = '';
+                const uniqueSuffix = Date.now().toString().slice(-4);
+                
+                if (cat === 'MIX') {
+                    barcode = `BULKMIX-${uniqueSuffix}`;
+                } else if (isSilv) {
+                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                } else {
+                    barcode = `BULK${catPrefix}-${uniqueSuffix}`;
+                }
+
+                const net = Math.max(0, totalGross - totalStone);
+                const fine = net * getPurityFactor(purity);
+
+                const newItem = {
+                    barcode: barcode, category: cat, name: name,
+                    purity: purity, grossWt: totalGross, stoneWt: totalStone, netWt: net, fineWt: fine, pieces: pieces,
+                    status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+                };
+                
+                await addItem('inventory', newItem);
+            } 
+            // INDIVIDUAL PIECE GENERATION
+            else {
+                const grossInputs = document.querySelectorAll('.man-piece-gross');
+                const stoneInputs = document.querySelectorAll('.man-piece-stone');
+
+                for(let i=0; i<pieces; i++) {
+                    const grossPP = parseFloat(grossInputs[i].value) || 0;
+                    const stonePP = parseFloat(stoneInputs[i].value) || 0;
+                    
+                    if (grossPP <= 0) continue;
+
+                    let barcode = generateSafeBarcode(cat); 
+                    if (isSilv) {
+                        const uniqueSuffix = Date.now().toString().slice(-4) + i;
+                        barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                    }
+
+                    const npp = Math.max(0, grossPP - stonePP);
+                    const finePP = npp * getPurityFactor(purity);
+
+                    const newItem = {
+                        barcode: barcode, 
+                        category: cat, 
+                        name: pieces > 1 ? `${name} (Piece ${i+1})` : name,
+                        purity: purity, 
+                        grossWt: grossPP, 
+                        stoneWt: stonePP, 
+                        netWt: npp, 
+                        fineWt: finePP, 
+                        pieces: 1,
+                        status: 'stock', 
+                        source: 'manual', 
+                        addedDate: new Date().toISOString()
+                    };
+                    await addItem('inventory', newItem);
+                }
+            }
+
             showToast("Added to Inventory!", "success");
             closeModal('manualEntryModal');
             loadInventory();
@@ -1917,7 +2057,6 @@
                 }
             });
         }
-
 
         // --- EDIT LOGIC ---
         function calcEditNet() {
