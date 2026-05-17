@@ -1236,100 +1236,7 @@
             }
         }
 
-        function renderSoldList(items) {
-            const container = document.getElementById('inventory-list');
-            container.innerHTML = '';
-            
-            const thead = document.querySelector('.inv-table thead');
-            thead.innerHTML = `
-                <tr>
-                    <th>Sale Info</th>
-                    <th>Item Details</th>
-                    <th>Purity</th>
-                    <th style="text-align:center;">Qty</th>
-                    <th>Net Wt</th>
-                    <th style="color:var(--info-blue);">Item Total</th>
-                    <th style="color:var(--success-green);">Bill Paid</th>
-                    <th style="color:var(--active-red);">Bill Due</th>
-                    <th style="text-align:center;">Action</th>
-                </tr>
-            `;
-
-            if (items.length === 0) {
-                container.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No sold items found matching your filters.</td></tr>';
-                document.getElementById('total-weight').innerText = "0.000 g";
-                document.getElementById('total-value').innerText = "₹0";
-                document.getElementById('total-count').innerText = "0";
-                return;
-            }
-
-            let totalWt = 0; let totalVal = 0; let totalCount = 0;
-
-            items.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(item => {
-                totalWt += parseFloat(item.netWt); totalVal += Math.abs(item.itemTotal); totalCount += parseInt(item.pieces);
-
-                const tr = document.createElement('tr');
-                
-                let purityBadge = 'badge-22k';
-                if(item.purity === '24K') purityBadge = 'badge-24k'; 
-                if(item.purity.includes('18')) purityBadge = 'badge-18k';
-                if(checkIsSilver(item.purity)) purityBadge = 'badge-silver';
-
-                const dateStr = new Date(item.date).toLocaleDateString('en-IN');
-                const timeStr = new Date(item.date).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
-                
-                tr.innerHTML = `
-                    <td>
-                        <strong style="color:var(--info-blue); font-size:1.05rem;">INV-${String(item.saleId).padStart(4, '0')}</strong><br>
-                        <span style="font-weight:600;">${item.customerName}</span><br>
-                        <small style="color:#64748b;">${dateStr} ${timeStr}</small>
-                    </td>
-                    <td>
-                        <strong style="font-size:1.05rem;">${item.category}</strong><br>
-                        <span style="font-family:monospace; color:#475569;">${item.barcode}</span>
-                        ${item.huid ? `<br><small style="color:#8e24aa; font-weight:bold;">HUID: ${item.huid}</small>` : ''}
-                    </td>
-                    <td><span class="badge ${purityBadge}">${item.purity}</span></td>
-                    <td style="text-align:center; font-weight:700; font-size:1.1rem;">${item.pieces}</td>
-                    <td style="font-weight:700; color:var(--active-red);">${parseFloat(item.netWt).toFixed(3)} g</td>
-                    <td style="color:var(--info-blue); font-weight:700; font-size:1.05rem;">₹${Math.abs(item.itemTotal).toLocaleString()}</td>
-                    <td style="color:var(--success-green); font-weight:700; font-size:1.05rem;">
-                        ${item.pendingAmount <= 0 ? '<i class="fas fa-check-circle"></i> ' : ''}₹${item.paidAmount.toLocaleString()}
-                    </td>
-                    <td style="color:var(--active-red); font-weight:700; font-size:1.05rem;">
-                        ${item.pendingAmount > 0 ? `₹${item.pendingAmount.toLocaleString()}` : '<span style="color:var(--success-green);">₹0</span>'}
-                    </td>
-                    <td style="text-align:center;">
-                        <button class="btn-sm btn-view" onclick="window.location.href='sales.html?view=${item.saleId}'" title="Open Bill in POS"><i class="fas fa-file-invoice"></i> View</button>
-                        <button class="btn-sm btn-del" onclick="openCancelModal(${item.saleId})" title="Cancel Bill & Restore Items"><i class="fas fa-undo"></i> Restore</button>
-                    </td>
-                `;
-                container.appendChild(tr);
-            });
-
-            document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
-            document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
-            document.getElementById('total-count').innerText = totalCount;
-        }
-
-        // --- RESTORED getRate FUNCTION ---
-        function getRate(purity) {
-            if(!purity) return 0;
-            const pStr = String(purity).toUpperCase();
-            if(pStr.includes('22')) return goldRates.rate22k;
-            if(pStr.includes('24')) return goldRates.rate24k;
-            if(pStr.includes('18')) return goldRates.rate18k || (goldRates.rate22k * 0.82);
-            if(checkIsSilver(purity)) return (goldRates.rateSilver / 100); 
-            
-            const cpG = goldRates.customPurities?.find(x => pStr.includes(String(x.name).toUpperCase()));
-            if(cpG) return (goldRates.rate24k * (cpG.pct / 100));
-            
-            const cpS = goldRates.customSilverPurities?.find(x => pStr.includes(String(x.name).toUpperCase()));
-            if(cpS) return (goldRates.rateSilver / 1000) * 10 * (cpS.pct / 100); 
-            
-            return 0;
-        }
-
+        // --- UPDATE: RENDER LIST WITH 3 DIFFERENT MODES (TAGGED, LOOSE, PIECE) ---
         function renderList(items) {
             const container = document.getElementById('inventory-list');
             if(!container) return;
@@ -1512,104 +1419,6 @@
             document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
             document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
             document.getElementById('total-count').innerText = totalCount;
-        }
-
-        // --- RESTORED: openItemDetails ---
-        async function openItemDetails(id) {
-            const item = allInventory.find(i => i.id === id);
-            if(!item) return;
-
-            const fineWt = calculateFineWeight(item);
-
-            document.getElementById('idmBarcode').innerText = item.barcode;
-            document.getElementById('idmCategory').innerText = item.category;
-            document.getElementById('idmPurity').innerText = item.purity;
-            document.getElementById('idmPieces').innerText = item.pieces || 1;
-            document.getElementById('idmGross').innerText = (parseFloat(item.grossWt || item.weight) || 0).toFixed(3) + " g";
-            document.getElementById('idmStone').innerText = (parseFloat(item.stoneWt) || 0).toFixed(3) + " g";
-            document.getElementById('idmNet').innerText = (parseFloat(item.netWt || item.weight) || 0).toFixed(3) + " g";
-            document.getElementById('idmFine').innerText = fineWt.toFixed(3) + " g";
-            document.getElementById('idmHuid').innerText = item.huid || 'N/A';
-            
-            const isOrder = (item.barcode && String(item.barcode).startsWith('ORD-')) || (item.source && String(item.source).startsWith('order_'));
-
-            const statEl = document.getElementById('idmStatus');
-            const stat = String(item.status || '').toLowerCase();
-            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
-
-            if(stat !== 'sold' && stat !== 'delivered' && net > 0) {
-                statEl.innerHTML = `<span class="badge badge-22k">IN STOCK</span>`;
-            } else {
-                statEl.innerHTML = `<span class="badge badge-pending">SOLD / EMPTY</span>`;
-            }
-
-            if(isOrder) {
-                document.getElementById('idmEditBtn').style.display = 'none';
-                document.getElementById('idmOrderWarning').style.display = 'block';
-            } else {
-                document.getElementById('idmEditBtn').style.display = 'block';
-                document.getElementById('idmOrderWarning').style.display = 'none';
-                document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
-            }
-
-            document.getElementById('idmPrintBtn').onclick = () => { viewBarcode(item.barcode, (item.grossWt||item.weight).toFixed(3), item.purity); };
-
-            closeModal('detailsModal'); 
-            openModal('itemDetailsModal');
-        }
-
-        // --- RESTORED: openGroupDetails ---
-        function openGroupDetails(key) {
-            const group = groupedInventory[key];
-            if(!group) return;
-
-            const tbody = document.getElementById('groupDetailsList');
-            tbody.innerHTML = '';
-
-            group.items.forEach(item => {
-                const pcs = item.pieces || 1;
-                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
-                const stone = parseFloat(item.stoneWt || 0).toFixed(3);
-                const net = parseFloat(item.netWt || gross).toFixed(3);
-                const fine = calculateFineWeight(item).toFixed(3);
-
-                let barcodeDisplay = item.barcode;
-                if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
-
-                let actions = '';
-                if (item.category === 'MIX') {
-                    actions = `
-                        <button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Tag Stock"><i class="fas fa-tags"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                } else {
-                    actions = `
-                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-family:monospace; font-weight:700; color:var(--info-blue); cursor:pointer;" onclick="openItemDetails(${item.id})">
-                        <u>${barcodeDisplay}</u>
-                    </td>
-                    <td style="text-align:center;">${pcs}</td>
-                    <td>${gross} g</td>
-                    <td>${net} g</td>
-                    <td style="color:#8e24aa;">${stone} g</td>
-                    <td style="color:var(--info-blue); font-weight:700;">${fine} g</td>
-                    <td style="color:#64748b;">${item.huid || '-'}</td>
-                    <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
-                        ${actions}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            openModal('detailsModal');
         }
 
         // --- UPDATE: MANUAL ENTRY LOGIC ---
@@ -2240,3 +2049,7 @@
     </script>
 </body>
 </html>
+
+
+
+Isme pehle jese purchase.html b kiya tha update ki jab hm purches kare koi b to hume teen option mile loose. piece, or tag, or sabka same logic rahe jo aapne bataya tha or yaha jo update kiya wo update abhi b he isme bs pehle jo isse uppar wale isme the wo add karna he bs baki yahi rakhna he pura ka pura
