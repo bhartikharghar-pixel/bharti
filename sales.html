@@ -203,20 +203,8 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Wastage / Tounch</label>
-                            <div class="input-group">
-                                <input type="number" id="itemWastageVal" placeholder="0" step="0.01" oninput="calcItemLive()">
-                                <select id="itemWastageMode" onchange="calcItemLive()">
-                                    <option value="pct">%</option>
-                                    <option value="gm">g</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div style="background:#e8f5e9; padding:8px 12px; border-radius:6px; margin-bottom:15px; display:flex; justify-content:space-between; font-size:0.9rem; color:#2e7d32; border:1px solid #c8e6c9;">
-                            <span>Net Wt: <b id="liveNetWt">0.000 g</b></span>
-                            <span>Payable Wt: <b id="livePayableWt">0.000 g</b></span>
+                        <div style="background:#e8f5e9; padding:10px 12px; border-radius:6px; margin-bottom:15px; font-size:1rem; color:#2e7d32; border:1px solid #c8e6c9;">
+                            <span>Net Weight: <b id="liveNetWt">0.000 g</b></span>
                         </div>
 
                         <div class="form-grid">
@@ -231,7 +219,11 @@
                             <label>Making Charges</label>
                             <div class="input-group">
                                 <input type="number" id="mkVal" placeholder="0" oninput="calcItemLive()">
-                                <select id="mkType" onchange="calcItemLive()"><option value="pct">%</option><option value="flat">₹</option></select>
+                                <select id="mkType" onchange="calcItemLive()">
+                                    <option value="pct">%</option>
+                                    <option value="gm">₹/g</option>
+                                    <option value="flat">₹</option>
+                                </select>
                             </div>
                         </div>
 
@@ -306,7 +298,11 @@
                                 <label>Making Charges</label>
                                 <div class="input-group">
                                     <input type="number" id="mMkVal" placeholder="0" oninput="calcManualItem()">
-                                    <select id="mMkType" onchange="calcManualItem()"><option value="pct">%</option><option value="flat">₹</option></select>
+                                    <select id="mMkType" onchange="calcManualItem()">
+                                        <option value="pct">%</option>
+                                        <option value="gm">₹/g</option>
+                                        <option value="flat">₹</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -391,6 +387,15 @@
                     </div>
                 </div>
 
+                <!-- NEW ROUND OFF FEATURE -->
+                <div class="sum-row" style="margin-top:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; border:1px solid #444;">
+                    <span style="color:#C5A059; font-weight:bold; font-size: 0.9rem;">Final Round-Off (Auto Adjust Making)</span>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="targetGrand" class="dark-input" placeholder="e.g. 51000" style="width:100px;">
+                        <button class="btn-outline-gold" style="padding:4px 8px; font-size:0.8rem;" onclick="applyAutoRoundOff()">Apply</button>
+                    </div>
+                </div>
+
                 <div class="sum-row total"><span>Grand Total</span> <span id="sumGrand">₹0</span></div>
 
                 <div style="margin-top:20px; border-top:1px solid #444; padding-top:15px;">
@@ -420,6 +425,7 @@
         </div>
     </div>
 
+    <!-- Modals -->
     <div id="custModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="document.getElementById('custModal').style.display='none'">&times;</button>
@@ -478,7 +484,6 @@
         function formatInv(id) { return `INV-${String(id).padStart(4, '0')}`; }
         const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
         
-        // --- NATIVE PRINT BRIDGE ---
         function triggerPrint() {
             if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
                 AndroidInterface.printPage();
@@ -533,14 +538,12 @@
         let globalGstDefault = 3;
         let selectedPayMode = 'Cash';
 
-        // BC Wallet Variables
         let availableBcBalance = 0;
         let useBcWallet = false;
         let appliedBcAmount = 0;
-        let lockedEditBcAmount = 0; // NEW LOGIC: Lock exactly what was applied
+        let lockedEditBcAmount = 0; 
         let pendingMaturedSchemes = [];
         let maturedSchemesTotal = 0;
-
         let currentSelectedItem = null; 
 
         function checkIsSilver(purity) {
@@ -558,13 +561,10 @@
             if (key === '22K') return 0.9166;
             if (key === '18K') return 0.7500;
             if (key === 'Silver 92.5%') return 0.925;
-            
             let customG = goldRates.customPurities?.find(cp => cp.name === key);
             if (customG) return customG.pct / 100;
-            
             let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
             if (customS) return customS.pct / 100;
-            
             return 1.0;
         };
 
@@ -656,7 +656,7 @@
             availableBcBalance = 0;
             useBcWallet = false;
             appliedBcAmount = 0;
-            lockedEditBcAmount = 0; // CLEAR LOCK
+            lockedEditBcAmount = 0; 
             pendingMaturedSchemes = [];
             maturedSchemesTotal = 0;
             deletedPayments = [];
@@ -708,8 +708,6 @@
             
             document.getElementById('itemStoneWt').value = getSafeNum(i.stoneWt);
             document.getElementById('itemHuid').value = i.huid || i.mark || '';
-            document.getElementById('itemWastageVal').value = 0;
-            document.getElementById('itemWastageMode').value = 'pct';
 
             const isSilv = checkIsSilver(i.purity);
             const availPcs = parseInt(i.pieces) || 1;
@@ -764,22 +762,20 @@
             const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
             const netWt = Math.max(0, grossWt - stoneWt);
 
-            const wastVal = getSafeNum(document.getElementById('itemWastageVal').value);
-            const wastMode = document.getElementById('itemWastageMode').value;
-            const wastAmt = wastMode === 'pct' ? (netWt * wastVal / 100) : wastVal;
-
-            const payableWt = netWt + wastAmt;
-
             document.getElementById('liveNetWt').innerText = netWt.toFixed(3) + " g";
-            document.getElementById('livePayableWt').innerText = payableWt.toFixed(3) + " g";
 
             const rate = getSafeNum(document.getElementById('itemRate').value);
             const mkVal = getSafeNum(document.getElementById('mkVal').value);
             const mkType = document.getElementById('mkType').value;
             const gstPct = getSafeNum(document.getElementById('itemGst').value);
 
-            const goldVal = payableWt * rate;
-            const mkAmt = (mkType === 'pct') ? (goldVal * mkVal / 100) : mkVal;
+            const goldVal = netWt * rate;
+            let mkAmt = 0;
+            
+            if (mkType === 'pct') mkAmt = (goldVal * mkVal) / 100;
+            else if (mkType === 'gm') mkAmt = netWt * mkVal;
+            else mkAmt = mkVal; 
+
             const baseTotal = goldVal + mkAmt;
             const gstAmt = baseTotal * (gstPct / 100);
 
@@ -826,18 +822,18 @@
 
             const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
             const netWt = Math.max(0, grossWt - stoneWt);
-            const wastVal = getSafeNum(document.getElementById('itemWastageVal').value);
-            const wastMode = document.getElementById('itemWastageMode').value;
-            const wastAmt = wastMode === 'pct' ? (netWt * wastVal / 100) : wastVal;
-            const payableWt = netWt + wastAmt;
 
             const rate = getSafeNum(document.getElementById('itemRate').value);
             const mkVal = getSafeNum(document.getElementById('mkVal').value);
             const mkType = document.getElementById('mkType').value;
             const gstPct = getSafeNum(document.getElementById('itemGst').value);
 
-            const goldVal = payableWt * rate;
-            const mkAmt = (mkType === 'pct') ? (goldVal * mkVal / 100) : mkVal;
+            const goldVal = netWt * rate;
+            let mkAmt = 0;
+            if (mkType === 'pct') mkAmt = (goldVal * mkVal) / 100;
+            else if (mkType === 'gm') mkAmt = netWt * mkVal;
+            else mkAmt = mkVal;
+
             const baseAmt = Math.round(goldVal + mkAmt);
             const gstAmt = Math.round(baseAmt * (gstPct / 100));
             const finalTotal = baseAmt + gstAmt;
@@ -854,9 +850,6 @@
                 grossWt: grossWt,
                 stoneWt: stoneWt,
                 netWt: netWt,
-                wastageVal: wastVal,
-                wastageMode: wastMode,
-                payableWt: payableWt,
                 sellQty: sellQty,
                 rate: rate, makingType: mkType, makingRate: mkVal,
                 makingAmount: Math.round(mkAmt), baseAmount: baseAmt,
@@ -984,7 +977,11 @@
                 const mkType = document.getElementById('mMkType').value;
                 const gstPct = getSafeNum(document.getElementById('mItemGst').value);
                 
-                const mkAmt = (mkType === 'pct') ? (metalVal * mkVal / 100) : mkVal;
+                let mkAmt = 0;
+                if (mkType === 'pct') mkAmt = (metalVal * mkVal) / 100;
+                else if (mkType === 'gm') mkAmt = netWt * mkVal;
+                else mkAmt = mkVal;
+
                 const baseTotal = metalVal + mkAmt;
                 const gstAmt = baseTotal * (gstPct / 100);
                 const finalTotal = Math.round(baseTotal + gstAmt);
@@ -1035,7 +1032,11 @@
                 const mkType = document.getElementById('mMkType').value;
                 const gstPct = getSafeNum(document.getElementById('mItemGst').value);
                 
-                const mkAmt = (mkType === 'pct') ? (metalVal * mkVal / 100) : mkVal;
+                let mkAmt = 0;
+                if (mkType === 'pct') mkAmt = (metalVal * mkVal) / 100;
+                else if (mkType === 'gm') mkAmt = netWt * mkVal;
+                else mkAmt = mkVal;
+
                 const baseAmt = Math.round(metalVal + mkAmt);
                 const gstAmt = Math.round(baseAmt * (gstPct / 100));
                 const finalTotal = baseAmt + gstAmt;
@@ -1045,7 +1046,7 @@
                     isOldGold: false, 
                     metal: metal,
                     barcode: 'CUSTOM',
-                    category: name, purity: purity, weight: netWt, 
+                    category: name, purity: purity, weight: netWt, netWt: netWt,
                     rate: rate, makingType: mkType, makingRate: mkVal, makingAmount: Math.round(mkAmt), 
                     baseAmount: baseAmt, gstPct: gstPct, gstAmount: gstAmt, total: finalTotal, sellQty: 1
                 };
@@ -1062,6 +1063,93 @@
             document.getElementById('manualItemEntry').style.display = 'none';
         }
 
+        // Apply Round Off Logic by adjusting making charge proportionally
+        function applyAutoRoundOff() {
+            const target = getSafeNum(document.getElementById('targetGrand').value);
+            if (!target || target <= 0) return;
+            if (cart.length === 0) return alert("Cart is empty.");
+
+            let currentSub = 0;
+            let currentGst = 0;
+            let totalOldGold = 0;
+            const applyGst = document.getElementById('applyGstToggle').checked;
+
+            cart.forEach(i => {
+                if (i.isOldGold) totalOldGold += Math.abs(i.total);
+                else {
+                    currentSub += i.baseAmount;
+                    currentGst += applyGst ? i.gstAmount : 0;
+                }
+            });
+
+            const discAmt = getSafeNum(document.getElementById('sumDiscVal').value);
+            let tempTotal = (currentSub + currentGst) - totalOldGold - discAmt;
+            let appliedBc = 0;
+            
+            if (useBcWallet && availableBcBalance > 0 && lockedEditBcAmount === 0) {
+                appliedBc = Math.min(availableBcBalance, Math.max(0, tempTotal));
+            } else if (lockedEditBcAmount > 0) {
+                appliedBc = lockedEditBcAmount;
+            }
+
+            let currentGrand = tempTotal - appliedBc;
+            let diff = currentGrand - target; 
+
+            if (Math.abs(diff) < 1) { 
+                document.getElementById('targetGrand').value = ''; 
+                return; 
+            }
+
+            let totalVariable = 0;
+            let validItems = 0;
+            
+            cart.forEach(i => {
+                if (!i.isOldGold) {
+                    let factor = applyGst ? (1 + i.gstPct / 100) : 1;
+                    totalVariable += i.makingAmount * factor;
+                    validItems++;
+                }
+            });
+
+            if (validItems === 0) return alert("No standard jewelry items found to adjust making charge.");
+            
+            if (diff > totalVariable) {
+                return alert("Cannot reduce this much! Required discount exceeds the total Making Charge.");
+            }
+
+            cart.forEach(i => {
+                if (!i.isOldGold) {
+                    let factor = applyGst ? (1 + i.gstPct / 100) : 1;
+                    let newMkAmt = 0;
+                    
+                    if (totalVariable > 0) {
+                        let ratio = (totalVariable - diff) / totalVariable;
+                        newMkAmt = i.makingAmount * ratio;
+                    } else {
+                        let amountToAdd = (-diff / factor) / validItems;
+                        newMkAmt = i.makingAmount + amountToAdd;
+                    }
+
+                    if (newMkAmt < 0) newMkAmt = 0;
+
+                    i.makingType = 'flat';
+                    i.makingRate = parseFloat(newMkAmt.toFixed(2));
+                    i.makingAmount = newMkAmt;
+                    
+                    let goldVal = (i.netWt || i.weight) * i.rate; 
+                    let baseAmt = goldVal + i.makingAmount;
+                    let gstAmt = baseAmt * (i.gstPct / 100);
+                    
+                    i.baseAmount = Math.round(baseAmt); 
+                    i.gstAmount = applyGst ? Math.round(gstAmt) : 0; 
+                    i.total = i.baseAmount + i.gstAmount;
+                }
+            });
+
+            document.getElementById('targetGrand').value = '';
+            renderCart();
+        }
+
         function renderCart() {
             const b = document.getElementById('cartBody'); b.innerHTML = '';
             cart.forEach((i, idx) => {
@@ -1069,7 +1157,7 @@
                 if(i.huid) descTxt += ` | HUID: ${i.huid}`; 
                 
                 if(!i.isOldGold) {
-                    const mkTxt = i.makingType==='pct' ? `${i.makingRate}%` : `₹${i.makingRate}`;
+                    const mkTxt = i.makingType === 'pct' ? i.makingRate + '%' : (i.makingType === 'gm' ? '₹' + i.makingRate + '/g' : '₹' + i.makingRate);
                     descTxt += ` | Mk: ${mkTxt} | GST: ${i.gstPct}%`;
                 } else {
                     descTxt += ` | Fine: ${i.fineWt}g`;
@@ -1078,7 +1166,7 @@
                 const totalDisplay = i.isOldGold ? i.total.toLocaleString() : `+${i.total.toLocaleString()}`;
                 
                 const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
-                const wtDisplay = i.payableWt ? i.payableWt.toFixed(3) : i.weight;
+                const wtDisplay = (i.netWt || i.weight).toFixed(3);
 
                 b.innerHTML += `
                 <tr style="background: white; border-bottom: 5px solid #f5f5f5;">
@@ -1096,7 +1184,7 @@
         function toggleBcWallet() {
             useBcWallet = !useBcWallet;
             if(!useBcWallet) {
-                lockedEditBcAmount = 0; // Agar manually hataya to lock break ho jayega
+                lockedEditBcAmount = 0; 
             }
             calcBillSummary();
         }
@@ -1174,16 +1262,13 @@
             appliedBcAmount = 0;
 
             if (useBcWallet && (availableBcBalance > 0 || lockedEditBcAmount > 0)) {
-                // FIXED BC LOGIC: Lock the amount from previous edit, otherwise calculate normal.
                 if (lockedEditBcAmount > 0) {
                     appliedBcAmount = lockedEditBcAmount;
                 } else {
                     appliedBcAmount = Math.min(availableBcBalance, Math.max(0, tempTotal));
                 }
                 
-                // Safety check in case the bill total went lower than locked amount somehow
                 appliedBcAmount = Math.min(appliedBcAmount, Math.max(0, tempTotal));
-                
                 tempTotal -= appliedBcAmount;
                 
                 document.getElementById('sumBcWalletRow').style.display = 'flex';
@@ -1517,11 +1602,10 @@
             });
 
             if(cust) {
-                // FIXED RACE CONDITION & ADDED LOCK
                 cust.bcBalance = (getSafeNum(cust.bcBalance)) + (sale.bcWalletDeduction || 0);
-                await selectCust(cust); // Yaha pe await lagana zaruri tha
+                await selectCust(cust); 
                 if (sale.bcWalletDeduction > 0) {
-                    lockedEditBcAmount = sale.bcWalletDeduction; // AMOUNT KO LOCK KIYA
+                    lockedEditBcAmount = sale.bcWalletDeduction; 
                     useBcWallet = true;
                     calcBillSummary();
                 }
@@ -1757,13 +1841,13 @@
                 let rowTotal = Math.abs(i.total);
                 
                 if(!i.isOldGold) {
-                    mkDisplay = i.makingType === 'pct' ? Math.round(i.rate * i.weight * i.makingRate / 100) : i.makingAmount;
+                    mkDisplay = i.makingAmount ? '₹' + i.makingAmount.toLocaleString() : '-';
                     gstDisplay = i.gstPct + '%';
                     if (!isGst) rowTotal = i.baseAmount; 
                 }
                 
                 const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
-                const wtDisplay = i.payableWt ? i.payableWt.toFixed(3) : i.weight;
+                const wtDisplay = (i.netWt || i.weight).toFixed(3);
                 
                 let pName = `<b>${i.category}</b><br><small style="font-size:10px;">${i.purity}`;
                 if(i.huid) pName += ` | HUID: ${i.huid}`;
@@ -1812,7 +1896,6 @@
                 </div>
             `;
 
-            // FIX 1: Moving Due amount block out of Payments Loop so it prints always
             html += `<div style="margin-top:15px; border-top:1px dashed #000; padding-top:10px; font-size:13px;">`;
 
             if (sale.payments && sale.payments.length > 0) {
@@ -1831,7 +1914,6 @@
                 `;
             }
 
-            // Always display Total Paid and Remaining Due
             html += `
                 <div style="display:flex; justify-content:flex-end; margin-top:10px;">
                     <table style="width:250px; font-size:14px;">
