@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Purchases - Bharti Jewellers</title>
+    <title>Inventory - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+
     <style>
         :root {
-            /* Black & Gold Premium Theme */
             --header-bg: #000000; 
             --sidebar-bg: #111111; 
             --accent-gold: #C5A059;
@@ -21,11 +22,9 @@
             --whatsapp: #25D366; 
             --info-blue: #1976d2;
             --success-green: #2e7d32;
-            --card-shadow: 0 4px 15px rgba(0,0,0,0.04);
-            --card-hover-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
-        /* --- GLOBAL & APP STYLES --- */
         body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; font-size: 0.9rem; color: #333;}
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         a { text-decoration: none; color: inherit; }
@@ -34,7 +33,6 @@
         .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
         .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
         .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
-        
         .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
         .sidebar-drawer.open { left: 0; }
         .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
@@ -44,126 +42,109 @@
         .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
         .sidebar-overlay.show { display: block; }
 
-        /* --- DASHBOARD LAYOUT --- */
+        /* --- INVENTORY DASHBOARD --- */
         .app-container { padding: 25px; max-width: 1400px; margin: 0 auto; }
         
-        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;}
+        .header-actions { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;}
+        .header-top-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;}
         
-        /* Master Metal Toggle Pills */
-        .metal-toggle-container { display: flex; background: #e0e0e0; padding: 4px; border-radius: 12px; width: fit-content; gap: 4px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
-        .metal-tab { padding: 10px 20px; font-weight: 600; font-size: 0.95rem; color: #666; cursor: pointer; border-radius: 10px; transition: 0.3s; display: flex; align-items: center; gap: 8px;}
-        .metal-tab.active-gold { background: white; color: var(--accent-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .metal-tab.active-silver { background: white; color: #455a64; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .metal-tab.active-all { background: white; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .metal-toggle-container { display: flex; background: #e0e0e0; padding: 5px; border-radius: 12px; width: fit-content; gap: 5px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); flex-wrap: wrap;}
+        .metal-tab { padding: 10px 15px; font-weight: 600; font-size: 0.85rem; color: #555; cursor: pointer; border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 6px;}
+        .metal-tab i { font-size: 1rem; }
+        
+        /* Tab Colors */
+        .metal-tab.active-gold { background: white; color: var(--accent-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-gold);}
+        .metal-tab.active-gold-fine { background: white; color: #fbc02d; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #fbc02d;}
+        .metal-tab.active-gold-order { background: white; color: var(--info-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--info-blue);}
+        .metal-tab.active-silver { background: white; color: #455a64; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-silver);}
+        .metal-tab.active-all { background: white; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #333;}
 
-        .btn-export { background: #10b981; color: white; padding: 10px 20px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
+        .btn-export { background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; height: fit-content;}
         .btn-export:hover { background: #059669; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); transform: translateY(-2px);}
 
-        /* Stats Cards */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .stat-card { background: white; padding: 25px; border-radius: 16px; box-shadow: var(--card-shadow); border-top: 4px solid var(--accent-gold); transition: transform 0.3s; display:flex; flex-direction:column; justify-content:center;}
-        .stat-card:nth-child(2) { border-top-color: var(--info-blue); }
-        .stat-card:nth-child(3) { border-top-color: #333; }
-        .stat-card:hover { transform: translateY(-4px); box-shadow: var(--card-hover-shadow); }
-        .stat-val { font-size: 1.8rem; font-weight: 700; color: #333; margin-top: 8px; letter-spacing: -0.5px;}
-        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
-        .stat-sub { font-size: 0.95rem; color: #555; font-weight: 600; padding-top: 12px; border-top: 1px dashed #eee; display: flex; justify-content: space-between; margin-top:10px;}
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--card-shadow); border-left: 5px solid var(--accent-gold); transition: 0.3s; display:flex; flex-direction:column; justify-content:center;}
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .stat-val { font-size: 1.8rem; font-weight: 700; color: #333; margin-top: 5px;}
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase;}
 
-        /* Modern Filter Bar */
-        .filter-box { background: white; padding: 20px; border-radius: 16px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--card-shadow); flex-wrap: wrap; gap: 15px; border: 1px solid #eee; }
-        .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: 1;}
-        .filter-group.right { justify-content: flex-end; }
-        .date-input { border: 1px solid #e0e0e0; padding: 12px 15px; border-radius: 10px; font-size: 0.95rem; background: #fafafa; outline: none; transition: 0.2s; font-family: inherit; color:#333; min-width: 150px; height: 45px;}
-        .date-input:focus { border-color: var(--accent-gold); background: white; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);}
-        .btn-filter { background: #333; color: white; border: none; padding: 0 25px; height: 45px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;}
-        .btn-filter:hover { background: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
+        .filter-bar-new { display: flex; gap: 15px; align-items: flex-end; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; border: 1px solid #eee; flex-wrap: wrap;}
+        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;}
+        .filter-group label { font-size: 0.8rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .filter-group select { padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; background: #fafafa;}
+        .filter-group select:focus { border-color: var(--accent-gold); background: white; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);}
+        
+        .btn-manage-cats { background: #333; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; height: 45px;}
+        .btn-manage-cats:hover { background: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
 
-        /* Table */
-        .table-card { background: white; border-radius: 16px; box-shadow: var(--card-shadow); border: 1px solid #eee; overflow: hidden; margin-bottom: 30px;}
-        .table-header { padding: 20px 25px; border-bottom: 1px solid #eee; background: #fdfdfd;}
-        .table-title { font-weight: 700; font-size: 1.2rem; color: #333; margin: 0; display: flex; align-items: center; gap: 10px;}
-        
-        .table-responsive { overflow-x: auto; width: 100%;}
-        .r-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 1000px;}
-        .r-table th { background: #fafafa; color: #666; padding: 15px 20px; text-align: left; font-weight: 700; border-bottom: 2px solid #eee; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; white-space: nowrap;}
-        .r-table td { padding: 15px 20px; border-bottom: 1px solid #f5f5f5; color: #333; vertical-align: middle; }
-        .r-table tr:hover { background: #f8f9fa; }
-        
-        .date-group-header { background: #fffdf5 !important; font-weight: 700; color: var(--accent-gold) !important; font-size:1rem;}
-        .text-right { text-align: right; }
-        
-        /* Badges */
-        .badge { padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; letter-spacing:0.5px;}
-        .b-fixed { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
-        .b-unfixed { background: #fce4ec; color: #8e24aa; border: 1px solid #e1bee7; }
-        .b-metal-gold { background: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2;}
-        .b-metal-silver { background: #eceff1; color: #455a64; border: 1px solid #cfd8dc;}
-        
-        .party-name { font-weight: 700; color: #111; display: block; font-size: 1.05rem; margin-bottom:4px;}
-        .tx-desc { color: #666; font-size: 0.85rem; display: flex; align-items:center; gap:8px;}
+        .search-box-container { position: relative; margin-bottom: 20px; }
+        .search-box { width: 100%; padding: 16px 20px 16px 45px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.03); outline: none; transition: 0.2s;}
+        .search-box:focus { border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);}
+        .search-icon { position: absolute; left: 16px; top: 18px; color: #999; font-size: 1.1rem; }
 
-        /* Action Buttons */
-        .action-btns { display: flex; gap: 8px; justify-content: center;}
-        .btn-action { background: #f4f6f9; border: 1px solid #ddd; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items:center; justify-content:center; color: #555; transition: 0.2s; font-size: 0.9rem;}
-        .btn-action:hover { background: #e0e0e0; transform: translateY(-2px);}
-        .btn-action.print { color: var(--success-green); border-color: #c8e6c9; background: #e8f5e9;}
-        .btn-action.print:hover { background: #c8e6c9; }
-        .btn-action.edit { color: var(--info-blue); border-color: #bbdefb; background: #e3f2fd;}
-        .btn-action.edit:hover { background: #bbdefb; }
-        .btn-action.delete { color: var(--active-red); border-color: #ffcdd2; background: #ffebee;}
-        .btn-action.delete:hover { background: #ffcdd2; }
+        .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: var(--card-shadow); max-height: 65vh;}
+        .inv-table { width: 100%; border-collapse: collapse; min-width: 950px; }
+        .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 16px; font-weight: 700; font-size: 0.8rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
+        .inv-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.9rem; vertical-align: middle; }
+        .inv-table tr:hover { background: #f8fafc; }
+        .inv-table tr.row-mix { background: #fffbf1; border-left: 4px solid #fbc02d; } 
+        
+        .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .badge-mix { background: #fbc02d; color: #000; }
+        .badge-pending { background: #fee2e2; color: #b91c1c; letter-spacing: 0.5px; }
+        .badge-order { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-22k { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;}
+        .badge-18k { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
+        .badge-24k { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;}
+        .badge-silver { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;}
 
-        /* FAB */
-        .fab { position: fixed; bottom: 30px; right: 30px; width: 65px; height: 65px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(211, 47, 47, 0.4); font-size: 1.8rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
-        .fab:hover { transform: scale(1.05); }
+        .btn-sm { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-right: 6px; font-weight: 600; transition: 0.2s;}
+        .btn-tag { background: #10b981; color: white; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
+        .btn-tag:hover { background: #059669; }
+        .btn-view { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+        .btn-view:hover { background: #e2e8f0; }
+        .btn-print { background: #333; color: white; }
+        .btn-edit { background: var(--info-blue); color: white; }
+        .btn-del { background: var(--active-red); color: white; }
+
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 64px; height: 64px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:hover { transform: scale(1.05) rotate(5deg); }
         .fab:active { transform: scale(0.95); }
 
         /* --- MODALS --- */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .modal-content { background: white; padding: 30px; width: 95%; max-width: 700px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; padding: 30px; width: 95%; max-width: 600px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out;}
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-        .modal-title { margin: 0; font-size: 1.4rem; font-weight: 700; color: #111; display: flex; align-items: center; gap: 10px;}
-        .close-btn { background: none; border: none; font-size: 2rem; color: #999; cursor: pointer; transition: 0.2s; line-height: 1; padding: 0;}
+        .close-btn { position: absolute; top: 20px; right: 25px; font-size: 1.8rem; background: none; border: none; cursor: pointer; color: #94a3b8; transition: 0.2s;}
         .close-btn:hover { color: var(--active-red); }
-
-        /* Form Grid */
-        .form-section { margin-bottom: 25px; background: #fafafa; padding: 20px; border-radius: 12px; border: 1px solid #eee;}
-        .sec-label { font-size: 0.9rem; font-weight: 700; color: var(--active-red); text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px; border-bottom: 2px solid #ffcdd2; padding-bottom: 5px; display: inline-flex; align-items: center; gap: 8px;}
         
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
+        input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; font-family: inherit; transition: 0.2s;}
+        input:focus, select:focus, textarea:focus { border-color: var(--active-red); outline: none; background: white; box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);}
+        
+        .btn-block { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-top: 15px; transition: 0.2s;}
+        .btn-primary { background: var(--active-red); color: white; }
+        .btn-primary:hover { background: #b71c1c; box-shadow: 0 4px 10px rgba(211, 47, 47, 0.2);}
+        .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+        .btn-danger { background: #d32f2f; color: white; padding: 14px; width: 100%; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;}
+
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-        .form-group { margin-bottom: 15px; width: 100%;}
+
+        .item-detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
+        .item-detail-lbl { color: #64748b; font-weight: 600; }
+        .item-detail-val { font-weight: 700; color: #1e293b; }
+
+        .cat-tabs { display: flex; margin-bottom: 15px; background: #f1f5f9; border-radius: 10px; padding: 4px;}
+        .cat-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-weight: 600; font-size: 0.9rem; border-radius: 8px; color: #64748b; transition: 0.2s;}
+        .cat-tab.active { background: white; color: var(--header-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         
-        label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 6px; font-weight: 600;}
-        
-        /* Clean Inputs */
-        input, select { width: 100%; padding: 12px 15px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; background: #fff; font-family: inherit; transition: 0.2s; height: 45px;}
-        input:focus, select:focus { border-color: var(--accent-gold); outline: none; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);}
-        input[readonly] { background: #f0f4f8; color: #1976d2; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; box-shadow: none;}
+        .cat-list { list-style: none; padding: 0; margin: 0 0 15px 0; border: 1px solid #e2e8f0; border-radius: 10px; max-height: 250px; overflow-y: auto;}
+        .cat-item { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; background: #fff; font-weight: 500;}
+        .cat-item:last-child { border-bottom: none; }
+        .cat-del { color: var(--active-red); cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .cat-del:hover { transform: scale(1.2); }
 
-        /* Dynamic Individual Inputs */
-        .piece-gross, .piece-stone { height: 40px !important; padding: 8px 12px !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; font-size: 0.9rem !important; }
-
-        /* Input Group for Wastage */
-        .input-group { display: flex; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; width: 100%; transition: 0.2s; height: 45px;}
-        .input-group:focus-within { border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15); }
-        .input-group input { border: none; flex: 1; border-radius: 0; min-width: 50%; box-shadow:none;}
-        .input-group select { width: 90px; border: none; border-left: 1px solid #ddd; background: #f8f9fa; font-size: 0.9rem; border-radius: 0; font-weight:bold; color:#333; flex-shrink: 0; box-shadow:none; height: 100%;}
-
-        /* Summary Box */
-        .summary-box { background: #111; color: #fff; padding: 25px; border-radius: 12px; margin-top: 20px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 30px;}
-        .sum-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 1rem; align-items: center; color: #ccc;}
-        .sum-total { border-top: 1px dashed #555; margin-top: 15px; padding-top: 15px; font-size: 1.3rem; font-weight: 700; color: var(--accent-gold); display: flex; justify-content: space-between; align-items: center;}
-        
-        .dark-input { background: rgba(255,255,255,0.1) !important; border: 1px solid #444 !important; color: white !important; text-align: left; border-radius: 8px; height: 45px; width: 100%; padding-left: 15px;}
-        .dark-input:focus { border-color: var(--accent-gold) !important; background: rgba(255,255,255,0.2) !important; }
-        .dark-select option { background: #222; color: #fff; }
-
-        .btn-main { width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 10px; font-weight: 700; font-size: 1.1rem; cursor: pointer; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;}
-        .btn-main:hover { background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.2);}
-
-        /* Toast Notifications */
         #toast {
             visibility: hidden; min-width: 250px; background-color: #1e293b; color: #fff;
             text-align: center; border-radius: 10px; padding: 16px 20px; position: fixed;
@@ -175,59 +156,65 @@
         #toast.success { border-left: 5px solid var(--success-green); }
         #toast.error { border-left: 5px solid var(--active-red); }
 
-        /* --- RESPONSIVENESS --- */
         @media (max-width: 768px) {
             .app-container { padding: 15px; }
-            .header-actions { flex-direction: column; align-items: stretch;}
+            .header-top-row { flex-direction: column; align-items: stretch; gap: 10px;}
+            .metal-toggle-container { width: 100%; border-radius: 12px; background: transparent; box-shadow: none; gap: 8px; padding: 0; }
+            .metal-tab { width: calc(50% - 4px); justify-content: center; background: #e0e0e0; border-radius: 8px; border-bottom: none; border-left: 5px solid transparent; }
+            .metal-tab.active-gold, .metal-tab.active-gold-fine, .metal-tab.active-gold-order, .metal-tab.active-silver, .metal-tab.active-all { border-bottom: none; border-left-width: 5px; }
             
-            .metal-toggle-container { flex-direction: column; width: 100%; border-radius: 12px; background: transparent; box-shadow: none; gap: 8px; padding: 0;}
-            .metal-tab { width: 100%; justify-content: center; background: #e0e0e0; border-radius: 8px;}
+            .metal-tab.active-gold { border-left-color: var(--accent-gold); }
+            .metal-tab.active-gold-fine { border-left-color: #fbc02d; }
+            .metal-tab.active-gold-order { border-left-color: var(--info-blue); }
+            .metal-tab.active-silver { border-left-color: var(--accent-silver); }
+            .metal-tab.active-all { border-left-color: #333; }
             
             .btn-export { justify-content: center; }
+            .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+            
+            .filter-bar-new { flex-direction: column; align-items: stretch; padding: 15px;}
+            .filter-group { min-width: 100%; }
+            .btn-manage-cats { width: 100%; justify-content: center; margin-top: 5px;}
 
-            .stats-grid { grid-template-columns: 1fr; gap: 15px; }
-            
-            .filter-box { flex-direction: column; align-items: stretch; padding: 15px; gap: 15px;}
-            .filter-group { flex-direction: column; align-items: stretch; width: 100%;}
-            .filter-group > * { width: 100% !important; margin: 0;}
-            
-            .grid-2, .grid-3 { grid-template-columns: 1fr !important; gap: 15px; }
-            
+            .grid-2 { grid-template-columns: 1fr !important; gap: 15px; }
             .modal-content { padding: 20px; width: 95%; max-height: 90vh; }
-            .form-section { padding: 15px; }
-            
-            #paid-amount-row { display: flex !important; flex-direction: column; align-items: stretch; gap: 15px; margin-top: 15px;}
-            
-            .r-table { display: block; overflow-x: auto; white-space: nowrap; }
+            .btn-sm { padding: 8px; }
+            .btn-sm i { margin: 0; }
         }
 
         @media print {
-            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .fab, #toast { display: none !important; }
-            body { background: white; padding: 0; }
+            body * { visibility: hidden; }
+            #barcodePrintModal, #barcodePrintModal * { visibility: visible; }
+            #barcodePrintModal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; padding: 0; display: block; }
+            .modal-content { box-shadow: none; border: none; padding: 0; max-width: 100%; }
+            .close-btn, .btn-primary { display: none !important; }
+            .barcode-box { border: none !important; padding: 0 !important; }
         }
     </style>
 </head>
 <body>
 
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
     <header class="app-header">
         <div class="header-title">
             <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
             <span style="margin-left:10px;">BHARTI JEWELLERS</span>
         </div>
     </header>
-
+    
     <aside id="app-sidebar" class="sidebar-drawer">
-        <ul class="sidebar-menu">
+       <ul class="sidebar-menu">
             <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
-            <li><a href="purchases.html" class="active"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
-            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html" class="active"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
             <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
             <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
             <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
-            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
             <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
             <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
             <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
             <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
             <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
@@ -241,258 +228,457 @@
     <div class="app-container">
         
         <div class="header-actions">
-            <div class="metal-toggle-container">
-                <div class="metal-tab active-gold" id="metal-tab-gold" onclick="setMetalFilter('GOLD')"><i class="fas fa-coins"></i> Gold Purchases</div>
-                <div class="metal-tab" id="metal-tab-silver" onclick="setMetalFilter('SILVER')"><i class="fas fa-ring"></i> Silver Purchases</div>
-                <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
+            <div class="header-top-row">
+                <div class="metal-toggle-container">
+                    <div class="metal-tab active-gold" id="metal-tab-gold-tagged" onclick="setMetalFilter('GOLD_TAGGED')"><i class="fas fa-tags"></i> Gold (Tagged)</div>
+                    <div class="metal-tab" id="metal-tab-gold-fine" onclick="setMetalFilter('GOLD_FINE')"><i class="fas fa-cubes"></i> Gold (Fine/Melt)</div>
+                    <div class="metal-tab" id="metal-tab-gold-order" onclick="setMetalFilter('GOLD_ORDER')"><i class="fas fa-hammer"></i> Gold (Orders)</div>
+                    <div class="metal-tab" id="metal-tab-silver" onclick="setMetalFilter('SILVER')"><i class="fas fa-ring"></i> Silver Stock</div>
+                    <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
+                </div>
+                <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
             </div>
-            
-            <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card" id="card-today">
-                <div class="stat-lbl">Today's Purchases</div>
-                <div class="stat-val" id="statTodayWt">0.000 g</div>
-                <div class="stat-sub"><span>Total Value:</span> <b id="statTodayVal" style="color:var(--success-green);">₹0</b></div>
+            <div class="stat-card" id="card-weight" style="border-left-color: var(--accent-gold);">
+                <div class="stat-lbl" id="lbl-weight">Total Gold Weight (Net)</div>
+                <div class="stat-val" id="total-weight">0.000 g</div>
             </div>
-            <div class="stat-card" id="card-month">
-                <div class="stat-lbl">This Month Purchases</div>
-                <div class="stat-val" id="statMonthWt">0.000 g</div>
-                <div class="stat-sub"><span>Total Value:</span> <b id="statMonthVal" style="color:var(--info-blue);">₹0</b></div>
+            <div class="stat-card" id="card-value" style="border-left-color: var(--success-green);">
+                <div class="stat-lbl" id="lbl-value">Total Est. Gold Value</div>
+                <div class="stat-val" id="total-value" style="color:var(--success-green);">₹0</div>
             </div>
-            <div class="stat-card" id="card-all">
-                <div class="stat-lbl">All Time Total</div>
-                <div class="stat-val" id="statAllWt">0.000 g</div>
-                <div class="stat-sub"><span>Total Value:</span> <b id="statAllVal" style="color:#000;">₹0</b></div>
+            <div class="stat-card" id="card-count" style="border-left-color: var(--info-blue);">
+                <div class="stat-lbl" id="lbl-count">Total Active Items / Batches</div>
+                <div class="stat-val" id="total-count" style="color:var(--info-blue);">0</div>
             </div>
         </div>
 
-        <div class="filter-box">
+        <div class="filter-bar-new">
             <div class="filter-group">
-                <input type="date" id="filterFrom" class="date-input">
-                <span style="color:#888; font-weight:600;">to</span>
-                <input type="date" id="filterTo" class="date-input">
-            </div>
-            <div class="filter-group right">
-                <select id="filterMerchant" class="date-input" style="max-width: 300px;">
-                    <option value="ALL">All Merchants / Suppliers</option>
+                <label><i class="fas fa-layer-group"></i> Sub-View Filter:</label>
+                <select id="filterType" onchange="applyFilters()">
+                    <option value="ALL">All Active Stock in this Tab</option>
+                    <option value="MIX">Untagged (Mix) Stock Only</option>
+                    <option value="SOLD">Sold Invoices (History)</option>
                 </select>
-                <button class="btn-filter" onclick="loadHistory()"><i class="fas fa-search"></i> Search</button>
             </div>
+            <div class="filter-group">
+                <label><i class="fas fa-tags"></i> Item Category:</label>
+                <select id="filterCategory" onchange="applyFilters()">
+                    <option value="ALL">All Categories</option>
+                </select>
+            </div>
+            <button class="btn-manage-cats" onclick="openCatModal()"><i class="fas fa-cog"></i> Manage Categories</button>
         </div>
 
-        <div class="table-card">
-            <div class="table-header">
-                <h3 class="table-title"><i class="fas fa-truck-loading"></i> Purchase History Ledger</h3>
+        <div class="search-box-container">
+            <i class="fas fa-barcode search-icon"></i>
+            <input type="text" id="searchInput" class="search-box" placeholder="Scan Barcode or Search HUID / Name..." onkeyup="applyFilters()">
+        </div>
+
+        <div class="table-container">
+            <table class="inv-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Barcodes / Ref</th>
+                        <th>Purity</th>
+                        <th>Stock Qty</th>
+                        <th>Gross Wt</th>
+                        <th>Net Wt</th>
+                        <th style="color:#8e24aa;">Stone Wt</th>
+                        <th>Fine Wt</th>
+                        <th style="text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    <tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="customConfirmModal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-question-circle" style="color:var(--info-blue); font-size: 2rem; display:block; margin-bottom: 10px;"></i> Confirm</h3>
+            <p id="customConfirmMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+            <div style="display:flex; gap:10px; margin-top:25px;">
+                <button class="btn-secondary" style="flex:1; padding: 12px; border-radius: 8px; font-weight: bold; border: 1px solid #ccc; background: #fff;" onclick="resolveCustomConfirm(false)">Cancel</button>
+                <button class="btn-primary" style="flex:1; margin-top:0;" onclick="resolveCustomConfirm(true)">Proceed</button>
             </div>
-            <div class="table-responsive">
-                <table class="r-table">
+        </div>
+    </div>
+
+    <div id="customAlertModal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color:var(--active-red); font-size: 1.4rem;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; display:block; margin-bottom: 10px;"></i> Notice</h3>
+            <p id="customAlertMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+            <button class="btn-primary" style="margin-top:25px;" onclick="closeModal('customAlertModal')">OK</button>
+        </div>
+    </div>
+
+    <div id="catModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-tags"></i> Manage Categories</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-top:-5px; margin-bottom:15px;">These categories appear in Inventory, Purchases, and Billing.</p>
+            
+            <div class="cat-tabs">
+                <div class="cat-tab active" id="catTabGold" onclick="switchCatMode('Gold')">Gold Categories</div>
+                <div class="cat-tab" id="catTabSilver" onclick="switchCatMode('Silver')">Silver Categories</div>
+            </div>
+
+            <ul class="cat-list" id="catListDisplay"></ul>
+            
+            <div style="display:flex; gap:10px; align-items:center; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0;">
+                <input type="text" id="newCatName" placeholder="e.g. Mangalsutra" style="margin:0; flex:1;">
+                <button class="btn-primary" style="margin:0; width:auto; padding:12px 20px;" onclick="addCategory()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="itemDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <button class="close-btn" onclick="closeModal('itemDetailsModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-search"></i> Item Details
+            </h3>
+            
+            <div class="barcode-box" style="text-align:center; margin-bottom: 20px;">
+                <div style="font-weight:bold; font-size:0.9rem; color:#64748b;">BHARTI JEWELLERS</div>
+                <div class="barcode-text" id="idmBarcode" style="font-weight:bold; font-size:1.5rem; letter-spacing:2px; margin-top:5px;">BARCODE</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; margin-bottom:20px;">
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Category:</span>
+                    <span class="item-detail-val" id="idmCategory">...</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Purity:</span>
+                    <span class="item-detail-val" id="idmPurity">...</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Quantity / Pieces:</span>
+                    <span class="item-detail-val" id="idmPieces">1</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Gross Weight:</span>
+                    <span class="item-detail-val" id="idmGross">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Stone Weight:</span>
+                    <span class="item-detail-val" id="idmStone">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Net Weight:</span>
+                    <span class="item-detail-val" id="idmNet" style="color:var(--active-red);">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Fine Weight:</span>
+                    <span class="item-detail-val" id="idmFine" style="color:var(--info-blue);">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">HUID / Mark:</span>
+                    <span class="item-detail-val" id="idmHuid">N/A</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Current Status:</span>
+                    <span class="item-detail-val" id="idmStatus">...</span>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <button class="btn-block btn-primary" style="margin-top:0;" id="idmEditBtn"><i class="fas fa-pen"></i> Edit Item</button>
+                <button class="btn-block btn-secondary" style="margin-top:0;" id="idmPrintBtn"><i class="fas fa-print"></i> Print Tag</button>
+            </div>
+            <p id="idmOrderWarning" style="display:none; color:var(--active-red); font-size:0.8rem; text-align:center; font-weight:bold; margin-top:15px;">
+                <i class="fas fa-exclamation-triangle"></i> This is a Custom Order item. Edit restricted.
+            </p>
+        </div>
+    </div>
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
+                <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-layer-group"></i> Group Details</h3>
+                <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
+            </div>
+            
+            <div class="table-container" style="max-height:60vh; box-shadow:none; border:1px solid #e2e8f0;">
+                <table class="inv-table">
                     <thead>
                         <tr>
-                            <th style="width: 15%;">Time & Ref</th>
-                            <th style="width: 10%;">Type</th>
-                            <th style="width: 30%;">Merchant & Item Details</th>
-                            <th style="width: 10%;">Fine Wt</th>
-                            <th class="text-right" style="width: 15%;">Total Cost (₹)</th>
-                            <th class="text-right" style="width: 10%;">Paid / Due</th>
-                            <th style="text-align:center; width: 10%;">Action</th>
+                            <th>Barcode</th>
+                            <th>Qty</th>
+                            <th>Gross Wt</th>
+                            <th>Net Wt</th>
+                            <th style="color:#8e24aa;">Stone Wt</th>
+                            <th>Fine Wt</th>
+                            <th>HUID</th>
+                            <th style="text-align:center;">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="historyBody">
-                        <tr><td colspan="7" style="text-align:center; padding:40px; color:#888; font-size:1.1rem;">Loading Ledger...</td></tr>
-                    </tbody>
+                    <tbody id="groupDetailsList"></tbody>
                 </table>
             </div>
         </div>
-
-        <div class="fab" onclick="openModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <div id="entryModal" class="modal">
+    <div id="tagModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle"><i class="fas fa-shopping-cart"></i> New Purchase</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+            <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-tags"></i> Extract & Tag Stock</h3>
+            
+            <input type="hidden" id="tagSourceId"> 
+            <input type="hidden" id="tagSourceMaxWt">
+            <input type="hidden" id="tagSourceMaxStoneWt">
+            <input type="hidden" id="tagSourceMaxNetWt">
+            
+            <div style="background:#fffbf1; padding:20px; margin-bottom:20px; border-left:5px solid var(--accent-gold); border-radius:10px;">
+                <div style="margin-bottom:5px; color:#64748b; font-size:0.85rem; text-transform:uppercase; font-weight:700;">Source Batch</div>
+                <strong id="tagSourceName" style="font-size:1.2rem; color:var(--header-bg);"></strong> 
+                <span id="tagSourceWt" style="float:right; font-weight:bold; color:var(--active-red); font-size:1.1rem;"></span>
             </div>
 
-            <div class="modal-body" style="padding: 0;">
-                <input type="hidden" id="editPurchaseId">
-                <input type="hidden" id="oldDueAmount">
-                <input type="hidden" id="oldFineWeight">
-                <input type="hidden" id="oldType">
-                <input type="hidden" id="oldPaid">
-                <input type="hidden" id="oldInvId">
-
-                <div class="form-section">
-                    <div class="sec-label"><i class="fas fa-user-tag"></i> Supplier Info</div>
-                    <div class="grid-2">
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label>Merchant <span style="float:right; color:var(--info-blue); font-weight:bold; cursor:pointer;" onclick="promptNewMerchant()">+ Add New</span></label>
-                            <select id="merchantSelect"><option value="">Select Merchant</option></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Date</label>
-                            <input type="date" id="purchaseDate" class="date-input">
-                        </div>
-                        <div class="form-group">
-                            <label>Purchase Type</label>
-                            <select id="purchaseType" onchange="toggleTypeUI()">
-                                <option value="Fixed">Fixed Rate (₹)</option>
-                                <option value="Unfixed">Unfixed (Metal Bal)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <div class="sec-label"><i class="fas fa-gem"></i> Item Details (Enter Totals)</div>
-                    
-                    <div class="grid-3">
-                        <div class="form-group">
-                            <label>Metal</label>
-                            <select id="itemMetal" onchange="populateCategoryDropdown(); populatePurityDropdowns(); autoFillRate(); autoSetStockMode();">
-                                <option value="Gold">Gold</option>
-                                <option value="Silver">Silver</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Category</label>
-                            <select id="itemCategory"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Stock Generation Mode</label>
-                            <select id="stockMode" onchange="generatePieceInputs()">
-                                <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
-                                <option value="bulk">Bulk Stock (Single Barcode for all Pieces)</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="grid-3">
-                        <div class="form-group">
-                            <label>Total Pieces / Qty</label>
-                            <input type="number" id="itemPieces" value="1" min="1" onchange="generatePieceInputs()">
-                        </div>
-                        <div class="form-group">
-                            <label>Purity</label>
-                            <select id="itemPurity" onchange="autoFillRate()"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Total Gross Wt (g)</label>
-                            <input type="number" id="totalGrossWt" step="0.001" placeholder="0" oninput="calcTotals()">
-                        </div>
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Total Stone Wt (g)</label>
-                            <input type="number" id="totalStoneWt" step="0.001" value="0" oninput="calcTotals()">
-                        </div>
-                        <div class="form-group">
-                            <label>Total Net Wt (Physical)</label>
-                            <input type="number" id="totalNet" readonly>
-                        </div>
-                    </div>
-
-                    <div id="dynamicPieceInputs" style="display:none; background:#f4f6f9; padding:15px; border-radius:8px; border:1px dashed #ccc; margin-bottom:15px; grid-column: 1 / -1;"></div>
-                    
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label>Total Wastage / Tounch</label>
-                            <div class="input-group">
-                                <input type="number" id="wastageVal" step="0.01" value="0" oninput="calcTotals()" placeholder="0">
-                                <select id="wastageMode" onchange="calcTotals()">
-                                    <option value="pct">% on Net</option>
-                                    <option value="gm">Grams</option> 
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Batch HUID / Mark (Optional)</label>
-                            <input type="text" id="itemMark" placeholder="e.g., HUID12345">
-                        </div>
-                    </div>
-                </div>
-
-                <div id="financials-section" class="form-section">
-                    <div class="sec-label"><i class="fas fa-rupee-sign"></i> Costing Breakdown</div>
-                    <div class="grid-3">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label id="rateLabel">Rate (₹/g)</label>
-                            <input type="number" id="metalRate" oninput="calcTotals()" step="0.01">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Total Making (₹)</label>
-                            <input type="number" id="totalMakingChg" value="0" oninput="calcTotals()">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Total Other (₹)</label>
-                            <input type="number" id="totalOtherChg" value="0" oninput="calcTotals()">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="summary-box">
-                    <div class="sum-row">
-                        <span><i class="fas fa-balance-scale-right"></i> Total Pure Content:</span>
-                        <span id="dispPureWt">0.000 g</span>
-                    </div>
-                    <div class="sum-row">
-                        <span><i class="fas fa-weight"></i> Fine Weight (Payable):</span>
-                        <span id="dispTotalFineWt" style="color:var(--accent-gold); font-weight:bold; font-size:1.2rem;">0.000 g</span>
-                    </div>
-                    
-                    <div id="bill-amount-row" class="sum-row sum-total">
-                        <span>Total Purchase Cost:</span>
-                        <span id="dispTotalCost" style="color:white; font-size:1.4rem;">₹0</span>
-                    </div>
-
-                    <div class="grid-2" id="paid-amount-row" style="margin-top:20px;">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label id="paid-amount-label" style="color:#aaa;">Amount Paid Now (₹)</label>
-                            <input type="number" id="billPaid" oninput="calcBalance()" placeholder="0" class="dark-input">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label style="color:#aaa;">Payment Mode</label>
-                            <select id="billPayMode" class="dark-input dark-select">
-                                <option value="Cash">Cash</option>
-                                <option value="UPI">UPI</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="sum-row" id="balance-due-row" style="margin-top:20px; margin-bottom:0;">
-                        <span style="color:#ff8a65; font-size:1.1rem; font-weight:bold;">Balance Due (Credit):</span>
-                        <span id="billBalance" style="color:#ff8a65; font-size:1.2rem; font-weight:bold;">₹0</span>
-                    </div>
-
-                    <input type="hidden" id="finalBillAmount">
-                    <input type="hidden" id="finalFineWeight">
-                </div>
-
-                <button class="btn-main" onclick="savePurchase()"><i class="fas fa-save"></i> Save Purchase</button>
+            <div class="tol-info" style="margin-bottom: 20px; font-size: 0.9rem; color: #475569; background:#f1f5f9; padding:10px; border-radius:8px;">
+                <span><i class="fas fa-check-circle" style="color:var(--success-green);"></i> Allowed Machine Tolerance:</span>
+                <strong id="dispTolerance">±0.000 g</strong>
             </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Category to Create</label>
+                    <select id="tagCategory"></select>
+                </div>
+                <div class="form-group">
+                    <label>Purity <small>(Locked to Source)</small></label>
+                    <input type="text" id="tagPurity" readonly style="color:var(--active-red); font-weight:bold; border-color:#fecaca; background:#fee2e2;">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Stock Management Mode</label>
+                    <select id="tagStockMode" onchange="generateTagInputs()">
+                        <option value="tagged">Tag-wise (Unique Barcode per piece)</option>
+                        <option value="loose">Loose Stock (Bulk / Single Barcode)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="color:var(--active-red);">Number of Pieces</label>
+                    <input type="number" id="tagPieces" value="1" min="1" oninput="generateTagInputs()" style="border-color:var(--active-red); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Enter Weights (g)</label>
+                <div id="tagInputsContainer" style="margin-top:10px; max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+            </div>
+
+            <div style="background:#f8fafc; padding:20px; border-radius:12px; margin-top:20px; border: 1px solid #e2e8f0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:bold;">
+                    <span style="color:#475569;">Total Gross Extracted:</span>
+                    <span id="tagTotalWt" style="color:var(--active-red); font-size:1.2rem;">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:0.95rem; color:#64748b;">
+                    <span>Total Stone Extracted:</span>
+                    <span id="tagTotalStoneWt">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; font-size:0.95rem; color:#64748b;">
+                    <span>Total Net Extracted:</span>
+                    <span id="tagTotalNetWt">0.000 g</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:2px dashed #cbd5e1; padding-top:12px; margin-top:10px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Gross:</span>
+                    <span id="tagRemainingWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Stone:</span>
+                    <span id="tagRemainingStoneWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Net:</span>
+                    <span id="tagRemainingNetWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+            </div>
+
+            <button class="btn-block btn-primary" onclick="confirmTagging()"><i class="fas fa-barcode"></i> GENERATE STOCK</button>
         </div>
     </div>
 
-    <div id="barcodeModal" class="modal">
-        <div class="modal-content" style="text-align:center; max-width:400px; padding: 40px 30px;">
-            <button class="close-btn" onclick="closeModal('barcodeModal')" style="top: 15px; right: 15px;">&times;</button>
-            <h3 style="margin-top:0; margin-bottom: 25px; color:#111;"><i class="fas fa-print"></i> Print Tag</h3>
+    <div id="manualEntryModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-plus-circle"></i> Add Custom Stock</h3>
             
-            <div class="barcode-box">
-                <div style="font-weight:800; font-size:1.1rem; color:#222; margin-bottom:15px;">BHARTI JEWELLERS</div>
-                <div class="barcode-bars"></div>
-                <div class="barcode-text" id="printCode" style="margin-bottom:15px;">RNG001</div>
-                <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:1rem; font-weight:700; color:#444; border-top: 2px dashed #eee; padding-top:15px;">
-                    <span id="printWt">0.000g</span>
-                    <span id="printPurity">22K</span>
+            <div class="form-group">
+                <label>Metal Type</label>
+                <select id="manMetal" onchange="handleManualMetalChange()">
+                    <option value="Gold">Gold</option>
+                    <option value="Silver">Silver</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Item Description / Name</label>
+                <input type="text" id="manName" placeholder="e.g. Silver Payal Bulk">
+            </div>
+            
+            <div class="form-group">
+                <label>Category</label>
+                <select id="manCategory"></select>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="manPurity"></select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity (Pieces)</label>
+                    <input type="number" id="manPieces" value="1" min="1">
+                    <small style="color:var(--info-blue); font-size:0.75rem;">Set > 1 for Loose Stock</small>
                 </div>
             </div>
             
-            <button class="btn-main" onclick="window.print()" style="border-radius: 8px;"><i class="fas fa-print"></i> Print Label</button>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Total Gross Wt (g)</label>
+                    <input type="number" id="manGross" step="0.001" oninput="calcManNet()">
+                </div>
+                <div class="form-group">
+                    <label>Total Stone Wt (g)</label>
+                    <input type="number" id="manStone" step="0.001" value="0" oninput="calcManNet()">
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Total Net Wt (g)</label>
+                    <input type="number" id="manNet" step="0.001" readonly style="background:#f0fdf4; font-weight:bold; color:var(--success-green); border-color:#bbf7d0;">
+                </div>
+                <div class="form-group">
+                    <label>Total Fine Wt (g)</label>
+                    <input type="number" id="manFine" step="0.001" readonly style="background:#eff6ff; font-weight:bold; color:var(--info-blue); border-color:#bfdbfe;">
+                </div>
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save to Inventory</button>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--info-blue); font-size:1.4rem;"><i class="fas fa-pen"></i> Edit Item</h3>
+            <input type="hidden" id="editId">
+            
+            <div class="form-group">
+                <label>Item Description / Name</label>
+                <input type="text" id="editName">
+            </div>
+            
+            <div class="form-group">
+                <label>Category</label>
+                <select id="editCategory"></select>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="editPurity" onchange="calcEditNet()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity (Pieces)</label>
+                    <input type="number" id="editPieces" value="1" min="1">
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Gross Wt (g)</label>
+                    <input type="number" id="editGross" step="0.001" oninput="calcEditNet()">
+                </div>
+                <div class="form-group">
+                    <label>Stone Wt (g)</label>
+                    <input type="number" id="editStone" step="0.001" oninput="calcEditNet()">
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Net Wt (g) <small style="color:var(--success-green);">(Auto)</small></label>
+                    <input type="number" id="editNet" step="0.001" readonly style="background:#f0fdf4; font-weight:bold; color:var(--success-green); border-color:#bbf7d0;">
+                </div>
+                <div class="form-group">
+                    <label>Fine Wt (g) <small style="color:var(--info-blue);">(Auto)</small></label>
+                    <input type="number" id="editFine" step="0.001" readonly style="background:#eff6ff; font-weight:bold; color:var(--info-blue); border-color:#bfdbfe;">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>HUID / Hallmark ID</label>
+                <input type="text" id="editHuid" placeholder="Optional">
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="saveEdit()" style="background:var(--info-blue);"><i class="fas fa-save"></i> Update Item</button>
+        </div>
+    </div>
+
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
+            <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Bill & Restore Stock</h3>
+            <input type="hidden" id="cancelSaleId">
+            
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Bill Total:</span> <strong id="cBillTotal">₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#2e7d32;"><span>Amount Paid by Customer:</span> <strong id="cBillPaid">₹0</strong></div>
+                <div id="cBillOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--exchange-purple); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                    <span>Metal Exchanged:</span> <strong id="cBillOldGold">₹0</strong>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Refund Cash Amount (₹)</label>
+                <input type="number" id="cRefundAmt">
+                <small style="color:#666;">Amount to return to the customer. This will log as Money OUT in your Cashbook.</small>
+            </div>
+            
+            <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
+                <input type="checkbox" id="cRevertStock" checked disabled style="width:20px; height:20px; accent-color:#ef6c00;"> 
+                <label for="cRevertStock" style="margin:0; color:#ef6c00;">Items will be forcefully restored to Inventory Stock.</label>
+            </div>
+
+            <button class="btn btn-danger" onclick="confirmCancelSale()"><i class="fas fa-trash"></i> Confirm Cancellation & Restore</button>
+        </div>
+    </div>
+
+    <div id="barcodePrintModal" class="modal">
+        <div class="modal-content" style="text-align:center; max-width:400px; padding: 40px 20px;">
+            <button class="close-btn" onclick="closeModal('barcodePrintModal')">&times;</button>
+            <h3 style="margin-top:0; margin-bottom: 20px; color:#444;"><i class="fas fa-print"></i> Print Tag</h3>
+            
+            <div class="barcode-box" style="margin: 0 auto; width: 100%; border: 1px dashed #ccc; padding: 20px; border-radius: 8px; background: white;">
+                <div style="font-weight:900; font-size:1.1rem; color:#333; margin-bottom:15px; text-transform: uppercase;">BHARTI JEWELLERS</div>
+                
+                <div style="font-weight:900; font-size:2rem; letter-spacing:3px; margin-bottom: 10px; color: #000;" id="printCodeText">CHA001</div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:1rem; font-weight:700; color:#000; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; padding: 10px 0; margin-bottom: 15px;">
+                    <span id="printWt">20.000g</span>
+                    <span id="printPurity">22K</span>
+                </div>
+
+                <svg id="barcodeSvg"></svg>
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="triggerPrint()" style="margin-top: 25px;"><i class="fas fa-print"></i> Print Label</button>
         </div>
     </div>
 
@@ -500,53 +686,9 @@
 
     <script src="db.js?v=35"></script>
     <script>
-        // --- HELPERS ---
-        function formatInv(id) { return `INV-${String(id).padStart(4, '0')}`; }
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
-        function openModal() { 
-            document.getElementById('entryModal').classList.add('open'); 
-            document.getElementById('entryModal').style.display = 'flex';
-            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-shopping-cart"></i> New Purchase';
-            document.getElementById('editPurchaseId').value = "";
-            document.getElementById('oldInvId').value = "";
-            
-            // Reset Fields
-            document.getElementById('itemMetal').value = 'Gold';
-            populateCategoryDropdown();
-            populatePurityDropdowns();
-
-            document.getElementById('merchantSelect').value = "";
-            document.getElementById('itemPieces').value = 1;
-            document.getElementById('itemMark').value = '';
-            
-            document.getElementById('totalGrossWt').value = '';
-            document.getElementById('totalStoneWt').value = 0;
-            document.getElementById('wastageVal').value = 0;
-            document.getElementById('totalMakingChg').value = 0;
-            document.getElementById('totalOtherChg').value = 0;
-            
-            document.getElementById('billPaid').value = '';
-            document.getElementById('billPayMode').value = 'Cash';
-            
-            toggleTypeUI();
-            autoSetStockMode(); // This will trigger generatePieceInputs correctly
-            calcTotals();
-        }
-        function closeModal(modalId = 'entryModal') { 
-            document.getElementById(modalId).classList.remove('open'); 
-            document.getElementById(modalId).style.display = 'none'; 
-        }
-        
-        let allPurchasesData = [];
-        let currentMetalFilter = 'GOLD';
-
-        let currentGoldRates = { 
-            rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] 
-        };
-        
-        // Split Categories for Gold & Silver
-        let goldCategories = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
-        let silverCategories = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 
         function showToast(msg, type = 'success') {
             const toast = document.getElementById('toast');
@@ -556,11 +698,91 @@
             setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
         }
 
+        function triggerPrint() {
+            if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
+                AndroidInterface.printPage();
+            } else {
+                window.print();
+            }
+        }
+
+        let confirmResolver = null;
+        
+        function appAlert(msg) {
+            document.getElementById('customAlertMessage').innerText = msg;
+            openModal('customAlertModal');
+        }
+
+        function appConfirm(msg) {
+            document.getElementById('customConfirmMessage').innerText = msg;
+            openModal('customConfirmModal');
+            return new Promise(resolve => {
+                confirmResolver = resolve;
+            });
+        }
+
+        function resolveCustomConfirm(result) {
+            closeModal('customConfirmModal');
+            if (confirmResolver) {
+                confirmResolver(result);
+                confirmResolver = null;
+            }
+        }
+
+        function getSafeNet(i) {
+            let n = parseFloat(i.netWt);
+            if(!isNaN(n) && n > 0) return n;
+            let g = parseFloat(i.grossWt) || 0;
+            let s = parseFloat(i.stoneWt) || 0;
+            if (g > 0) return g - s;
+            let f = parseFloat(i.fineWt) || 0;
+            if (f > 0) return f;
+            return parseFloat(i.weight) || 0;
+        }
+
+        let allInventory = [];
+        let allSalesData = []; 
+        let allCustomersData = [];
+        let goldRates = { rate22k: 0, rate24k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+        let groupedInventory = {}; 
+        
+        const BASE_GOLD_CATS = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
+        const BASE_SILVER_CATS = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
+        
+        let goldCategories = [...BASE_GOLD_CATS];
+        let silverCategories = [...BASE_SILVER_CATS];
+
+        // --- MASTER FILTER STATES ---
+        // NEW STATES: GOLD_TAGGED, GOLD_FINE, GOLD_ORDER, SILVER, ALL
+        let currentMetalFilter = 'GOLD_TAGGED'; 
+        let activeCatManagerMode = 'Gold'; 
+
+        window.onload = async function() {
+            const r = await getSetting('gold_rates');
+            if(r) goldRates = r;
+            
+            const savedGoldCats = await getSetting('gold_categories');
+            const savedSilvCats = await getSetting('silver_categories');
+            
+            if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
+            else await updateItem('settings', {key: 'gold_categories', value: goldCategories});
+            
+            if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
+            else await updateItem('settings', {key: 'silver_categories', value: silverCategories});
+
+            populatePurityDropdowns('Gold', 'editPurity');
+            populatePurityDropdowns('Gold', 'manPurity');
+            
+            buildFilterBar();
+            await loadInventory();
+            setupBarcodeScanner();
+        };
+
         function checkIsSilver(purity) {
             if(!purity) return false;
             const p = purity.toUpperCase();
-            if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
-            let customS = currentGoldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
+            if (p.includes('SIL') || p.includes('%') || p.includes('92.5') || p.includes('99.9')) return true;
+            let customS = goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
             if (customS) return true;
             return false;
         }
@@ -572,853 +794,1298 @@
             if (key === '18K') return 0.7500;
             if (key === 'Silver 92.5%') return 0.925;
             
-            let customG = currentGoldRates.customPurities?.find(cp => cp.name === key);
+            let customG = goldRates.customPurities?.find(cp => cp.name === key);
             if (customG) return customG.pct / 100;
             
-            let customS = currentGoldRates.customSilverPurities?.find(cp => cp.name === key);
+            let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
             if (customS) return customS.pct / 100;
             
+            if(key.toString().includes('%')) {
+                const val = parseFloat(key.toString().replace('%', ''));
+                if(!isNaN(val)) return val / 100;
+            }
             return 1.0;
         };
 
-        window.onload = async function() {
-            // Setup Dates
-            const today = new Date();
-            document.getElementById('purchaseDate').valueAsDate = today;
-            document.getElementById('filterTo').valueAsDate = today;
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            document.getElementById('filterFrom').value = firstDay.toISOString().split('T')[0];
-
-            // Load Rates
-            const r = await getSetting('gold_rates');
-            if(r) currentGoldRates = r;
-
-            // Load Custom Categories
-            const savedGoldCats = await getSetting('gold_categories');
-            const savedSilvCats = await getSetting('silver_categories');
-            if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
-            if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
-
-            // Initialize UI
-            document.getElementById('itemMetal').value = 'Gold';
-            populateCategoryDropdown();
-            populatePurityDropdowns();
-            autoSetStockMode();
-
-            await loadMerchants();
-            autoFillRate();
-            await loadHistory();
-        };
-
-        function autoSetStockMode() {
-            const metal = document.getElementById('itemMetal').value;
-            const stockMode = document.getElementById('stockMode');
-            if(stockMode) {
-                if(metal === 'Silver') {
-                    stockMode.value = 'bulk';
-                } else {
-                    stockMode.value = 'individual';
-                }
-                generatePieceInputs();
+        function calculateFineWeight(item) {
+            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
+            if (!item.purity) return net;
+            if (item.purity.includes('%')) {
+                const pct = parseFloat(item.purity.replace('%', '').trim()) / 100;
+                if (!isNaN(pct)) return net * pct;
             }
+            return net * getPurityFactor(item.purity);
         }
 
-        function populateCategoryDropdown() {
-            const metal = document.getElementById('itemMetal') ? document.getElementById('itemMetal').value : 'Gold';
-            const catSelect = document.getElementById('itemCategory');
-            if(!catSelect) return;
-            
-            catSelect.innerHTML = '';
-            
-            const catsToUse = metal === 'Silver' ? silverCategories : goldCategories;
-            
-            catsToUse.forEach(cat => {
-                catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-            });
-            catSelect.innerHTML += `<option value="MIX" style="font-weight:bold; color:var(--info-blue);">Mixed ${metal} / Untagged</option>`;
-            catSelect.innerHTML += `<option value="Other">Other</option>`;
-        }
-
-        function populatePurityDropdowns() {
-            const metal = document.getElementById('itemMetal') ? document.getElementById('itemMetal').value : 'Gold';
-            const select = document.getElementById('itemPurity');
+        function populatePurityDropdowns(metal, elementId) {
+            const select = document.getElementById(elementId);
             if(!select) return;
             select.innerHTML = '';
 
             if (metal === 'Gold') {
                 select.innerHTML = `
-                    <option value="24K" data-metal="gold">24K (Fine)</option>
-                    <option value="22K" data-metal="gold" selected>22K (91.66%)</option>
-                    <option value="18K" data-metal="gold">18K (75.00%)</option>
+                    <option value="24K">24K (Fine)</option>
+                    <option value="22K" selected>22K (91.66%)</option>
+                    <option value="18K">18K (75.00%)</option>
                 `;
-                if(currentGoldRates.customPurities && currentGoldRates.customPurities.length > 0) {
-                    currentGoldRates.customPurities.forEach(cp => {
-                        select.innerHTML += `<option value="${cp.name}" data-metal="gold" data-pct="${cp.pct}">${cp.name} (${cp.pct}%)</option>`;
+                if(goldRates.customPurities) {
+                    goldRates.customPurities.forEach(cp => { 
+                        select.innerHTML += `<option value="${cp.name}">${cp.name} (${cp.pct}%)</option>`; 
                     });
                 }
-            } else if (metal === 'Silver') {
+            } else {
                 select.innerHTML = `
-                    <option value="Silver" data-metal="silver">Silver (99.9%)</option>
-                    <option value="Silver 92.5%" data-metal="silver" selected>Sterling Silver (92.5%)</option>
+                    <option value="Silver">Silver (99.9%)</option>
+                    <option value="Silver 92.5%" selected>Sterling Silver (92.5%)</option>
                 `;
-                if(currentGoldRates.customSilverPurities && currentGoldRates.customSilverPurities.length > 0) {
-                    currentGoldRates.customSilverPurities.forEach(cp => {
-                        select.innerHTML += `<option value="${cp.name}" data-metal="silver" data-pct="${cp.pct}">${cp.name} (${cp.pct}%)</option>`;
+                if(goldRates.customSilverPurities) {
+                    goldRates.customSilverPurities.forEach(cp => { 
+                        select.innerHTML += `<option value="${cp.name}">${cp.name} (${cp.pct}%)</option>`; 
                     });
                 }
             }
-            
-            autoFillRate();
         }
 
-        function generatePieceInputs() {
-            const mode = document.getElementById('stockMode').value;
-            const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
-            const container = document.getElementById('dynamicPieceInputs');
+        function populateCategoryDropdowns(metalType = null) {
+            const isSilv = (metalType === 'Silver' || currentMetalFilter === 'SILVER');
+            const cats = isSilv ? silverCategories : goldCategories;
             
-            const grossMain = document.getElementById('totalGrossWt');
-            const stoneMain = document.getElementById('totalStoneWt');
+            const tagSelect = document.getElementById('tagCategory');
+            const editSelect = document.getElementById('editCategory');
+            const manSelect = document.getElementById('manCategory');
+            
+            let opts = '';
+            cats.forEach(cat => { opts += `<option value="${cat}">${cat}</option>`; });
+            opts += `<option value="Other">Other</option>`;
+            
+            if(tagSelect) { tagSelect.innerHTML = opts; }
+            if(editSelect) {
+                editSelect.innerHTML = opts; 
+                editSelect.innerHTML += `<option value="MIX">MIXED</option>`;
+            }
+            if(manSelect) {
+                manSelect.innerHTML = opts;
+                manSelect.innerHTML += `<option value="MIX">Mixed / Untagged</option>`;
+            }
+        }
 
-            if (mode === 'bulk' || pieces <= 1) {
-                container.style.display = 'none';
-                container.innerHTML = '';
-                grossMain.readOnly = false;
-                stoneMain.readOnly = false;
-                grossMain.style.background = '#fff';
-                stoneMain.style.background = '#fff';
+        function buildFilterBar() {
+            const catSelect = document.getElementById('filterCategory');
+            if(!catSelect) return;
+            
+            const isSilv = currentMetalFilter === 'SILVER';
+            const activeCats = isSilv ? silverCategories : goldCategories;
+            
+            let html = `<option value="ALL">All Categories</option>`;
+            activeCats.forEach(cat => {
+                html += `<option value="${cat}">${cat}</option>`;
+            });
+            html += `<option value="Other">Other</option>`;
+            
+            catSelect.innerHTML = html;
+            populateCategoryDropdowns();
+        }
+
+        function openCatModal() {
+            switchCatMode(currentMetalFilter === 'SILVER' ? 'Silver' : 'Gold');
+            document.getElementById('catModal').style.display = 'flex';
+        }
+
+        function switchCatMode(mode) {
+            activeCatManagerMode = mode;
+            document.getElementById('catTabGold').className = mode === 'Gold' ? 'cat-tab active' : 'cat-tab';
+            document.getElementById('catTabSilver').className = mode === 'Silver' ? 'cat-tab active' : 'cat-tab';
+            renderCatList();
+        }
+
+        function renderCatList() {
+            const list = document.getElementById('catListDisplay');
+            list.innerHTML = '';
+            
+            const cats = activeCatManagerMode === 'Gold' ? goldCategories : silverCategories;
+            const baseCats = activeCatManagerMode === 'Gold' ? BASE_GOLD_CATS : BASE_SILVER_CATS;
+
+            cats.forEach((cat, idx) => {
+                const isBase = baseCats.includes(cat);
+                const delBtn = isBase ? '<span style="color:#94a3b8; font-size:0.75rem;">System</span>' : `<i class="fas fa-trash cat-del" onclick="deleteCategory(${idx})"></i>`;
+                list.innerHTML += `
+                    <li class="cat-item">
+                        <span>${cat}</span>
+                        ${delBtn}
+                    </li>
+                `;
+            });
+        }
+
+        async function addCategory() {
+            const val = document.getElementById('newCatName').value.trim();
+            if(!val) return showToast("Enter category name", "error");
+            
+            const formatted = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+            
+            if (activeCatManagerMode === 'Gold') {
+                if(goldCategories.includes(formatted)) return showToast("Category exists", "error");
+                goldCategories.push(formatted);
+                await updateItem('settings', { key: 'gold_categories', value: goldCategories });
+            } else {
+                if(silverCategories.includes(formatted)) return showToast("Category exists", "error");
+                silverCategories.push(formatted);
+                await updateItem('settings', { key: 'silver_categories', value: silverCategories });
+            }
+            
+            document.getElementById('newCatName').value = '';
+            renderCatList();
+            buildFilterBar();
+            showToast(`Added ${formatted}`, "success");
+        }
+
+        async function deleteCategory(idx) {
+            const catName = activeCatManagerMode === 'Gold' ? goldCategories[idx] : silverCategories[idx];
+            const proceed = await appConfirm(`Remove ${catName}?`);
+            if(proceed) {
+                if (activeCatManagerMode === 'Gold') {
+                    goldCategories.splice(idx, 1);
+                    await updateItem('settings', { key: 'gold_categories', value: goldCategories });
+                } else {
+                    silverCategories.splice(idx, 1);
+                    await updateItem('settings', { key: 'silver_categories', value: silverCategories });
+                }
+                renderCatList();
+                buildFilterBar();
+                showToast("Category removed", "success");
+            }
+        }
+
+        function exportInventoryCSV() {
+            const table = document.querySelector('.inv-table');
+            const rows = table.querySelectorAll('tr');
+            if(rows.length <= 2) return showToast("No data to export", "error");
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            rows.forEach(row => {
+                let rowData = [];
+                const cols = row.querySelectorAll('th, td:not(:last-child)'); 
                 
-                // Restore direct input calculation
-                grossMain.oninput = calcTotals;
-                stoneMain.oninput = calcTotals;
-                calcTotals();
+                cols.forEach(col => {
+                    let text = col.innerText.replace(/(\r\n|\n|\r)/gm, " ").trim(); 
+                    rowData.push(`"${text}"`);
+                });
+                
+                if (row.querySelector('th')) {
+                     // don't add action to header
+                } else {
+                    csvContent += rowData.join(",") + "\n";
+                }
+                
+                if (row.querySelector('th')) csvContent += rowData.join(",") + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Inventory_Export_${currentMetalFilter}_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function setupBarcodeScanner() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); 
+                    const term = this.value.toUpperCase().trim();
+                    const exactMatch = allInventory.find(i => i.barcode && i.barcode.toUpperCase() === term);
+                    
+                    if (exactMatch) {
+                        openItemDetails(exactMatch.id);
+                        this.value = ''; 
+                        applyFilters(); 
+                    }
+                }
+            });
+        }
+
+        function generateSafeBarcode(category) {
+            const prefix = category.substring(0, 3).toUpperCase();
+            let maxNum = 0;
+            
+            allInventory.forEach(i => {
+                if (i.barcode && i.barcode.startsWith(prefix)) {
+                    const numPart = i.barcode.substring(prefix.length);
+                    const num = parseInt(numPart, 10);
+                    if (!isNaN(num) && num > maxNum) maxNum = num;
+                }
+            });
+            
+            const newBarcode = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+            allInventory.push({ barcode: newBarcode }); 
+            return newBarcode;
+        }
+
+        async function loadInventory() {
+            allInventory = await getAllItems('inventory');
+            allSalesData = await getAllItems('sales').catch(()=>[]);
+            allCustomersData = await getAllItems('customers').catch(()=>[]);
+            
+            allInventory.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0));
+            applyFilters();
+        }
+
+        // --- NEW METAL FILTER LOGIC FOR TABS ---
+        function setMetalFilter(metalFilter) {
+            currentMetalFilter = metalFilter;
+            document.getElementById('filterCategory').value = 'ALL';
+            document.getElementById('filterType').value = 'ALL';
+            
+            document.querySelectorAll('.metal-tab').forEach(btn => {
+                btn.classList.remove('active-gold', 'active-gold-fine', 'active-gold-order', 'active-silver', 'active-all');
+            });
+            
+            let cardColor = '#333';
+            let titlePrefix = 'Metal';
+
+            if(metalFilter === 'GOLD_TAGGED') {
+                document.getElementById('metal-tab-gold-tagged').classList.add('active-gold');
+                cardColor = 'var(--accent-gold)';
+                titlePrefix = 'Gold Tagged';
+            } 
+            else if(metalFilter === 'GOLD_FINE') {
+                document.getElementById('metal-tab-gold-fine').classList.add('active-gold-fine');
+                cardColor = '#fbc02d';
+                titlePrefix = 'Gold Fine/Raw';
+            }
+            else if(metalFilter === 'GOLD_ORDER') {
+                document.getElementById('metal-tab-gold-order').classList.add('active-gold-order');
+                cardColor = 'var(--info-blue)';
+                titlePrefix = 'Gold Orders';
+            }
+            else if(metalFilter === 'SILVER') {
+                document.getElementById('metal-tab-silver').classList.add('active-silver');
+                cardColor = 'var(--accent-silver)';
+                titlePrefix = 'Silver';
+            }
+            else {
+                document.getElementById('metal-tab-all').classList.add('active-all');
+            }
+
+            const cardWeight = document.getElementById('card-weight');
+            const cardValue = document.getElementById('card-value');
+            
+            cardWeight.style.borderLeftColor = cardColor;
+            cardValue.style.borderLeftColor = cardColor === 'var(--accent-gold)' ? 'var(--success-green)' : cardColor;
+            
+            document.getElementById('lbl-weight').innerText = `Total ${titlePrefix} Weight (Net)`;
+            document.getElementById('lbl-value').innerText = `Total Est. ${titlePrefix} Value`;
+            document.getElementById('total-value').style.color = cardColor === 'var(--accent-gold)' ? 'var(--success-green)' : cardColor;
+
+            buildFilterBar(); 
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toUpperCase().trim();
+            const viewType = document.getElementById('filterType').value;
+            const catType = document.getElementById('filterCategory').value;
+            
+            if (viewType === 'SOLD') {
+                let soldItems = [];
+                allSalesData.forEach(sale => {
+                    if (sale.status === 'cancelled') return;
+                    (sale.items || []).forEach(si => {
+                        if (si.isOldGold) return; 
+
+                        const isSilv = checkIsSilver(si.purity);
+                        
+                        // Handle strict tab visibility for sold items
+                        if (currentMetalFilter === 'SILVER' && !isSilv) return;
+                        if (currentMetalFilter.startsWith('GOLD_') && isSilv) return;
+
+                        if (catType !== 'ALL' && si.category !== catType) return;
+                        if (searchTerm && !(si.barcode.toUpperCase().includes(searchTerm) || (si.category && si.category.toUpperCase().includes(searchTerm)) || (si.huid && si.huid.toUpperCase().includes(searchTerm)))) return;
+
+                        const cust = allCustomersData.find(c => String(c.id) === String(sale.customerId));
+                        
+                        soldItems.push({
+                            virtualId: si.id + '_' + sale.id,
+                            saleId: sale.id, barcode: si.barcode, category: si.category, name: si.name || si.category,
+                            purity: si.purity, grossWt: si.grossWt || si.weight, stoneWt: si.stoneWt || 0,
+                            netWt: getSafeNet(si), fineWt: si.fineWt || (getSafeNet(si) * getPurityFactor(si.purity)),
+                            pieces: si.sellQty || 1, status: 'sold_record', huid: si.huid || '',
+                            itemTotal: si.total, paidAmount: sale.paidAmount, pendingAmount: sale.pendingAmount,
+                            customerName: cust ? cust.name : 'Walk-in Customer', date: sale.date
+                        });
+                    });
+                });
+                renderSoldList(soldItems);
                 return;
             }
 
-            container.style.display = 'block';
-            grossMain.readOnly = true;
-            stoneMain.readOnly = true;
-            grossMain.style.background = '#f0f4f8';
-            stoneMain.style.background = '#f0f4f8';
-            
-            // Remove direct input calculations for the master fields
-            grossMain.oninput = null; 
-            stoneMain.oninput = null;
+            // ONLY show active stock
+            let filtered = allInventory.filter(i => {
+                const stat = String(i.status || '').toLowerCase();
+                const net = parseFloat(i.netWt !== undefined ? i.netWt : (i.grossWt || i.weight || 0));
+                return stat !== 'sold' && stat !== 'delivered' && net > 0;
+            });
 
-            let html = `<div style="font-weight:700; font-size:0.85rem; color:var(--active-red); margin-bottom:10px;"><i class="fas fa-list-ol"></i> Enter Individual Item Weights:</div>`;
-            html += `<div style="max-height: 200px; overflow-y: auto; padding-right:5px;">`;
-            for (let i = 1; i <= pieces; i++) {
-                html += `
-                    <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
-                        <span style="font-size:0.8rem; font-weight:bold; width: 65px; color:#555;">Piece ${i}</span>
-                        <input type="number" class="piece-gross" placeholder="Gross Wt" step="0.001" oninput="sumPieceWeights()">
-                        <input type="number" class="piece-stone" placeholder="Stone Wt" step="0.001" value="0" oninput="sumPieceWeights()">
-                    </div>
+            // --- THE CORE TAB LOGIC ---
+            filtered = filtered.filter(i => {
+                const isSilv = checkIsSilver(i.purity);
+                
+                if (currentMetalFilter === 'ALL') return true;
+                if (currentMetalFilter === 'SILVER') return isSilv;
+
+                // Rest are GOLD variants. If it's silver, block it.
+                if (isSilv) return false;
+
+                const isOrder = (i.barcode && i.barcode.startsWith('ORD-')) || (i.source && i.source.startsWith('order_'));
+                // Identify raw/fine/melting stock
+                const isFineOrMelt = i.purity === '24K' || (i.category && i.category.toUpperCase().includes('MELT')) || (i.category && i.category.toUpperCase().includes('FINE')) || (i.name && i.name.toUpperCase().includes('MELT'));
+                
+                if (currentMetalFilter === 'GOLD_ORDER') {
+                    return isOrder;
+                } else if (currentMetalFilter === 'GOLD_FINE') {
+                    return isFineOrMelt && !isOrder;
+                } else if (currentMetalFilter === 'GOLD_TAGGED') {
+                    // Tagged means not an order, not a melting slab/fine gold. (Rings, Necklaces, etc.)
+                    return !isOrder && !isFineOrMelt;
+                }
+                
+                return true;
+            });
+
+            // View Type Dropdown
+            if (viewType === 'MIX') {
+                filtered = filtered.filter(i => i.category === 'MIX');
+            }
+
+            // Category Dropdown
+            if (catType !== 'ALL') {
+                filtered = filtered.filter(i => i.category === catType);
+            }
+
+            // Search Bar
+            if (searchTerm) {
+                filtered = filtered.filter(i => 
+                    (i.barcode && i.barcode.toUpperCase().includes(searchTerm)) || 
+                    (i.name && i.name.toUpperCase().includes(searchTerm)) ||
+                    (i.huid && i.huid.toUpperCase().includes(searchTerm)) ||
+                    (i.category && i.category.toUpperCase().includes(searchTerm))
+                );
+            }
+
+            renderList(filtered);
+        }
+
+        function renderSoldList(items) {
+            const container = document.getElementById('inventory-list');
+            container.innerHTML = '';
+            
+            const thead = document.querySelector('.inv-table thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>Sale Info</th>
+                    <th>Item Details</th>
+                    <th>Purity</th>
+                    <th style="text-align:center;">Qty</th>
+                    <th>Net Wt</th>
+                    <th style="color:var(--info-blue);">Item Total</th>
+                    <th style="color:var(--success-green);">Bill Paid</th>
+                    <th style="color:var(--active-red);">Bill Due</th>
+                    <th style="text-align:center;">Action</th>
+                </tr>
+            `;
+
+            if (items.length === 0) {
+                container.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No sold items found matching your filters.</td></tr>';
+                document.getElementById('total-weight').innerText = "0.000 g";
+                document.getElementById('total-value').innerText = "₹0";
+                document.getElementById('total-count').innerText = "0";
+                return;
+            }
+
+            let totalWt = 0; let totalVal = 0; let totalCount = 0;
+
+            items.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(item => {
+                totalWt += parseFloat(item.netWt); totalVal += Math.abs(item.itemTotal); totalCount += parseInt(item.pieces);
+
+                const tr = document.createElement('tr');
+                
+                let purityBadge = 'badge-22k';
+                if(item.purity === '24K') purityBadge = 'badge-24k'; 
+                if(item.purity.includes('18')) purityBadge = 'badge-18k';
+                if(checkIsSilver(item.purity)) purityBadge = 'badge-silver';
+
+                const dateStr = new Date(item.date).toLocaleDateString('en-IN');
+                const timeStr = new Date(item.date).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
+                
+                tr.innerHTML = `
+                    <td>
+                        <strong style="color:var(--info-blue); font-size:1.05rem;">INV-${String(item.saleId).padStart(4, '0')}</strong><br>
+                        <span style="font-weight:600;">${item.customerName}</span><br>
+                        <small style="color:#64748b;">${dateStr} ${timeStr}</small>
+                    </td>
+                    <td>
+                        <strong style="font-size:1.05rem;">${item.category}</strong><br>
+                        <span style="font-family:monospace; color:#475569;">${item.barcode}</span>
+                        ${item.huid ? `<br><small style="color:#8e24aa; font-weight:bold;">HUID: ${item.huid}</small>` : ''}
+                    </td>
+                    <td><span class="badge ${purityBadge}">${item.purity}</span></td>
+                    <td style="text-align:center; font-weight:700; font-size:1.1rem;">${item.pieces}</td>
+                    <td style="font-weight:700; color:var(--active-red);">${parseFloat(item.netWt).toFixed(3)} g</td>
+                    <td style="color:var(--info-blue); font-weight:700; font-size:1.05rem;">₹${Math.abs(item.itemTotal).toLocaleString()}</td>
+                    <td style="color:var(--success-green); font-weight:700; font-size:1.05rem;">
+                        ${item.pendingAmount <= 0 ? '<i class="fas fa-check-circle"></i> ' : ''}₹${item.paidAmount.toLocaleString()}
+                    </td>
+                    <td style="color:var(--active-red); font-weight:700; font-size:1.05rem;">
+                        ${item.pendingAmount > 0 ? `₹${item.pendingAmount.toLocaleString()}` : '<span style="color:var(--success-green);">₹0</span>'}
+                    </td>
+                    <td style="text-align:center;">
+                        <button class="btn-sm btn-view" onclick="window.location.href='sales.html?view=${item.saleId}'" title="Open Bill in POS"><i class="fas fa-file-invoice"></i> View</button>
+                        <button class="btn-sm btn-del" onclick="openCancelModal(${item.saleId})" title="Cancel Bill & Restore Items"><i class="fas fa-undo"></i> Restore</button>
+                    </td>
                 `;
+                container.appendChild(tr);
+            });
+
+            document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
+            document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
+            document.getElementById('total-count').innerText = totalCount;
+        }
+
+        function getRate(purity) {
+            if(!purity) return 0;
+            if(purity.includes('22')) return goldRates.rate22k;
+            if(purity.includes('24')) return goldRates.rate24k;
+            if(purity.includes('18')) return goldRates.rate18k || (goldRates.rate22k * 0.82);
+            if(checkIsSilver(purity)) return (goldRates.rateSilver / 100); 
+            
+            const cpG = goldRates.customPurities?.find(x => purity.includes(x.name));
+            if(cpG) return (goldRates.rate24k * (cpG.pct / 100));
+            
+            const cpS = goldRates.customSilverPurities?.find(x => purity.includes(x.name));
+            if(cpS) return (goldRates.rateSilver / 1000) * 10 * (cpS.pct / 100); 
+            
+            return 0;
+        }
+
+        function renderList(items) {
+            const container = document.getElementById('inventory-list');
+            container.innerHTML = '';
+            groupedInventory = {}; 
+
+            document.querySelector('.inv-table thead').innerHTML = `
+                <tr>
+                    <th>Category</th>
+                    <th>Barcodes / Ref</th>
+                    <th>Purity</th>
+                    <th>Stock Qty</th>
+                    <th>Gross Wt</th>
+                    <th>Net Wt</th>
+                    <th style="color:#8e24aa;">Stone Wt</th>
+                    <th>Fine Wt</th>
+                    <th style="text-align:center;">Action</th>
+                </tr>
+            `;
+            
+            let totalWt = 0; let totalVal = 0; let totalCount = 0;
+
+            if (items.length === 0) {
+                container.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No items found matching your filters.</td></tr>';
+                document.getElementById('total-weight').innerText = "0.000 g";
+                document.getElementById('total-value').innerText = "₹0";
+                document.getElementById('total-count').innerText = "0";
+                return;
             }
-            html += `</div>`;
-            container.innerHTML = html;
-            
-            sumPieceWeights();
-        }
 
-        function sumPieceWeights() {
-            const grossInputs = document.querySelectorAll('.piece-gross');
-            const stoneInputs = document.querySelectorAll('.piece-stone');
-            
-            let totalGross = 0;
-            let totalStone = 0;
-            
-            grossInputs.forEach(inp => totalGross += parseFloat(inp.value) || 0);
-            stoneInputs.forEach(inp => totalStone += parseFloat(inp.value) || 0);
-            
-            document.getElementById('totalGrossWt').value = totalGross > 0 ? totalGross.toFixed(3) : '';
-            document.getElementById('totalStoneWt').value = totalStone > 0 ? totalStone.toFixed(3) : 0;
-            
-            calcTotals();
-        }
-
-        function calcTotals() {
-            const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
-            
-            const totalGross = parseFloat(document.getElementById('totalGrossWt').value) || 0;
-            const totalStone = parseFloat(document.getElementById('totalStoneWt').value) || 0;
-            
-            const physicalNet = Math.max(0, totalGross - totalStone);
-            
-            document.getElementById('totalNet').value = physicalNet.toFixed(3);
-
-            const purityKey = document.getElementById('itemPurity').value;
-            const purityFactor = getPurityFactor(purityKey);
-            const pureNet = physicalNet * purityFactor;
-            
-            document.getElementById('dispPureWt').innerText = pureNet.toFixed(3) + " g";
-
-            const wastVal = parseFloat(document.getElementById('wastageVal').value) || 0;
-            const mode = document.getElementById('wastageMode').value;
-            
-            let totalWastage = mode === 'pct' ? (physicalNet * wastVal) / 100 : wastVal;
-            
-            const fineWt = pureNet + totalWastage;
-            
-            document.getElementById('dispTotalFineWt').innerText = fineWt.toFixed(3) + " g";
-            document.getElementById('finalFineWeight').value = fineWt;
-
-            const isUnfixed = (document.getElementById('purchaseType').value === 'Unfixed');
-
-            if (!isUnfixed) {
-                const rate = parseFloat(document.getElementById('metalRate').value) || 0;
-                const totalMaking = parseFloat(document.getElementById('totalMakingChg').value) || 0;
-                const totalOther = parseFloat(document.getElementById('totalOtherChg').value) || 0;
+            items.forEach(item => {
+                const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
                 
-                const metalCost = fineWt * rate; 
-                const totalCost = Math.round(metalCost + totalMaking + totalOther);
-
-                document.getElementById('dispTotalCost').innerText = "₹" + totalCost.toLocaleString();
-                document.getElementById('finalBillAmount').value = totalCost;
-            } else {
-                document.getElementById('finalBillAmount').value = 0;
-            }
-
-            calcBalance();
-        }
-
-        function calcBalance() {
-            const total = parseFloat(document.getElementById('finalBillAmount').value) || 0;
-            const paid = parseFloat(document.getElementById('billPaid').value) || 0;
-            const due = total - paid;
-            document.getElementById('billBalance').innerText = "₹" + due.toLocaleString();
-        }
-
-        function toggleTypeUI() {
-            const type = document.getElementById('purchaseType').value;
-            const isUnfixed = (type === 'Unfixed');
-            
-            document.getElementById('financials-section').style.display = isUnfixed ? 'none' : 'block';
-            document.getElementById('bill-amount-row').style.display = isUnfixed ? 'none' : 'flex';
-            
-            document.getElementById('paid-amount-label').innerText = isUnfixed ? 'Advance Cash Paid (₹)' : 'Amount Paid Now (₹)';
-
-            document.getElementById('balance-due-row').style.display = isUnfixed ? 'none' : 'block';
-            
-            calcTotals();
-        }
-
-        function autoFillRate() {
-            const selectEl = document.getElementById('itemPurity');
-            if(!selectEl) return;
-            const selectedOpt = selectEl.options[selectEl.selectedIndex];
-            if(!selectedOpt) return;
-
-            const isSilver = checkIsSilver(selectEl.value);
-
-            let ratePerGram = 0;
-            
-            if(isSilver) {
-                const baseSilverGram = currentGoldRates.rateSilver / 1000;
-                ratePerGram = baseSilverGram; 
-                document.getElementById('rateLabel').innerText = 'Silver Rate (₹/g)';
-            } else {
-                ratePerGram = currentGoldRates.rate24k / 10;
-                document.getElementById('rateLabel').innerText = 'Gold 24K Rate (₹/g)';
-            }
-
-            document.getElementById('metalRate').value = parseFloat(ratePerGram.toFixed(2));
-            calcTotals();
-        }
-
-        async function loadMerchants() {
-            const list = await getAllItems('merchants');
-            const sel = document.getElementById('merchantSelect');
-            sel.innerHTML = '<option value="">Select Merchant</option>';
-            list.forEach(m => sel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
-
-            const fSel = document.getElementById('filterMerchant');
-            fSel.innerHTML = '<option value="ALL">All Merchants / Suppliers</option>';
-            list.forEach(m => fSel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
-        }
-
-        async function promptNewMerchant() {
-            const name = prompt("Enter Merchant / Supplier Name:");
-            if(name && name.trim() !== '') { 
-                await addItem('merchants', { name: name.trim(), balance: 0, goldBalance: 0 }); 
-                loadMerchants(); 
-                showToast("Merchant Added!", "success");
-            }
-        }
-
-        // Helper to cleanly generate barcodes
-        async function getNewBarcode(catPrefix) {
-            // Note: Since generateBarcode in db.js scans inventory and returns a number string,
-            // we can use it to get a clean sequential barcode.
-            return await generateBarcode(catPrefix);
-        }
-
-        async function savePurchase() {
-            const mId = document.getElementById('merchantSelect').value;
-            const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
-            
-            const totalGross = parseFloat(document.getElementById('totalGrossWt').value) || 0;
-            const totalStone = parseFloat(document.getElementById('totalStoneWt').value) || 0;
-            const totalMaking = parseFloat(document.getElementById('totalMakingChg').value) || 0;
-            const totalOther = parseFloat(document.getElementById('totalOtherChg').value) || 0;
-            
-            if (!mId) return showToast("Select Merchant", "error");
-            if (!totalGross || totalGross <= 0) return showToast("Enter Valid Weight", "error");
-
-            const type = document.getElementById('purchaseType').value;
-            const isUnfixed = (type === 'Unfixed');
-            const date = document.getElementById('purchaseDate').value;
-            const cat = document.getElementById('itemCategory').value;
-            const purity = document.getElementById('itemPurity').value;
-            const mark = document.getElementById('itemMark').value;
-            const rateVal = parseFloat(document.getElementById('metalRate').value) || 0;
-            
-            if (!isUnfixed && rateVal <= 0) {
-                return showToast("Please enter a valid Rate for a Fixed Purchase", "error");
-            }
-
-            const totalBill = parseFloat(document.getElementById('finalBillAmount').value) || 0;
-            const paid = parseFloat(document.getElementById('billPaid').value) || 0;
-            const due = totalBill - paid;
-            const fineWt = parseFloat(document.getElementById('finalFineWeight').value) || 0;
-            const totalNet = parseFloat(document.getElementById('totalNet').value) || 0;
-            
-            const payMode = document.getElementById('billPayMode').value || 'Cash';
-            const editId = document.getElementById('editPurchaseId').value;
-
-            // 1. Clean up old records for Edit Mode
-            if(editId) {
-                const safeToEdit = await checkInventoryStatus(document.getElementById('oldInvId').value);
-                if(!safeToEdit) return showToast("Cannot Edit: Item has already been Sold or is locked in a Custom Order.", "error");
-                await deletePurchaseInternal(editId, true); 
+                const isMix = (item.category === 'MIX');
+                const isOrder = item.source && item.source.startsWith('order_') || (item.barcode && item.barcode.startsWith('ORD-'));
                 
-                // Cleanup old cashflow entries for this purchase
-                const allCfs = await getAllItems('cashflow');
-                const cfsToDelete = allCfs.filter(f => f.note && (f.note.includes(`PUR-${editId}`) || f.note.includes(`Purchase #${editId}`)));
-                for(let f of cfsToDelete) {
-                    await deleteItem('cashflow', f.id);
-                }
-            }
-
-            let catPrefix = 'ITM';
-            if (cat === 'MIX') catPrefix = 'MIX';
-            else if (cat && cat.length >= 3) catPrefix = cat.substring(0, 3).toUpperCase();
-            else if (cat) catPrefix = cat.toUpperCase();
-
-            // Get Stock Generation Mode
-            const stockMode = document.getElementById('stockMode').value;
-            const finalMode = (cat === 'MIX') ? 'bulk' : stockMode;
-            
-            let itemDetailsArray = [];
-            
-            // BULK GENERATION
-            if (finalMode === 'bulk' || pieces <= 1) {
-                let barcode = '';
-                if (cat === 'MIX') {
-                    const uniqueSuffix = Date.now().toString().slice(-4) + Math.floor(Math.random() * 100);
-                    barcode = `MIX-${uniqueSuffix}`;
-                } else if (pieces > 1) {
-                    const baseBarcode = await getNewBarcode(catPrefix);
-                    barcode = `${baseBarcode}-BULK`;
-                } else {
-                    barcode = await getNewBarcode(catPrefix);
+                const gross = parseFloat(item.grossWt) || parseFloat(item.weight) || 0;
+                const stone = parseFloat(item.stoneWt) || 0;
+                const fine = calculateFineWeight(item);
+                const pcs = parseInt(item.pieces) || 1;
+                
+                if(item.status === 'stock') {
+                    totalWt += net; totalCount += pcs;
+                    const ratePer10g = getRate(item.purity);
+                    totalVal += Math.round(net * (ratePer10g / 10));
                 }
 
-                const itemData = {
-                    barcode: barcode,
-                    merchantId: mId,
-                    purchaseDate: date,
-                    category: cat === 'MIX' ? 'MIX' : cat,
-                    name: pieces > 1 ? `Bulk ${cat} (${purity})` : `${cat} (${purity})`,
-                    purity: purity,
-                    mark: mark,
-                    pieces: pieces, 
-                    grossWt: totalGross, 
-                    stoneWt: totalStone,
-                    netWt: totalNet,
-                    fineWt: fineWt, 
-                    wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
-                    wastageMode: document.getElementById('wastageMode').value,
-                    rate: isUnfixed ? 0 : rateVal,
-                    making: totalMaking,
-                    other: totalOther,
-                    status: 'stock',
-                    source: 'purchase',
-                    addedDate: new Date().toISOString()
-                };
-                const invId = await addItem('inventory', itemData);
-                itemData.id = invId; 
-                itemDetailsArray.push(itemData);
-            } 
-            // INDIVIDUAL PIECE GENERATION
-            else {
-                const makingPP = totalMaking / pieces;
-                const otherPP = totalOther / pieces;
-                
-                const wastMode = document.getElementById('wastageMode').value;
-                const wastValInput = parseFloat(document.getElementById('wastageVal').value) || 0;
-                const wastValPP = wastMode === 'pct' ? wastValInput : (wastValInput / pieces);
-
-                const grossInputs = document.querySelectorAll('.piece-gross');
-                const stoneInputs = document.querySelectorAll('.piece-stone');
-
-                for(let i=0; i<pieces; i++) {
-                    const grossPP = parseFloat(grossInputs[i].value) || 0;
-                    const stonePP = parseFloat(stoneInputs[i].value) || 0;
-                    
-                    if (grossPP <= 0) continue;
-
-                    const barcode = await getNewBarcode(catPrefix); 
-                    const npp = Math.max(0, grossPP - stonePP);
-                    
-                    const singleWastage = wastMode === 'pct' ? (npp * wastValInput / 100) : wastValPP;
-                    const singleFine = (npp * getPurityFactor(purity)) + singleWastage;
-
-                    const itemData = {
-                        barcode: barcode,
-                        merchantId: mId,
-                        purchaseDate: date,
-                        category: cat === 'MIX' ? 'MIX' : cat,
-                        name: `${cat} (${purity})`,
-                        purity: purity,
-                        mark: mark,
-                        pieces: 1, 
-                        grossWt: grossPP,
-                        stoneWt: stonePP,
-                        netWt: npp,
-                        fineWt: singleFine, 
-                        wastageVal: wastValInput, 
-                        wastageMode: wastMode,
-                        rate: isUnfixed ? 0 : rateVal,
-                        making: makingPP,
-                        other: otherPP,
-                        status: 'stock',
-                        source: 'purchase',
-                        addedDate: new Date().toISOString()
+                if(isOrder) {
+                    const key = `ORD_${item.id}`;
+                    groupedInventory[key] = {
+                        isMix: false, isOrder: true, name: `Order: ${item.category}`, category: item.category,
+                        purity: item.purity, status: item.status,
+                        count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
                     };
-                    const invId = await addItem('inventory', itemData);
-                    itemData.id = invId; 
-                    itemDetailsArray.push(itemData);
-                }
-            }
-
-            const purchaseData = {
-                merchantId: mId,
-                date: date,
-                type: type,
-                category: cat,
-                totalPieces: pieces,
-                totalWeight: totalGross,
-                totalStoneWeight: totalStone,
-                totalFineWeight: fineWt,
-                totalAmount: totalBill,
-                paidAmount: paid,
-                paymentMode: payMode, 
-                dueAmount: due,
-                totalMaking: totalMaking,
-                totalOther: totalOther,
-                wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
-                wastageMode: document.getElementById('wastageMode').value,
-                itemDetails: itemDetailsArray 
-            };
-
-            // 2. Save Purchase
-            let actualId = editId ? parseInt(editId) : null;
-            if (actualId) {
-                purchaseData.id = actualId;
-                await addItem('purchases', purchaseData);
-            } else {
-                actualId = await addItem('purchases', purchaseData);
-            }
-
-            // 3. Update Merchant Balances
-            const db = await dbPromise;
-            const tx = db.transaction('merchants', 'readwrite');
-            const store = tx.objectStore('merchants');
-            store.get(parseInt(mId)).onsuccess = (e) => {
-                const m = e.target.result;
-                if(m) {
-                    if (isUnfixed) {
-                        m.goldBalance = (m.goldBalance || 0) + fineWt;
-                        m.balance = (m.balance || 0) - paid;
-                    } else {
-                        m.balance = (m.balance || 0) + due;
+                } else {
+                    const key = `${item.category}_${item.purity}_${item.status}`;
+                    if(!groupedInventory[key]) {
+                        groupedInventory[key] = {
+                            isMix: isMix, isOrder: false, name: isMix ? 'Mixed Stock' : item.category, category: item.category,
+                            purity: item.purity, status: item.status,
+                            count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: []
+                        };
                     }
-                    store.put(m);
+                    groupedInventory[key].count += pcs;
+                    groupedInventory[key].gross += gross;
+                    groupedInventory[key].net += net;
+                    groupedInventory[key].stone += stone;
+                    groupedInventory[key].fine += fine;
+                    groupedInventory[key].items.push(item);
                 }
-            };
+            });
 
-            // 4. Cashbook Integration - Flawless Routing
-            if(paid > 0) {
-                 const mName = document.getElementById('merchantSelect').options[document.getElementById('merchantSelect').selectedIndex].text;
-                 await addItem('cashflow', {
-                     date: date, type: 'OUT', mode: payMode, 
-                     category: isUnfixed ? 'Merchant Advance' : 'Purchase Payment', amount: paid, 
-                     note: `Payment for PUR-${actualId} to ${mName}` 
-                 });
-            }
+            Object.values(groupedInventory).forEach(group => {
+                const tr = document.createElement('tr');
+                
+                let purityBadge = 'badge-22k';
+                if(group.purity === '24K') purityBadge = 'badge-24k'; 
+                if(group.purity.includes('18')) purityBadge = 'badge-18k';
+                if(checkIsSilver(group.purity)) purityBadge = 'badge-silver';
+                
+                if(group.isMix) { purityBadge = 'badge-mix'; tr.className = 'row-mix'; }
 
-            showToast(editId ? "Purchase Updated Successfully!" : "Purchase Saved & Stock Updated!", "success");
-            closeModal('entryModal');
-            loadHistory();
+                let actionBtn = ''; let displayBarcode = '';
+
+                if(group.isMix) {
+                    if (group.items.length === 1) {
+                        const item = group.items[0]; 
+                        displayBarcode = '<span class="badge badge-pending" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;">UNTAGGED</span>';
+                        actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${item.id})"><i class="fas fa-tags"></i> Tag Stock</button>`;
+                    } else {
+                        displayBarcode = '<span class="badge badge-pending" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;">MULTIPLE BATCHES</span>';
+                        const groupKey = `${group.category}_${group.purity}_stock`;
+                        actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${groupKey}')"><i class="fas fa-list"></i> View List</button>`;
+                    }
+                } else if(group.isOrder) {
+                    const item = group.items[0];
+                    displayBarcode = `<span class="badge badge-order">${item.barcode}</span>`;
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${item.id})"><i class="fas fa-eye"></i> View Order</button>`;
+                } else {
+                    if (group.items.length === 1 && group.items[0].pieces > 1) {
+                        displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
+                    } else if (group.items.length === 1) {
+                        displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
+                    } else {
+                        displayBarcode = '<span style="color:#64748b; font-weight:600;">Multiple Barcodes</span>';
+                    }
+                    const groupKey = `${group.category}_${group.purity}_stock`;
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${groupKey}')"><i class="fas fa-list"></i> View List</button>`;
+                }
+
+                tr.innerHTML = `
+                    <td><strong>${group.name}</strong> ${group.isOrder ? '<i class="fas fa-hammer" style="color:var(--info-blue); margin-left:5px;" title="Custom Order Item"></i>' : ''}</td>
+                    <td>${displayBarcode}</td>
+                    <td><span class="badge ${purityBadge}">${group.purity}</span></td>
+                    <td style="font-weight:700; text-align:center;">${group.count}</td>
+                    <td>${group.gross.toFixed(3)} g</td>
+                    <td style="color:var(--active-red); font-weight:700;">${group.net.toFixed(3)} g</td>
+                    <td style="color:#8e24aa;">${group.stone.toFixed(3)} g</td>
+                    <td style="color:var(--info-blue); font-weight:700;">${group.fine.toFixed(3)} g</td>
+                    <td style="text-align:center;">${actionBtn}</td>
+                `;
+                container.appendChild(tr);
+            });
+
+            document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
+            document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
+            document.getElementById('total-count').innerText = totalCount;
         }
 
-        // --- DASHBOARD & HISTORY RENDERING ---
-        function setMetalFilter(metal) {
-            currentMetalFilter = metal;
-            
-            // UI Toggle Colors
-            document.querySelectorAll('.metal-tab').forEach(btn => {
-                btn.classList.remove('active-gold', 'active-silver', 'active-all');
-            });
-            
-            const activeBtn = document.getElementById('metal-tab-' + metal.toLowerCase());
-            if(metal === 'GOLD') activeBtn.classList.add('active-gold');
-            else if(metal === 'SILVER') activeBtn.classList.add('active-silver');
-            else activeBtn.classList.add('active-all');
+        // --- MANUAL ENTRY LOGIC ---
+        function openManualEntry() {
+            document.getElementById('manualEntryModal').style.display = 'flex';
+            document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
+            handleManualMetalChange(); 
 
-            // Stats Colors
-            const cardToday = document.getElementById('card-today');
-            const cardMonth = document.getElementById('card-month');
+            document.getElementById('manName').value = '';
+            document.getElementById('manPieces').value = 1;
+            document.getElementById('manGross').value = '';
+            document.getElementById('manStone').value = 0;
+            calcManNet();
+        }
+
+        function handleManualMetalChange() {
+            const metal = document.getElementById('manMetal').value;
+            populateCategoryDropdowns(metal);
+            populatePurityDropdowns(metal, 'manPurity');
+        }
+
+        function calcManNet() {
+            const g = parseFloat(document.getElementById('manGross').value) || 0;
+            const s = parseFloat(document.getElementById('manStone').value) || 0;
+            const net = Math.max(0, g - s);
+            document.getElementById('manNet').value = net.toFixed(3);
             
-            if (metal === 'SILVER') {
-                cardToday.style.borderLeftColor = 'var(--accent-silver)';
-                cardMonth.style.borderLeftColor = '#475569';
-                document.getElementById('statTodayVal').style.color = '#455a64';
-                document.getElementById('statMonthVal').style.color = '#475569';
-            } else if (metal === 'GOLD') {
-                cardToday.style.borderLeftColor = 'var(--accent-gold)';
-                cardMonth.style.borderLeftColor = 'var(--info-blue)';
-                document.getElementById('statTodayVal').style.color = 'var(--success-green)';
-                document.getElementById('statMonthVal').style.color = 'var(--info-blue)';
+            const purity = document.getElementById('manPurity').value;
+            const fine = net * getPurityFactor(purity);
+            document.getElementById('manFine').value = fine.toFixed(3);
+        }
+
+        async function saveManualEntry() {
+            const name = document.getElementById('manName').value;
+            const cat = document.getElementById('manCategory').value;
+            const purity = document.getElementById('manPurity').value;
+            const pieces = parseInt(document.getElementById('manPieces').value) || 1;
+            
+            const gross = parseFloat(document.getElementById('manGross').value) || 0;
+            const stone = parseFloat(document.getElementById('manStone').value) || 0;
+            const net = Math.max(0, gross - stone);
+            const fine = net * getPurityFactor(purity);
+
+            if(!name) { appAlert("Enter Description"); return; }
+            if(gross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
+
+            const isSilv = checkIsSilver(purity);
+            
+            let barcode = '';
+            if (isSilv && pieces > 1) {
+                const uniqueSuffix = Date.now().toString().slice(-6);
+                barcode = `SIL-${cat.substring(0,3).toUpperCase()}-${uniqueSuffix}`;
             } else {
-                cardToday.style.borderLeftColor = '#333';
-                cardMonth.style.borderLeftColor = '#333';
-                document.getElementById('statTodayVal').style.color = '#333';
-                document.getElementById('statMonthVal').style.color = '#333';
+                barcode = generateSafeBarcode(cat);
             }
 
-            loadHistory(); 
+            const newItem = {
+                barcode: barcode, category: cat, name: name,
+                purity: purity, grossWt: gross, stoneWt: stone, netWt: net, fineWt: fine, pieces: pieces,
+                status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+            };
+            
+            await addItem('inventory', newItem);
+            showToast("Added to Inventory!", "success");
+            closeModal('manualEntryModal');
+            loadInventory();
         }
 
-        async function loadHistory() {
-            const fromDate = document.getElementById('filterFrom').value;
-            const toDate = document.getElementById('filterTo').value;
-            const merchFilter = document.getElementById('filterMerchant').value;
-            
-            const list = await getAllItems('purchases');
-            const merchants = await getAllItems('merchants');
-            
-            let todayWt = 0, todayVal = 0;
-            let monthWt = 0, monthVal = 0;
-            let allWt = 0, allVal = 0;
+        // --- SINGLE ITEM DETAILS ---
+        async function openItemDetails(id) {
+            const item = allInventory.find(i => i.id === id);
+            if(!item) return;
 
-            const todayStr = new Date().toISOString().split('T')[0];
-            const currentMonthPrefix = todayStr.substring(0, 7);
+            const fineWt = calculateFineWeight(item);
 
-            // Pre-filter entire list based on Master Metal Toggle
-            let metalFilteredList = list;
-            if (currentMetalFilter !== 'ALL') {
-                metalFilteredList = list.filter(p => {
-                    const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
-                    const isSilv = checkIsSilver(invItem.purity);
-                    if (currentMetalFilter === 'GOLD') return !isSilv;
-                    if (currentMetalFilter === 'SILVER') return isSilv;
-                    return true;
-                });
+            document.getElementById('idmBarcode').innerText = item.barcode;
+            document.getElementById('idmCategory').innerText = item.category;
+            document.getElementById('idmPurity').innerText = item.purity;
+            document.getElementById('idmPieces').innerText = item.pieces || 1;
+            document.getElementById('idmGross').innerText = (parseFloat(item.grossWt || item.weight) || 0).toFixed(3) + " g";
+            document.getElementById('idmStone').innerText = (parseFloat(item.stoneWt) || 0).toFixed(3) + " g";
+            document.getElementById('idmNet').innerText = (parseFloat(item.netWt || item.weight) || 0).toFixed(3) + " g";
+            document.getElementById('idmFine').innerText = fineWt.toFixed(3) + " g";
+            document.getElementById('idmHuid').innerText = item.huid || 'N/A';
+            
+            const isOrder = (item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'));
+
+            const statEl = document.getElementById('idmStatus');
+            const stat = String(item.status || '').toLowerCase();
+            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
+
+            if(stat !== 'sold' && stat !== 'delivered' && net > 0) {
+                statEl.innerHTML = `<span class="badge badge-22k">IN STOCK</span>`;
+            } else {
+                statEl.innerHTML = `<span class="badge badge-pending">SOLD / EMPTY</span>`;
             }
 
-            allPurchasesData = metalFilteredList;
+            if(isOrder) {
+                document.getElementById('idmEditBtn').style.display = 'none';
+                document.getElementById('idmOrderWarning').style.display = 'block';
+            } else {
+                document.getElementById('idmEditBtn').style.display = 'block';
+                document.getElementById('idmOrderWarning').style.display = 'none';
+                document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
+            }
 
-            // Recalculate Stats based on Metal Filter
-            metalFilteredList.forEach(p => {
-                const pDate = p.date.split('T')[0];
-                const wt = p.totalFineWeight || 0;
-                const val = p.totalAmount || 0;
+            document.getElementById('idmPrintBtn').onclick = () => { viewBarcode(item.barcode, (item.grossWt||item.weight).toFixed(3), item.purity); };
 
-                allWt += wt; allVal += val;
-                if(pDate === todayStr) { todayWt += wt; todayVal += val; }
-                if(pDate.startsWith(currentMonthPrefix)) { monthWt += wt; monthVal += val; }
-            });
+            closeModal('detailsModal'); 
+            openModal('itemDetailsModal');
+        }
 
-            document.getElementById('statTodayWt').innerText = todayWt.toFixed(3) + " g";
-            document.getElementById('statTodayVal').innerText = "₹" + todayVal.toLocaleString();
-            document.getElementById('statMonthWt').innerText = monthWt.toFixed(3) + " g";
-            document.getElementById('statMonthVal').innerText = "₹" + monthVal.toLocaleString();
-            document.getElementById('statAllWt').innerText = allWt.toFixed(3) + " g";
-            document.getElementById('statAllVal').innerText = "₹" + allVal.toLocaleString();
+        // --- GROUP DETAILS MODAL ---
+        function openGroupDetails(key) {
+            const group = groupedInventory[key];
+            if(!group) return;
 
-            let displayList = metalFilteredList.filter(p => {
-                const d = p.date.split('T')[0];
-                let passDate = (d >= fromDate && d <= toDate);
-                let passMerch = (merchFilter === 'ALL' || p.merchantId == merchFilter);
-                return passDate && passMerch;
-            });
-
-            displayList.sort((a,b) => new Date(b.date) - new Date(a.date));
-
-            const tbody = document.getElementById('historyBody');
+            const tbody = document.getElementById('groupDetailsList');
             tbody.innerHTML = '';
 
-            if(displayList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#888;">No purchases found for this period/metal.</td></tr>';
+            group.items.forEach(item => {
+                const pcs = item.pieces || 1;
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                const stone = parseFloat(item.stoneWt || 0).toFixed(3);
+                const net = parseFloat(item.netWt || gross).toFixed(3);
+                const fine = calculateFineWeight(item).toFixed(3);
+
+                let barcodeDisplay = item.barcode;
+                if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
+
+                let actions = '';
+                if (item.category === 'MIX') {
+                    actions = `
+                        <button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Tag Stock"><i class="fas fa-tags"></i></button>
+                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    `;
+                } else {
+                    actions = `
+                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button>
+                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    `;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family:monospace; font-weight:700; color:var(--info-blue); cursor:pointer;" onclick="openItemDetails(${item.id})">
+                        <u>${barcodeDisplay}</u>
+                    </td>
+                    <td style="text-align:center;">${pcs}</td>
+                    <td>${gross} g</td>
+                    <td>${net} g</td>
+                    <td style="color:#8e24aa;">${stone} g</td>
+                    <td style="color:var(--info-blue); font-weight:700;">${fine} g</td>
+                    <td style="color:#64748b;">${item.huid || '-'}</td>
+                    <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
+                        ${actions}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            openModal('detailsModal');
+        }
+
+        // --- TAGGING LOGIC ---
+        async function openTagModal(id) {
+            const item = allInventory.find(i => i.id === id);
+            if(!item) return;
+
+            if (item.status === 'sold') { appAlert("Cannot tag stock from a sold item."); return; }
+
+            document.getElementById('tagSourceId').value = item.id;
+            
+            const grossWt = parseFloat(item.grossWt || item.weight);
+            const stoneWt = parseFloat(item.stoneWt || 0);
+            const netWt = parseFloat(item.netWt || item.weight);
+
+            document.getElementById('tagSourceMaxWt').value = grossWt;
+            document.getElementById('tagSourceMaxStoneWt').value = stoneWt;
+            document.getElementById('tagSourceMaxNetWt').value = netWt;
+            
+            document.getElementById('tagSourceName').innerText = item.name || 'Mixed Stock';
+            document.getElementById('tagSourceWt').innerText = `(${grossWt.toFixed(3)}g Gr / ${stoneWt.toFixed(3)}g St / ${netWt.toFixed(3)}g Net)`;
+            
+            document.getElementById('tagPurity').value = item.purity;
+            
+            let tol = grossWt * 0.001;
+            if(tol < 0.030) tol = 0.030;
+            if(tol > 0.100) tol = 0.100;
+            
+            document.getElementById('dispTolerance').innerText = `±${tol.toFixed(3)} g`;
+            
+            document.getElementById('tagStockMode').value = 'tagged';
+            document.getElementById('tagPieces').value = 1;
+            
+            populateCategoryDropdowns(); 
+            generateTagInputs();
+            openModal('tagModal');
+        }
+
+        function generateTagInputs() {
+            const mode = document.getElementById('tagStockMode').value;
+            const count = parseInt(document.getElementById('tagPieces').value) || 1;
+            const container = document.getElementById('tagInputsContainer');
+            container.innerHTML = '';
+            
+            if (mode === 'loose') {
+                container.innerHTML = `
+                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
+                        <div style="flex:1;">Total Bulk Gross Wt (g) <span style="color:red;">*</span></div>
+                        <div style="flex:1;">Total Bulk Stone Wt (g)</div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-bottom:8px;">
+                        <input type="number" class="tag-input tag-gross" placeholder="Total Bulk Gross" step="0.001" oninput="calcTagTotal()">
+                        <input type="number" class="tag-input tag-stone" placeholder="Total Bulk Stone" step="0.001" oninput="calcTagTotal()">
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
+                        <div style="flex:1;">Gross Wt (g) <span style="color:red;">*</span></div>
+                        <div style="flex:1;">Stone Wt (g)</div>
+                    </div>
+                `;
+
+                for(let i=0; i<count; i++) {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.gap = '10px';
+                    row.style.marginBottom = '10px';
+
+                    const inpGross = document.createElement('input');
+                    inpGross.type = 'number';
+                    inpGross.className = 'tag-input tag-gross';
+                    inpGross.placeholder = `Piece ${i+1} Gross`;
+                    inpGross.step = '0.001'; 
+                    inpGross.oninput = calcTagTotal;
+
+                    const inpStone = document.createElement('input');
+                    inpStone.type = 'number';
+                    inpStone.className = 'tag-input tag-stone';
+                    inpStone.placeholder = `Piece ${i+1} Stone`;
+                    inpStone.step = '0.001'; 
+                    inpStone.oninput = calcTagTotal;
+
+                    row.appendChild(inpGross);
+                    row.appendChild(inpStone);
+                    container.appendChild(row);
+                }
+            }
+            calcTagTotal();
+        }
+
+        function calcTagTotal() {
+            const grossInputs = document.querySelectorAll('.tag-gross');
+            const stoneInputs = document.querySelectorAll('.tag-stone');
+            
+            let sumGross = 0; let sumStone = 0;
+            
+            grossInputs.forEach(inp => sumGross += (parseFloat(inp.value) || 0));
+            stoneInputs.forEach(inp => sumStone += (parseFloat(inp.value) || 0));
+            
+            let sumNet = Math.max(0, sumGross - sumStone);
+
+            document.getElementById('tagTotalWt').innerText = sumGross.toFixed(3) + " g";
+            document.getElementById('tagTotalStoneWt').innerText = sumStone.toFixed(3) + " g";
+            document.getElementById('tagTotalNetWt').innerText = sumNet.toFixed(3) + " g";
+
+            const maxWt = parseFloat(document.getElementById('tagSourceMaxWt').value) || 0;
+            const remaining = maxWt - sumGross;
+            const remEl = document.getElementById('tagRemainingWt');
+            remEl.innerText = remaining.toFixed(3) + " g";
+            remEl.style.color = remaining < 0 ? 'var(--active-red)' : 'var(--success-green)';
+
+            const maxStone = parseFloat(document.getElementById('tagSourceMaxStoneWt').value) || 0;
+            const remainingStone = maxStone - sumStone;
+            const remStoneEl = document.getElementById('tagRemainingStoneWt');
+            remStoneEl.innerText = remainingStone.toFixed(3) + " g";
+            remStoneEl.style.color = remainingStone < 0 ? 'var(--active-red)' : 'var(--success-green)';
+            
+            const maxNet = parseFloat(document.getElementById('tagSourceMaxNetWt').value) || 0;
+            const remainingNet = maxNet - sumNet;
+            const remNetEl = document.getElementById('tagRemainingNetWt');
+            remNetEl.innerText = remainingNet.toFixed(3) + " g";
+            remNetEl.style.color = remainingNet < 0 ? 'var(--active-red)' : 'var(--success-green)';
+        }
+
+        async function confirmTagging() {
+            const sourceId = parseInt(document.getElementById('tagSourceId').value);
+            const totalRequiredGross = parseFloat(document.getElementById('tagTotalWt').innerText.split(' ')[0]);
+            
+            const batchItem = allInventory.find(i => i.id === sourceId);
+            if(!batchItem) { appAlert("Source Batch Not Found."); return; }
+            if(batchItem.status === 'sold') { appAlert("Cannot extract from a sold item."); return; }
+            
+            const availableGross = parseFloat(batchItem.grossWt || batchItem.weight);
+
+            let calculatedTol = availableGross * 0.001;
+            if (calculatedTol < 0.030) calculatedTol = 0.030; 
+            if (calculatedTol > 0.200) calculatedTol = 0.200; 
+
+            const maxAllowed = availableGross + calculatedTol;
+
+            if(totalRequiredGross <= 0) { appAlert("Enter valid weights."); return; }
+
+            if (totalRequiredGross > maxAllowed) {
+                appAlert(`Tolerance Limit Exceeded!\n\nAvailable: ${availableGross.toFixed(3)}g\nAllowed Limit (+${calculatedTol.toFixed(3)}): ${maxAllowed.toFixed(3)}g\nYou entered: ${totalRequiredGross.toFixed(3)}g\n\nPlease adjust weight.`);
                 return;
             }
 
-            let currentGroupDate = '';
+            let isFullConversion = false;
+            let diff = availableGross - totalRequiredGross;
 
-            displayList.forEach(p => {
-                const dStr = p.date.split('T')[0];
-                
-                if(dStr !== currentGroupDate) {
-                    const fDate = new Date(dStr).toLocaleDateString('en-IN', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'});
-                    tbody.innerHTML += `<tr class="date-group-header"><td colspan="7"><i class="fas fa-calendar-day"></i> ${fDate}</td></tr>`;
-                    currentGroupDate = dStr;
-                }
+            if (Math.abs(diff) <= calculatedTol) {
+                isFullConversion = true;
+                let msg = diff === 0 
+                    ? `Exact weight matched.\nThis will CONSUME the full batch.\n\nProceed?` 
+                    : `Weight is within tolerance (Difference: ${Math.abs(diff).toFixed(3)}g).\nThis will CONSUME the full batch and write off the small difference.\n\nProceed?`;
+                const proceed = await appConfirm(msg);
+                if(!proceed) return;
+            } else {
+                const proceed = await appConfirm(`Generate stock for ${totalRequiredGross.toFixed(3)}g?\nRemaining Stock will be: ${diff.toFixed(3)}g`);
+                if(!proceed) return;
+            }
 
-                const timeStr = new Date(p.date).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
-                const mName = merchants.find(m => m.id == p.merchantId)?.name || 'Unknown';
-                const badge = p.type === 'Unfixed' ? 'b-unfixed' : 'b-fixed';
-                
-                const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
-                const purityText = invItem.purity || '';
-                const isSilv = checkIsSilver(purityText);
-                
-                let metalBadge = '';
-                if(isSilv) metalBadge = `<span class="badge b-metal-silver" style="margin-right:5px;">Silver</span>`;
-                else metalBadge = `<span class="badge b-metal-gold" style="margin-right:5px;">Gold</span>`;
+            const cat = document.getElementById('tagCategory').value;
+            const purity = batchItem.purity; 
+            const mode = document.getElementById('tagStockMode').value;
+            const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
+            
+            const grossInputs = document.querySelectorAll('.tag-gross');
+            const stoneInputs = document.querySelectorAll('.tag-stone');
 
-                const pcsText = p.totalPieces > 1 ? ` (${p.totalPieces} Pcs)` : '';
-                
-                // Show Mode if paid
-                const modeStr = (p.paidAmount > 0 && p.paymentMode) ? ` <span style="font-size:0.75rem; color:#888;">(${p.paymentMode})</span>` : '';
-                const amtDisplay = p.type === 'Unfixed' ? (p.paidAmount > 0 ? `Adv: ₹${p.paidAmount.toLocaleString()}${modeStr}` : '-') : `₹${p.totalAmount.toLocaleString()}`;
-                
-                let payStatus = `<span style="color:#d32f2f; font-weight:bold;">Due: ₹${p.dueAmount}</span>`;
-                if(p.type === 'Fixed' && p.dueAmount <= 0) payStatus = `<span style="color:#2e7d32; font-weight:bold;">Paid${modeStr}</span>`;
-                if(p.type === 'Unfixed') {
-                     if(p.paidAmount > 0) payStatus = `<span style="color:#2e7d32; font-weight:bold;">Adv Paid${modeStr}</span><br><span style="color:#8e24aa; font-size:0.75rem; font-weight:600;">Pending Metal</span>`;
-                     else payStatus = `<span style="color:#8e24aa; font-weight:bold;">Pending Metal</span>`;
-                }
+            const catPrefix = cat.substring(0,3).toUpperCase();
+            
+            let totalExtractedNet = 0;
+            let sumStone = 0;
 
-                const barcodeText = invItem.barcode || `Ref: ${p.id}`;
+            if (mode === 'loose') {
+                const g = parseFloat(grossInputs[0].value) || 0;
+                const s = parseFloat(stoneInputs[0].value) || 0;
+                const n = Math.max(0, g - s);
                 
-                let printAction = '';
-                if (isSilv || p.category === 'MIX' || (barcodeText && barcodeText.includes('BULK'))) {
-                    printAction = `<button class="btn-action print" disabled style="opacity:0.3; cursor:not-allowed;" title="Bulk Block (No Barcodes)"><i class="fas fa-barcode"></i></button>`;
+                sumStone += s;
+                totalExtractedNet += n;
+                const fineWt = n * getPurityFactor(purity);
+                
+                const isSilv = checkIsSilver(purity);
+                let barcode = '';
+                if(isSilv) {
+                    const uniqueSuffix = Date.now().toString().slice(-6);
+                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
                 } else {
-                    printAction = `<button class="btn-action print" onclick="viewBarcode('${barcodeText}', '${(p.totalWeight / (p.totalPieces||1)).toFixed(3)}', '${purityText}')" title="Print Tag"><i class="fas fa-barcode"></i></button>`;
+                    barcode = generateSafeBarcode(cat);
                 }
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td style="color:#666; font-size:0.8rem;">${timeStr}<br>#${p.id}</td>
-                        <td><span class="badge ${badge}">${p.type}</span></td>
-                        <td>
-                            <span class="party-name">${mName}</span>
-                            <span class="tx-desc">${metalBadge} ${p.category} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem;">${purityText}</span></span>
-                        </td>
-                        <td style="font-weight:600; color:#c5a059;">${(p.totalFineWeight||0).toFixed(3)}g</td>
-                        <td class="text-right" style="font-weight:bold;">${amtDisplay}</td>
-                        <td class="text-right" style="font-size:0.85rem;">${payStatus}</td>
-                        <td style="text-align:center;">
-                            <div class="action-btns">
-                                ${printAction}
-                                <button class="btn-action edit" onclick="editPurchase(${p.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                                <button class="btn-action delete" onclick="deletePurchase(${p.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+                const newItem = {
+                    barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`,
+                    purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
+                    status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
+                };
+                await addItem('inventory', newItem);
+            } else {
+                for (let i = 0; i < grossInputs.length; i++) {
+                    const g = parseFloat(grossInputs[i].value) || 0;
+                    const s = parseFloat(stoneInputs[i].value) || 0;
+                    const n = Math.max(0, g - s);
+                    
+                    if(!g) continue;
+                    
+                    sumStone += s;
+                    totalExtractedNet += n;
+                    const fineWt = n * getPurityFactor(purity);
+
+                    const barcode = generateSafeBarcode(cat);
+                    const newItem = {
+                        barcode: barcode, category: cat, name: `${cat} ${purity}`,
+                        purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: 1,
+                        status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
+                    };
+                    await addItem('inventory', newItem);
+                }
+            }
+
+            if (isFullConversion || (batchItem.grossWt - totalRequiredGross) <= 0.010) {
+                await deleteItemReal(batchItem.id); 
+            } else {
+                batchItem.grossWt = Math.max(0, batchItem.grossWt - totalRequiredGross);
+                batchItem.stoneWt = Math.max(0, (batchItem.stoneWt || 0) - sumStone);
+                batchItem.netWt = Math.max(0, batchItem.grossWt - batchItem.stoneWt);
+                batchItem.weight = batchItem.grossWt; 
+                batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
+                
+                await updateItem('inventory', batchItem);
+            }
+
+            showToast("Stock Generated Successfully!", "success");
+            closeModal('tagModal');
+            loadInventory();
+        }
+
+        // --- CANCEL & REFUND BILL FROM INVENTORY ---
+        async function openCancelModal(saleId) {
+            const sale = allSalesData.find(s => s.id === saleId);
+            if(!sale) return;
+
+            document.getElementById('cancelSaleId').value = saleId;
+            document.getElementById('cBillTotal').innerText = "₹" + sale.grandTotal.toLocaleString();
+            document.getElementById('cBillPaid').innerText = "₹" + sale.paidAmount.toLocaleString();
+            
+            document.getElementById('cRefundAmt').value = sale.paidAmount > 0 ? sale.paidAmount : 0; 
+            
+            if(sale.oldGoldDeduction > 0) {
+                document.getElementById('cBillOldGoldDiv').style.display = 'flex';
+                document.getElementById('cBillOldGold').innerText = "₹" + sale.oldGoldDeduction.toLocaleString();
+            } else {
+                document.getElementById('cBillOldGoldDiv').style.display = 'none';
+            }
+            
+            openModal('cancelModal');
+        }
+
+        async function confirmCancelSale() {
+            const id = parseInt(document.getElementById('cancelSaleId').value);
+            const refundAmt = getSafeNum(document.getElementById('cRefundAmt').value);
+
+            const db = await dbPromise;
+            const tx = db.transaction(['sales', 'customers', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
+            const store = tx.objectStore('sales');
+
+            store.get(id).onsuccess = async (e) => {
+                const sale = e.target.result;
+                sale.status = 'cancelled';
+                sale.refundedAmount = refundAmt;
+                store.put(sale);
+
+                if (sale.bcWalletDeduction > 0) {
+                    let cReq = tx.objectStore('customers').get(parseInt(sale.customerId));
+                    cReq.onsuccess = (ev) => {
+                        const c = ev.target.result;
+                        if(c) {
+                            c.bcBalance = (getSafeNum(c.bcBalance)) + sale.bcWalletDeduction;
+                            tx.objectStore('customers').put(c);
+                        }
+                    };
+                }
+
+                await updateStockStatusInternal(tx, sale.items, 'stock');
+
+                const ogReq = tx.objectStore('old_gold').getAll();
+                ogReq.onsuccess = (ev) => {
+                    const allOG = ev.target.result || [];
+                    const linkedOG = allOG.filter(g => g.saleId === id);
+                    for(const og of linkedOG) {
+                        tx.objectStore('old_gold').delete(og.id);
+                    }
+                };
+
+                if(refundAmt > 0) {
+                    tx.objectStore('cashflow').add({
+                        date: new Date().toISOString(), type: 'OUT', mode: 'Cash',
+                        category: 'Bill Cancellation Refund', amount: refundAmt, note: `Refund for Cancelled Bill #${String(id).padStart(4,'0')}`
+                    });
+                }
+                
+                if(sale.oldGoldDeduction > 0) {
+                    tx.objectStore('cashflow').add({
+                        date: new Date().toISOString(), type: 'OUT', mode: 'Metal Exchange',
+                        category: 'Bill Cancellation Reversal', amount: sale.oldGoldDeduction, note: `Reversing Exchange for Cancelled Bill #${String(id).padStart(4,'0')}`
+                    });
+                }
+
+                tx.oncomplete = () => {
+                    showToast("Bill Cancelled & Items Restored!", "success");
+                    closeModal('cancelModal');
+                    loadInventory(); 
+                };
+            };
+        }
+
+        function updateStockStatusInternal(tx, items, action) {
+            return new Promise((resolve) => {
+                const store = tx.objectStore('inventory');
+                let count = 0;
+                if(items.length === 0) resolve();
+
+                for(const i of items) {
+                    if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
+                        count++;
+                        if(count === items.length) resolve();
+                        continue;
+                    }
+                    
+                    const req = store.get(parseInt(i.id));
+                    req.onsuccess = (e) => {
+                        const item = e.target.result;
+                        if(item) { 
+                            if (action === 'stock') {
+                                item.status = 'stock';
+                                const sellQty = i.sellQty || 1;
+                                const sellGross = i.grossWt !== undefined ? i.grossWt : (i.weight || 0);
+                                const sellStone = i.stoneWt || 0;
+                                const sellNet = i.netWt !== undefined ? i.netWt : sellGross;
+
+                                item.pieces = (parseInt(item.pieces) || 0) + sellQty;
+                                item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
+                                item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
+                                item.netWt = (parseFloat(item.netWt) || 0) + sellNet;
+                                item.weight = item.grossWt; 
+                                item.fineWt = item.netWt * getPurityFactor(item.purity);
+                            }
+                            store.put(item); 
+                        }
+                        count++;
+                        if(count === items.length) resolve();
+                    };
+                }
             });
         }
 
-        // --- EDIT / DELETE LOGIC (WITH INVENTORY SAFEGUARD) ---
-        async function checkInventoryStatus(invId) {
-            if(!invId) return true; 
-            const item = await getItem('inventory', parseInt(invId));
-            if(!item) return true; 
-            if(item.status !== 'stock') return false; 
-            return true;
+
+        // --- EDIT LOGIC ---
+        function calcEditNet() {
+            const g = parseFloat(document.getElementById('editGross').value) || 0;
+            const s = parseFloat(document.getElementById('editStone').value) || 0;
+            const net = Math.max(0, g - s);
+            document.getElementById('editNet').value = net.toFixed(3);
+            
+            const purity = document.getElementById('editPurity').value;
+            const fine = net * getPurityFactor(purity);
+            document.getElementById('editFine').value = fine.toFixed(3);
         }
 
-        async function editPurchase(id) {
-            const p = await getItem('purchases', id);
-            if(!p) return;
-            
-            // For individual tags, we must check if ALL pieces are still in stock before edit is allowed
-            let isSafe = true;
-            if (p.itemDetails && Array.isArray(p.itemDetails)) {
-                for (let dt of p.itemDetails) {
-                    const safe = await checkInventoryStatus(dt.id);
-                    if (!safe) { isSafe = false; break; }
-                }
+        async function editItem(id) {
+            closeModal('detailsModal'); 
+            closeModal('itemDetailsModal');
+
+            const item = allInventory.find(i => i.id === id);
+            if(!item) return;
+
+            if (item.status === 'sold') { appAlert("Cannot edit a sold item."); return; }
+
+            if((item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'))) {
+                appAlert("Cannot edit Custom Order items directly from Inventory. Please manage them in the Custom Orders tab.");
+                return;
             }
+
+            const isSilv = checkIsSilver(item.purity);
+            populatePurityDropdowns(isSilv ? 'Silver' : 'Gold', 'editPurity');
+
+            document.getElementById('editId').value = item.id;
+            document.getElementById('editName').value = item.name || '';
+            document.getElementById('editCategory').value = item.category || 'Other';
+            document.getElementById('editPurity').value = item.purity;
+            document.getElementById('editPieces').value = item.pieces || 1;
             
-            if(!isSafe) return showToast("Cannot Edit: One or more items have already been Sold or are locked in a Custom Order.", "error");
-
-            document.getElementById('entryModal').classList.add('open'); 
-            document.getElementById('entryModal').style.display = 'flex';
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Purchase #${id}`;
-            document.getElementById('editPurchaseId').value = id;
+            document.getElementById('editGross').value = item.grossWt || item.weight;
+            document.getElementById('editStone').value = item.stoneWt || 0;
+            calcEditNet();
             
-            document.getElementById('oldDueAmount').value = p.dueAmount || 0;
-            document.getElementById('oldFineWeight').value = p.totalFineWeight || 0;
-            document.getElementById('oldType').value = p.type;
-            document.getElementById('oldPaid').value = p.paidAmount || 0;
-            // Note: oldInvId is just kept for backwards compatibility of single piece edits
-            document.getElementById('oldInvId').value = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0].id : '';
+            document.getElementById('editHuid').value = item.huid || '';
+            openModal('editModal');
+        }
 
-            document.getElementById('merchantSelect').value = p.merchantId;
-            document.getElementById('purchaseDate').value = p.date.split('T')[0];
-            document.getElementById('purchaseType').value = p.type;
-            toggleTypeUI();
+        async function saveEdit() {
+            const id = parseInt(document.getElementById('editId').value);
+            const db = await dbPromise;
+            const tx = db.transaction('inventory', 'readwrite');
+            const store = tx.objectStore('inventory');
+            
+            store.get(id).onsuccess = async (e) => {
+                const item = e.target.result;
+                if(item.status === 'sold') { appAlert("Cannot update a sold item."); return; }
 
-            if(p.itemDetails && p.itemDetails[0]) {
-                const item = p.itemDetails[0];
+                item.name = document.getElementById('editName').value;
+                item.category = document.getElementById('editCategory').value;
+                item.purity = document.getElementById('editPurity').value;
+                item.pieces = parseInt(document.getElementById('editPieces').value) || 1;
                 
-                const isSilv = checkIsSilver(item.purity);
-                document.getElementById('itemMetal').value = isSilv ? 'Silver' : 'Gold';
+                item.grossWt = parseFloat(document.getElementById('editGross').value) || 0;
+                item.stoneWt = parseFloat(document.getElementById('editStone').value) || 0;
+                item.netWt = Math.max(0, item.grossWt - item.stoneWt);
+                item.weight = item.grossWt; 
+                item.fineWt = item.netWt * getPurityFactor(item.purity);
                 
-                populateCategoryDropdown();
-                populatePurityDropdowns();
+                item.huid = document.getElementById('editHuid').value;
+                
+                store.put(item);
+                closeModal('editModal');
+                showToast("Item Updated", "success");
+                loadInventory();
+            };
+        }
 
-                document.getElementById('itemCategory').value = item.category;
-                document.getElementById('itemPurity').value = item.purity;
-                document.getElementById('itemPieces').value = p.totalPieces || 1;
-                
-                // Detect Stock Mode
-                if (item.barcode && item.barcode.includes('BULK') || item.category === 'MIX') {
-                    document.getElementById('stockMode').value = 'bulk';
-                    document.getElementById('totalGrossWt').value = p.totalWeight !== undefined ? p.totalWeight : 0;
-                    document.getElementById('totalStoneWt').value = p.totalStoneWeight !== undefined ? p.totalStoneWeight : 0;
-                    generatePieceInputs();
-                } else {
-                    document.getElementById('stockMode').value = 'individual';
-                    generatePieceInputs(); 
-                    
-                    // Now pre-fill the individual weights from p.itemDetails array
-                    const grossInputs = document.querySelectorAll('.piece-gross');
-                    const stoneInputs = document.querySelectorAll('.piece-stone');
-                    p.itemDetails.forEach((dt, idx) => {
-                        if (grossInputs[idx]) grossInputs[idx].value = dt.grossWt || dt.weight || 0;
-                        if (stoneInputs[idx]) stoneInputs[idx].value = dt.stoneWt || 0;
+        // --- DELETE (WITH RESTORE) ---
+        async function deleteItem(id) {
+            const item = allInventory.find(i => i.id === id);
+            if(!item) return;
+
+            if(item.status === 'sold') { appAlert("Cannot delete an item that has already been sold."); return; }
+
+            if((item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'))) {
+                appAlert("Cannot delete Custom Order items from Inventory. Cancel the original order to reverse the stock.");
+                return;
+            }
+
+            const proceed = await appConfirm("Delete this item? If it came from Mix, weight will return to Mix.");
+            if(!proceed) return;
+
+            if (item.source && item.source.startsWith('mix_')) {
+                restoreMixWeight(item).then(() => {
+                    deleteItemReal(id).then(() => {
+                        closeModal('detailsModal');
+                        closeModal('itemDetailsModal');
+                        loadInventory();
                     });
-                    sumPieceWeights();
-                }
-                
-                document.getElementById('wastageVal').value = p.wastageVal !== undefined ? p.wastageVal : 0;
-                document.getElementById('wastageMode').value = p.wastageMode || 'pct';
-                document.getElementById('itemMark').value = item.mark || '';
-                
-                if(p.type === 'Fixed') {
-                    document.getElementById('metalRate').value = item.rate;
-                    const tMaking = p.totalMaking !== undefined ? p.totalMaking : (p.makingPerPiece ? p.makingPerPiece * (p.totalPieces||1) : 0);
-                    const tOther = p.totalOther !== undefined ? p.totalOther : (p.otherPerPiece ? p.otherPerPiece * (p.totalPieces||1) : 0);
-                    document.getElementById('totalMakingChg').value = tMaking;
-                    document.getElementById('totalOtherChg').value = tOther;
-                }
-            }
-            document.getElementById('billPaid').value = p.paidAmount;
-            
-            if (p.paymentMode) {
-                document.getElementById('billPayMode').value = p.paymentMode; 
+                });
             } else {
-                document.getElementById('billPayMode').value = 'Cash';
+                deleteItemReal(id).then(() => {
+                    closeModal('detailsModal');
+                    closeModal('itemDetailsModal');
+                    loadInventory();
+                });
             }
-            
-            calcTotals();
         }
 
-        async function deletePurchaseInternal(id, isSilent) {
-             const p = await getItem('purchases', parseInt(id));
-             if(!p) return;
-
-             const oldDue = parseFloat(document.getElementById('oldDueAmount').value) || p.dueAmount || 0;
-             const oldFine = parseFloat(document.getElementById('oldFineWeight').value) || p.totalFineWeight || 0;
-             const oldType = document.getElementById('oldType').value || p.type;
-             const oldPaid = parseFloat(document.getElementById('oldPaid').value) || p.paidAmount || 0;
-             
-             // 1. Clean up cashflow FIRST sequentially
-             if (!isSilent) {
-                 const allFlows = await getAllItems('cashflow');
-                 const relatedFlows = allFlows.filter(f => f.note && (f.note.includes(`PUR-${id}`) || f.note.includes(`Purchase #${id}`)));
-                 
-                 if (relatedFlows.length > 0) {
-                     for(let rf of relatedFlows) {
-                         await deleteItem('cashflow', rf.id);
-                     }
-                 } else if (oldPaid > 0) {
-                     await addItem('cashflow', {
-                         date: new Date().toISOString(), type: 'IN', mode: 'System', 
-                         category: 'Purchase Deletion Reversal', amount: oldPaid, 
-                         note: `Reversing payment for deleted PUR-${id}`
-                     });
-                 }
-             }
-
-             // 2. Main Transaction
-             const db = await dbPromise;
-             const tx = db.transaction(['purchases', 'merchants', 'inventory'], 'readwrite');
-             
-             tx.objectStore('purchases').delete(parseInt(id));
-             
-             // Safely delete all inventory items associated with this purchase
-             if (p.itemDetails && Array.isArray(p.itemDetails)) {
-                 p.itemDetails.forEach(i => {
-                     tx.objectStore('inventory').delete(parseInt(i.id));
-                 });
-             }
-
-             const mStore = tx.objectStore('merchants');
-             mStore.get(parseInt(p.merchantId)).onsuccess = (e) => {
-                 const m = e.target.result;
-                 if(m) {
-                     if (oldType === 'Fixed') m.balance = (m.balance || 0) - oldDue;
-                     else {
-                         m.goldBalance = (m.goldBalance || 0) - oldFine;
-                         m.balance = (m.balance || 0) + oldPaid; 
-                     }
-                     mStore.put(m);
-                 }
-             };
-
-             if(!isSilent) {
-                 tx.oncomplete = () => { showToast("Purchase Deleted & Ledger Reversed.", "success"); loadHistory(); };
-             }
+        async function deleteItemReal(id) {
+            const db = await dbPromise;
+            const tx = db.transaction('inventory', 'readwrite');
+            tx.objectStore('inventory').delete(id);
+            return new Promise((resolve) => {
+                tx.oncomplete = () => resolve();
+            });
         }
 
-        async function deletePurchase(id) {
-            const p = await getItem('purchases', id);
-            if(!p) return;
-            
-            // Check safety of ALL items in this purchase
-            let safe = true;
-            if (p.itemDetails && Array.isArray(p.itemDetails)) {
-                for (let i of p.itemDetails) {
-                    const isSafe = await checkInventoryStatus(i.id);
-                    if (!isSafe) { safe = false; break; }
-                }
+        async function restoreMixWeight(deletedItem) {
+            let targetBatch = allInventory.find(i => 
+                i.category === 'MIX' && i.status === 'stock' && i.purity === deletedItem.purity
+            );
+
+            if (targetBatch) {
+                targetBatch.grossWt += deletedItem.grossWt;
+                targetBatch.stoneWt = (targetBatch.stoneWt || 0) + (deletedItem.stoneWt || 0);
+                targetBatch.netWt = Math.max(0, targetBatch.grossWt - targetBatch.stoneWt);
+                targetBatch.weight = targetBatch.grossWt;
+                targetBatch.fineWt = targetBatch.netWt * getPurityFactor(targetBatch.purity);
+                
+                await updateItem('inventory', targetBatch);
+                showToast(`Restored ${deletedItem.grossWt}g to Mix Batch.`, "success");
+            } else {
+                const newBatch = {
+                    barcode: 'MIX-' + Date.now(),
+                    category: 'MIX',
+                    name: `Restored Mix (${deletedItem.purity})`,
+                    purity: deletedItem.purity,
+                    merchantId: deletedItem.merchantId || 0,
+                    grossWt: deletedItem.grossWt,
+                    stoneWt: deletedItem.stoneWt || 0,
+                    netWt: deletedItem.netWt,
+                    fineWt: deletedItem.fineWt || (deletedItem.netWt * getPurityFactor(deletedItem.purity)),
+                    weight: deletedItem.grossWt,
+                    pieces: 1,
+                    status: 'stock',
+                    addedDate: new Date().toISOString()
+                };
+                await addItem('inventory', newBatch);
+                showToast(`Created new Mix Batch with restored ${deletedItem.grossWt}g.`, "success");
             }
-            if(!safe) return showToast("Cannot Delete: One or more items from this batch are already Sold.", "error");
-
-            if(!confirm("Are you sure you want to delete this entire purchase? This removes stock and reverses merchant balances.")) return;
-            
-            document.getElementById('oldDueAmount').value = p.dueAmount;
-            document.getElementById('oldFineWeight').value = p.totalFineWeight;
-            document.getElementById('oldType').value = p.type;
-            document.getElementById('oldPaid').value = p.paidAmount;
-
-            await deletePurchaseInternal(id, false);
         }
 
-        // --- BARCODE PRINT MODAL ---
         function viewBarcode(code, wt, purity) {
-            document.getElementById('printCode').innerText = code;
-            document.getElementById('printWt').innerText = parseFloat(wt).toFixed(3) + "g";
+            closeModal('itemDetailsModal');
+            closeModal('detailsModal');
+            document.getElementById('printCodeText').innerText = code;
+            document.getElementById('printWt').innerText = wt + "g";
             document.getElementById('printPurity').innerText = purity;
             
-            document.getElementById('barcodeModal').style.display = 'flex';
+            JsBarcode("#barcodeSvg", code, {
+                format: "CODE128",
+                displayValue: false, 
+                height: 60,
+                width: 2.5,
+                margin: 0,
+                background: "#ffffff",
+                lineColor: "#000000"
+            });
+            
+            openModal('barcodePrintModal');
         }
     </script>
 </body>
