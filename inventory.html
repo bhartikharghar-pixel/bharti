@@ -406,7 +406,6 @@
         </div>
     </div>
 
-    <!-- UPDATE 1: Group Details Modal Logic -->
     <div id="detailsModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
@@ -434,6 +433,7 @@
         </div>
     </div>
 
+    <!-- UPDATE 1: Tag/Extract Modal with Dropdown Lock Event -->
     <div id="tagModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
@@ -458,7 +458,7 @@
             <div class="grid-2">
                 <div class="form-group">
                     <label>Category to Create</label>
-                    <select id="tagCategory"></select>
+                    <select id="tagCategory" onchange="handleTagCategoryChange()"></select>
                 </div>
                 <div class="form-group">
                     <label>Purity <small>(Locked to Source)</small></label>
@@ -517,7 +517,7 @@
         </div>
     </div>
 
-    <!-- MANUAL ENTRY MODAL WITH INDIVIDUAL WEIGHTS LOGIC -->
+    <!-- UPDATE 2: Manual Entry Modal with Dropdown Lock Event -->
     <div id="manualEntryModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -533,7 +533,7 @@
                 </div>
                 <div class="form-group">
                     <label>Category</label>
-                    <select id="manCategory"></select>
+                    <select id="manCategory" onchange="handleManCategoryChange()"></select>
                 </div>
             </div>
 
@@ -571,7 +571,6 @@
                 </div>
             </div>
 
-            <!-- Dynamic Input Container for Individual Mode -->
             <div id="dynamicManPieceInputs" style="display:none; background:#f1f5f9; padding:15px; border-radius:10px; border:1px dashed #cbd5e1; margin-bottom:15px; grid-column: 1 / -1;"></div>
             
             <div class="grid-2">
@@ -589,6 +588,7 @@
         </div>
     </div>
 
+    <!-- Edit and Cancel Modals... -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
@@ -1396,7 +1396,31 @@
             document.getElementById('total-count').innerText = totalCount;
         }
 
-        // --- NEW UPDATED MANUAL ENTRY LOGIC ---
+        // --- UPDATE: New Lock Handlers ---
+        function handleTagCategoryChange() {
+            const cat = document.getElementById('tagCategory').value.toUpperCase();
+            const modeEl = document.getElementById('tagStockMode');
+            if (cat === 'MIX' || cat.includes('LOOSE') || cat.includes('BULK')) {
+                modeEl.value = 'loose';
+                modeEl.disabled = true;
+            } else {
+                modeEl.disabled = false;
+            }
+            generateTagInputs();
+        }
+
+        function handleManCategoryChange() {
+            const cat = document.getElementById('manCategory').value.toUpperCase();
+            const modeEl = document.getElementById('manStockMode');
+            if (cat === 'MIX' || cat.includes('LOOSE') || cat.includes('BULK')) {
+                modeEl.value = 'bulk';
+                modeEl.disabled = true;
+            } else {
+                modeEl.disabled = false;
+            }
+            generateManPieceInputs();
+        }
+
         function openManualEntry() {
             document.getElementById('manualEntryModal').style.display = 'flex';
             document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
@@ -1410,8 +1434,11 @@
             calcManNet();
         }
 
-        function autoSetManStockMode() {
+        function handleManualMetalChange() {
             const metal = document.getElementById('manMetal').value;
+            populateCategoryDropdowns(metal);
+            populatePurityDropdowns(metal, 'manPurity');
+            
             const stockMode = document.getElementById('manStockMode');
             if(stockMode) {
                 if(metal === 'Silver') {
@@ -1419,15 +1446,8 @@
                 } else {
                     stockMode.value = 'individual';
                 }
-                generateManPieceInputs();
             }
-        }
-
-        function handleManualMetalChange() {
-            const metal = document.getElementById('manMetal').value;
-            populateCategoryDropdowns(metal);
-            populatePurityDropdowns(metal, 'manPurity');
-            autoSetManStockMode();
+            handleManCategoryChange(); // Apply bulk locking automatically
         }
 
         function generateManPieceInputs() {
@@ -1511,8 +1531,9 @@
             const purity = document.getElementById('manPurity').value;
             const pieces = parseInt(document.getElementById('manPieces').value) || 1;
             
+            const catUpper = cat.toUpperCase();
             const stockMode = document.getElementById('manStockMode').value;
-            const finalMode = (cat === 'MIX') ? 'bulk' : stockMode;
+            const finalMode = (catUpper === 'MIX' || catUpper.includes('LOOSE') || catUpper.includes('BULK')) ? 'bulk' : stockMode;
 
             const totalGross = parseFloat(document.getElementById('manGross').value) || 0;
             const totalStone = parseFloat(document.getElementById('manStone').value) || 0;
@@ -1520,83 +1541,94 @@
             if(!name) { appAlert("Enter Description"); return; }
             if(!totalGross || totalGross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
 
-            // Bulk Mode validation to not conflict with existing individual stock
-            if (finalMode === 'bulk' || pieces <= 1) {
-                if (stockMode === 'bulk' || cat === 'MIX') {
-                    const currentInv = await getAllItems('inventory');
-                    const hasIndividual = currentInv.some(inv => 
-                        inv.category === cat && 
-                        inv.status === 'stock' && 
-                        (!inv.barcode || (!inv.barcode.toUpperCase().includes('BULK') && !inv.barcode.toUpperCase().includes('SIL-')))
-                    );
-                    if (hasIndividual && cat !== 'MIX') {
-                        return showToast("This item already exists as Individual stock. Cannot mix Bulk and Individual items of same category!", "error");
-                    }
-                }
-            }
-
             const isSilv = checkIsSilver(purity);
             const catPrefix = cat === 'MIX' ? 'MIX' : (cat && cat.length >= 3 ? cat.substring(0, 3).toUpperCase() : cat.toUpperCase());
             
-            // BULK GENERATION
-            if (finalMode === 'bulk' || pieces <= 1) {
-                let barcode = '';
-                const uniqueSuffix = Date.now().toString().slice(-4);
-                
-                if (cat === 'MIX') {
-                    barcode = `BULKMIX-${uniqueSuffix}`;
-                } else if (isSilv) {
-                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
-                } else {
-                    barcode = `BULK${catPrefix}-${uniqueSuffix}`;
-                }
-
+            // UPDATE: BULK GENERATION (WITH MERGE LOGIC)
+            if (finalMode === 'bulk') {
                 const net = Math.max(0, totalGross - totalStone);
                 const fine = net * getPurityFactor(purity);
 
-                const newItem = {
-                    barcode: barcode, category: cat, name: name,
-                    purity: purity, grossWt: totalGross, stoneWt: totalStone, netWt: net, fineWt: fine, pieces: pieces,
-                    status: 'stock', source: 'manual', addedDate: new Date().toISOString()
-                };
-                
-                await addItem('inventory', newItem);
+                const currentInv = await getAllItems('inventory');
+                let existingBulk = currentInv.find(inv => 
+                    inv.category === cat && 
+                    inv.purity === purity && 
+                    inv.status === 'stock' && 
+                    (inv.barcode.toUpperCase().includes('BULK') || inv.category === 'MIX' || inv.barcode.toUpperCase().startsWith('SIL-'))
+                );
+
+                if (existingBulk) {
+                    // Update Exisiting Bulk Stock
+                    existingBulk.grossWt = (parseFloat(existingBulk.grossWt) || 0) + totalGross;
+                    existingBulk.stoneWt = (parseFloat(existingBulk.stoneWt) || 0) + totalStone;
+                    existingBulk.netWt = (parseFloat(existingBulk.netWt) || 0) + net;
+                    existingBulk.fineWt = (parseFloat(existingBulk.fineWt) || 0) + fine;
+                    existingBulk.pieces = (parseInt(existingBulk.pieces) || 0) + pieces;
+                    existingBulk.weight = existingBulk.grossWt;
+
+                    await updateItem('inventory', existingBulk);
+                } else {
+                    // Create New Bulk Stock
+                    let barcode = '';
+                    const uniqueSuffix = Date.now().toString().slice(-4);
+                    
+                    if (cat === 'MIX') barcode = `BULKMIX-${uniqueSuffix}`;
+                    else if (isSilv) barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                    else barcode = `BULK${catPrefix}-${uniqueSuffix}`;
+
+                    const newItem = {
+                        barcode: barcode, category: cat, name: name,
+                        purity: purity, grossWt: totalGross, stoneWt: totalStone, netWt: net, fineWt: fine, pieces: pieces,
+                        status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+                    };
+                    
+                    await addItem('inventory', newItem);
+                }
             } 
             // INDIVIDUAL PIECE GENERATION
             else {
-                const grossInputs = document.querySelectorAll('.man-piece-gross');
-                const stoneInputs = document.querySelectorAll('.man-piece-stone');
-
-                for(let i=0; i<pieces; i++) {
-                    const grossPP = parseFloat(grossInputs[i].value) || 0;
-                    const stonePP = parseFloat(stoneInputs[i].value) || 0;
+                if (pieces <= 1) {
+                    // Generate 1 item from master input
+                    const g = parseFloat(document.getElementById('manGross').value) || 0;
+                    const s = parseFloat(document.getElementById('manStone').value) || 0;
+                    const n = Math.max(0, g - s);
+                    const finePP = n * getPurityFactor(purity);
                     
-                    if (grossPP <= 0) continue;
-
-                    let barcode = generateSafeBarcode(cat); 
-                    if (isSilv) {
-                        const uniqueSuffix = Date.now().toString().slice(-4) + i;
-                        barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
-                    }
-
-                    const npp = Math.max(0, grossPP - stonePP);
-                    const finePP = npp * getPurityFactor(purity);
-
+                    let barcode = isSilv ? `SIL-${catPrefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
+                    
                     const newItem = {
-                        barcode: barcode, 
-                        category: cat, 
-                        name: pieces > 1 ? `${name} (Piece ${i+1})` : name,
-                        purity: purity, 
-                        grossWt: grossPP, 
-                        stoneWt: stonePP, 
-                        netWt: npp, 
-                        fineWt: finePP, 
-                        pieces: 1,
-                        status: 'stock', 
-                        source: 'manual', 
-                        addedDate: new Date().toISOString()
+                        barcode: barcode, category: cat, name: name, purity: purity,
+                        grossWt: g, stoneWt: s, netWt: n, fineWt: finePP, pieces: 1,
+                        status: 'stock', source: 'manual', addedDate: new Date().toISOString()
                     };
                     await addItem('inventory', newItem);
+                } else {
+                    // Generate multiple from sub inputs
+                    const grossInputs = document.querySelectorAll('.man-piece-gross');
+                    const stoneInputs = document.querySelectorAll('.man-piece-stone');
+
+                    for(let i=0; i<pieces; i++) {
+                        const grossPP = parseFloat(grossInputs[i].value) || 0;
+                        const stonePP = parseFloat(stoneInputs[i].value) || 0;
+                        
+                        if (grossPP <= 0) continue;
+
+                        let barcode = generateSafeBarcode(cat); 
+                        if (isSilv) {
+                            const uniqueSuffix = Date.now().toString().slice(-4) + i;
+                            barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                        }
+
+                        const npp = Math.max(0, grossPP - stonePP);
+                        const finePP = npp * getPurityFactor(purity);
+
+                        const newItem = {
+                            barcode: barcode, category: cat, name: `${name} (Piece ${i+1})`,
+                            purity: purity, grossWt: grossPP, stoneWt: stonePP, netWt: npp, fineWt: finePP, pieces: 1,
+                            status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+                        };
+                        await addItem('inventory', newItem);
+                    }
                 }
             }
 
@@ -1649,7 +1681,7 @@
             openModal('itemDetailsModal');
         }
 
-        // --- UPDATE 1: GROUP DETAILS MODAL LOGIC (Extract Button visibility) ---
+        // --- GROUP DETAILS MODAL ---
         function openGroupDetails(key) {
             const group = groupedInventory[key];
             if(!group) return;
@@ -1667,7 +1699,6 @@
                 let barcodeDisplay = item.barcode;
                 if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
 
-                // Check if this is loose/bulk stock to show Tag button
                 const isLooseStock = (item.category === 'MIX' || pcs > 1 || barcodeDisplay.includes('BULK'));
 
                 let actions = '';
@@ -1706,7 +1737,7 @@
             openModal('detailsModal');
         }
 
-        // --- UPDATE 2: TAGGING MODAL OPEN LOGIC (Auto select cat) ---
+        // --- TAGGING LOGIC ---
         async function openTagModal(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
@@ -1739,7 +1770,6 @@
             
             populateCategoryDropdowns(); 
 
-            // Auto-select category if not MIX
             if (item.category !== 'MIX') {
                 const tagCatSelect = document.getElementById('tagCategory');
                 if (tagCatSelect.querySelector(`option[value="${item.category}"]`)) {
@@ -1747,7 +1777,7 @@
                 }
             }
 
-            generateTagInputs();
+            handleTagCategoryChange(); // Apply bulk lock check
             openModal('tagModal');
         }
 
@@ -1838,7 +1868,6 @@
             remNetEl.style.color = remainingNet < 0 ? 'var(--active-red)' : 'var(--success-green)';
         }
 
-        // --- UPDATE 3: CONFIRM TAGGING LOGIC (Pieces Deduction) ---
         async function confirmTagging() {
             const sourceId = parseInt(document.getElementById('tagSourceId').value);
             const totalRequiredGross = parseFloat(document.getElementById('tagTotalWt').innerText.split(' ')[0]);
@@ -1879,17 +1908,23 @@
 
             const cat = document.getElementById('tagCategory').value;
             const purity = batchItem.purity; 
-            const mode = document.getElementById('tagStockMode').value;
             const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
             
+            const catUpper = cat.toUpperCase();
+            let mode = document.getElementById('tagStockMode').value;
+            if (catUpper === 'MIX' || catUpper.includes('LOOSE') || catUpper.includes('BULK')) {
+                mode = 'loose'; // Hard override just in case
+            }
+
             const grossInputs = document.querySelectorAll('.tag-gross');
             const stoneInputs = document.querySelectorAll('.tag-stone');
-
             const catPrefix = cat.substring(0,3).toUpperCase();
+            const isSilv = checkIsSilver(purity);
             
             let totalExtractedNet = 0;
             let sumStone = 0;
 
+            // UPDATE: BULK MERGE LOGIC DURING TAGGING
             if (mode === 'loose') {
                 const g = parseFloat(grossInputs[0].value) || 0;
                 const s = parseFloat(stoneInputs[0].value) || 0;
@@ -1898,22 +1933,39 @@
                 sumStone += s;
                 totalExtractedNet += n;
                 const fineWt = n * getPurityFactor(purity);
-                
-                const isSilv = checkIsSilver(purity);
-                let barcode = '';
-                if(isSilv) {
-                    const uniqueSuffix = Date.now().toString().slice(-6);
-                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+
+                const currentInv = await getAllItems('inventory');
+                let existingBulk = currentInv.find(inv => 
+                    inv.category === cat && 
+                    inv.purity === purity && 
+                    inv.status === 'stock' && 
+                    (inv.barcode.toUpperCase().includes('BULK') || inv.category === 'MIX' || inv.barcode.toUpperCase().startsWith('SIL-'))
+                );
+
+                if (existingBulk) {
+                    existingBulk.grossWt = (parseFloat(existingBulk.grossWt) || 0) + g;
+                    existingBulk.stoneWt = (parseFloat(existingBulk.stoneWt) || 0) + s;
+                    existingBulk.netWt = (parseFloat(existingBulk.netWt) || 0) + n;
+                    existingBulk.fineWt = (parseFloat(existingBulk.fineWt) || 0) + fineWt;
+                    existingBulk.pieces = (parseInt(existingBulk.pieces) || 0) + piecesCount;
+                    existingBulk.weight = existingBulk.grossWt;
+
+                    await updateItem('inventory', existingBulk);
                 } else {
-                    barcode = generateSafeBarcode(cat);
+                    let barcode = '';
+                    const uniqueSuffix = Date.now().toString().slice(-4);
+                    if (cat === 'MIX') barcode = `BULKMIX-${uniqueSuffix}`;
+                    else if (isSilv) barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                    else barcode = `BULK${catPrefix}-${uniqueSuffix}`;
+
+                    const newItem = {
+                        barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`,
+                        purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
+                        status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
+                    };
+                    await addItem('inventory', newItem);
                 }
 
-                const newItem = {
-                    barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`,
-                    purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
-                    status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
-                };
-                await addItem('inventory', newItem);
             } else {
                 for (let i = 0; i < grossInputs.length; i++) {
                     const g = parseFloat(grossInputs[i].value) || 0;
@@ -1936,7 +1988,6 @@
                 }
             }
 
-            // Save the newly created items and Update parent batch pieces
             if (isFullConversion || (batchItem.grossWt - totalRequiredGross) <= 0.010) {
                 await deleteItemReal(batchItem.id); 
             } else {
@@ -1946,10 +1997,10 @@
                 batchItem.weight = batchItem.grossWt; 
                 batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
                 
-                // DEDUCT PIECES LOGIC
+                // Pieces deduction check
                 batchItem.pieces = Math.max(0, (batchItem.pieces || 1) - piecesCount);
                 if(batchItem.pieces === 0 && batchItem.grossWt > 0) {
-                    batchItem.pieces = 1; // Safeguard: if weight is left, at least 1 piece must be left
+                    batchItem.pieces = 1; 
                 }
                 
                 await updateItem('inventory', batchItem);
