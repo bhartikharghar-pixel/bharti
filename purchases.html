@@ -364,7 +364,7 @@
                             <label>Stock Generation Mode</label>
                             <select id="stockMode">
                                 <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
-                                <option value="bulk">Bulk Stock (Single Barcode for all Pieces)</option>
+                                <option value="bulk">Bulk Stock / Loose (Single Barcode)</option>
                             </select>
                         </div>
                     </div>
@@ -863,7 +863,24 @@
             }
         }
 
-        // Helper to cleanly generate barcodes
+        // Custom Custom Sequential Barcode Generator for strict sequencing (0001)
+        async function generateCustomBarcode(prefix) {
+            const list = await getAllItems('inventory');
+            let maxCount = 0;
+            list.forEach(inv => {
+                if (inv.barcode && inv.barcode.toUpperCase().startsWith(prefix.toUpperCase())) {
+                    const numStr = inv.barcode.substring(prefix.length);
+                    const num = parseInt(numStr, 10);
+                    if (!isNaN(num) && num > maxCount) {
+                        maxCount = num;
+                    }
+                }
+            });
+            maxCount++;
+            return prefix + String(maxCount).padStart(4, '0');
+        }
+
+        // Helper to cleanly generate individual barcodes (Uses db.js standard generator)
         async function getNewBarcode(catPrefix) {
             return await generateBarcode(catPrefix);
         }
@@ -915,7 +932,7 @@
                 const hasIndividual = currentInv.some(inv => 
                     inv.category === cat && 
                     inv.status === 'stock' && 
-                    (!inv.barcode || (!inv.barcode.toUpperCase().includes('BULK') && !inv.barcode.toUpperCase().startsWith('SIL-')))
+                    (!inv.barcode || (!inv.barcode.toUpperCase().startsWith('BL') && !inv.barcode.toUpperCase().includes('MIX')))
                 );
                 if (hasIndividual && cat !== 'MIX') {
                     return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
@@ -939,28 +956,23 @@
             let itemDetailsArray = [];
             const isSilv = checkIsSilver(purity);
             
-            // BULK GENERATION
+            // BULK GENERATION (Loose Items)
             if (finalMode === 'bulk') {
-                
                 let barcode = '';
-                const uniqueSuffix = Date.now().toString().slice(-4);
                 
+                // Use BL + Prefix + 0001 Logic
                 if (cat === 'MIX') {
-                    barcode = `BULKMIX-${uniqueSuffix}`;
-                } else if (isSilv) {
-                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                    barcode = await generateCustomBarcode('BLMIX');
                 } else {
-                    barcode = `BULK${catPrefix}-${uniqueSuffix}`;
+                    barcode = await generateCustomBarcode('BL' + catPrefix); // e.g. BLRIN0001
                 }
 
-                // If editing, we just recreate the item. But wait, in purchases we probably don't merge.
-                // Purchases generates new distinct items per purchase batch.
                 const itemData = {
                     barcode: barcode,
                     merchantId: mId,
                     purchaseDate: date,
                     category: cat === 'MIX' ? 'MIX' : cat,
-                    name: pieces > 1 ? `Bulk ${cat} (${purity})` : `${cat} (${purity})`,
+                    name: pieces > 1 ? `Loose / Bulk ${cat} (${purity})` : `${cat} (${purity})`,
                     purity: purity,
                     mark: mark,
                     pieces: pieces, 
@@ -981,7 +993,7 @@
                 itemData.id = invId; 
                 itemDetailsArray.push(itemData);
             } 
-            // INDIVIDUAL PIECE GENERATION
+            // INDIVIDUAL PIECE GENERATION (Unique Tags)
             else {
                 const makingPP = totalMaking / pieces;
                 const otherPP = totalOther / pieces;
@@ -1007,9 +1019,13 @@
                     
                     if (grossPP <= 0) continue;
 
-                    let barcode = await getNewBarcode(catPrefix); 
+                    let barcode = '';
                     if (isSilv) {
-                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-4) + i}`;
+                         // Silver Individual Tags - e.g. SPAY0001
+                         barcode = await generateCustomBarcode('S' + catPrefix);
+                    } else {
+                         // Gold Individual Tags
+                         barcode = await getNewBarcode(catPrefix);
                     }
 
                     const npp = Math.max(0, grossPP - stonePP);
@@ -1246,13 +1262,13 @@
 
                 const barcodeText = invItem.barcode || `Ref: ${p.id}`;
                 
-                // Check if this is a BULK entry for Red Highlighting
-                const isBulkEntry = barcodeText.toUpperCase().includes('BULK') || barcodeText.toUpperCase().startsWith('SIL-') && p.totalPieces > 1;
+                // CHECK IF BULK: Now strictly checks if barcode starts with "BL" or is MIX/BULK
+                const isBulkEntry = barcodeText.toUpperCase().startsWith('BL') || barcodeText.toUpperCase().includes('MIX') || barcodeText.toUpperCase().includes('BULK');
                 const rowTextColor = isBulkEntry ? 'color: var(--active-red);' : 'color: #111;';
                 const descTextColor = isBulkEntry ? 'color: #D32F2F;' : '';
 
                 let printAction = '';
-                if (isSilv || p.category === 'MIX' || isBulkEntry) {
+                if (isSilv && isBulkEntry || p.category === 'MIX' || isBulkEntry) {
                     printAction = `<button class="btn-action print" disabled style="opacity:0.3; cursor:not-allowed;" title="Bulk Block (No Barcodes)"><i class="fas fa-barcode"></i></button>`;
                 } else {
                     printAction = `<button class="btn-action print" onclick="viewBarcode('${barcodeText}', '${(p.totalWeight / (p.totalPieces||1)).toFixed(3)}', '${purityText}')" title="Print Tag"><i class="fas fa-barcode"></i></button>`;
@@ -1265,7 +1281,7 @@
                         <td>
                             <span class="party-name" style="${rowTextColor}">${mName}</span>
                             <span class="tx-desc" style="${descTextColor}">${metalBadge} ${p.category} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem; color:#333;">${purityText}</span></span>
-                            ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> BULK ENTRY [${barcodeText}]</span>` : ''}
+                            ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> LOOSE ENTRY [${barcodeText}]</span>` : ''}
                         </td>
                         <td style="font-weight:600; color:#c5a059;">${(p.totalFineWeight||0).toFixed(3)}g</td>
                         <td class="text-right" style="font-weight:bold;">${amtDisplay}</td>
@@ -1337,7 +1353,7 @@
                 document.getElementById('itemPieces').value = p.totalPieces || 1;
                 
                 // Detect Stock Mode
-                if (item.barcode && (item.barcode.includes('BULK') || item.barcode.startsWith('SIL-')) || item.category === 'MIX') {
+                if (item.barcode && (item.barcode.startsWith('BL') || item.barcode.includes('MIX') || item.barcode.includes('BULK')) || item.category === 'MIX') {
                     document.getElementById('stockMode').value = 'bulk';
                     document.getElementById('totalGrossWt').value = p.totalWeight !== undefined ? p.totalWeight : 0;
                     document.getElementById('totalStoneWt').value = p.totalStoneWeight !== undefined ? p.totalStoneWeight : 0;
