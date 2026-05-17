@@ -189,25 +189,74 @@
             .btn-sm i { margin: 0; }
         }
 
-        /* NEW UNIFIED PRINT STYLES */
+        /* ------------------------------------------------------------------
+           EXACT 5.5cm x 1cm (55mm x 10mm) BARCODE PRINT CSS FOR JEWELRY TAGS
+        ------------------------------------------------------------------- */
         #printContainer { display: none; }
         @media print {
+            /* Force the exact paper size for thermal printers */
+            @page {
+                size: 55mm 10mm;
+                margin: 0; 
+            }
             body * { visibility: hidden; }
+            html, body {
+                margin: 0; padding: 0; width: 55mm; height: 10mm; overflow: hidden;
+            }
             #printContainer, #printContainer * { visibility: visible; }
+            
             #printContainer { 
-                display: block; position: absolute; left: 0; top: 0; width: 100%; 
+                display: block; position: absolute; left: 0; top: 0; 
+                width: 55mm; height: auto;
                 background: white; padding: 0; margin: 0; 
             }
+            
+            /* A single tag that exactly matches 55mm x 10mm */
             .print-label { 
-                page-break-after: always; /* Ensure each tag is on a new print segment */
-                width: 100%; box-sizing: border-box; text-align: center;
-                padding: 10px;
-                border: 1px dashed #ccc; /* Optional border for alignment visually */
-                margin-bottom: 20px;
-                max-width: 300px;
-                margin-left: auto;
-                margin-right: auto;
+                width: 55mm; 
+                height: 10mm; 
+                page-break-after: always; 
+                box-sizing: border-box; 
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin: 0;
+                padding: 0;
             }
+
+            /* Left Side (27.5mm) - Text Details */
+            .print-half-left {
+                width: 27.5mm;
+                height: 10mm;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                box-sizing: border-box;
+                padding: 1mm; /* slight padding so text doesn't touch edges */
+            }
+            
+            /* Right Side (27.5mm) - Barcode SVG */
+            .print-half-right {
+                width: 27.5mm;
+                height: 10mm;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                box-sizing: border-box;
+                padding: 0.5mm;
+            }
+
+            .tag-text-shop { font-size: 5.5pt; font-weight: 900; line-height: 1; margin-bottom: 2px; text-transform: uppercase; color: #000; }
+            .tag-text-code { font-size: 6pt; font-weight: bold; line-height: 1; margin-bottom: 2px; color: #000; font-family: monospace; }
+            .tag-text-details { font-size: 5.5pt; font-weight: bold; line-height: 1; color: #000; }
+
+            .print-half-right svg {
+                max-width: 100%;
+                max-height: 8mm; /* Keep inside the 10mm constraint */
+            }
+
             .modal, .fab, .app-header, .sidebar-drawer, .app-container { display: none !important; }
         }
     </style>
@@ -368,7 +417,7 @@
         </div>
     </div>
 
-    <!-- Other Modals (Categories, Item Details, etc) -->
+    <!-- Other Modals -->
     <div id="catModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
@@ -727,7 +776,7 @@
 
     <div id="toast">Message Saved!</div>
 
-    <script src="db.js?v=36"></script>
+    <script src="db.js?v=37"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -750,7 +799,7 @@
         }
 
         // =======================
-        // NEW UNIFIED PRINTING LOGIC
+        // EXACT 5.5cm x 1cm PRINTING LOGIC
         // =======================
 
         function autoPrint(items) {
@@ -762,15 +811,19 @@
 
             printItems.forEach((item, index) => {
                 const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                // Creating a side-by-side folding layout:
+                // Left 27.5mm: Text details
+                // Right 27.5mm: Barcode
                 container.innerHTML += `
                     <div class="print-label">
-                        <div style="font-weight:900; font-size:1.1rem; text-transform: uppercase;">BHARTI JEWELLERS</div>
-                        <div style="font-weight:900; font-size:2rem; letter-spacing:3px; margin: 10px 0;">${item.barcode}</div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; font-weight:700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 15px;">
-                            <span>${gross}g</span>
-                            <span>${item.purity}</span>
+                        <div class="print-half-left">
+                            <div class="tag-text-shop">BHARTI</div>
+                            <div class="tag-text-code">${item.barcode}</div>
+                            <div class="tag-text-details">${gross}g | ${item.purity}</div>
                         </div>
-                        <svg id="barcode-svg-${index}"></svg>
+                        <div class="print-half-right">
+                            <svg id="barcode-svg-${index}"></svg>
+                        </div>
                     </div>
                 `;
             });
@@ -781,8 +834,8 @@
                     JsBarcode(`#barcode-svg-${index}`, item.barcode, {
                         format: "CODE128", 
                         displayValue: false, 
-                        height: 60, 
-                        width: 2.5, 
+                        height: 25,     // Reduced height for 1cm
+                        width: 1.5,     // Reduced width to fit
                         margin: 0,
                         background: "#ffffff",
                         lineColor: "#000000"
