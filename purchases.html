@@ -910,17 +910,15 @@
             const finalMode = document.getElementById('stockMode').value;
 
             // --- VALIDATION: Prevent Bulk Entry if Item is already tracking as Individual ---
-            if (finalMode === 'bulk' || pieces <= 1) {
-                if (finalMode === 'bulk' || cat === 'MIX') {
-                    const currentInv = await getAllItems('inventory');
-                    const hasIndividual = currentInv.some(inv => 
-                        inv.category === cat && 
-                        inv.status === 'stock' && 
-                        (!inv.barcode || (!inv.barcode.toUpperCase().includes('BULK') && !inv.barcode.toUpperCase().startsWith('SIL-')))
-                    );
-                    if (hasIndividual && cat !== 'MIX') {
-                        return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
-                    }
+            if (finalMode === 'bulk' || cat === 'MIX') {
+                const currentInv = await getAllItems('inventory');
+                const hasIndividual = currentInv.some(inv => 
+                    inv.category === cat && 
+                    inv.status === 'stock' && 
+                    (!inv.barcode || (!inv.barcode.toUpperCase().includes('BULK') && !inv.barcode.toUpperCase().startsWith('SIL-')))
+                );
+                if (hasIndividual && cat !== 'MIX') {
+                    return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
                 }
             }
 
@@ -942,7 +940,7 @@
             const isSilv = checkIsSilver(purity);
             
             // BULK GENERATION
-            if (finalMode === 'bulk' || pieces <= 1) {
+            if (finalMode === 'bulk') {
                 
                 let barcode = '';
                 const uniqueSuffix = Date.now().toString().slice(-4);
@@ -996,8 +994,16 @@
                 const stoneInputs = document.querySelectorAll('.piece-stone');
 
                 for(let i=0; i<pieces; i++) {
-                    const grossPP = parseFloat(grossInputs[i].value) || 0;
-                    const stonePP = parseFloat(stoneInputs[i].value) || 0;
+                    let grossPP = 0;
+                    let stonePP = 0;
+                    
+                    if (pieces === 1) {
+                        grossPP = totalGross;
+                        stonePP = totalStone;
+                    } else {
+                        grossPP = parseFloat(grossInputs[i]?.value) || 0;
+                        stonePP = parseFloat(stoneInputs[i]?.value) || 0;
+                    }
                     
                     if (grossPP <= 0) continue;
 
@@ -1341,13 +1347,20 @@
                     generatePieceInputs(); 
                     
                     // Now pre-fill the individual weights from p.itemDetails array
-                    const grossInputs = document.querySelectorAll('.piece-gross');
-                    const stoneInputs = document.querySelectorAll('.piece-stone');
-                    p.itemDetails.forEach((dt, idx) => {
-                        if (grossInputs[idx]) grossInputs[idx].value = dt.grossWt || dt.weight || 0;
-                        if (stoneInputs[idx]) stoneInputs[idx].value = dt.stoneWt || 0;
-                    });
-                    sumPieceWeights();
+                    if ((p.totalPieces || 1) > 1) {
+                        const grossInputs = document.querySelectorAll('.piece-gross');
+                        const stoneInputs = document.querySelectorAll('.piece-stone');
+                        p.itemDetails.forEach((dt, idx) => {
+                            if (grossInputs[idx]) grossInputs[idx].value = dt.grossWt || dt.weight || 0;
+                            if (stoneInputs[idx]) stoneInputs[idx].value = dt.stoneWt || 0;
+                        });
+                        sumPieceWeights();
+                    } else {
+                        // If only 1 piece, set master weights
+                        document.getElementById('totalGrossWt').value = p.itemDetails[0].grossWt || p.itemDetails[0].weight || 0;
+                        document.getElementById('totalStoneWt').value = p.itemDetails[0].stoneWt || 0;
+                        calcTotals();
+                    }
                 }
                 
                 document.getElementById('stockMode').disabled = true; // Lock on edit view
