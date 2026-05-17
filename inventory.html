@@ -304,7 +304,7 @@
         <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- Modals below remain mostly identical except for manualEntryModal -->
+    <!-- MODALS -->
 
     <div id="customConfirmModal" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
@@ -406,6 +406,7 @@
         </div>
     </div>
 
+    <!-- UPDATE 1: Group Details Modal Logic -->
     <div id="detailsModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
@@ -516,7 +517,7 @@
         </div>
     </div>
 
-    <!-- UPDATED: MANUAL ENTRY MODAL WITH INDIVIDUAL WEIGHTS LOGIC -->
+    <!-- MANUAL ENTRY MODAL WITH INDIVIDUAL WEIGHTS LOGIC -->
     <div id="manualEntryModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -1648,7 +1649,7 @@
             openModal('itemDetailsModal');
         }
 
-        // --- GROUP DETAILS MODAL ---
+        // --- UPDATE 1: GROUP DETAILS MODAL LOGIC (Extract Button visibility) ---
         function openGroupDetails(key) {
             const group = groupedInventory[key];
             if(!group) return;
@@ -1666,20 +1667,23 @@
                 let barcodeDisplay = item.barcode;
                 if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
 
+                // Check if this is loose/bulk stock to show Tag button
+                const isLooseStock = (item.category === 'MIX' || pcs > 1 || barcodeDisplay.includes('BULK'));
+
                 let actions = '';
-                if (item.category === 'MIX') {
-                    actions = `
-                        <button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Tag Stock"><i class="fas fa-tags"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                } else {
-                    actions = `
-                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
+                
+                if (isLooseStock) {
+                    actions += `<button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Extract Single Piece from Bulk"><i class="fas fa-tags"></i></button> `;
                 }
+
+                if (item.category !== 'MIX') {
+                    actions += `<button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button> `;
+                }
+
+                actions += `
+                    <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                    <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                `;
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -1702,7 +1706,7 @@
             openModal('detailsModal');
         }
 
-        // --- TAGGING LOGIC ---
+        // --- UPDATE 2: TAGGING MODAL OPEN LOGIC (Auto select cat) ---
         async function openTagModal(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
@@ -1734,6 +1738,15 @@
             document.getElementById('tagPieces').value = 1;
             
             populateCategoryDropdowns(); 
+
+            // Auto-select category if not MIX
+            if (item.category !== 'MIX') {
+                const tagCatSelect = document.getElementById('tagCategory');
+                if (tagCatSelect.querySelector(`option[value="${item.category}"]`)) {
+                    tagCatSelect.value = item.category;
+                }
+            }
+
             generateTagInputs();
             openModal('tagModal');
         }
@@ -1825,6 +1838,7 @@
             remNetEl.style.color = remainingNet < 0 ? 'var(--active-red)' : 'var(--success-green)';
         }
 
+        // --- UPDATE 3: CONFIRM TAGGING LOGIC (Pieces Deduction) ---
         async function confirmTagging() {
             const sourceId = parseInt(document.getElementById('tagSourceId').value);
             const totalRequiredGross = parseFloat(document.getElementById('tagTotalWt').innerText.split(' ')[0]);
@@ -1922,6 +1936,7 @@
                 }
             }
 
+            // Save the newly created items and Update parent batch pieces
             if (isFullConversion || (batchItem.grossWt - totalRequiredGross) <= 0.010) {
                 await deleteItemReal(batchItem.id); 
             } else {
@@ -1931,10 +1946,16 @@
                 batchItem.weight = batchItem.grossWt; 
                 batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
                 
+                // DEDUCT PIECES LOGIC
+                batchItem.pieces = Math.max(0, (batchItem.pieces || 1) - piecesCount);
+                if(batchItem.pieces === 0 && batchItem.grossWt > 0) {
+                    batchItem.pieces = 1; // Safeguard: if weight is left, at least 1 piece must be left
+                }
+                
                 await updateItem('inventory', batchItem);
             }
 
-            showToast("Stock Generated Successfully!", "success");
+            showToast("Stock Extracted & Tagged Successfully!", "success");
             closeModal('tagModal');
             loadInventory();
         }
