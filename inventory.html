@@ -97,7 +97,6 @@
         .badge-18k { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
         .badge-24k { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;}
         .badge-silver { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;}
-        .badge-loose { background: #e0e7ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-family: monospace; font-size: 0.85rem;}
 
         .btn-sm { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-right: 6px; font-weight: 600; transition: 0.2s;}
         .btn-tag { background: #10b981; color: white; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
@@ -466,8 +465,8 @@
                 <div class="form-group">
                     <label>Stock Management Mode</label>
                     <select id="tagStockMode" onchange="generateTagInputs()">
-                        <option value="TAGGED">Tag-wise (Unique Barcode per piece)</option>
-                        <option value="LOOSE">Loose Stock (Bulk/Single Barcode)</option>
+                        <option value="tagged">Tag-wise (Unique Barcode per piece)</option>
+                        <option value="loose">Loose Stock (Bulk / Single Barcode)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -499,6 +498,14 @@
                     <span style="color:#334155;">Remaining Source Gross:</span>
                     <span id="tagRemainingWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
                 </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Stone:</span>
+                    <span id="tagRemainingStoneWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Net:</span>
+                    <span id="tagRemainingNetWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
             </div>
 
             <button class="btn-block btn-primary" onclick="confirmTagging()"><i class="fas fa-barcode"></i> GENERATE STOCK</button>
@@ -510,21 +517,12 @@
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-plus-circle"></i> Add Custom Stock</h3>
             
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>Metal Type</label>
-                    <select id="manMetal" onchange="handleManualMetalChange()">
-                        <option value="Gold">Gold</option>
-                        <option value="Silver">Silver</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Stock Mode</label>
-                    <select id="manStockMode">
-                        <option value="TAGGED">Tagged (Unique Items)</option>
-                        <option value="LOOSE">Loose (Bulk Batch)</option>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label>Metal Type</label>
+                <select id="manMetal" onchange="handleManualMetalChange()">
+                    <option value="Gold">Gold</option>
+                    <option value="Silver">Silver</option>
+                </select>
             </div>
 
             <div class="form-group">
@@ -532,21 +530,21 @@
                 <input type="text" id="manName" placeholder="e.g. Silver Payal Bulk">
             </div>
             
+            <div class="form-group">
+                <label>Category</label>
+                <select id="manCategory"></select>
+            </div>
+            
             <div class="grid-2">
-                <div class="form-group">
-                    <label>Category</label>
-                    <select id="manCategory"></select>
-                </div>
                 <div class="form-group">
                     <label>Purity</label>
                     <select id="manPurity"></select>
                 </div>
-            </div>
-            
-            <div class="form-group">
-                <label>Total Quantity (Pieces)</label>
-                <input type="number" id="manPieces" value="1" min="1">
-                <small style="color:var(--info-blue); font-size:0.75rem;">If TAGGED > 1, it will auto-split weight into multiple barcodes.</small>
+                <div class="form-group">
+                    <label>Quantity (Pieces)</label>
+                    <input type="number" id="manPieces" value="1" min="1">
+                    <small style="color:var(--info-blue); font-size:0.75rem;">Set > 1 for Loose Stock</small>
+                </div>
             </div>
             
             <div class="grid-2">
@@ -754,6 +752,8 @@
         let goldCategories = [...BASE_GOLD_CATS];
         let silverCategories = [...BASE_SILVER_CATS];
 
+        // --- MASTER FILTER STATES ---
+        // NEW STATES: GOLD_TAGGED, GOLD_FINE, GOLD_ORDER, SILVER, ALL
         let currentMetalFilter = 'GOLD_TAGGED'; 
         let activeCatManagerMode = 'Gold'; 
 
@@ -973,7 +973,7 @@
                 });
                 
                 if (row.querySelector('th')) {
-                     
+                     // don't add action to header
                 } else {
                     csvContent += rowData.join(",") + "\n";
                 }
@@ -1007,10 +1007,8 @@
             });
         }
 
-        // --- UPDATE: SECURE BARCODE GENERATOR WITH MODE SUPPORT ---
-        function generateSafeBarcode(category, mode = 'TAGGED') {
-            const basePrefix = category.substring(0, 3).toUpperCase();
-            const prefix = (mode === 'LOOSE') ? 'L-' + basePrefix : basePrefix;
+        function generateSafeBarcode(category) {
+            const prefix = category.substring(0, 3).toUpperCase();
             let maxNum = 0;
             
             allInventory.forEach(i => {
@@ -1022,7 +1020,7 @@
             });
             
             const newBarcode = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
-            allInventory.push({ barcode: newBarcode }); // Temporary push to memory for loop-based additions
+            allInventory.push({ barcode: newBarcode }); 
             return newBarcode;
         }
 
@@ -1035,6 +1033,7 @@
             applyFilters();
         }
 
+        // --- NEW METAL FILTER LOGIC FOR TABS ---
         function setMetalFilter(metalFilter) {
             currentMetalFilter = metalFilter;
             document.getElementById('filterCategory').value = 'ALL';
@@ -1099,6 +1098,7 @@
 
                         const isSilv = checkIsSilver(si.purity);
                         
+                        // Handle strict tab visibility for sold items
                         if (currentMetalFilter === 'SILVER' && !isSilv) return;
                         if (currentMetalFilter.startsWith('GOLD_') && isSilv) return;
 
@@ -1122,20 +1122,25 @@
                 return;
             }
 
+            // ONLY show active stock
             let filtered = allInventory.filter(i => {
                 const stat = String(i.status || '').toLowerCase();
                 const net = parseFloat(i.netWt !== undefined ? i.netWt : (i.grossWt || i.weight || 0));
                 return stat !== 'sold' && stat !== 'delivered' && net > 0;
             });
 
+            // --- THE CORE TAB LOGIC ---
             filtered = filtered.filter(i => {
                 const isSilv = checkIsSilver(i.purity);
                 
                 if (currentMetalFilter === 'ALL') return true;
                 if (currentMetalFilter === 'SILVER') return isSilv;
+
+                // Rest are GOLD variants. If it's silver, block it.
                 if (isSilv) return false;
 
                 const isOrder = (i.barcode && i.barcode.startsWith('ORD-')) || (i.source && i.source.startsWith('order_'));
+                // Identify raw/fine/melting stock
                 const isFineOrMelt = i.purity === '24K' || (i.category && i.category.toUpperCase().includes('MELT')) || (i.category && i.category.toUpperCase().includes('FINE')) || (i.name && i.name.toUpperCase().includes('MELT'));
                 
                 if (currentMetalFilter === 'GOLD_ORDER') {
@@ -1143,20 +1148,24 @@
                 } else if (currentMetalFilter === 'GOLD_FINE') {
                     return isFineOrMelt && !isOrder;
                 } else if (currentMetalFilter === 'GOLD_TAGGED') {
+                    // Tagged means not an order, not a melting slab/fine gold. (Rings, Necklaces, etc.)
                     return !isOrder && !isFineOrMelt;
                 }
                 
                 return true;
             });
 
+            // View Type Dropdown
             if (viewType === 'MIX') {
                 filtered = filtered.filter(i => i.category === 'MIX');
             }
 
+            // Category Dropdown
             if (catType !== 'ALL') {
                 filtered = filtered.filter(i => i.category === catType);
             }
 
+            // Search Bar
             if (searchTerm) {
                 filtered = filtered.filter(i => 
                     (i.barcode && i.barcode.toUpperCase().includes(searchTerm)) || 
@@ -1167,590 +1176,6 @@
             }
 
             renderList(filtered);
-        }
-
-        // --- UPDATE: RENDER LIST WITH LOOSE BADGE & LOGIC ---
-        function renderList(items) {
-            const container = document.getElementById('inventory-list');
-            container.innerHTML = '';
-            groupedInventory = {}; 
-
-            document.querySelector('.inv-table thead').innerHTML = `
-                <tr>
-                    <th>Category</th>
-                    <th>Barcodes / Ref</th>
-                    <th>Purity</th>
-                    <th>Stock Qty</th>
-                    <th>Gross Wt</th>
-                    <th>Net Wt</th>
-                    <th style="color:#8e24aa;">Stone Wt</th>
-                    <th>Fine Wt</th>
-                    <th style="text-align:center;">Action</th>
-                </tr>
-            `;
-            
-            let totalWt = 0; let totalVal = 0; let totalCount = 0;
-
-            if (items.length === 0) {
-                container.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No items found matching your filters.</td></tr>';
-                document.getElementById('total-weight').innerText = "0.000 g";
-                document.getElementById('total-value').innerText = "₹0";
-                document.getElementById('total-count').innerText = "0";
-                return;
-            }
-
-            items.forEach(item => {
-                const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
-                
-                const isMix = (item.category === 'MIX');
-                const isOrder = item.source && item.source.startsWith('order_') || (item.barcode && item.barcode.startsWith('ORD-'));
-                
-                // BACKWARD COMPATIBILITY & NEW LOGIC: Determine if it's LOOSE
-                const isLoose = item.stockMode === 'LOOSE' || (!item.stockMode && parseInt(item.pieces) > 1 && !isMix && !isOrder);
-
-                const gross = parseFloat(item.grossWt) || parseFloat(item.weight) || 0;
-                const stone = parseFloat(item.stoneWt) || 0;
-                const fine = calculateFineWeight(item);
-                const pcs = parseInt(item.pieces) || 1;
-                
-                if(item.status === 'stock') {
-                    totalWt += net; totalCount += pcs;
-                    const ratePer10g = getRate(item.purity);
-                    totalVal += Math.round(net * (ratePer10g / 10));
-                }
-
-                if(isOrder) {
-                    const key = `ORD_${item.id}`;
-                    groupedInventory[key] = {
-                        isMix: false, isOrder: true, isLoose: false, name: `Order: ${item.category}`, category: item.category,
-                        purity: item.purity, status: item.status,
-                        count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
-                    };
-                } else if (isMix) {
-                    const key = `${item.category}_${item.purity}_${item.status}`;
-                    if(!groupedInventory[key]) {
-                        groupedInventory[key] = {
-                            isMix: true, isOrder: false, isLoose: false, name: 'Mixed Stock', category: item.category,
-                            purity: item.purity, status: item.status,
-                            count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: []
-                        };
-                    }
-                    groupedInventory[key].count += pcs;
-                    groupedInventory[key].gross += gross;
-                    groupedInventory[key].net += net;
-                    groupedInventory[key].stone += stone;
-                    groupedInventory[key].fine += fine;
-                    groupedInventory[key].items.push(item);
-                } else if (isLoose) {
-                    // For loose items, EACH batch gets its own direct row to avoid mixing separate bulk stocks
-                    const key = `LOOSE_${item.id}`;
-                    groupedInventory[key] = {
-                        isMix: false, isOrder: false, isLoose: true, name: `Loose: ${item.category}`, category: item.category,
-                        purity: item.purity, status: item.status,
-                        count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
-                    };
-                } else {
-                    // Tagged Items group together normally
-                    const key = `${item.category}_${item.purity}_${item.status}`;
-                    if(!groupedInventory[key]) {
-                        groupedInventory[key] = {
-                            isMix: false, isOrder: false, isLoose: false, name: item.category, category: item.category,
-                            purity: item.purity, status: item.status,
-                            count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: []
-                        };
-                    }
-                    groupedInventory[key].count += pcs;
-                    groupedInventory[key].gross += gross;
-                    groupedInventory[key].net += net;
-                    groupedInventory[key].stone += stone;
-                    groupedInventory[key].fine += fine;
-                    groupedInventory[key].items.push(item);
-                }
-            });
-
-            Object.values(groupedInventory).forEach(group => {
-                const tr = document.createElement('tr');
-                
-                let purityBadge = 'badge-22k';
-                if(group.purity === '24K') purityBadge = 'badge-24k'; 
-                if(group.purity.includes('18')) purityBadge = 'badge-18k';
-                if(checkIsSilver(group.purity)) purityBadge = 'badge-silver';
-                
-                if(group.isMix) { purityBadge = 'badge-mix'; tr.className = 'row-mix'; }
-
-                let actionBtn = ''; let displayBarcode = '';
-
-                if(group.isMix) {
-                    if (group.items.length === 1) {
-                        const item = group.items[0]; 
-                        displayBarcode = '<span class="badge badge-pending" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;">UNTAGGED</span>';
-                        actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${item.id})"><i class="fas fa-tags"></i> Tag Stock</button>`;
-                    } else {
-                        displayBarcode = '<span class="badge badge-pending" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;">MULTIPLE BATCHES</span>';
-                        const groupKey = `${group.category}_${group.purity}_stock`;
-                        actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${groupKey}')"><i class="fas fa-list"></i> View List</button>`;
-                    }
-                } else if(group.isOrder) {
-                    const item = group.items[0];
-                    displayBarcode = `<span class="badge badge-order">${item.barcode}</span>`;
-                    actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${item.id})"><i class="fas fa-eye"></i> View Order</button>`;
-                } else if (group.isLoose) {
-                    // NEW LOOSE ITEM RENDER
-                    const item = group.items[0];
-                    displayBarcode = `<span class="badge badge-loose"><i class="fas fa-boxes"></i> ${item.barcode}</span>`;
-                    actionBtn = `
-                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${group.gross.toFixed(3)}', '${group.purity}')" title="Print Batch Tag"><i class="fas fa-barcode"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                } else {
-                    // TAGGED ITEM RENDER
-                    if (group.items.length === 1) {
-                        displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
-                    } else {
-                        displayBarcode = '<span style="color:#64748b; font-weight:600;">Multiple Barcodes</span>';
-                    }
-                    const groupKey = `${group.category}_${group.purity}_stock`;
-                    actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${groupKey}')"><i class="fas fa-list"></i> View List</button>`;
-                }
-
-                tr.innerHTML = `
-                    <td><strong>${group.name}</strong> ${group.isOrder ? '<i class="fas fa-hammer" style="color:var(--info-blue); margin-left:5px;" title="Custom Order Item"></i>' : ''}</td>
-                    <td>${displayBarcode}</td>
-                    <td><span class="badge ${purityBadge}">${group.purity}</span></td>
-                    <td style="font-weight:700; text-align:center;">${group.count}</td>
-                    <td>${group.gross.toFixed(3)} g</td>
-                    <td style="color:var(--active-red); font-weight:700;">${group.net.toFixed(3)} g</td>
-                    <td style="color:#8e24aa;">${group.stone.toFixed(3)} g</td>
-                    <td style="color:var(--info-blue); font-weight:700;">${group.fine.toFixed(3)} g</td>
-                    <td style="text-align:center;">${actionBtn}</td>
-                `;
-                container.appendChild(tr);
-            });
-
-            document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
-            document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
-            document.getElementById('total-count').innerText = totalCount;
-        }
-
-        // --- UPDATE: MANUAL ENTRY LOGIC ---
-        function openManualEntry() {
-            document.getElementById('manualEntryModal').style.display = 'flex';
-            document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
-            handleManualMetalChange(); 
-
-            document.getElementById('manStockMode').value = 'TAGGED';
-            document.getElementById('manName').value = '';
-            document.getElementById('manPieces').value = 1;
-            document.getElementById('manGross').value = '';
-            document.getElementById('manStone').value = 0;
-            calcManNet();
-        }
-
-        function handleManualMetalChange() {
-            const metal = document.getElementById('manMetal').value;
-            populateCategoryDropdowns(metal);
-            populatePurityDropdowns(metal, 'manPurity');
-        }
-
-        function calcManNet() {
-            const g = parseFloat(document.getElementById('manGross').value) || 0;
-            const s = parseFloat(document.getElementById('manStone').value) || 0;
-            const net = Math.max(0, g - s);
-            document.getElementById('manNet').value = net.toFixed(3);
-            
-            const purity = document.getElementById('manPurity').value;
-            const fine = net * getPurityFactor(purity);
-            document.getElementById('manFine').value = fine.toFixed(3);
-        }
-
-        async function saveManualEntry() {
-            const name = document.getElementById('manName').value;
-            const cat = document.getElementById('manCategory').value;
-            const purity = document.getElementById('manPurity').value;
-            const pieces = parseInt(document.getElementById('manPieces').value) || 1;
-            const stockMode = document.getElementById('manStockMode').value;
-            
-            const gross = parseFloat(document.getElementById('manGross').value) || 0;
-            const stone = parseFloat(document.getElementById('manStone').value) || 0;
-            const net = Math.max(0, gross - stone);
-            const fine = net * getPurityFactor(purity);
-
-            if(!name) { appAlert("Enter Description"); return; }
-            if(gross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
-
-            const isSilv = checkIsSilver(purity);
-            const catPrefix = cat.substring(0,3).toUpperCase();
-            
-            if (stockMode === 'LOOSE') {
-                let barcode = '';
-                if (isSilv) {
-                    barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}`;
-                } else {
-                    barcode = generateSafeBarcode(cat, 'LOOSE');
-                }
-
-                const newItem = {
-                    barcode: barcode, category: cat, name: name, stockMode: 'LOOSE',
-                    purity: purity, grossWt: gross, stoneWt: stone, netWt: net, fineWt: fine, pieces: pieces,
-                    status: 'stock', source: 'manual', addedDate: new Date().toISOString()
-                };
-                await addItem('inventory', newItem);
-
-            } else {
-                // TAGGED MODE (SPLIT LOGIC IF PIECES > 1)
-                const grossPerPiece = gross / pieces;
-                const stonePerPiece = stone / pieces;
-                const netPerPiece = net / pieces;
-                const finePerPiece = fine / pieces;
-
-                for(let i=0; i<pieces; i++) {
-                    let barcode = '';
-                    if (isSilv) {
-                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}${i}`;
-                    } else {
-                        barcode = generateSafeBarcode(cat, 'TAGGED');
-                    }
-
-                    const newItem = {
-                        barcode: barcode, category: cat, name: name, stockMode: 'TAGGED',
-                        purity: purity, grossWt: grossPerPiece, stoneWt: stonePerPiece, netWt: netPerPiece, fineWt: finePerPiece, pieces: 1,
-                        status: 'stock', source: 'manual', addedDate: new Date().toISOString()
-                    };
-                    await addItem('inventory', newItem);
-                }
-            }
-            
-            showToast("Added to Inventory!", "success");
-            closeModal('manualEntryModal');
-            loadInventory();
-        }
-
-        // --- UPDATE: EXTRACT & TAG MODAL ---
-        async function openTagModal(id) {
-            const item = allInventory.find(i => i.id === id);
-            if(!item) return;
-
-            if (item.status === 'sold') { appAlert("Cannot tag stock from a sold item."); return; }
-
-            document.getElementById('tagSourceId').value = item.id;
-            
-            const grossWt = parseFloat(item.grossWt || item.weight);
-            const stoneWt = parseFloat(item.stoneWt || 0);
-            const netWt = parseFloat(item.netWt || item.weight);
-
-            document.getElementById('tagSourceMaxWt').value = grossWt;
-            document.getElementById('tagSourceMaxStoneWt').value = stoneWt;
-            document.getElementById('tagSourceMaxNetWt').value = netWt;
-            
-            document.getElementById('tagSourceName').innerText = item.name || 'Mixed Stock';
-            document.getElementById('tagSourceWt').innerText = `(${grossWt.toFixed(3)}g Gr / ${stoneWt.toFixed(3)}g St / ${netWt.toFixed(3)}g Net)`;
-            
-            document.getElementById('tagPurity').value = item.purity;
-            
-            let tol = grossWt * 0.001;
-            if(tol < 0.030) tol = 0.030;
-            if(tol > 0.100) tol = 0.100;
-            
-            document.getElementById('dispTolerance').innerText = `±${tol.toFixed(3)} g`;
-            
-            document.getElementById('tagStockMode').value = 'TAGGED';
-            document.getElementById('tagPieces').value = 1;
-            
-            populateCategoryDropdowns(); 
-            generateTagInputs();
-            openModal('tagModal');
-        }
-
-        function generateTagInputs() {
-            const mode = document.getElementById('tagStockMode').value; // LOOSE | TAGGED
-            const count = parseInt(document.getElementById('tagPieces').value) || 1;
-            const container = document.getElementById('tagInputsContainer');
-            container.innerHTML = '';
-            
-            if (mode === 'LOOSE') {
-                container.innerHTML = `
-                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
-                        <div style="flex:1;">Total Bulk Gross Wt (g) <span style="color:red;">*</span></div>
-                        <div style="flex:1;">Total Bulk Stone Wt (g)</div>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-bottom:8px;">
-                        <input type="number" class="tag-input tag-gross" placeholder="Total Bulk Gross" step="0.001" oninput="calcTagTotal()">
-                        <input type="number" class="tag-input tag-stone" placeholder="Total Bulk Stone" step="0.001" oninput="calcTagTotal()">
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
-                        <div style="flex:1;">Gross Wt (g) <span style="color:red;">*</span></div>
-                        <div style="flex:1;">Stone Wt (g)</div>
-                    </div>
-                `;
-
-                for(let i=0; i<count; i++) {
-                    const row = document.createElement('div');
-                    row.style.display = 'flex';
-                    row.style.gap = '10px';
-                    row.style.marginBottom = '10px';
-
-                    const inpGross = document.createElement('input');
-                    inpGross.type = 'number';
-                    inpGross.className = 'tag-input tag-gross';
-                    inpGross.placeholder = `Piece ${i+1} Gross`;
-                    inpGross.step = '0.001'; 
-                    inpGross.oninput = calcTagTotal;
-
-                    const inpStone = document.createElement('input');
-                    inpStone.type = 'number';
-                    inpStone.className = 'tag-input tag-stone';
-                    inpStone.placeholder = `Piece ${i+1} Stone`;
-                    inpStone.step = '0.001'; 
-                    inpStone.oninput = calcTagTotal;
-
-                    row.appendChild(inpGross);
-                    row.appendChild(inpStone);
-                    container.appendChild(row);
-                }
-            }
-            calcTagTotal();
-        }
-
-        function calcTagTotal() {
-            const grossInputs = document.querySelectorAll('.tag-gross');
-            const stoneInputs = document.querySelectorAll('.tag-stone');
-            
-            let sumGross = 0; let sumStone = 0;
-            
-            grossInputs.forEach(inp => sumGross += (parseFloat(inp.value) || 0));
-            stoneInputs.forEach(inp => sumStone += (parseFloat(inp.value) || 0));
-            
-            let sumNet = Math.max(0, sumGross - sumStone);
-
-            document.getElementById('tagTotalWt').innerText = sumGross.toFixed(3) + " g";
-            document.getElementById('tagTotalStoneWt').innerText = sumStone.toFixed(3) + " g";
-            document.getElementById('tagTotalNetWt').innerText = sumNet.toFixed(3) + " g";
-
-            const maxWt = parseFloat(document.getElementById('tagSourceMaxWt').value) || 0;
-            const remaining = maxWt - sumGross;
-            const remEl = document.getElementById('tagRemainingWt');
-            remEl.innerText = remaining.toFixed(3) + " g";
-            remEl.style.color = remaining < 0 ? 'var(--active-red)' : 'var(--success-green)';
-        }
-
-        async function confirmTagging() {
-            const sourceId = parseInt(document.getElementById('tagSourceId').value);
-            const totalRequiredGross = parseFloat(document.getElementById('tagTotalWt').innerText.split(' ')[0]);
-            
-            const batchItem = allInventory.find(i => i.id === sourceId);
-            if(!batchItem) { appAlert("Source Batch Not Found."); return; }
-            if(batchItem.status === 'sold') { appAlert("Cannot extract from a sold item."); return; }
-            
-            const availableGross = parseFloat(batchItem.grossWt || batchItem.weight);
-
-            let calculatedTol = availableGross * 0.001;
-            if (calculatedTol < 0.030) calculatedTol = 0.030; 
-            if (calculatedTol > 0.200) calculatedTol = 0.200; 
-
-            const maxAllowed = availableGross + calculatedTol;
-
-            if(totalRequiredGross <= 0) { appAlert("Enter valid weights."); return; }
-
-            if (totalRequiredGross > maxAllowed) {
-                appAlert(`Tolerance Limit Exceeded!\n\nAvailable: ${availableGross.toFixed(3)}g\nAllowed Limit (+${calculatedTol.toFixed(3)}): ${maxAllowed.toFixed(3)}g\nYou entered: ${totalRequiredGross.toFixed(3)}g\n\nPlease adjust weight.`);
-                return;
-            }
-
-            let isFullConversion = false;
-            let diff = availableGross - totalRequiredGross;
-
-            if (Math.abs(diff) <= calculatedTol) {
-                isFullConversion = true;
-                let msg = diff === 0 
-                    ? `Exact weight matched.\nThis will CONSUME the full batch.\n\nProceed?` 
-                    : `Weight is within tolerance (Difference: ${Math.abs(diff).toFixed(3)}g).\nThis will CONSUME the full batch and write off the small difference.\n\nProceed?`;
-                const proceed = await appConfirm(msg);
-                if(!proceed) return;
-            } else {
-                const proceed = await appConfirm(`Generate stock for ${totalRequiredGross.toFixed(3)}g?\nRemaining Stock will be: ${diff.toFixed(3)}g`);
-                if(!proceed) return;
-            }
-
-            const cat = document.getElementById('tagCategory').value;
-            const purity = batchItem.purity; 
-            const mode = document.getElementById('tagStockMode').value;
-            const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
-            
-            const grossInputs = document.querySelectorAll('.tag-gross');
-            const stoneInputs = document.querySelectorAll('.tag-stone');
-
-            const catPrefix = cat.substring(0,3).toUpperCase();
-            
-            let totalExtractedNet = 0;
-            let sumStone = 0;
-
-            if (mode === 'LOOSE') {
-                const g = parseFloat(grossInputs[0].value) || 0;
-                const s = parseFloat(stoneInputs[0].value) || 0;
-                const n = Math.max(0, g - s);
-                
-                sumStone += s;
-                totalExtractedNet += n;
-                const fineWt = n * getPurityFactor(purity);
-                
-                const isSilv = checkIsSilver(purity);
-                let barcode = '';
-                if(isSilv) {
-                    barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}`;
-                } else {
-                    barcode = generateSafeBarcode(cat, 'LOOSE');
-                }
-
-                const newItem = {
-                    barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`, stockMode: 'LOOSE',
-                    purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
-                    status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
-                };
-                await addItem('inventory', newItem);
-            } else {
-                for (let i = 0; i < grossInputs.length; i++) {
-                    const g = parseFloat(grossInputs[i].value) || 0;
-                    const s = parseFloat(stoneInputs[i].value) || 0;
-                    const n = Math.max(0, g - s);
-                    
-                    if(!g) continue;
-                    
-                    sumStone += s;
-                    totalExtractedNet += n;
-                    const fineWt = n * getPurityFactor(purity);
-
-                    const isSilv = checkIsSilver(purity);
-                    let barcode = '';
-                    if(isSilv) {
-                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}${i}`;
-                    } else {
-                        barcode = generateSafeBarcode(cat, 'TAGGED');
-                    }
-
-                    const newItem = {
-                        barcode: barcode, category: cat, name: `${cat} ${purity}`, stockMode: 'TAGGED',
-                        purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: 1,
-                        status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
-                    };
-                    await addItem('inventory', newItem);
-                }
-            }
-
-            if (isFullConversion || (batchItem.grossWt - totalRequiredGross) <= 0.010) {
-                await deleteItemReal(batchItem.id); 
-            } else {
-                batchItem.grossWt = Math.max(0, batchItem.grossWt - totalRequiredGross);
-                batchItem.stoneWt = Math.max(0, (batchItem.stoneWt || 0) - sumStone);
-                batchItem.netWt = Math.max(0, batchItem.grossWt - batchItem.stoneWt);
-                batchItem.weight = batchItem.grossWt; 
-                batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
-                
-                await updateItem('inventory', batchItem);
-            }
-
-            showToast("Stock Generated Successfully!", "success");
-            closeModal('tagModal');
-            loadInventory();
-        }
-
-        async function openItemDetails(id) {
-            const item = allInventory.find(i => i.id === id);
-            if(!item) return;
-
-            const fineWt = calculateFineWeight(item);
-
-            document.getElementById('idmBarcode').innerText = item.barcode;
-            document.getElementById('idmCategory').innerText = item.category;
-            document.getElementById('idmPurity').innerText = item.purity;
-            document.getElementById('idmPieces').innerText = item.pieces || 1;
-            document.getElementById('idmGross').innerText = (parseFloat(item.grossWt || item.weight) || 0).toFixed(3) + " g";
-            document.getElementById('idmStone').innerText = (parseFloat(item.stoneWt) || 0).toFixed(3) + " g";
-            document.getElementById('idmNet').innerText = (parseFloat(item.netWt || item.weight) || 0).toFixed(3) + " g";
-            document.getElementById('idmFine').innerText = fineWt.toFixed(3) + " g";
-            document.getElementById('idmHuid').innerText = item.huid || 'N/A';
-            
-            const isOrder = (item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'));
-
-            const statEl = document.getElementById('idmStatus');
-            const stat = String(item.status || '').toLowerCase();
-            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
-
-            if(stat !== 'sold' && stat !== 'delivered' && net > 0) {
-                statEl.innerHTML = `<span class="badge badge-22k">IN STOCK</span>`;
-            } else {
-                statEl.innerHTML = `<span class="badge badge-pending">SOLD / EMPTY</span>`;
-            }
-
-            if(isOrder) {
-                document.getElementById('idmEditBtn').style.display = 'none';
-                document.getElementById('idmOrderWarning').style.display = 'block';
-            } else {
-                document.getElementById('idmEditBtn').style.display = 'block';
-                document.getElementById('idmOrderWarning').style.display = 'none';
-                document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
-            }
-
-            document.getElementById('idmPrintBtn').onclick = () => { viewBarcode(item.barcode, (item.grossWt||item.weight).toFixed(3), item.purity); };
-
-            closeModal('detailsModal'); 
-            openModal('itemDetailsModal');
-        }
-
-        function openGroupDetails(key) {
-            const group = groupedInventory[key];
-            if(!group) return;
-
-            const tbody = document.getElementById('groupDetailsList');
-            tbody.innerHTML = '';
-
-            group.items.forEach(item => {
-                const pcs = item.pieces || 1;
-                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
-                const stone = parseFloat(item.stoneWt || 0).toFixed(3);
-                const net = parseFloat(item.netWt || gross).toFixed(3);
-                const fine = calculateFineWeight(item).toFixed(3);
-
-                let barcodeDisplay = item.barcode;
-                if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
-
-                let actions = '';
-                if (item.category === 'MIX') {
-                    actions = `
-                        <button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Tag Stock"><i class="fas fa-tags"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                } else {
-                    actions = `
-                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-family:monospace; font-weight:700; color:var(--info-blue); cursor:pointer;" onclick="openItemDetails(${item.id})">
-                        <u>${barcodeDisplay}</u>
-                    </td>
-                    <td style="text-align:center;">${pcs}</td>
-                    <td>${gross} g</td>
-                    <td>${net} g</td>
-                    <td style="color:#8e24aa;">${stone} g</td>
-                    <td style="color:var(--info-blue); font-weight:700;">${fine} g</td>
-                    <td style="color:#64748b;">${item.huid || '-'}</td>
-                    <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
-                        ${actions}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            openModal('detailsModal');
         }
 
         function renderSoldList(items) {
@@ -1829,6 +1254,552 @@
             document.getElementById('total-count').innerText = totalCount;
         }
 
+        function getRate(purity) {
+            if(!purity) return 0;
+            if(purity.includes('22')) return goldRates.rate22k;
+            if(purity.includes('24')) return goldRates.rate24k;
+            if(purity.includes('18')) return goldRates.rate18k || (goldRates.rate22k * 0.82);
+            if(checkIsSilver(purity)) return (goldRates.rateSilver / 100); 
+            
+            const cpG = goldRates.customPurities?.find(x => purity.includes(x.name));
+            if(cpG) return (goldRates.rate24k * (cpG.pct / 100));
+            
+            const cpS = goldRates.customSilverPurities?.find(x => purity.includes(x.name));
+            if(cpS) return (goldRates.rateSilver / 1000) * 10 * (cpS.pct / 100); 
+            
+            return 0;
+        }
+
+        function renderList(items) {
+            const container = document.getElementById('inventory-list');
+            container.innerHTML = '';
+            groupedInventory = {}; 
+
+            document.querySelector('.inv-table thead').innerHTML = `
+                <tr>
+                    <th>Category</th>
+                    <th>Barcodes / Ref</th>
+                    <th>Purity</th>
+                    <th>Stock Qty</th>
+                    <th>Gross Wt</th>
+                    <th>Net Wt</th>
+                    <th style="color:#8e24aa;">Stone Wt</th>
+                    <th>Fine Wt</th>
+                    <th style="text-align:center;">Action</th>
+                </tr>
+            `;
+            
+            let totalWt = 0; let totalVal = 0; let totalCount = 0;
+
+            if (items.length === 0) {
+                container.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No items found matching your filters.</td></tr>';
+                document.getElementById('total-weight').innerText = "0.000 g";
+                document.getElementById('total-value').innerText = "₹0";
+                document.getElementById('total-count').innerText = "0";
+                return;
+            }
+
+            items.forEach(item => {
+                const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
+                
+                const isMix = (item.category === 'MIX');
+                const isOrder = item.source && item.source.startsWith('order_') || (item.barcode && item.barcode.startsWith('ORD-'));
+                
+                const gross = parseFloat(item.grossWt) || parseFloat(item.weight) || 0;
+                const stone = parseFloat(item.stoneWt) || 0;
+                const fine = calculateFineWeight(item);
+                const pcs = parseInt(item.pieces) || 1;
+                
+                if(item.status === 'stock') {
+                    totalWt += net; totalCount += pcs;
+                    const ratePer10g = getRate(item.purity);
+                    totalVal += Math.round(net * (ratePer10g / 10));
+                }
+
+                if(isOrder) {
+                    const key = `ORD_${item.id}`;
+                    groupedInventory[key] = {
+                        isMix: false, isOrder: true, name: `Order: ${item.category}`, category: item.category,
+                        purity: item.purity, status: item.status,
+                        count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
+                    };
+                } else {
+                    const key = `${item.category}_${item.purity}_${item.status}`;
+                    if(!groupedInventory[key]) {
+                        groupedInventory[key] = {
+                            isMix: isMix, isOrder: false, name: isMix ? 'Mixed Stock' : item.category, category: item.category,
+                            purity: item.purity, status: item.status,
+                            count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: []
+                        };
+                    }
+                    groupedInventory[key].count += pcs;
+                    groupedInventory[key].gross += gross;
+                    groupedInventory[key].net += net;
+                    groupedInventory[key].stone += stone;
+                    groupedInventory[key].fine += fine;
+                    groupedInventory[key].items.push(item);
+                }
+            });
+
+            Object.values(groupedInventory).forEach(group => {
+                const tr = document.createElement('tr');
+                
+                let purityBadge = 'badge-22k';
+                if(group.purity === '24K') purityBadge = 'badge-24k'; 
+                if(group.purity.includes('18')) purityBadge = 'badge-18k';
+                if(checkIsSilver(group.purity)) purityBadge = 'badge-silver';
+                
+                if(group.isMix) { purityBadge = 'badge-mix'; tr.className = 'row-mix'; }
+
+                let actionBtn = ''; let displayBarcode = '';
+
+                if(group.isMix) {
+                    if (group.items.length === 1) {
+                        const item = group.items[0]; 
+                        displayBarcode = '<span class="badge badge-pending" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;">UNTAGGED</span>';
+                        actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${item.id})"><i class="fas fa-tags"></i> Tag Stock</button>`;
+                    } else {
+                        displayBarcode = '<span class="badge badge-pending" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;">MULTIPLE BATCHES</span>';
+                        const groupKey = `${group.category}_${group.purity}_stock`;
+                        actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${groupKey}')"><i class="fas fa-list"></i> View List</button>`;
+                    }
+                } else if(group.isOrder) {
+                    const item = group.items[0];
+                    displayBarcode = `<span class="badge badge-order">${item.barcode}</span>`;
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${item.id})"><i class="fas fa-eye"></i> View Order</button>`;
+                } else {
+                    if (group.items.length === 1 && group.items[0].pieces > 1) {
+                        displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
+                    } else if (group.items.length === 1) {
+                        displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
+                    } else {
+                        displayBarcode = '<span style="color:#64748b; font-weight:600;">Multiple Barcodes</span>';
+                    }
+                    const groupKey = `${group.category}_${group.purity}_stock`;
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${groupKey}')"><i class="fas fa-list"></i> View List</button>`;
+                }
+
+                tr.innerHTML = `
+                    <td><strong>${group.name}</strong> ${group.isOrder ? '<i class="fas fa-hammer" style="color:var(--info-blue); margin-left:5px;" title="Custom Order Item"></i>' : ''}</td>
+                    <td>${displayBarcode}</td>
+                    <td><span class="badge ${purityBadge}">${group.purity}</span></td>
+                    <td style="font-weight:700; text-align:center;">${group.count}</td>
+                    <td>${group.gross.toFixed(3)} g</td>
+                    <td style="color:var(--active-red); font-weight:700;">${group.net.toFixed(3)} g</td>
+                    <td style="color:#8e24aa;">${group.stone.toFixed(3)} g</td>
+                    <td style="color:var(--info-blue); font-weight:700;">${group.fine.toFixed(3)} g</td>
+                    <td style="text-align:center;">${actionBtn}</td>
+                `;
+                container.appendChild(tr);
+            });
+
+            document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
+            document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
+            document.getElementById('total-count').innerText = totalCount;
+        }
+
+        // --- MANUAL ENTRY LOGIC ---
+        function openManualEntry() {
+            document.getElementById('manualEntryModal').style.display = 'flex';
+            document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
+            handleManualMetalChange(); 
+
+            document.getElementById('manName').value = '';
+            document.getElementById('manPieces').value = 1;
+            document.getElementById('manGross').value = '';
+            document.getElementById('manStone').value = 0;
+            calcManNet();
+        }
+
+        function handleManualMetalChange() {
+            const metal = document.getElementById('manMetal').value;
+            populateCategoryDropdowns(metal);
+            populatePurityDropdowns(metal, 'manPurity');
+        }
+
+        function calcManNet() {
+            const g = parseFloat(document.getElementById('manGross').value) || 0;
+            const s = parseFloat(document.getElementById('manStone').value) || 0;
+            const net = Math.max(0, g - s);
+            document.getElementById('manNet').value = net.toFixed(3);
+            
+            const purity = document.getElementById('manPurity').value;
+            const fine = net * getPurityFactor(purity);
+            document.getElementById('manFine').value = fine.toFixed(3);
+        }
+
+        async function saveManualEntry() {
+            const name = document.getElementById('manName').value;
+            const cat = document.getElementById('manCategory').value;
+            const purity = document.getElementById('manPurity').value;
+            const pieces = parseInt(document.getElementById('manPieces').value) || 1;
+            
+            const gross = parseFloat(document.getElementById('manGross').value) || 0;
+            const stone = parseFloat(document.getElementById('manStone').value) || 0;
+            const net = Math.max(0, gross - stone);
+            const fine = net * getPurityFactor(purity);
+
+            if(!name) { appAlert("Enter Description"); return; }
+            if(gross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
+
+            const isSilv = checkIsSilver(purity);
+            
+            let barcode = '';
+            if (isSilv && pieces > 1) {
+                const uniqueSuffix = Date.now().toString().slice(-6);
+                barcode = `SIL-${cat.substring(0,3).toUpperCase()}-${uniqueSuffix}`;
+            } else {
+                barcode = generateSafeBarcode(cat);
+            }
+
+            const newItem = {
+                barcode: barcode, category: cat, name: name,
+                purity: purity, grossWt: gross, stoneWt: stone, netWt: net, fineWt: fine, pieces: pieces,
+                status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+            };
+            
+            await addItem('inventory', newItem);
+            showToast("Added to Inventory!", "success");
+            closeModal('manualEntryModal');
+            loadInventory();
+        }
+
+        // --- SINGLE ITEM DETAILS ---
+        async function openItemDetails(id) {
+            const item = allInventory.find(i => i.id === id);
+            if(!item) return;
+
+            const fineWt = calculateFineWeight(item);
+
+            document.getElementById('idmBarcode').innerText = item.barcode;
+            document.getElementById('idmCategory').innerText = item.category;
+            document.getElementById('idmPurity').innerText = item.purity;
+            document.getElementById('idmPieces').innerText = item.pieces || 1;
+            document.getElementById('idmGross').innerText = (parseFloat(item.grossWt || item.weight) || 0).toFixed(3) + " g";
+            document.getElementById('idmStone').innerText = (parseFloat(item.stoneWt) || 0).toFixed(3) + " g";
+            document.getElementById('idmNet').innerText = (parseFloat(item.netWt || item.weight) || 0).toFixed(3) + " g";
+            document.getElementById('idmFine').innerText = fineWt.toFixed(3) + " g";
+            document.getElementById('idmHuid').innerText = item.huid || 'N/A';
+            
+            const isOrder = (item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'));
+
+            const statEl = document.getElementById('idmStatus');
+            const stat = String(item.status || '').toLowerCase();
+            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
+
+            if(stat !== 'sold' && stat !== 'delivered' && net > 0) {
+                statEl.innerHTML = `<span class="badge badge-22k">IN STOCK</span>`;
+            } else {
+                statEl.innerHTML = `<span class="badge badge-pending">SOLD / EMPTY</span>`;
+            }
+
+            if(isOrder) {
+                document.getElementById('idmEditBtn').style.display = 'none';
+                document.getElementById('idmOrderWarning').style.display = 'block';
+            } else {
+                document.getElementById('idmEditBtn').style.display = 'block';
+                document.getElementById('idmOrderWarning').style.display = 'none';
+                document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
+            }
+
+            document.getElementById('idmPrintBtn').onclick = () => { viewBarcode(item.barcode, (item.grossWt||item.weight).toFixed(3), item.purity); };
+
+            closeModal('detailsModal'); 
+            openModal('itemDetailsModal');
+        }
+
+        // --- GROUP DETAILS MODAL ---
+        function openGroupDetails(key) {
+            const group = groupedInventory[key];
+            if(!group) return;
+
+            const tbody = document.getElementById('groupDetailsList');
+            tbody.innerHTML = '';
+
+            group.items.forEach(item => {
+                const pcs = item.pieces || 1;
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                const stone = parseFloat(item.stoneWt || 0).toFixed(3);
+                const net = parseFloat(item.netWt || gross).toFixed(3);
+                const fine = calculateFineWeight(item).toFixed(3);
+
+                let barcodeDisplay = item.barcode;
+                if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
+
+                let actions = '';
+                if (item.category === 'MIX') {
+                    actions = `
+                        <button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Tag Stock"><i class="fas fa-tags"></i></button>
+                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    `;
+                } else {
+                    actions = `
+                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button>
+                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    `;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family:monospace; font-weight:700; color:var(--info-blue); cursor:pointer;" onclick="openItemDetails(${item.id})">
+                        <u>${barcodeDisplay}</u>
+                    </td>
+                    <td style="text-align:center;">${pcs}</td>
+                    <td>${gross} g</td>
+                    <td>${net} g</td>
+                    <td style="color:#8e24aa;">${stone} g</td>
+                    <td style="color:var(--info-blue); font-weight:700;">${fine} g</td>
+                    <td style="color:#64748b;">${item.huid || '-'}</td>
+                    <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
+                        ${actions}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            openModal('detailsModal');
+        }
+
+        // --- TAGGING LOGIC ---
+        async function openTagModal(id) {
+            const item = allInventory.find(i => i.id === id);
+            if(!item) return;
+
+            if (item.status === 'sold') { appAlert("Cannot tag stock from a sold item."); return; }
+
+            document.getElementById('tagSourceId').value = item.id;
+            
+            const grossWt = parseFloat(item.grossWt || item.weight);
+            const stoneWt = parseFloat(item.stoneWt || 0);
+            const netWt = parseFloat(item.netWt || item.weight);
+
+            document.getElementById('tagSourceMaxWt').value = grossWt;
+            document.getElementById('tagSourceMaxStoneWt').value = stoneWt;
+            document.getElementById('tagSourceMaxNetWt').value = netWt;
+            
+            document.getElementById('tagSourceName').innerText = item.name || 'Mixed Stock';
+            document.getElementById('tagSourceWt').innerText = `(${grossWt.toFixed(3)}g Gr / ${stoneWt.toFixed(3)}g St / ${netWt.toFixed(3)}g Net)`;
+            
+            document.getElementById('tagPurity').value = item.purity;
+            
+            let tol = grossWt * 0.001;
+            if(tol < 0.030) tol = 0.030;
+            if(tol > 0.100) tol = 0.100;
+            
+            document.getElementById('dispTolerance').innerText = `±${tol.toFixed(3)} g`;
+            
+            document.getElementById('tagStockMode').value = 'tagged';
+            document.getElementById('tagPieces').value = 1;
+            
+            populateCategoryDropdowns(); 
+            generateTagInputs();
+            openModal('tagModal');
+        }
+
+        function generateTagInputs() {
+            const mode = document.getElementById('tagStockMode').value;
+            const count = parseInt(document.getElementById('tagPieces').value) || 1;
+            const container = document.getElementById('tagInputsContainer');
+            container.innerHTML = '';
+            
+            if (mode === 'loose') {
+                container.innerHTML = `
+                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
+                        <div style="flex:1;">Total Bulk Gross Wt (g) <span style="color:red;">*</span></div>
+                        <div style="flex:1;">Total Bulk Stone Wt (g)</div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-bottom:8px;">
+                        <input type="number" class="tag-input tag-gross" placeholder="Total Bulk Gross" step="0.001" oninput="calcTagTotal()">
+                        <input type="number" class="tag-input tag-stone" placeholder="Total Bulk Stone" step="0.001" oninput="calcTagTotal()">
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
+                        <div style="flex:1;">Gross Wt (g) <span style="color:red;">*</span></div>
+                        <div style="flex:1;">Stone Wt (g)</div>
+                    </div>
+                `;
+
+                for(let i=0; i<count; i++) {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.gap = '10px';
+                    row.style.marginBottom = '10px';
+
+                    const inpGross = document.createElement('input');
+                    inpGross.type = 'number';
+                    inpGross.className = 'tag-input tag-gross';
+                    inpGross.placeholder = `Piece ${i+1} Gross`;
+                    inpGross.step = '0.001'; 
+                    inpGross.oninput = calcTagTotal;
+
+                    const inpStone = document.createElement('input');
+                    inpStone.type = 'number';
+                    inpStone.className = 'tag-input tag-stone';
+                    inpStone.placeholder = `Piece ${i+1} Stone`;
+                    inpStone.step = '0.001'; 
+                    inpStone.oninput = calcTagTotal;
+
+                    row.appendChild(inpGross);
+                    row.appendChild(inpStone);
+                    container.appendChild(row);
+                }
+            }
+            calcTagTotal();
+        }
+
+        function calcTagTotal() {
+            const grossInputs = document.querySelectorAll('.tag-gross');
+            const stoneInputs = document.querySelectorAll('.tag-stone');
+            
+            let sumGross = 0; let sumStone = 0;
+            
+            grossInputs.forEach(inp => sumGross += (parseFloat(inp.value) || 0));
+            stoneInputs.forEach(inp => sumStone += (parseFloat(inp.value) || 0));
+            
+            let sumNet = Math.max(0, sumGross - sumStone);
+
+            document.getElementById('tagTotalWt').innerText = sumGross.toFixed(3) + " g";
+            document.getElementById('tagTotalStoneWt').innerText = sumStone.toFixed(3) + " g";
+            document.getElementById('tagTotalNetWt').innerText = sumNet.toFixed(3) + " g";
+
+            const maxWt = parseFloat(document.getElementById('tagSourceMaxWt').value) || 0;
+            const remaining = maxWt - sumGross;
+            const remEl = document.getElementById('tagRemainingWt');
+            remEl.innerText = remaining.toFixed(3) + " g";
+            remEl.style.color = remaining < 0 ? 'var(--active-red)' : 'var(--success-green)';
+
+            const maxStone = parseFloat(document.getElementById('tagSourceMaxStoneWt').value) || 0;
+            const remainingStone = maxStone - sumStone;
+            const remStoneEl = document.getElementById('tagRemainingStoneWt');
+            remStoneEl.innerText = remainingStone.toFixed(3) + " g";
+            remStoneEl.style.color = remainingStone < 0 ? 'var(--active-red)' : 'var(--success-green)';
+            
+            const maxNet = parseFloat(document.getElementById('tagSourceMaxNetWt').value) || 0;
+            const remainingNet = maxNet - sumNet;
+            const remNetEl = document.getElementById('tagRemainingNetWt');
+            remNetEl.innerText = remainingNet.toFixed(3) + " g";
+            remNetEl.style.color = remainingNet < 0 ? 'var(--active-red)' : 'var(--success-green)';
+        }
+
+        async function confirmTagging() {
+            const sourceId = parseInt(document.getElementById('tagSourceId').value);
+            const totalRequiredGross = parseFloat(document.getElementById('tagTotalWt').innerText.split(' ')[0]);
+            
+            const batchItem = allInventory.find(i => i.id === sourceId);
+            if(!batchItem) { appAlert("Source Batch Not Found."); return; }
+            if(batchItem.status === 'sold') { appAlert("Cannot extract from a sold item."); return; }
+            
+            const availableGross = parseFloat(batchItem.grossWt || batchItem.weight);
+
+            let calculatedTol = availableGross * 0.001;
+            if (calculatedTol < 0.030) calculatedTol = 0.030; 
+            if (calculatedTol > 0.200) calculatedTol = 0.200; 
+
+            const maxAllowed = availableGross + calculatedTol;
+
+            if(totalRequiredGross <= 0) { appAlert("Enter valid weights."); return; }
+
+            if (totalRequiredGross > maxAllowed) {
+                appAlert(`Tolerance Limit Exceeded!\n\nAvailable: ${availableGross.toFixed(3)}g\nAllowed Limit (+${calculatedTol.toFixed(3)}): ${maxAllowed.toFixed(3)}g\nYou entered: ${totalRequiredGross.toFixed(3)}g\n\nPlease adjust weight.`);
+                return;
+            }
+
+            let isFullConversion = false;
+            let diff = availableGross - totalRequiredGross;
+
+            if (Math.abs(diff) <= calculatedTol) {
+                isFullConversion = true;
+                let msg = diff === 0 
+                    ? `Exact weight matched.\nThis will CONSUME the full batch.\n\nProceed?` 
+                    : `Weight is within tolerance (Difference: ${Math.abs(diff).toFixed(3)}g).\nThis will CONSUME the full batch and write off the small difference.\n\nProceed?`;
+                const proceed = await appConfirm(msg);
+                if(!proceed) return;
+            } else {
+                const proceed = await appConfirm(`Generate stock for ${totalRequiredGross.toFixed(3)}g?\nRemaining Stock will be: ${diff.toFixed(3)}g`);
+                if(!proceed) return;
+            }
+
+            const cat = document.getElementById('tagCategory').value;
+            const purity = batchItem.purity; 
+            const mode = document.getElementById('tagStockMode').value;
+            const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
+            
+            const grossInputs = document.querySelectorAll('.tag-gross');
+            const stoneInputs = document.querySelectorAll('.tag-stone');
+
+            const catPrefix = cat.substring(0,3).toUpperCase();
+            
+            let totalExtractedNet = 0;
+            let sumStone = 0;
+
+            if (mode === 'loose') {
+                const g = parseFloat(grossInputs[0].value) || 0;
+                const s = parseFloat(stoneInputs[0].value) || 0;
+                const n = Math.max(0, g - s);
+                
+                sumStone += s;
+                totalExtractedNet += n;
+                const fineWt = n * getPurityFactor(purity);
+                
+                const isSilv = checkIsSilver(purity);
+                let barcode = '';
+                if(isSilv) {
+                    const uniqueSuffix = Date.now().toString().slice(-6);
+                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                } else {
+                    barcode = generateSafeBarcode(cat);
+                }
+
+                const newItem = {
+                    barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`,
+                    purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
+                    status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
+                };
+                await addItem('inventory', newItem);
+            } else {
+                for (let i = 0; i < grossInputs.length; i++) {
+                    const g = parseFloat(grossInputs[i].value) || 0;
+                    const s = parseFloat(stoneInputs[i].value) || 0;
+                    const n = Math.max(0, g - s);
+                    
+                    if(!g) continue;
+                    
+                    sumStone += s;
+                    totalExtractedNet += n;
+                    const fineWt = n * getPurityFactor(purity);
+
+                    const barcode = generateSafeBarcode(cat);
+                    const newItem = {
+                        barcode: barcode, category: cat, name: `${cat} ${purity}`,
+                        purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: 1,
+                        status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
+                    };
+                    await addItem('inventory', newItem);
+                }
+            }
+
+            if (isFullConversion || (batchItem.grossWt - totalRequiredGross) <= 0.010) {
+                await deleteItemReal(batchItem.id); 
+            } else {
+                batchItem.grossWt = Math.max(0, batchItem.grossWt - totalRequiredGross);
+                batchItem.stoneWt = Math.max(0, (batchItem.stoneWt || 0) - sumStone);
+                batchItem.netWt = Math.max(0, batchItem.grossWt - batchItem.stoneWt);
+                batchItem.weight = batchItem.grossWt; 
+                batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
+                
+                await updateItem('inventory', batchItem);
+            }
+
+            showToast("Stock Generated Successfully!", "success");
+            closeModal('tagModal');
+            loadInventory();
+        }
+
+        // --- CANCEL & REFUND BILL FROM INVENTORY ---
         async function openCancelModal(saleId) {
             const sale = allSalesData.find(s => s.id === saleId);
             if(!sale) return;
@@ -1947,6 +1918,8 @@
             });
         }
 
+
+        // --- EDIT LOGIC ---
         function calcEditNet() {
             const g = parseFloat(document.getElementById('editGross').value) || 0;
             const s = parseFloat(document.getElementById('editStone').value) || 0;
@@ -2019,6 +1992,7 @@
             };
         }
 
+        // --- DELETE (WITH RESTORE) ---
         async function deleteItem(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
@@ -2116,3 +2090,5 @@
     </script>
 </body>
 </html>
+
+
