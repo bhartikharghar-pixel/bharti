@@ -97,6 +97,8 @@
         .badge-18k { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
         .badge-24k { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;}
         .badge-silver { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;}
+        .badge-loose { background: #e0e7ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-family: monospace; font-size: 0.85rem;}
+        .badge-piece { background: #fce7f3; color: #be185d; border: 1px solid #fbcfe8; font-family: monospace; font-size: 0.85rem;}
 
         .btn-sm { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-right: 6px; font-weight: 600; transition: 0.2s;}
         .btn-tag { background: #10b981; color: white; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
@@ -465,8 +467,9 @@
                 <div class="form-group">
                     <label>Stock Management Mode</label>
                     <select id="tagStockMode" onchange="generateTagInputs()">
-                        <option value="tagged">Tag-wise (Unique Barcode per piece)</option>
-                        <option value="loose">Loose Stock (Bulk / Single Barcode)</option>
+                        <option value="TAGGED">Tag-wise (Unique Barcode per piece)</option>
+                        <option value="LOOSE">Loose Stock (Bulk/Fixed Weight Sale)</option>
+                        <option value="PIECE">Pieces Only (Bulk/Custom Wt at Sale)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -498,14 +501,6 @@
                     <span style="color:#334155;">Remaining Source Gross:</span>
                     <span id="tagRemainingWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
-                    <span style="color:#334155;">Remaining Source Stone:</span>
-                    <span id="tagRemainingStoneWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
-                    <span style="color:#334155;">Remaining Source Net:</span>
-                    <span id="tagRemainingNetWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
-                </div>
             </div>
 
             <button class="btn-block btn-primary" onclick="confirmTagging()"><i class="fas fa-barcode"></i> GENERATE STOCK</button>
@@ -517,12 +512,22 @@
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-plus-circle"></i> Add Custom Stock</h3>
             
-            <div class="form-group">
-                <label>Metal Type</label>
-                <select id="manMetal" onchange="handleManualMetalChange()">
-                    <option value="Gold">Gold</option>
-                    <option value="Silver">Silver</option>
-                </select>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Metal Type</label>
+                    <select id="manMetal" onchange="handleManualMetalChange()">
+                        <option value="Gold">Gold</option>
+                        <option value="Silver">Silver</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Stock Mode</label>
+                    <select id="manStockMode">
+                        <option value="TAGGED">Tagged (Unique Items)</option>
+                        <option value="LOOSE">Loose (Bulk Batch / Fix Wt)</option>
+                        <option value="PIECE">Pieces Only (Weight given at Sale)</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-group">
@@ -530,21 +535,21 @@
                 <input type="text" id="manName" placeholder="e.g. Silver Payal Bulk">
             </div>
             
-            <div class="form-group">
-                <label>Category</label>
-                <select id="manCategory"></select>
-            </div>
-            
             <div class="grid-2">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="manCategory"></select>
+                </div>
                 <div class="form-group">
                     <label>Purity</label>
                     <select id="manPurity"></select>
                 </div>
-                <div class="form-group">
-                    <label>Quantity (Pieces)</label>
-                    <input type="number" id="manPieces" value="1" min="1">
-                    <small style="color:var(--info-blue); font-size:0.75rem;">Set > 1 for Loose Stock</small>
-                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Total Quantity (Pieces)</label>
+                <input type="number" id="manPieces" value="1" min="1">
+                <small style="color:var(--info-blue); font-size:0.75rem;">If TAGGED > 1, it splits weight into multiple barcodes.</small>
             </div>
             
             <div class="grid-2">
@@ -568,6 +573,7 @@
                     <input type="number" id="manFine" step="0.001" readonly style="background:#eff6ff; font-weight:bold; color:var(--info-blue); border-color:#bfdbfe;">
                 </div>
             </div>
+            <small style="color:#888; font-style:italic; display:block; text-align:center; margin-bottom:15px;">* For PIECE mode, weight entered here is just for inventory valuation.</small>
             
             <button class="btn-block btn-primary" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save to Inventory</button>
         </div>
@@ -752,8 +758,6 @@
         let goldCategories = [...BASE_GOLD_CATS];
         let silverCategories = [...BASE_SILVER_CATS];
 
-        // --- MASTER FILTER STATES ---
-        // NEW STATES: GOLD_TAGGED, GOLD_FINE, GOLD_ORDER, SILVER, ALL
         let currentMetalFilter = 'GOLD_TAGGED'; 
         let activeCatManagerMode = 'Gold'; 
 
@@ -815,6 +819,21 @@
                 if (!isNaN(pct)) return net * pct;
             }
             return net * getPurityFactor(item.purity);
+        }
+
+        // --- NEW: CATEGORY CONFLICT CHECKER ---
+        function checkCategoryConflict(cat, intendedMode) {
+            if(cat === 'MIX' || cat === 'Other' || cat === 'ALL') return null;
+            
+            const existing = allInventory.find(i => i.category === cat && i.status === 'stock');
+            if(existing) {
+                // If existing item has no stock mode, we consider it TAGGED (Legacy compatibility)
+                let existingMode = existing.stockMode || 'TAGGED';
+                if(existingMode !== intendedMode) {
+                    return `Conflict! The category '${cat}' is already assigned as '${existingMode}' in your active stock.\n\nYou cannot mix modes. Please create a new category (e.g., 'Loose ${cat}' or 'Bulk ${cat}') for ${intendedMode} items.`;
+                }
+            }
+            return null;
         }
 
         function populatePurityDropdowns(metal, elementId) {
@@ -973,7 +992,7 @@
                 });
                 
                 if (row.querySelector('th')) {
-                     // don't add action to header
+                     
                 } else {
                     csvContent += rowData.join(",") + "\n";
                 }
@@ -1007,8 +1026,13 @@
             });
         }
 
-        function generateSafeBarcode(category) {
-            const prefix = category.substring(0, 3).toUpperCase();
+        // --- UPDATE: SECURE BARCODE GENERATOR WITH 3 MODES ---
+        function generateSafeBarcode(category, mode = 'TAGGED') {
+            const basePrefix = category.substring(0, 3).toUpperCase();
+            let prefix = basePrefix;
+            if(mode === 'LOOSE') prefix = 'L-' + basePrefix;
+            if(mode === 'PIECE') prefix = 'P-' + basePrefix;
+
             let maxNum = 0;
             
             allInventory.forEach(i => {
@@ -1020,7 +1044,7 @@
             });
             
             const newBarcode = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
-            allInventory.push({ barcode: newBarcode }); 
+            allInventory.push({ barcode: newBarcode }); // Temporary push to memory for loop-based additions
             return newBarcode;
         }
 
@@ -1033,7 +1057,6 @@
             applyFilters();
         }
 
-        // --- NEW METAL FILTER LOGIC FOR TABS ---
         function setMetalFilter(metalFilter) {
             currentMetalFilter = metalFilter;
             document.getElementById('filterCategory').value = 'ALL';
@@ -1126,6 +1149,8 @@
             let filtered = allInventory.filter(i => {
                 const stat = String(i.status || '').toLowerCase();
                 const net = parseFloat(i.netWt !== undefined ? i.netWt : (i.grossWt || i.weight || 0));
+                // Allow pieces to bypass weight requirement if mode is PIECE
+                if(i.stockMode === 'PIECE' && stat !== 'sold' && stat !== 'delivered' && parseInt(i.pieces) > 0) return true;
                 return stat !== 'sold' && stat !== 'delivered' && net > 0;
             });
 
@@ -1148,7 +1173,7 @@
                 } else if (currentMetalFilter === 'GOLD_FINE') {
                     return isFineOrMelt && !isOrder;
                 } else if (currentMetalFilter === 'GOLD_TAGGED') {
-                    // Tagged means not an order, not a melting slab/fine gold. (Rings, Necklaces, etc.)
+                    // Tagged means not an order, not a melting slab/fine gold.
                     return !isOrder && !isFineOrMelt;
                 }
                 
@@ -1178,98 +1203,7 @@
             renderList(filtered);
         }
 
-        function renderSoldList(items) {
-            const container = document.getElementById('inventory-list');
-            container.innerHTML = '';
-            
-            const thead = document.querySelector('.inv-table thead');
-            thead.innerHTML = `
-                <tr>
-                    <th>Sale Info</th>
-                    <th>Item Details</th>
-                    <th>Purity</th>
-                    <th style="text-align:center;">Qty</th>
-                    <th>Net Wt</th>
-                    <th style="color:var(--info-blue);">Item Total</th>
-                    <th style="color:var(--success-green);">Bill Paid</th>
-                    <th style="color:var(--active-red);">Bill Due</th>
-                    <th style="text-align:center;">Action</th>
-                </tr>
-            `;
-
-            if (items.length === 0) {
-                container.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">No sold items found matching your filters.</td></tr>';
-                document.getElementById('total-weight').innerText = "0.000 g";
-                document.getElementById('total-value').innerText = "₹0";
-                document.getElementById('total-count').innerText = "0";
-                return;
-            }
-
-            let totalWt = 0; let totalVal = 0; let totalCount = 0;
-
-            items.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(item => {
-                totalWt += parseFloat(item.netWt); totalVal += Math.abs(item.itemTotal); totalCount += parseInt(item.pieces);
-
-                const tr = document.createElement('tr');
-                
-                let purityBadge = 'badge-22k';
-                if(item.purity === '24K') purityBadge = 'badge-24k'; 
-                if(item.purity.includes('18')) purityBadge = 'badge-18k';
-                if(checkIsSilver(item.purity)) purityBadge = 'badge-silver';
-
-                const dateStr = new Date(item.date).toLocaleDateString('en-IN');
-                const timeStr = new Date(item.date).toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
-                
-                tr.innerHTML = `
-                    <td>
-                        <strong style="color:var(--info-blue); font-size:1.05rem;">INV-${String(item.saleId).padStart(4, '0')}</strong><br>
-                        <span style="font-weight:600;">${item.customerName}</span><br>
-                        <small style="color:#64748b;">${dateStr} ${timeStr}</small>
-                    </td>
-                    <td>
-                        <strong style="font-size:1.05rem;">${item.category}</strong><br>
-                        <span style="font-family:monospace; color:#475569;">${item.barcode}</span>
-                        ${item.huid ? `<br><small style="color:#8e24aa; font-weight:bold;">HUID: ${item.huid}</small>` : ''}
-                    </td>
-                    <td><span class="badge ${purityBadge}">${item.purity}</span></td>
-                    <td style="text-align:center; font-weight:700; font-size:1.1rem;">${item.pieces}</td>
-                    <td style="font-weight:700; color:var(--active-red);">${parseFloat(item.netWt).toFixed(3)} g</td>
-                    <td style="color:var(--info-blue); font-weight:700; font-size:1.05rem;">₹${Math.abs(item.itemTotal).toLocaleString()}</td>
-                    <td style="color:var(--success-green); font-weight:700; font-size:1.05rem;">
-                        ${item.pendingAmount <= 0 ? '<i class="fas fa-check-circle"></i> ' : ''}₹${item.paidAmount.toLocaleString()}
-                    </td>
-                    <td style="color:var(--active-red); font-weight:700; font-size:1.05rem;">
-                        ${item.pendingAmount > 0 ? `₹${item.pendingAmount.toLocaleString()}` : '<span style="color:var(--success-green);">₹0</span>'}
-                    </td>
-                    <td style="text-align:center;">
-                        <button class="btn-sm btn-view" onclick="window.location.href='sales.html?view=${item.saleId}'" title="Open Bill in POS"><i class="fas fa-file-invoice"></i> View</button>
-                        <button class="btn-sm btn-del" onclick="openCancelModal(${item.saleId})" title="Cancel Bill & Restore Items"><i class="fas fa-undo"></i> Restore</button>
-                    </td>
-                `;
-                container.appendChild(tr);
-            });
-
-            document.getElementById('total-weight').innerText = `${totalWt.toFixed(3)} g`;
-            document.getElementById('total-value').innerText = `₹${totalVal.toLocaleString()}`;
-            document.getElementById('total-count').innerText = totalCount;
-        }
-
-        function getRate(purity) {
-            if(!purity) return 0;
-            if(purity.includes('22')) return goldRates.rate22k;
-            if(purity.includes('24')) return goldRates.rate24k;
-            if(purity.includes('18')) return goldRates.rate18k || (goldRates.rate22k * 0.82);
-            if(checkIsSilver(purity)) return (goldRates.rateSilver / 100); 
-            
-            const cpG = goldRates.customPurities?.find(x => purity.includes(x.name));
-            if(cpG) return (goldRates.rate24k * (cpG.pct / 100));
-            
-            const cpS = goldRates.customSilverPurities?.find(x => purity.includes(x.name));
-            if(cpS) return (goldRates.rateSilver / 1000) * 10 * (cpS.pct / 100); 
-            
-            return 0;
-        }
-
+        // --- UPDATE: RENDER LIST WITH 3 DIFFERENT MODES (TAGGED, LOOSE, PIECE) ---
         function renderList(items) {
             const container = document.getElementById('inventory-list');
             container.innerHTML = '';
@@ -1305,6 +1239,11 @@
                 const isMix = (item.category === 'MIX');
                 const isOrder = item.source && item.source.startsWith('order_') || (item.barcode && item.barcode.startsWith('ORD-'));
                 
+                // LOGIC: Check Mode. Default to TAGGED.
+                const mode = item.stockMode || 'TAGGED';
+                const isLoose = mode === 'LOOSE';
+                const isPiece = mode === 'PIECE';
+
                 const gross = parseFloat(item.grossWt) || parseFloat(item.weight) || 0;
                 const stone = parseFloat(item.stoneWt) || 0;
                 const fine = calculateFineWeight(item);
@@ -1319,15 +1258,45 @@
                 if(isOrder) {
                     const key = `ORD_${item.id}`;
                     groupedInventory[key] = {
-                        isMix: false, isOrder: true, name: `Order: ${item.category}`, category: item.category,
+                        isMix: false, isOrder: true, isLoose: false, isPiece: false, name: `Order: ${item.category}`, category: item.category,
+                        purity: item.purity, status: item.status,
+                        count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
+                    };
+                } else if (isMix) {
+                    const key = `${item.category}_${item.purity}_${item.status}`;
+                    if(!groupedInventory[key]) {
+                        groupedInventory[key] = {
+                            isMix: true, isOrder: false, isLoose: false, isPiece: false, name: 'Mixed Stock', category: item.category,
+                            purity: item.purity, status: item.status,
+                            count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: []
+                        };
+                    }
+                    groupedInventory[key].count += pcs;
+                    groupedInventory[key].gross += gross;
+                    groupedInventory[key].net += net;
+                    groupedInventory[key].stone += stone;
+                    groupedInventory[key].fine += fine;
+                    groupedInventory[key].items.push(item);
+                } else if (isLoose) {
+                    const key = `LOOSE_${item.id}`;
+                    groupedInventory[key] = {
+                        isMix: false, isOrder: false, isLoose: true, isPiece: false, name: `Loose: ${item.category}`, category: item.category,
+                        purity: item.purity, status: item.status,
+                        count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
+                    };
+                } else if (isPiece) {
+                    const key = `PIECE_${item.id}`;
+                    groupedInventory[key] = {
+                        isMix: false, isOrder: false, isLoose: false, isPiece: true, name: `Piece: ${item.category}`, category: item.category,
                         purity: item.purity, status: item.status,
                         count: pcs, gross: gross, net: net, stone: stone, fine: fine, barcode: item.barcode, items: [item]
                     };
                 } else {
+                    // TAGGED Items group together in table
                     const key = `${item.category}_${item.purity}_${item.status}`;
                     if(!groupedInventory[key]) {
                         groupedInventory[key] = {
-                            isMix: isMix, isOrder: false, name: isMix ? 'Mixed Stock' : item.category, category: item.category,
+                            isMix: false, isOrder: false, isLoose: false, isPiece: false, name: item.category, category: item.category,
                             purity: item.purity, status: item.status,
                             count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: []
                         };
@@ -1367,10 +1336,27 @@
                     const item = group.items[0];
                     displayBarcode = `<span class="badge badge-order">${item.barcode}</span>`;
                     actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${item.id})"><i class="fas fa-eye"></i> View Order</button>`;
+                } else if (group.isLoose) {
+                    // LOOSE ITEM RENDER
+                    const item = group.items[0];
+                    displayBarcode = `<span class="badge badge-loose"><i class="fas fa-boxes"></i> ${item.barcode}</span>`;
+                    actionBtn = `
+                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${group.gross.toFixed(3)}', '${group.purity}')" title="Print Batch Tag"><i class="fas fa-barcode"></i></button>
+                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    `;
+                } else if (group.isPiece) {
+                    // PIECE ITEM RENDER
+                    const item = group.items[0];
+                    displayBarcode = `<span class="badge badge-piece"><i class="fas fa-layer-group"></i> ${item.barcode}</span>`;
+                    actionBtn = `
+                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', 'N/A', '${group.purity}')" title="Print Batch Tag"><i class="fas fa-barcode"></i></button>
+                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    `;
                 } else {
-                    if (group.items.length === 1 && group.items[0].pieces > 1) {
-                        displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
-                    } else if (group.items.length === 1) {
+                    // TAGGED ITEM RENDER
+                    if (group.items.length === 1) {
                         displayBarcode = `<span class="badge badge-order">${group.items[0].barcode}</span>`;
                     } else {
                         displayBarcode = '<span style="color:#64748b; font-weight:600;">Multiple Barcodes</span>';
@@ -1384,10 +1370,10 @@
                     <td>${displayBarcode}</td>
                     <td><span class="badge ${purityBadge}">${group.purity}</span></td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
-                    <td>${group.gross.toFixed(3)} g</td>
-                    <td style="color:var(--active-red); font-weight:700;">${group.net.toFixed(3)} g</td>
-                    <td style="color:#8e24aa;">${group.stone.toFixed(3)} g</td>
-                    <td style="color:var(--info-blue); font-weight:700;">${group.fine.toFixed(3)} g</td>
+                    <td>${group.isPiece && group.gross === 0 ? '-' : group.gross.toFixed(3) + ' g'}</td>
+                    <td style="color:var(--active-red); font-weight:700;">${group.isPiece && group.net === 0 ? '-' : group.net.toFixed(3) + ' g'}</td>
+                    <td style="color:#8e24aa;">${group.isPiece && group.stone === 0 ? '-' : group.stone.toFixed(3) + ' g'}</td>
+                    <td style="color:var(--info-blue); font-weight:700;">${group.isPiece && group.fine === 0 ? '-' : group.fine.toFixed(3) + ' g'}</td>
                     <td style="text-align:center;">${actionBtn}</td>
                 `;
                 container.appendChild(tr);
@@ -1398,12 +1384,13 @@
             document.getElementById('total-count').innerText = totalCount;
         }
 
-        // --- MANUAL ENTRY LOGIC ---
+        // --- UPDATE: MANUAL ENTRY LOGIC ---
         function openManualEntry() {
             document.getElementById('manualEntryModal').style.display = 'flex';
             document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
             handleManualMetalChange(); 
 
+            document.getElementById('manStockMode').value = 'TAGGED';
             document.getElementById('manName').value = '';
             document.getElementById('manPieces').value = 1;
             document.getElementById('manGross').value = '';
@@ -1433,6 +1420,7 @@
             const cat = document.getElementById('manCategory').value;
             const purity = document.getElementById('manPurity').value;
             const pieces = parseInt(document.getElementById('manPieces').value) || 1;
+            const stockMode = document.getElementById('manStockMode').value;
             
             const gross = parseFloat(document.getElementById('manGross').value) || 0;
             const stone = parseFloat(document.getElementById('manStone').value) || 0;
@@ -1440,129 +1428,60 @@
             const fine = net * getPurityFactor(purity);
 
             if(!name) { appAlert("Enter Description"); return; }
-            if(gross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
+            if((stockMode === 'TAGGED' || stockMode === 'LOOSE') && gross <= 0) { appAlert("Enter Valid Gross Weight"); return; }
+
+            // CONFLICT CHECK
+            const conflictMsg = checkCategoryConflict(cat, stockMode);
+            if(conflictMsg) { appAlert(conflictMsg); return; }
 
             const isSilv = checkIsSilver(purity);
+            const catPrefix = cat.substring(0,3).toUpperCase();
             
-            let barcode = '';
-            if (isSilv && pieces > 1) {
-                const uniqueSuffix = Date.now().toString().slice(-6);
-                barcode = `SIL-${cat.substring(0,3).toUpperCase()}-${uniqueSuffix}`;
-            } else {
-                barcode = generateSafeBarcode(cat);
-            }
+            if (stockMode === 'LOOSE' || stockMode === 'PIECE') {
+                let barcode = '';
+                if (isSilv) {
+                    barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}`;
+                } else {
+                    barcode = generateSafeBarcode(cat, stockMode);
+                }
 
-            const newItem = {
-                barcode: barcode, category: cat, name: name,
-                purity: purity, grossWt: gross, stoneWt: stone, netWt: net, fineWt: fine, pieces: pieces,
-                status: 'stock', source: 'manual', addedDate: new Date().toISOString()
-            };
+                const newItem = {
+                    barcode: barcode, category: cat, name: name, stockMode: stockMode,
+                    purity: purity, grossWt: gross, stoneWt: stone, netWt: net, fineWt: fine, pieces: pieces,
+                    status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+                };
+                await addItem('inventory', newItem);
+
+            } else {
+                // TAGGED MODE (SPLIT LOGIC IF PIECES > 1)
+                const grossPerPiece = gross / pieces;
+                const stonePerPiece = stone / pieces;
+                const netPerPiece = net / pieces;
+                const finePerPiece = fine / pieces;
+
+                for(let i=0; i<pieces; i++) {
+                    let barcode = '';
+                    if (isSilv) {
+                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}${i}`;
+                    } else {
+                        barcode = generateSafeBarcode(cat, 'TAGGED');
+                    }
+
+                    const newItem = {
+                        barcode: barcode, category: cat, name: name, stockMode: 'TAGGED',
+                        purity: purity, grossWt: grossPerPiece, stoneWt: stonePerPiece, netWt: netPerPiece, fineWt: finePerPiece, pieces: 1,
+                        status: 'stock', source: 'manual', addedDate: new Date().toISOString()
+                    };
+                    await addItem('inventory', newItem);
+                }
+            }
             
-            await addItem('inventory', newItem);
             showToast("Added to Inventory!", "success");
             closeModal('manualEntryModal');
             loadInventory();
         }
 
-        // --- SINGLE ITEM DETAILS ---
-        async function openItemDetails(id) {
-            const item = allInventory.find(i => i.id === id);
-            if(!item) return;
-
-            const fineWt = calculateFineWeight(item);
-
-            document.getElementById('idmBarcode').innerText = item.barcode;
-            document.getElementById('idmCategory').innerText = item.category;
-            document.getElementById('idmPurity').innerText = item.purity;
-            document.getElementById('idmPieces').innerText = item.pieces || 1;
-            document.getElementById('idmGross').innerText = (parseFloat(item.grossWt || item.weight) || 0).toFixed(3) + " g";
-            document.getElementById('idmStone').innerText = (parseFloat(item.stoneWt) || 0).toFixed(3) + " g";
-            document.getElementById('idmNet').innerText = (parseFloat(item.netWt || item.weight) || 0).toFixed(3) + " g";
-            document.getElementById('idmFine').innerText = fineWt.toFixed(3) + " g";
-            document.getElementById('idmHuid').innerText = item.huid || 'N/A';
-            
-            const isOrder = (item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'));
-
-            const statEl = document.getElementById('idmStatus');
-            const stat = String(item.status || '').toLowerCase();
-            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
-
-            if(stat !== 'sold' && stat !== 'delivered' && net > 0) {
-                statEl.innerHTML = `<span class="badge badge-22k">IN STOCK</span>`;
-            } else {
-                statEl.innerHTML = `<span class="badge badge-pending">SOLD / EMPTY</span>`;
-            }
-
-            if(isOrder) {
-                document.getElementById('idmEditBtn').style.display = 'none';
-                document.getElementById('idmOrderWarning').style.display = 'block';
-            } else {
-                document.getElementById('idmEditBtn').style.display = 'block';
-                document.getElementById('idmOrderWarning').style.display = 'none';
-                document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
-            }
-
-            document.getElementById('idmPrintBtn').onclick = () => { viewBarcode(item.barcode, (item.grossWt||item.weight).toFixed(3), item.purity); };
-
-            closeModal('detailsModal'); 
-            openModal('itemDetailsModal');
-        }
-
-        // --- GROUP DETAILS MODAL ---
-        function openGroupDetails(key) {
-            const group = groupedInventory[key];
-            if(!group) return;
-
-            const tbody = document.getElementById('groupDetailsList');
-            tbody.innerHTML = '';
-
-            group.items.forEach(item => {
-                const pcs = item.pieces || 1;
-                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
-                const stone = parseFloat(item.stoneWt || 0).toFixed(3);
-                const net = parseFloat(item.netWt || gross).toFixed(3);
-                const fine = calculateFineWeight(item).toFixed(3);
-
-                let barcodeDisplay = item.barcode;
-                if (item.category === 'MIX') barcodeDisplay = 'UNTAGGED';
-
-                let actions = '';
-                if (item.category === 'MIX') {
-                    actions = `
-                        <button class="btn-sm btn-tag" onclick="openTagModal(${item.id})" title="Tag Stock"><i class="fas fa-tags"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                } else {
-                    actions = `
-                        <button class="btn-sm btn-print" onclick="viewBarcode('${item.barcode}', '${gross}', '${item.purity}')" title="Print Tag"><i class="fas fa-barcode"></i></button>
-                        <button class="btn-sm btn-edit" onclick="editItem(${item.id})" title="Edit"><i class="fas fa-pen"></i></button>
-                        <button class="btn-sm btn-del" onclick="deleteItem(${item.id})" title="Delete"><i class="fas fa-trash"></i></button>
-                    `;
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-family:monospace; font-weight:700; color:var(--info-blue); cursor:pointer;" onclick="openItemDetails(${item.id})">
-                        <u>${barcodeDisplay}</u>
-                    </td>
-                    <td style="text-align:center;">${pcs}</td>
-                    <td>${gross} g</td>
-                    <td>${net} g</td>
-                    <td style="color:#8e24aa;">${stone} g</td>
-                    <td style="color:var(--info-blue); font-weight:700;">${fine} g</td>
-                    <td style="color:#64748b;">${item.huid || '-'}</td>
-                    <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
-                        ${actions}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            openModal('detailsModal');
-        }
-
-        // --- TAGGING LOGIC ---
+        // --- UPDATE: EXTRACT & TAG MODAL ---
         async function openTagModal(id) {
             const item = allInventory.find(i => i.id === id);
             if(!item) return;
@@ -1590,7 +1509,7 @@
             
             document.getElementById('dispTolerance').innerText = `±${tol.toFixed(3)} g`;
             
-            document.getElementById('tagStockMode').value = 'tagged';
+            document.getElementById('tagStockMode').value = 'TAGGED';
             document.getElementById('tagPieces').value = 1;
             
             populateCategoryDropdowns(); 
@@ -1599,15 +1518,16 @@
         }
 
         function generateTagInputs() {
-            const mode = document.getElementById('tagStockMode').value;
+            const mode = document.getElementById('tagStockMode').value; // TAGGED | LOOSE | PIECE
             const count = parseInt(document.getElementById('tagPieces').value) || 1;
             const container = document.getElementById('tagInputsContainer');
             container.innerHTML = '';
             
-            if (mode === 'loose') {
+            // For both LOOSE and PIECE, user is extracting from Mix, so they MUST enter total bulk weight to deduct.
+            if (mode === 'LOOSE' || mode === 'PIECE') {
                 container.innerHTML = `
                     <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
-                        <div style="flex:1;">Total Bulk Gross Wt (g) <span style="color:red;">*</span></div>
+                        <div style="flex:1;">Total Bulk Gross Wt to Deduct (g) <span style="color:red;">*</span></div>
                         <div style="flex:1;">Total Bulk Stone Wt (g)</div>
                     </div>
                     <div style="display:flex; gap:10px; margin-bottom:8px;">
@@ -1671,18 +1591,6 @@
             const remEl = document.getElementById('tagRemainingWt');
             remEl.innerText = remaining.toFixed(3) + " g";
             remEl.style.color = remaining < 0 ? 'var(--active-red)' : 'var(--success-green)';
-
-            const maxStone = parseFloat(document.getElementById('tagSourceMaxStoneWt').value) || 0;
-            const remainingStone = maxStone - sumStone;
-            const remStoneEl = document.getElementById('tagRemainingStoneWt');
-            remStoneEl.innerText = remainingStone.toFixed(3) + " g";
-            remStoneEl.style.color = remainingStone < 0 ? 'var(--active-red)' : 'var(--success-green)';
-            
-            const maxNet = parseFloat(document.getElementById('tagSourceMaxNetWt').value) || 0;
-            const remainingNet = maxNet - sumNet;
-            const remNetEl = document.getElementById('tagRemainingNetWt');
-            remNetEl.innerText = remainingNet.toFixed(3) + " g";
-            remNetEl.style.color = remainingNet < 0 ? 'var(--active-red)' : 'var(--success-green)';
         }
 
         async function confirmTagging() {
@@ -1708,6 +1616,15 @@
                 return;
             }
 
+            const cat = document.getElementById('tagCategory').value;
+            const purity = batchItem.purity; 
+            const mode = document.getElementById('tagStockMode').value;
+            const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
+
+            // CONFLICT CHECK
+            const conflictMsg = checkCategoryConflict(cat, mode);
+            if(conflictMsg) { appAlert(conflictMsg); return; }
+
             let isFullConversion = false;
             let diff = availableGross - totalRequiredGross;
 
@@ -1722,21 +1639,15 @@
                 const proceed = await appConfirm(`Generate stock for ${totalRequiredGross.toFixed(3)}g?\nRemaining Stock will be: ${diff.toFixed(3)}g`);
                 if(!proceed) return;
             }
-
-            const cat = document.getElementById('tagCategory').value;
-            const purity = batchItem.purity; 
-            const mode = document.getElementById('tagStockMode').value;
-            const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
             
             const grossInputs = document.querySelectorAll('.tag-gross');
             const stoneInputs = document.querySelectorAll('.tag-stone');
-
             const catPrefix = cat.substring(0,3).toUpperCase();
             
             let totalExtractedNet = 0;
             let sumStone = 0;
 
-            if (mode === 'loose') {
+            if (mode === 'LOOSE' || mode === 'PIECE') {
                 const g = parseFloat(grossInputs[0].value) || 0;
                 const s = parseFloat(stoneInputs[0].value) || 0;
                 const n = Math.max(0, g - s);
@@ -1748,19 +1659,19 @@
                 const isSilv = checkIsSilver(purity);
                 let barcode = '';
                 if(isSilv) {
-                    const uniqueSuffix = Date.now().toString().slice(-6);
-                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
+                    barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}`;
                 } else {
-                    barcode = generateSafeBarcode(cat);
+                    barcode = generateSafeBarcode(cat, mode);
                 }
 
                 const newItem = {
-                    barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`,
+                    barcode: barcode, category: cat, name: `Batch ${cat} (${purity})`, stockMode: mode,
                     purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
                     status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
                 };
                 await addItem('inventory', newItem);
             } else {
+                // TAGGED
                 for (let i = 0; i < grossInputs.length; i++) {
                     const g = parseFloat(grossInputs[i].value) || 0;
                     const s = parseFloat(stoneInputs[i].value) || 0;
@@ -1772,9 +1683,16 @@
                     totalExtractedNet += n;
                     const fineWt = n * getPurityFactor(purity);
 
-                    const barcode = generateSafeBarcode(cat);
+                    const isSilv = checkIsSilver(purity);
+                    let barcode = '';
+                    if(isSilv) {
+                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}${i}`;
+                    } else {
+                        barcode = generateSafeBarcode(cat, 'TAGGED');
+                    }
+
                     const newItem = {
-                        barcode: barcode, category: cat, name: `${cat} ${purity}`,
+                        barcode: barcode, category: cat, name: `${cat} ${purity}`, stockMode: 'TAGGED',
                         purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: 1,
                         status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
                     };
@@ -1973,7 +1891,16 @@
                 if(item.status === 'sold') { appAlert("Cannot update a sold item."); return; }
 
                 item.name = document.getElementById('editName').value;
-                item.category = document.getElementById('editCategory').value;
+                
+                // Allow changing category, but ensure no conflict
+                const newCat = document.getElementById('editCategory').value;
+                if(newCat !== item.category) {
+                    const mode = item.stockMode || 'TAGGED';
+                    const conflictMsg = checkCategoryConflict(newCat, mode);
+                    if(conflictMsg) { appAlert(conflictMsg); return; }
+                }
+
+                item.category = newCat;
                 item.purity = document.getElementById('editPurity').value;
                 item.pieces = parseInt(document.getElementById('editPieces').value) || 1;
                 
@@ -2072,7 +1999,7 @@
             closeModal('itemDetailsModal');
             closeModal('detailsModal');
             document.getElementById('printCodeText').innerText = code;
-            document.getElementById('printWt').innerText = wt + "g";
+            document.getElementById('printWt').innerText = wt !== 'N/A' ? wt + "g" : "PIECE";
             document.getElementById('printPurity').innerText = purity;
             
             JsBarcode("#barcodeSvg", code, {
@@ -2090,5 +2017,3 @@
     </script>
 </body>
 </html>
-
-
