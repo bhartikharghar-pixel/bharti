@@ -904,10 +904,25 @@
         }
 
         async function deleteCategory(idx) {
-            const proceed = await appConfirm(`Remove Category?`);
+            const catToDelete = activeCatManagerMode === 'Gold' ? goldCategories[idx] : silverCategories[idx];
+            
+            // Check if this category is currently tied to any existing item in the inventory (in stock or sold)
+            const isUsed = allInventory.some(item => item.category && item.category.toLowerCase() === catToDelete.toLowerCase());
+            
+            if (isUsed) {
+                appAlert("Item used in transaction or inventory. Cannot delete this category.");
+                return;
+            }
+
+            const proceed = await appConfirm(`Remove Category '${catToDelete}'?`);
             if(proceed) {
-                if (activeCatManagerMode === 'Gold') { goldCategories.splice(idx, 1); await updateItem('settings', { key: 'gold_categories', value: goldCategories }); } 
-                else { silverCategories.splice(idx, 1); await updateItem('settings', { key: 'silver_categories', value: silverCategories }); }
+                if (activeCatManagerMode === 'Gold') { 
+                    goldCategories.splice(idx, 1); 
+                    await updateItem('settings', { key: 'gold_categories', value: goldCategories }); 
+                } else { 
+                    silverCategories.splice(idx, 1); 
+                    await updateItem('settings', { key: 'silver_categories', value: silverCategories }); 
+                }
                 renderCatList(); buildFilterBar();
             }
         }
