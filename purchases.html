@@ -363,8 +363,9 @@
                         <div class="form-group">
                             <label>Stock Generation Mode</label>
                             <select id="stockMode" onchange="generatePieceInputs()">
-                                <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
-                                <option value="bulk">Bulk Stock (Single Barcode for all Pieces)</option>
+                                <option value="TAGGED">Individual Tags (Unique Barcode per Piece)</option>
+                                <option value="LOOSE">Loose Stock (Bulk/Fixed Weight Sale)</option>
+                                <option value="PIECE">Pieces Only (Weight given at Sale)</option>
                             </select>
                         </div>
                     </div>
@@ -529,7 +530,7 @@
             document.getElementById('billPayMode').value = 'Cash';
             
             toggleTypeUI();
-            autoSetStockMode(); // This will trigger generatePieceInputs correctly
+            autoSetStockMode(); 
             calcTotals();
         }
         function closeModal(modalId = 'entryModal') { 
@@ -538,6 +539,7 @@
         }
         
         let allPurchasesData = [];
+        let allInventoryItems = [];
         let currentMetalFilter = 'GOLD';
 
         let currentGoldRates = { 
@@ -599,6 +601,8 @@
             if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
             if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
 
+            allInventoryItems = await getAllItems('inventory').catch(()=>[]);
+
             // Initialize UI
             document.getElementById('itemMetal').value = 'Gold';
             populateCategoryDropdown();
@@ -610,14 +614,29 @@
             await loadHistory();
         };
 
+        // NEW: Check for Category Conflicts
+        function checkCategoryConflict(cat, intendedMode) {
+            if(cat === 'MIX' || cat === 'Other' || cat === 'ALL') return null;
+            
+            const existing = allInventoryItems.find(i => i.category === cat && i.status === 'stock');
+            if(existing) {
+                // If existing item has no stock mode, we consider it TAGGED (Legacy compatibility)
+                let existingMode = existing.stockMode || 'TAGGED';
+                if(existingMode !== intendedMode) {
+                    return `Conflict! The category '${cat}' is already assigned as '${existingMode}' in your active inventory.\n\nYou cannot mix modes. Please create a new category (e.g., 'Loose ${cat}') for ${intendedMode} items.`;
+                }
+            }
+            return null;
+        }
+
         function autoSetStockMode() {
             const metal = document.getElementById('itemMetal').value;
             const stockMode = document.getElementById('stockMode');
             if(stockMode) {
                 if(metal === 'Silver') {
-                    stockMode.value = 'bulk';
+                    stockMode.value = 'LOOSE';
                 } else {
-                    stockMode.value = 'individual';
+                    stockMode.value = 'TAGGED';
                 }
                 generatePieceInputs();
             }
@@ -679,7 +698,7 @@
             const grossMain = document.getElementById('totalGrossWt');
             const stoneMain = document.getElementById('totalStoneWt');
 
-            if (mode === 'bulk' || pieces <= 1) {
+            if (mode === 'LOOSE' || mode === 'PIECE' || pieces <= 1) {
                 container.style.display = 'none';
                 container.innerHTML = '';
                 grossMain.readOnly = false;
@@ -846,11 +865,13 @@
             }
         }
 
-        // Helper to cleanly generate barcodes
-        async function getNewBarcode(catPrefix) {
-            // Note: Since generateBarcode in db.js scans inventory and returns a number string,
-            // we can use it to get a clean sequential barcode.
-            return await generateBarcode(catPrefix);
+        // Generate barcode according to the Stock Mode
+        async function getNewBarcode(catPrefix, mode = 'TAGGED') {
+            let prefix = catPrefix;
+            if(mode === 'LOOSE') prefix = 'L-' + catPrefix;
+            if(mode === 'PIECE') prefix = 'P-' + catPrefix;
+            
+            return await generateBarcode(prefix);
         }
 
         async function savePurchase() {
@@ -886,6 +907,16 @@
             const payMode = document.getElementById('billPayMode').value || 'Cash';
             const editId = document.getElementById('editPurchaseId').value;
 
+            // Get Stock Generation Mode
+            const stockMode = document.getElementById('stockMode').value; // TAGGED, LOOSE, PIECE
+            const finalMode = (cat === 'MIX') ? 'LOOSE' : stockMode;
+
+            // CONFLICT CHECK
+            if(cat !== 'MIX') {
+                const conflictMsg = checkCategoryConflict(cat, finalMode);
+                if(conflictMsg) { alert(conflictMsg); return; }
+            }
+
             // 1. Clean up old records for Edit Mode
             if(editId) {
                 const safeToEdit = await checkInventoryStatus(document.getElementById('oldInvId').value);
@@ -905,23 +936,19 @@
             else if (cat && cat.length >= 3) catPrefix = cat.substring(0, 3).toUpperCase();
             else if (cat) catPrefix = cat.toUpperCase();
 
-            // Get Stock Generation Mode
-            const stockMode = document.getElementById('stockMode').value;
-            const finalMode = (cat === 'MIX') ? 'bulk' : stockMode;
-            
             let itemDetailsArray = [];
             
-            // BULK GENERATION
-            if (finalMode === 'bulk' || pieces <= 1) {
+            // BULK GENERATION (LOOSE or PIECE Mode)
+            if (finalMode === 'LOOSE' || finalMode === 'PIECE') {
                 let barcode = '';
                 if (cat === 'MIX') {
                     const uniqueSuffix = Date.now().toString().slice(-4) + Math.floor(Math.random() * 100);
                     barcode = `MIX-${uniqueSuffix}`;
-                } else if (pieces > 1) {
-                    const baseBarcode = await getNewBarcode(catPrefix);
-                    barcode = `${baseBarcode}-BULK`;
+                } else if (checkIsSilver(purity)) {
+                    const uniqueSuffix = Date.now().toString().slice(-6);
+                    barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
                 } else {
-                    barcode = await getNewBarcode(catPrefix);
+                    barcode = await getNewBarcode(catPrefix, finalMode);
                 }
 
                 const itemData = {
@@ -930,6 +957,7 @@
                     purchaseDate: date,
                     category: cat === 'MIX' ? 'MIX' : cat,
                     name: pieces > 1 ? `Bulk ${cat} (${purity})` : `${cat} (${purity})`,
+                    stockMode: finalMode,
                     purity: purity,
                     mark: mark,
                     pieces: pieces, 
@@ -950,7 +978,7 @@
                 itemData.id = invId; 
                 itemDetailsArray.push(itemData);
             } 
-            // INDIVIDUAL PIECE GENERATION
+            // INDIVIDUAL PIECE GENERATION (TAGGED Mode)
             else {
                 const makingPP = totalMaking / pieces;
                 const otherPP = totalOther / pieces;
@@ -968,7 +996,13 @@
                     
                     if (grossPP <= 0) continue;
 
-                    const barcode = await getNewBarcode(catPrefix); 
+                    let barcode = '';
+                    if (checkIsSilver(purity)) {
+                        barcode = `SIL-${catPrefix}-${Date.now().toString().slice(-6)}${i}`;
+                    } else {
+                        barcode = await getNewBarcode(catPrefix, 'TAGGED');
+                    }
+
                     const npp = Math.max(0, grossPP - stonePP);
                     
                     const singleWastage = wastMode === 'pct' ? (npp * wastValInput / 100) : wastValPP;
@@ -980,6 +1014,7 @@
                         purchaseDate: date,
                         category: cat === 'MIX' ? 'MIX' : cat,
                         name: `${cat} (${purity})`,
+                        stockMode: 'TAGGED',
                         purity: purity,
                         mark: mark,
                         pieces: 1, 
@@ -1048,7 +1083,7 @@
                 }
             };
 
-            // 4. Cashbook Integration - Flawless Routing
+            // 4. Cashbook Integration
             if(paid > 0) {
                  const mName = document.getElementById('merchantSelect').options[document.getElementById('merchantSelect').selectedIndex].text;
                  await addItem('cashflow', {
@@ -1061,6 +1096,8 @@
             showToast(editId ? "Purchase Updated Successfully!" : "Purchase Saved & Stock Updated!", "success");
             closeModal('entryModal');
             loadHistory();
+            // Refresh inventory items cache
+            allInventoryItems = await getAllItems('inventory').catch(()=>[]);
         }
 
         // --- DASHBOARD & HISTORY RENDERING ---
@@ -1204,7 +1241,7 @@
                 const barcodeText = invItem.barcode || `Ref: ${p.id}`;
                 
                 let printAction = '';
-                if (isSilv || p.category === 'MIX' || (barcodeText && barcodeText.includes('BULK'))) {
+                if (isSilv || p.category === 'MIX' || (barcodeText && (barcodeText.includes('BULK') || barcodeText.includes('L-') || barcodeText.includes('P-')))) {
                     printAction = `<button class="btn-action print" disabled style="opacity:0.3; cursor:not-allowed;" title="Bulk Block (No Barcodes)"><i class="fas fa-barcode"></i></button>`;
                 } else {
                     printAction = `<button class="btn-action print" onclick="viewBarcode('${barcodeText}', '${(p.totalWeight / (p.totalPieces||1)).toFixed(3)}', '${purityText}')" title="Print Tag"><i class="fas fa-barcode"></i></button>`;
@@ -1288,13 +1325,18 @@
                 document.getElementById('itemPieces').value = p.totalPieces || 1;
                 
                 // Detect Stock Mode
-                if (item.barcode && item.barcode.includes('BULK') || item.category === 'MIX') {
-                    document.getElementById('stockMode').value = 'bulk';
+                let modeToSet = item.stockMode;
+                if (!modeToSet) {
+                    if (item.barcode && item.barcode.includes('BULK') || item.category === 'MIX') modeToSet = 'LOOSE';
+                    else modeToSet = 'TAGGED';
+                }
+                document.getElementById('stockMode').value = modeToSet;
+
+                if (modeToSet === 'LOOSE' || modeToSet === 'PIECE') {
                     document.getElementById('totalGrossWt').value = p.totalWeight !== undefined ? p.totalWeight : 0;
                     document.getElementById('totalStoneWt').value = p.totalStoneWeight !== undefined ? p.totalStoneWeight : 0;
                     generatePieceInputs();
                 } else {
-                    document.getElementById('stockMode').value = 'individual';
                     generatePieceInputs(); 
                     
                     // Now pre-fill the individual weights from p.itemDetails array
