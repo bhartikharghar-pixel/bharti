@@ -248,9 +248,10 @@
                 padding: 0.5mm;
             }
 
-            .tag-text-shop { font-size: 5.5pt; font-weight: 900; line-height: 1; margin-bottom: 2px; text-transform: uppercase; color: #000; }
-            .tag-text-code { font-size: 6pt; font-weight: bold; line-height: 1; margin-bottom: 2px; color: #000; font-family: monospace; }
-            .tag-text-details { font-size: 5.5pt; font-weight: bold; line-height: 1; color: #000; }
+            /* Styles for hardcoded text layout from image_0.png */
+            .tag-text-shop { font-size: 6pt; font-weight: 900; line-height: 1.1; margin-bottom: 1.5pt; text-transform: uppercase; color: #000; }
+            .tag-text-weight { font-size: 6pt; font-weight: bold; line-height: 1.1; margin-bottom: 1.5pt; color: #000; font-family: monospace; }
+            .tag-text-making-charge { font-size: 6pt; font-weight: bold; line-height: 1.1; color: #000; }
 
             .print-half-right svg {
                 max-width: 100%;
@@ -374,9 +375,6 @@
         <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- MODALS -->
-
-    <!-- Bulk / Selection Print Modal -->
     <div id="selectPrintModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <button class="close-btn" onclick="closeModal('selectPrintModal')">&times;</button>
@@ -391,8 +389,7 @@
             </div>
 
             <div id="printCheckList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
-                <!-- List renders here -->
-            </div>
+                </div>
             
             <button class="btn-block btn-primary" onclick="printSelectedBarcodes()" style="margin-top: 20px;"><i class="fas fa-print"></i> Generate & Print Labels</button>
         </div>
@@ -417,7 +414,6 @@
         </div>
     </div>
 
-    <!-- Other Modals -->
     <div id="catModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
@@ -683,7 +679,6 @@
         </div>
     </div>
 
-    <!-- Edit and Cancel Modals -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
@@ -771,12 +766,11 @@
         </div>
     </div>
 
-    <!-- Hidden Print Container for Labels -->
     <div id="printContainer"></div>
 
     <div id="toast">Message Saved!</div>
 
-    <script src="db.js?v=37"></script>
+    <script src="db.js?v=36"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -799,7 +793,7 @@
         }
 
         // =======================
-        // EXACT 5.5cm x 1cm PRINTING LOGIC
+        // NEW UNIFIED PRINTING LOGIC
         // =======================
 
         function autoPrint(items) {
@@ -811,15 +805,14 @@
 
             printItems.forEach((item, index) => {
                 const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
-                // Creating a side-by-side folding layout:
-                // Left 27.5mm: Text details
-                // Right 27.5mm: Barcode
+                const net = parseFloat(item.netWt || gross).toFixed(3);
                 container.innerHTML += `
                     <div class="print-label">
                         <div class="print-half-left">
-                            <div class="tag-text-shop">BHARTI</div>
-                            <div class="tag-text-code">${item.barcode}</div>
-                            <div class="tag-text-details">${gross}g | ${item.purity}</div>
+                            <div class="tag-text-shop">BHARTI JEW.</div>
+                            <div class="tag-text-weight">1.500 gms</div>
+                            <div class="tag-text-weight">1.500 gms</div>
+                            <div class="tag-text-making-charge">M.ch: 10%</div>
                         </div>
                         <div class="print-half-right">
                             <svg id="barcode-svg-${index}"></svg>
@@ -834,7 +827,7 @@
                     JsBarcode(`#barcode-svg-${index}`, item.barcode, {
                         format: "CODE128", 
                         displayValue: false, 
-                        height: 25,     // Reduced height for 1cm
+                        height: 25,     // Reduced height to keep barcode manageable
                         width: 1.5,     // Reduced width to fit
                         margin: 0,
                         background: "#ffffff",
@@ -2014,483 +2007,1637 @@
                 `;
             } else {
                 container.innerHTML = `
-                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8rem; color:#64748b;">
-                        <div style="flex:1;">Gross Wt (g) <span style="color:red;">*</span></div>
-                        <div style="flex:1;">Stone Wt (g)</div>
+                    <div style="display:flex; gap:10px; margin-bottom:5px; font-weight:700; font-size:0.8<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inventory - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+        :root {
+            --header-bg: #000000; 
+            --sidebar-bg: #111111; 
+            --accent-gold: #C5A059;
+            --accent-silver: #90a4ae;
+            --active-red: #D32F2F; 
+            --bg-light: #f4f6f9; 
+            --white: #ffffff;
+            --border-color: #2a2a2a; 
+            --whatsapp: #25D366; 
+            --info-blue: #1976d2;
+            --success-green: #2e7d32;
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; font-size: 0.9rem; color: #333;}
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- SIDEBAR & HEADER --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); transition: 0.2s; font-size: 1rem;}
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- INVENTORY DASHBOARD --- */
+        .app-container { padding: 25px; max-width: 1400px; margin: 0 auto; }
+        
+        .header-actions { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;}
+        .header-top-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;}
+        
+        .metal-toggle-container { display: flex; background: #e0e0e0; padding: 5px; border-radius: 12px; width: fit-content; gap: 5px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); flex-wrap: wrap;}
+        .metal-tab { padding: 10px 15px; font-weight: 600; font-size: 0.85rem; color: #555; cursor: pointer; border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 6px;}
+        .metal-tab i { font-size: 1rem; }
+        
+        /* Tab Colors */
+        .metal-tab.active-gold { background: white; color: var(--accent-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-gold);}
+        .metal-tab.active-gold-fine { background: white; color: #fbc02d; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #fbc02d;}
+        .metal-tab.active-gold-order { background: white; color: var(--info-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #info-blue;}
+        .metal-tab.active-silver { background: white; color: #455a64; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-silver);}
+        .metal-tab.active-all { background: white; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #333;}
+
+        .btn-export { background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; height: fit-content;}
+        .btn-export:hover { filter: brightness(0.9); box-shadow: 0 4px 10px rgba(0,0,0,0.2); transform: translateY(-2px);}
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--card-shadow); border-left: 5px solid var(--accent-gold); transition: 0.3s; display:flex; flex-direction:column; justify-content:center;}
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .stat-val { font-size: 1.8rem; font-weight: 700; color: #333; margin-top: 5px;}
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase;}
+
+        .filter-bar-new { display: flex; gap: 15px; align-items: flex-end; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; border: 1px solid #eee; flex-wrap: wrap;}
+        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;}
+        .filter-group label { font-size: 0.8rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .filter-group select { padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; background: #fafafa;}
+        .filter-group select:focus { border-color: var(--accent-gold); background: white; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);}
+        
+        .btn-manage-cats { background: #333; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; height: 45px;}
+        .btn-manage-cats:hover { background: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
+
+        .search-box-container { position: relative; margin-bottom: 20px; }
+        .search-box { width: 100%; padding: 16px 20px 16px 45px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.03); outline: none; transition: 0.2s;}
+        .search-box:focus { border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);}
+        .search-icon { position: absolute; left: 16px; top: 18px; color: #999; font-size: 1.1rem; }
+
+        .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: var(--card-shadow); max-height: 65vh;}
+        .inv-table { width: 100%; border-collapse: collapse; min-width: 950px; }
+        .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 16px; font-weight: 700; font-size: 0.8rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
+        .inv-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.9rem; vertical-align: middle; }
+        .inv-table tr:hover { background: #f8fafc; }
+        .inv-table tr.row-mix { background: #fffbf1; border-left: 4px solid #fbc02d; } 
+        
+        .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .badge-mix { background: #fbc02d; color: #000; }
+        .badge-pending { background: #fee2e2; color: #b91c1c; letter-spacing: 0.5px; }
+        .badge-order { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-22k { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;}
+        .badge-18k { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
+        .badge-24k { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;}
+        .badge-silver { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;}
+
+        .btn-sm { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-right: 6px; font-weight: 600; transition: 0.2s;}
+        .btn-tag { background: #10b981; color: white; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
+        .btn-tag:hover { background: #059669; }
+        .btn-view { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+        .btn-view:hover { background: #e2e8f0; }
+        .btn-print { background: #333; color: white; }
+        .btn-edit { background: var(--info-blue); color: white; }
+        .btn-del { background: var(--active-red); color: white; }
+
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 64px; height: 64px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:hover { transform: scale(1.05) rotate(5deg); }
+        .fab:active { transform: scale(0.95); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; padding: 30px; width: 95%; max-width: 600px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out;}
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 20px; right: 25px; font-size: 1.8rem; background: none; border: none; cursor: pointer; color: #94a3b8; transition: 0.2s;}
+        .close-btn:hover { color: var(--active-red); }
+        
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
+        input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; font-family: inherit; transition: 0.2s;}
+        input:focus, select:focus, textarea:focus { border-color: var(--active-red); outline: none; background: white; box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);}
+        input[readonly], select:disabled { background: #e2e8f0; color: #334155; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; opacity: 1;}
+        
+        .btn-block { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-top: 15px; transition: 0.2s;}
+        .btn-primary { background: var(--active-red); color: white; }
+        .btn-primary:hover { background: #b71c1c; box-shadow: 0 4px 10px rgba(211, 47, 47, 0.2);}
+        .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+        .btn-danger { background: #d32f2f; color: white; padding: 14px; width: 100%; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;}
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        .item-detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
+        .item-detail-lbl { color: #64748b; font-weight: 600; }
+        .item-detail-val { font-weight: 700; color: #1e293b; }
+
+        .cat-tabs { display: flex; margin-bottom: 15px; background: #f1f5f9; border-radius: 10px; padding: 4px;}
+        .cat-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-weight: 600; font-size: 0.9rem; border-radius: 8px; color: #64748b; transition: 0.2s;}
+        .cat-tab.active { background: white; color: var(--header-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+        
+        .cat-list { list-style: none; padding: 0; margin: 0 0 15px 0; border: 1px solid #e2e8f0; border-radius: 10px; max-height: 250px; overflow-y: auto;}
+        .cat-item { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; background: #fff; font-weight: 500;}
+        .cat-item:last-child { border-bottom: none; }
+        .cat-del { color: var(--active-red); cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .cat-del:hover { transform: scale(1.2); }
+        .mode-badge { font-size:0.7rem; padding:3px 6px; border-radius:4px; margin-left:8px; font-weight:700; text-transform:uppercase;}
+
+        /* Select Print List Styles */
+        .print-item-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s; }
+        .print-item-row:hover { background: #f8fafc; }
+        .print-item-row input[type="checkbox"] { width: 20px; height: 20px; margin-right: 15px; accent-color: var(--info-blue); }
+
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #1e293b; color: #fff;
+            text-align: center; border-radius: 10px; padding: 16px 20px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { border-left: 5px solid var(--success-green); }
+        #toast.error { border-left: 5px solid var(--active-red); }
+
+        @media (max-width: 768px) {
+            .app-container { padding: 15px; }
+            .header-top-row { flex-direction: column; align-items: stretch; gap: 10px;}
+            .metal-toggle-container { width: 100%; border-radius: 12px; background: transparent; box-shadow: none; gap: 8px; padding: 0; }
+            .metal-tab { width: calc(50% - 4px); justify-content: center; background: #e0e0e0; border-radius: 8px; border-bottom: none; border-left: 5px solid transparent; }
+            .metal-tab.active-gold, .metal-tab.active-gold-fine, .metal-tab.active-gold-order, .metal-tab.active-silver, .metal-tab.active-all { border-bottom: none; border-left-width: 5px; }
+            
+            .metal-tab.active-gold { border-left-color: var(--accent-gold); }
+            .metal-tab.active-gold-fine { border-left-color: #fbc02d; }
+            .metal-tab.active-gold-order { border-left-color: var(--info-blue); }
+            .metal-tab.active-silver { border-left-color: var(--accent-silver); }
+            .metal-tab.active-all { border-left-color: #333; }
+            
+            .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+            
+            .filter-bar-new { flex-direction: column; align-items: stretch; padding: 15px;}
+            .filter-group { min-width: 100%; }
+            .btn-manage-cats { width: 100%; justify-content: center; margin-top: 5px;}
+
+            .grid-2, .grid-3 { grid-template-columns: 1fr !important; gap: 15px; }
+            .modal-content { padding: 20px; width: 95%; max-height: 90vh; }
+            .btn-sm { padding: 8px; }
+            .btn-sm i { margin: 0; }
+        }
+
+        /* ------------------------------------------------------------------
+           EXACT 5.5cm x 1cm (55mm x 10mm) BARCODE PRINT CSS FOR JEWELRY TAGS
+        ------------------------------------------------------------------- */
+        #printContainer { display: none; }
+        @media print {
+            /* Force the exact paper size for thermal printers */
+            @page {
+                size: 55mm 10mm;
+                margin: 0; 
+            }
+            body * { visibility: hidden; }
+            html, body {
+                margin: 0; padding: 0; width: 55mm; height: 10mm; overflow: hidden;
+            }
+            #printContainer, #printContainer * { visibility: visible; }
+            
+            #printContainer { 
+                display: block; position: absolute; left: 0; top: 0; 
+                width: 55mm; height: auto;
+                background: white; padding: 0; margin: 0; 
+            }
+            
+            /* A single tag that exactly matches 55mm x 10mm */
+            .print-label { 
+                width: 55mm; 
+                height: 10mm; 
+                page-break-after: always; 
+                box-sizing: border-box; 
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin: 0;
+                padding: 0;
+            }
+
+            /* Left Side (27.5mm) - Text Details */
+            .print-half-left {
+                width: 27.5mm;
+                height: 10mm;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                box-sizing: border-box;
+                padding: 1mm; /* slight padding so text doesn't touch edges */
+            }
+            
+            /* Right Side (27.5mm) - Barcode SVG */
+            .print-half-right {
+                width: 27.5mm;
+                height: 10mm;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                box-sizing: border-box;
+                padding: 0.5mm;
+            }
+
+            /* Styles for hardcoded text layout from image_0.png */
+            .tag-text-shop { font-size: 6pt; font-weight: 900; line-height: 1.1; margin-bottom: 1.5pt; text-transform: uppercase; color: #000; }
+            .tag-text-weight { font-size: 6pt; font-weight: bold; line-height: 1.1; margin-bottom: 1.5pt; color: #000; font-family: monospace; }
+            .tag-text-making-charge { font-size: 6pt; font-weight: bold; line-height: 1.1; color: #000; }
+
+            .print-half-right svg {
+                max-width: 100%;
+                max-height: 8mm; /* Keep inside the 10mm constraint */
+            }
+
+            .modal, .fab, .app-header, .sidebar-drawer, .app-container { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+    
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html" class="active"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="header-actions">
+            <div class="header-top-row">
+                <div class="metal-toggle-container">
+                    <div class="metal-tab active-gold" id="metal-tab-gold-tagged" onclick="setMetalFilter('GOLD_TAGGED')"><i class="fas fa-tags"></i> Gold (Tagged)</div>
+                    <div class="metal-tab" id="metal-tab-gold-fine" onclick="setMetalFilter('GOLD_FINE')"><i class="fas fa-cubes"></i> Gold (Fine/Melt)</div>
+                    <div class="metal-tab" id="metal-tab-gold-order" onclick="setMetalFilter('GOLD_ORDER')"><i class="fas fa-hammer"></i> Gold (Orders)</div>
+                    <div class="metal-tab" id="metal-tab-silver" onclick="setMetalFilter('SILVER')"><i class="fas fa-ring"></i> Silver Stock</div>
+                    <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
+                    <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card" id="card-weight" style="border-left-color: var(--accent-gold);">
+                <div class="stat-lbl" id="lbl-weight">Total Gold Weight (Net)</div>
+                <div class="stat-val" id="total-weight">0.000 g</div>
+            </div>
+            <div class="stat-card" id="card-value" style="border-left-color: var(--success-green);">
+                <div class="stat-lbl" id="lbl-value">Total Est. Gold Value</div>
+                <div class="stat-val" id="total-value" style="color:var(--success-green);">₹0</div>
+            </div>
+            <div class="stat-card" id="card-count" style="border-left-color: var(--info-blue);">
+                <div class="stat-lbl" id="lbl-count">Total Active Items / Batches</div>
+                <div class="stat-val" id="total-count" style="color:var(--info-blue);">0</div>
+            </div>
+        </div>
+
+        <div class="filter-bar-new">
+            <div class="filter-group">
+                <label><i class="fas fa-layer-group"></i> Sub-View Filter:</label>
+                <select id="filterType" onchange="applyFilters()">
+                    <option value="ALL">All Active Stock in this Tab</option>
+                    <option value="MIX">Untagged (Mix) Stock Only</option>
+                    <option value="SOLD">Sold Invoices (History)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label><i class="fas fa-tags"></i> Item Category:</label>
+                <select id="filterCategory" onchange="applyFilters()">
+                    <option value="ALL">All Categories</option>
+                </select>
+            </div>
+            <button class="btn-manage-cats" onclick="openCatModal()"><i class="fas fa-cog"></i> Manage Categories</button>
+        </div>
+
+        <div class="search-box-container">
+            <i class="fas fa-barcode search-icon"></i>
+            <input type="text" id="searchInput" class="search-box" placeholder="Scan Barcode or Search HUID / Name..." onkeyup="applyFilters()">
+        </div>
+
+        <div class="table-container">
+            <table class="inv-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Barcodes / Ref</th>
+                        <th>Purity</th>
+                        <th>Stock Qty</th>
+                        <th>Gross Wt</th>
+                        <th>Net Wt</th>
+                        <th style="color:#8e24aa;">Stone Wt</th>
+                        <th>Fine Wt</th>
+                        <th style="text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    <tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="selectPrintModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeModal('selectPrintModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-print"></i> Select Tags to Print</h3>
+            <p style="font-size:0.85rem; color:#64748b;">Search and select the inventory items you want to print barcodes for.</p>
+            
+            <input type="text" id="printSearchInput" class="search-box" placeholder="Search Barcode, Category or Purity..." onkeyup="filterPrintList()" style="margin-bottom:15px; width: 100%; box-sizing: border-box;">
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 0.9rem;">
+                <label style="cursor:pointer; color:var(--info-blue);"><input type="checkbox" id="selectAllPrint" onclick="toggleSelectAllPrint()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
+                <span id="selectedPrintCount" style="font-weight:bold;">0 Selected</span>
+            </div>
+
+            <div id="printCheckList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+                </div>
+            
+            <button class="btn-block btn-primary" onclick="printSelectedBarcodes()" style="margin-top: 20px;"><i class="fas fa-print"></i> Generate & Print Labels</button>
+        </div>
+    </div>
+
+    <div id="customConfirmModal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-question-circle" style="color:var(--info-blue); font-size: 2rem; display:block; margin-bottom: 10px;"></i> Confirm</h3>
+            <p id="customConfirmMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+            <div style="display:flex; gap:10px; margin-top:25px;">
+                <button class="btn-secondary" style="flex:1; padding: 12px; border-radius: 8px; font-weight: bold; border: 1px solid #ccc; background: #fff;" onclick="resolveCustomConfirm(false)">Cancel</button>
+                <button class="btn-primary" style="flex:1; margin-top:0;" onclick="resolveCustomConfirm(true)">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="customAlertModal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color:var(--active-red); font-size: 1.4rem;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; display:block; margin-bottom: 10px;"></i> Notice</h3>
+            <p id="customAlertMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+            <button class="btn-primary" style="margin-top:25px;" onclick="closeModal('customAlertModal')">OK</button>
+        </div>
+    </div>
+
+    <div id="catModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-tags"></i> Manage Categories</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-top:-5px; margin-bottom:15px;">Lock categories to either Unique (Individual Tags) or Loose (Bulk Stock).</p>
+            
+            <div class="cat-tabs">
+                <div class="cat-tab active" id="catTabGold" onclick="switchCatMode('Gold')">Gold Categories</div>
+                <div class="cat-tab" id="catTabSilver" onclick="switchCatMode('Silver')">Silver Categories</div>
+            </div>
+
+            <ul class="cat-list" id="catListDisplay"></ul>
+            
+            <div style="display:flex; gap:10px; align-items:center; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0; flex-wrap: wrap;">
+                <input type="text" id="newCatName" placeholder="Category Name" style="margin:0; flex:1; min-width:150px;">
+                <select id="newCatMode" style="margin:0; width:auto; padding:12px; font-weight:600; color:#333;">
+                    <option value="individual">Unique Item</option>
+                    <option value="bulk">Bulk / Loose Item</option>
+                </select>
+                <button class="btn-primary" style="margin:0; width:auto; padding:12px 20px;" onclick="addCategory()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="itemDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <button class="close-btn" onclick="closeModal('itemDetailsModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-search"></i> Item Details
+            </h3>
+            
+            <div class="barcode-box" style="text-align:center; margin-bottom: 20px;">
+                <div style="font-weight:bold; font-size:0.9rem; color:#64748b;">BHARTI JEWELLERS</div>
+                <div class="barcode-text" id="idmBarcode" style="font-weight:bold; font-size:1.5rem; letter-spacing:2px; margin-top:5px;">BARCODE</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; margin-bottom:20px;">
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Category:</span>
+                    <span class="item-detail-val" id="idmCategory">...</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Purity:</span>
+                    <span class="item-detail-val" id="idmPurity">...</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Quantity / Pieces:</span>
+                    <span class="item-detail-val" id="idmPieces">1</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Gross Weight:</span>
+                    <span class="item-detail-val" id="idmGross">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Stone Weight:</span>
+                    <span class="item-detail-val" id="idmStone">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Net Weight:</span>
+                    <span class="item-detail-val" id="idmNet" style="color:var(--active-red);">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Fine Weight:</span>
+                    <span class="item-detail-val" id="idmFine" style="color:var(--info-blue);">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">HUID / Mark:</span>
+                    <span class="item-detail-val" id="idmHuid">N/A</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Current Status:</span>
+                    <span class="item-detail-val" id="idmStatus">...</span>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <button class="btn-block btn-primary" style="margin-top:0;" id="idmEditBtn"><i class="fas fa-pen"></i> Edit Item</button>
+                <button class="btn-block btn-secondary" style="margin-top:0;" id="idmPrintBtn"><i class="fas fa-print"></i> Print Tag</button>
+            </div>
+            <p id="idmOrderWarning" style="display:none; color:var(--active-red); font-size:0.8rem; text-align:center; font-weight:bold; margin-top:15px;">
+                <i class="fas fa-exclamation-triangle"></i> This is a Custom Order item. Edit restricted.
+            </p>
+        </div>
+    </div>
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
+                <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-layer-group"></i> Group Details</h3>
+                <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
+            </div>
+            
+            <div class="table-container" style="max-height:60vh; box-shadow:none; border:1px solid #e2e8f0;">
+                <table class="inv-table">
+                    <thead>
+                        <tr>
+                            <th>Barcode</th>
+                            <th>Qty</th>
+                            <th>Gross Wt</th>
+                            <th>Net Wt</th>
+                            <th style="color:#8e24aa;">Stone Wt</th>
+                            <th>Fine Wt</th>
+                            <th>HUID</th>
+                            <th style="text-align:center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groupDetailsList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tagModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-tags"></i> Extract & Tag Stock</h3>
+            
+            <input type="hidden" id="tagSourceId"> 
+            <input type="hidden" id="tagSourceMaxWt">
+            <input type="hidden" id="tagSourceMaxStoneWt">
+            <input type="hidden" id="tagSourceMaxNetWt">
+            
+            <div style="background:#fffbf1; padding:20px; margin-bottom:20px; border-left:5px solid var(--accent-gold); border-radius:10px;">
+                <div style="margin-bottom:5px; color:#64748b; font-size:0.85rem; text-transform:uppercase; font-weight:700;">Source Batch</div>
+                <strong id="tagSourceName" style="font-size:1.2rem; color:var(--header-bg);"></strong> 
+                <span id="tagSourceWt" style="float:right; font-weight:bold; color:var(--active-red); font-size:1.1rem;"></span>
+            </div>
+
+            <div class="tol-info" style="margin-bottom: 20px; font-size: 0.9rem; color: #475569; background:#f1f5f9; padding:10px; border-radius:8px;">
+                <span><i class="fas fa-check-circle" style="color:var(--success-green);"></i> Allowed Machine Tolerance:</span>
+                <strong id="dispTolerance">±0.000 g</strong>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Category to Create</label>
+                    <select id="tagCategory" onchange="handleTagCategoryChange()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Purity <small>(Locked to Source)</small></label>
+                    <input type="text" id="tagPurity" readonly style="color:var(--active-red); font-weight:bold; border-color:#fecaca; background:#fee2e2;">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Stock Management Mode</label>
+                    <select id="tagStockMode">
+                        <option value="individual">Individual Tags (Unique Barcode per piece)</option>
+                        <option value="bulk">Loose Stock (Bulk / Single Barcode)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="color:var(--active-red);">Number of Pieces</label>
+                    <input type="number" id="tagPieces" value="1" min="1" oninput="generateTagInputs()" style="border-color:var(--active-red); box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Enter Weights (g)</label>
+                <div id="tagInputsContainer" style="margin-top:10px; max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+            </div>
+
+            <div style="background:#f8fafc; padding:20px; border-radius:12px; margin-top:20px; border: 1px solid #e2e8f0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:bold;">
+                    <span style="color:#475569;">Total Gross Extracted:</span>
+                    <span id="tagTotalWt" style="color:var(--active-red); font-size:1.2rem;">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:0.95rem; color:#64748b;">
+                    <span>Total Stone Extracted:</span>
+                    <span id="tagTotalStoneWt">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; font-size:0.95rem; color:#64748b;">
+                    <span>Total Net Extracted:</span>
+                    <span id="tagTotalNetWt">0.000 g</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:2px dashed #cbd5e1; padding-top:12px; margin-top:10px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Gross:</span>
+                    <span id="tagRemainingWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Stone:</span>
+                    <span id="tagRemainingStoneWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-weight:bold;">
+                    <span style="color:#334155;">Remaining Source Net:</span>
+                    <span id="tagRemainingNetWt" style="font-size:1.2rem; color:var(--success-green);">0.000 g</span>
+                </div>
+            </div>
+
+            <button class="btn-block btn-primary" onclick="confirmTagging()"><i class="fas fa-barcode"></i> GENERATE STOCK</button>
+        </div>
+    </div>
+
+    <div id="manualEntryModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-plus-circle"></i> Add Custom Stock</h3>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Metal Type</label>
+                    <select id="manMetal" onchange="handleManualMetalChange()">
+                        <option value="Gold">Gold</option>
+                        <option value="Silver">Silver</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="manCategory" onchange="handleManCategoryChange()"></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Item Description / Name</label>
+                <input type="text" id="manName" placeholder="e.g. Unique Ring Batch">
+            </div>
+            
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="manPurity"></select>
+                </div>
+                <div class="form-group">
+                    <label>Stock Generation Mode</label>
+                    <select id="manStockMode">
+                        <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
+                        <option value="bulk">Bulk Stock (Single Barcode for all)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Total Pieces / Qty</label>
+                    <input type="number" id="manPieces" value="1" min="1" oninput="generateManPieceInputs()">
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Total Gross Wt (g)</label>
+                    <input type="number" id="manGross" step="0.001" oninput="calcManNet()">
+                </div>
+                <div class="form-group">
+                    <label>Total Stone Wt (g)</label>
+                    <input type="number" id="manStone" step="0.001" value="0" oninput="calcManNet()">
+                </div>
+            </div>
+
+            <div id="dynamicManPieceInputs" style="display:none; background:#f1f5f9; padding:15px; border-radius:10px; border:1px dashed #cbd5e1; margin-bottom:15px; grid-column: 1 / -1;"></div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Total Net Wt (g)</label>
+                    <input type="number" id="manNet" step="0.001" readonly style="background:#f0fdf4; font-weight:bold; color:var(--success-green); border-color:#bbf7d0;">
+                </div>
+                <div class="form-group">
+                    <label>Total Fine Wt (g)</label>
+                    <input type="number" id="manFine" step="0.001" readonly style="background:#eff6ff; font-weight:bold; color:var(--info-blue); border-color:#bfdbfe;">
+                </div>
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save to Inventory</button>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--info-blue); font-size:1.4rem;"><i class="fas fa-pen"></i> Edit Item</h3>
+            <input type="hidden" id="editId">
+            
+            <div class="form-group">
+                <label>Item Description / Name</label>
+                <input type="text" id="editName">
+            </div>
+            
+            <div class="form-group">
+                <label>Category</label>
+                <select id="editCategory"></select>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Purity</label>
+                    <select id="editPurity" onchange="calcEditNet()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity (Pieces)</label>
+                    <input type="number" id="editPieces" value="1" min="1">
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Gross Wt (g)</label>
+                    <input type="number" id="editGross" step="0.001" oninput="calcEditNet()">
+                </div>
+                <div class="form-group">
+                    <label>Stone Wt (g)</label>
+                    <input type="number" id="editStone" step="0.001" oninput="calcEditNet()">
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Net Wt (g) <small style="color:var(--success-green);">(Auto)</small></label>
+                    <input type="number" id="editNet" step="0.001" readonly style="background:#f0fdf4; font-weight:bold; color:var(--success-green); border-color:#bbf7d0;">
+                </div>
+                <div class="form-group">
+                    <label>Fine Wt (g) <small style="color:var(--info-blue);">(Auto)</small></label>
+                    <input type="number" id="editFine" step="0.001" readonly style="background:#eff6ff; font-weight:bold; color:var(--info-blue); border-color:#bfdbfe;">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>HUID / Hallmark ID</label>
+                <input type="text" id="editHuid" placeholder="Optional">
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="saveEdit()" style="background:var(--info-blue);"><i class="fas fa-save"></i> Update Item</button>
+        </div>
+    </div>
+
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
+            <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Bill & Restore Stock</h3>
+            <input type="hidden" id="cancelSaleId">
+            
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Bill Total:</span> <strong id="cBillTotal">₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#2e7d32;"><span>Amount Paid by Customer:</span> <strong id="cBillPaid">₹0</strong></div>
+                <div id="cBillOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--exchange-purple); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                    <span>Metal Exchanged:</span> <strong id="cBillOldGold">₹0</strong>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Refund Cash Amount (₹)</label>
+                <input type="number" id="cRefundAmt">
+                <small style="color:#666;">Amount to return to the customer. This will log as Money OUT in your Cashbook.</small>
+            </div>
+            
+            <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
+                <input type="checkbox" id="cRevertStock" checked disabled style="width:20px; height:20px; accent-color:#ef6c00;"> 
+                <label for="cRevertStock" style="margin:0; color:#ef6c00;">Items will be forcefully restored to Inventory Stock.</label>
+            </div>
+
+            <button class="btn btn-danger" onclick="confirmCancelSale()"><i class="fas fa-trash"></i> Confirm Cancellation & Restore</button>
+        </div>
+    </div>
+
+    <div id="printContainer"></div>
+
+    <div id="toast">Message Saved!</div>
+
+    <script src="db.js?v=36"></script>
+    <script>
+        function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            toast.innerText = msg;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+        }
+
+        function triggerPrint() {
+            if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
+                AndroidInterface.printPage();
+            } else {
+                window.print();
+            }
+        }
+
+        // =======================
+        // NEW UNIFIED PRINTING LOGIC
+        // =======================
+
+        function autoPrint(items) {
+            const container = document.getElementById('printContainer');
+            container.innerHTML = '';
+            
+            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold');
+            if(printItems.length === 0) return; // Nothing to print
+
+            printItems.forEach((item, index) => {
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                container.innerHTML += `
+                    <div class="print-label">
+                        <div style="font-weight:900; font-size:1.1rem; text-transform: uppercase;">BHARTI JEW.</div>
+                        <div style="font-weight:900; font-size:2rem; letter-spacing:3px; margin: 10px 0;">RNG506</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; font-weight:700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 15px;">
+                            <span>1.500 gms</span>
+                            <span>18CT</span>
+                        </div>
+                        <svg id="barcode-svg-${index}"></svg>
                     </div>
                 `;
-
-                for(let i=0; i<count; i++) {
-                    const row = document.createElement('div');
-                    row.style.display = 'flex';
-                    row.style.gap = '10px';
-                    row.style.marginBottom = '10px';
-
-                    const inpGross = document.createElement('input');
-                    inpGross.type = 'number';
-                    inpGross.className = 'tag-input tag-gross';
-                    inpGross.placeholder = `Piece ${i+1} Gross`;
-                    inpGross.step = '0.001'; 
-                    inpGross.oninput = calcTagTotal;
-
-                    const inpStone = document.createElement('input');
-                    inpStone.type = 'number';
-                    inpStone.className = 'tag-input tag-stone';
-                    inpStone.placeholder = `Piece ${i+1} Stone`;
-                    inpStone.step = '0.001'; 
-                    inpStone.oninput = calcTagTotal;
-
-                    row.appendChild(inpGross);
-                    row.appendChild(inpStone);
-                    container.appendChild(row);
-                }
-            }
-            calcTagTotal();
-        }
-
-        function calcTagTotal() {
-            const grossInputs = document.querySelectorAll('.tag-gross');
-            const stoneInputs = document.querySelectorAll('.tag-stone');
-            
-            let sumGross = 0; let sumStone = 0;
-            
-            grossInputs.forEach(inp => sumGross += (parseFloat(inp.value) || 0));
-            stoneInputs.forEach(inp => sumStone += (parseFloat(inp.value) || 0));
-            
-            let sumNet = Math.max(0, sumGross - sumStone);
-
-            document.getElementById('tagTotalWt').innerText = sumGross.toFixed(3) + " g";
-            document.getElementById('tagTotalStoneWt').innerText = sumStone.toFixed(3) + " g";
-            document.getElementById('tagTotalNetWt').innerText = sumNet.toFixed(3) + " g";
-
-            const maxWt = parseFloat(document.getElementById('tagSourceMaxWt').value) || 0;
-            const remaining = maxWt - sumGross;
-            const remEl = document.getElementById('tagRemainingWt');
-            remEl.innerText = remaining.toFixed(3) + " g";
-            remEl.style.color = remaining < 0 ? 'var(--active-red)' : 'var(--success-green)';
-
-            const maxStone = parseFloat(document.getElementById('tagSourceMaxStoneWt').value) || 0;
-            const remainingStone = maxStone - sumStone;
-            const remStoneEl = document.getElementById('tagRemainingStoneWt');
-            remStoneEl.innerText = remainingStone.toFixed(3) + " g";
-            remStoneEl.style.color = remainingStone < 0 ? 'var(--active-red)' : 'var(--success-green)';
-            
-            const maxNet = parseFloat(document.getElementById('tagSourceMaxNetWt').value) || 0;
-            const remainingNet = maxNet - sumNet;
-            const remNetEl = document.getElementById('tagRemainingNetWt');
-            remNetEl.innerText = remainingNet.toFixed(3) + " g";
-            remNetEl.style.color = remainingNet < 0 ? 'var(--active-red)' : 'var(--success-green)';
-        }
-
-        async function confirmTagging() {
-            const sourceId = parseInt(document.getElementById('tagSourceId').value);
-            const totalRequiredGross = parseFloat(document.getElementById('tagTotalWt').innerText.split(' ')[0]);
-            
-            const batchItem = allInventory.find(i => i.id === sourceId);
-            if(!batchItem) { appAlert("Source Batch Not Found."); return; }
-            if(batchItem.status === 'sold') { appAlert("Cannot extract from a sold item."); return; }
-            
-            const availableGross = parseFloat(batchItem.grossWt || batchItem.weight);
-
-            let calculatedTol = availableGross * 0.001;
-            if (calculatedTol < 0.030) calculatedTol = 0.030; 
-            if (calculatedTol > 0.200) calculatedTol = 0.200; 
-
-            const maxAllowed = availableGross + calculatedTol;
-
-            if(totalRequiredGross <= 0) { appAlert("Enter valid weights."); return; }
-
-            if (totalRequiredGross > maxAllowed) {
-                appAlert(`Tolerance Limit Exceeded!\n\nAvailable: ${availableGross.toFixed(3)}g\nAllowed Limit (+${calculatedTol.toFixed(3)}): ${maxAllowed.toFixed(3)}g\nYou entered: ${totalRequiredGross.toFixed(3)}g\n\nPlease adjust weight.`);
-                return;
-            }
-
-            let isFullConversion = false;
-            let diff = availableGross - totalRequiredGross;
-
-            if (Math.abs(diff) <= calculatedTol) {
-                isFullConversion = true;
-                let msg = diff === 0 
-                    ? `Exact weight matched.\nThis will CONSUME the full batch.\n\nProceed?` 
-                    : `Weight is within tolerance (Difference: ${Math.abs(diff).toFixed(3)}g).\nThis will CONSUME the full batch and write off the small difference.\n\nProceed?`;
-                const proceed = await appConfirm(msg);
-                if(!proceed) return;
-            } else {
-                const proceed = await appConfirm(`Generate stock for ${totalRequiredGross.toFixed(3)}g?\nRemaining Stock will be: ${diff.toFixed(3)}g`);
-                if(!proceed) return;
-            }
-
-            const cat = document.getElementById('tagCategory').value;
-            const purity = batchItem.purity; 
-            const piecesCount = parseInt(document.getElementById('tagPieces').value) || 1;
-            
-            const mode = getCategoryMode(cat);
-            const grossInputs = document.querySelectorAll('.tag-gross');
-            const stoneInputs = document.querySelectorAll('.tag-stone');
-            const catPrefix = cat.substring(0,3).toUpperCase();
-            const isSilv = checkIsSilver(purity);
-            
-            let totalExtractedNet = 0;
-            let sumStone = 0;
-            let newlyAddedItems = [];
-
-            if (mode === 'bulk') {
-                const g = parseFloat(grossInputs[0].value) || 0;
-                const s = parseFloat(stoneInputs[0].value) || 0;
-                const n = Math.max(0, g - s);
-                
-                sumStone += s;
-                totalExtractedNet += n;
-                const fineWt = n * getPurityFactor(purity);
-
-                const currentInv = await getAllItems('inventory');
-                let existingBulk = currentInv.find(inv => 
-                    inv.category === cat && 
-                    inv.purity === purity && 
-                    inv.status === 'stock' && 
-                    (inv.barcode.toUpperCase().includes('BULK') || inv.category === 'MIX' || inv.barcode.toUpperCase().startsWith('SIL-'))
-                );
-
-                if (existingBulk) {
-                    existingBulk.grossWt = (parseFloat(existingBulk.grossWt) || 0) + g;
-                    existingBulk.stoneWt = (parseFloat(existingBulk.stoneWt) || 0) + s;
-                    existingBulk.netWt = (parseFloat(existingBulk.netWt) || 0) + n;
-                    existingBulk.fineWt = (parseFloat(existingBulk.fineWt) || 0) + fineWt;
-                    existingBulk.pieces = (parseInt(existingBulk.pieces) || 0) + piecesCount;
-                    existingBulk.weight = existingBulk.grossWt;
-
-                    await updateItem('inventory', existingBulk);
-                    newlyAddedItems.push(existingBulk);
-                } else {
-                    let barcode = '';
-                    const uniqueSuffix = Date.now().toString().slice(-4);
-                    if (cat === 'MIX') barcode = `BULKMIX-${uniqueSuffix}`;
-                    else if (isSilv) barcode = `SIL-${catPrefix}-${uniqueSuffix}`;
-                    else barcode = `BULK${catPrefix}-${uniqueSuffix}`;
-
-                    const newItem = {
-                        barcode: barcode, category: cat, name: `Loose ${cat} (${purity})`,
-                        purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: piecesCount,
-                        status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
-                    };
-                    await addItem('inventory', newItem);
-                    newlyAddedItems.push(newItem);
-                }
-
-            } else {
-                for (let i = 0; i < grossInputs.length; i++) {
-                    const g = parseFloat(grossInputs[i].value) || 0;
-                    const s = parseFloat(stoneInputs[i].value) || 0;
-                    const n = Math.max(0, g - s);
-                    
-                    if(!g) continue;
-                    
-                    sumStone += s;
-                    totalExtractedNet += n;
-                    const fineWt = n * getPurityFactor(purity);
-
-                    const barcode = generateSafeBarcode(cat);
-                    const newItem = {
-                        barcode: barcode, category: cat, name: `${cat} ${purity}`,
-                        purity: purity, grossWt: g, stoneWt: s, netWt: n, fineWt: fineWt, pieces: 1,
-                        status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
-                    };
-                    await addItem('inventory', newItem);
-                    newlyAddedItems.push(newItem);
-                }
-            }
-
-            if (isFullConversion || (batchItem.grossWt - totalRequiredGross) <= 0.010) {
-                await deleteItemReal(batchItem.id); 
-            } else {
-                batchItem.grossWt = Math.max(0, batchItem.grossWt - totalRequiredGross);
-                batchItem.stoneWt = Math.max(0, (batchItem.stoneWt || 0) - sumStone);
-                batchItem.netWt = Math.max(0, batchItem.grossWt - batchItem.stoneWt);
-                batchItem.weight = batchItem.grossWt; 
-                batchItem.fineWt = batchItem.netWt * getPurityFactor(batchItem.purity);
-                
-                batchItem.pieces = Math.max(0, (batchItem.pieces || 1) - piecesCount);
-                if(batchItem.pieces === 0 && batchItem.grossWt > 0) {
-                    batchItem.pieces = 1; 
-                }
-                
-                await updateItem('inventory', batchItem);
-            }
-
-            showToast("Stock Extracted & Tagged Successfully!", "success");
-            closeModal('tagModal');
-            loadInventory();
-
-            if(newlyAddedItems.length > 0) {
-                autoPrint(newlyAddedItems);
-            }
-        }
-
-        async function openCancelModal(saleId) {
-            const sale = allSalesData.find(s => s.id === saleId);
-            if(!sale) return;
-
-            document.getElementById('cancelSaleId').value = saleId;
-            document.getElementById('cBillTotal').innerText = "₹" + sale.grandTotal.toLocaleString();
-            document.getElementById('cBillPaid').innerText = "₹" + sale.paidAmount.toLocaleString();
-            
-            document.getElementById('cRefundAmt').value = sale.paidAmount > 0 ? sale.paidAmount : 0; 
-            
-            if(sale.oldGoldDeduction > 0) {
-                document.getElementById('cBillOldGoldDiv').style.display = 'flex';
-                document.getElementById('cBillOldGold').innerText = "₹" + sale.oldGoldDeduction.toLocaleString();
-            } else {
-                document.getElementById('cBillOldGoldDiv').style.display = 'none';
-            }
-            
-            openModal('cancelModal');
-        }
-
-        async function confirmCancelSale() {
-            const id = parseInt(document.getElementById('cancelSaleId').value);
-            const refundAmt = getSafeNum(document.getElementById('cRefundAmt').value);
-
-            const db = await dbPromise;
-            const tx = db.transaction(['sales', 'customers', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
-            const store = tx.objectStore('sales');
-
-            store.get(id).onsuccess = async (e) => {
-                const sale = e.target.result;
-                sale.status = 'cancelled';
-                sale.refundedAmount = refundAmt;
-                store.put(sale);
-
-                if (sale.bcWalletDeduction > 0) {
-                    let cReq = tx.objectStore('customers').get(parseInt(sale.customerId));
-                    cReq.onsuccess = (ev) => {
-                        const c = ev.target.result;
-                        if(c) {
-                            c.bcBalance = (getSafeNum(c.bcBalance)) + sale.bcWalletDeduction;
-                            tx.objectStore('customers').put(c);
-                        }
-                    };
-                }
-
-                await updateStockStatusInternal(tx, sale.items, 'stock');
-
-                const ogReq = tx.objectStore('old_gold').getAll();
-                ogReq.onsuccess = (ev) => {
-                    const allOG = ev.target.result || [];
-                    const linkedOG = allOG.filter(g => g.saleId === id);
-                    for(const og of linkedOG) {
-                        tx.objectStore('old_gold').delete(og.id);
-                    }
-                };
-
-                if(refundAmt > 0) {
-                    tx.objectStore('cashflow').add({
-                        date: new Date().toISOString(), type: 'OUT', mode: 'Cash',
-                        category: 'Bill Cancellation Refund', amount: refundAmt, note: `Refund for Cancelled Bill #${String(id).padStart(4,'0')}`
-                    });
-                }
-                
-                if(sale.oldGoldDeduction > 0) {
-                    tx.objectStore('cashflow').add({
-                        date: new Date().toISOString(), type: 'OUT', mode: 'Metal Exchange',
-                        category: 'Bill Cancellation Reversal', amount: sale.oldGoldDeduction, note: `Reversing Exchange for Cancelled Bill #${String(id).padStart(4,'0')}`
-                    });
-                }
-
-                tx.oncomplete = () => {
-                    showToast("Bill Cancelled & Items Restored!", "success");
-                    closeModal('cancelModal');
-                    loadInventory(); 
-                };
-            };
-        }
-
-        function updateStockStatusInternal(tx, items, action) {
-            return new Promise((resolve) => {
-                const store = tx.objectStore('inventory');
-                let count = 0;
-                if(items.length === 0) resolve();
-
-                for(const i of items) {
-                    if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
-                        count++;
-                        if(count === items.length) resolve();
-                        continue;
-                    }
-                    
-                    const req = store.get(parseInt(i.id));
-                    req.onsuccess = (e) => {
-                        const item = e.target.result;
-                        if(item) { 
-                            if (action === 'stock') {
-                                item.status = 'stock';
-                                const sellQty = i.sellQty || 1;
-                                const sellGross = i.grossWt !== undefined ? i.grossWt : (i.weight || 0);
-                                const sellStone = i.stoneWt || 0;
-                                const sellNet = i.netWt !== undefined ? i.netWt : sellGross;
-
-                                item.pieces = (parseInt(item.pieces) || 0) + sellQty;
-                                item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
-                                item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
-                                item.netWt = (parseFloat(item.netWt) || 0) + sellNet;
-                                item.weight = item.grossWt; 
-                                item.fineWt = item.netWt * getPurityFactor(item.purity);
-                            }
-                            store.put(item); 
-                        }
-                        count++;
-                        if(count === items.length) resolve();
-                    };
-                }
             });
-        }
-
-        function calcEditNet() {
-            const g = parseFloat(document.getElementById('editGross').value) || 0;
-            const s = parseFloat(document.getElementById('editStone').value) || 0;
-            const net = Math.max(0, g - s);
-            document.getElementById('editNet').value = net.toFixed(3);
             
-            const purity = document.getElementById('editPurity').value;
-            const fine = net * getPurityFactor(purity);
-            document.getElementById('editFine').value = fine.toFixed(3);
-        }
-
-        async function editItem(id) {
-            closeModal('detailsModal'); 
-            closeModal('itemDetailsModal');
-
-            const item = allInventory.find(i => i.id === id);
-            if(!item) return;
-
-            if (item.status === 'sold') { appAlert("Cannot edit a sold item."); return; }
-
-            if((item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'))) {
-                appAlert("Cannot edit Custom Order items directly from Inventory. Please manage them in the Custom Orders tab.");
-                return;
-            }
-
-            const isSilv = checkIsSilver(item.purity);
-            populatePurityDropdowns(isSilv ? 'Silver' : 'Gold', 'editPurity');
-
-            document.getElementById('editId').value = item.id;
-            document.getElementById('editName').value = item.name || '';
-            document.getElementById('editCategory').value = item.category || 'Other';
-            document.getElementById('editPurity').value = item.purity;
-            document.getElementById('editPieces').value = item.pieces || 1;
-            
-            document.getElementById('editGross').value = item.grossWt || item.weight;
-            document.getElementById('editStone').value = item.stoneWt || 0;
-            calcEditNet();
-            
-            document.getElementById('editHuid').value = item.huid || '';
-            openModal('editModal');
-        }
-
-        async function saveEdit() {
-            const id = parseInt(document.getElementById('editId').value);
-            const db = await dbPromise;
-            const tx = db.transaction('inventory', 'readwrite');
-            const store = tx.objectStore('inventory');
-            
-            store.get(id).onsuccess = async (e) => {
-                const item = e.target.result;
-                if(item.status === 'sold') { appAlert("Cannot update a sold item."); return; }
-
-                item.name = document.getElementById('editName').value;
-                item.category = document.getElementById('editCategory').value;
-                item.purity = document.getElementById('editPurity').value;
-                item.pieces = parseInt(document.getElementById('editPieces').value) || 1;
-                
-                item.grossWt = parseFloat(document.getElementById('editGross').value) || 0;
-                item.stoneWt = parseFloat(document.getElementById('editStone').value) || 0;
-                item.netWt = Math.max(0, item.grossWt - item.stoneWt);
-                item.weight = item.grossWt; 
-                item.fineWt = item.netWt * getPurityFactor(item.purity);
-                
-                item.huid = document.getElementById('editHuid').value;
-                
-                store.put(item);
-                closeModal('editModal');
-                showToast("Item Updated", "success");
-                loadInventory();
-            };
-        }
-
-        async function deleteItem(id) {
-            const item = allInventory.find(i => i.id === id);
-            if(!item) return;
-
-            if(item.status === 'sold') { appAlert("Cannot delete an item that has already been sold."); return; }
-
-            if((item.barcode && item.barcode.startsWith('ORD-')) || (item.source && item.source.startsWith('order_'))) {
-                appAlert("Cannot delete Custom Order items from Inventory. Cancel the original order to reverse the stock.");
-                return;
-            }
-
-            const proceed = await appConfirm("Delete this item? If it came from Mix, weight will return to Mix.");
-            if(!proceed) return;
-
-            if (item.source && item.source.startsWith('mix_')) {
-                restoreMixWeight(item).then(() => {
-                    deleteItemReal(id).then(() => {
-                        closeModal('detailsModal');
-                        closeModal('itemDetailsModal');
-                        loadInventory();
+            // Wait for DOM update then render SVGs
+            setTimeout(() => {
+                printItems.forEach((item, index) => {
+                    JsBarcode(`#barcode-svg-${index}`, item.barcode, {
+                        format: "CODE128", 
+                        displayValue: false, 
+                        height: 60, 
+                        width: 2.5, 
+                        margin: 0,
+                        background: "#ffffff",
+                        lineColor: "#000000"
                     });
                 });
-            } else {
-                deleteItemReal(id).then(() => {
-                    closeModal('detailsModal');
-                    closeModal('itemDetailsModal');
-                    loadInventory();
-                });
+                
+                // Give JsBarcode a moment to draw before firing print dialog
+                setTimeout(() => {
+                    triggerPrint();
+                }, 300);
+            }, 100);
+        }
+
+        function viewBarcode(code, wt, purity) {
+            autoPrint([{ barcode: code, grossWt: parseFloat(wt), purity: purity, category: 'Single' }]);
+        }
+
+        // SELECT PRINT LOGIC
+        let printSelectionList = [];
+
+        function openSelectPrintModal() {
+            printSelectionList = allInventory.filter(i => i.status === 'stock' && i.category !== 'MIX' && !i.barcode.includes('MIX'));
+            document.getElementById('printSearchInput').value = '';
+            document.getElementById('selectAllPrint').checked = false;
+            renderPrintCheckList(printSelectionList);
+            openModal('selectPrintModal');
+        }
+
+        function renderPrintCheckList(items) {
+            const listContainer = document.getElementById('printCheckList');
+            listContainer.innerHTML = '';
+            
+            if(items.length === 0) {
+                listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #888;">No valid tags found.</div>`;
+                updateSelectedPrintCount();
+                return;
             }
-        }
 
-        async function deleteItemReal(id) {
-            const db = await dbPromise;
-            const tx = db.transaction('inventory', 'readwrite');
-            tx.objectStore('inventory').delete(id);
-            return new Promise((resolve) => {
-                tx.oncomplete = () => resolve();
+            items.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                listContainer.innerHTML += `
+                    <label class="print-item-row" style="cursor:pointer; display:flex;">
+                        <input type="checkbox" class="print-checkbox" value="${item.id}" onchange="updateSelectedPrintCount()">
+                        <div style="flex:1;">
+                            <div style="font-weight:700; color:var(--info-blue);">${item.barcode}</div>
+                            <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${item.purity} | ${gross}g</div>
+                        </div>
+                    </label>
+                `;
             });
+            updateSelectedPrintCount();
         }
 
-        async function restoreMixWeight(deletedItem) {
-            let targetBatch = allInventory.find(i => 
-                i.category === 'MIX' && i.status === 'stock' && i.purity === deletedItem.purity
+        function filterPrintList() {
+            const term = document.getElementById('printSearchInput').value.toUpperCase().trim();
+            const filtered = printSelectionList.filter(i => 
+                (i.barcode && i.barcode.toUpperCase().includes(term)) || 
+                (i.category && i.category.toUpperCase().includes(term)) ||
+                (i.purity && i.purity.toUpperCase().includes(term))
             );
+            renderPrintCheckList(filtered);
+            document.getElementById('selectAllPrint').checked = false;
+        }
 
-            if (targetBatch) {
-                targetBatch.grossWt += deletedItem.grossWt;
-                targetBatch.stoneWt = (targetBatch.stoneWt || 0) + (deletedItem.stoneWt || 0);
-                targetBatch.netWt = Math.max(0, targetBatch.grossWt - targetBatch.stoneWt);
-                targetBatch.weight = targetBatch.grossWt;
-                targetBatch.fineWt = targetBatch.netWt * getPurityFactor(targetBatch.purity);
-                
-                await updateItem('inventory', targetBatch);
-                showToast(`Restored ${deletedItem.grossWt}g to Mix Batch.`, "success");
-            } else {
-                const newBatch = {
-                    barcode: 'MIX-' + Date.now(),
-                    category: 'MIX',
-                    name: `Restored Mix (${deletedItem.purity})`,
-                    purity: deletedItem.purity,
-                    merchantId: deletedItem.merchantId || 0,
-                    grossWt: deletedItem.grossWt,
-                    stoneWt: deletedItem.stoneWt || 0,
-                    netWt: deletedItem.netWt,
-                    fineWt: deletedItem.fineWt || (deletedItem.netWt * getPurityFactor(deletedItem.purity)),
-                    weight: deletedItem.grossWt,
-                    pieces: 1,
-                    status: 'stock',
-                    addedDate: new Date().toISOString()
-                };
-                await addItem('inventory', newBatch);
-                showToast(`Created new Mix Batch with restored ${deletedItem.grossWt}g.`, "success");
+        function toggleSelectAllPrint() {
+            const isChecked = document.getElementById('selectAllPrint').checked;
+            const checkboxes = document.querySelectorAll('.print-checkbox');
+            checkboxes.forEach(cb => cb.checked = isChecked);
+            updateSelectedPrintCount();
+        }
+
+        function updateSelectedPrintCount() {
+            const selected = document.querySelectorAll('.print-checkbox:checked').length;
+            document.getElementById('selectedPrintCount').innerText = `${selected} Selected`;
+        }
+
+        function printSelectedBarcodes() {
+            const checkboxes = document.querySelectorAll('.print-checkbox:checked');
+            if(checkboxes.length === 0) {
+                appAlert("Please select at least one item to print.");
+                return;
+            }
+            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const itemsToPrint = allInventory.filter(i => selectedIds.includes(i.id));
+            
+            closeModal('selectPrintModal');
+            autoPrint(itemsToPrint);
+        }
+
+        // =======================
+        // STANDARD LOGIC CONTINUES
+        // =======================
+
+        let confirmResolver = null;
+        
+        function appAlert(msg) {
+            document.getElementById('customAlertMessage').innerText = msg;
+            openModal('customAlertModal');
+        }
+
+        function appConfirm(msg) {
+            document.getElementById('customConfirmMessage').innerText = msg;
+            openModal('customConfirmModal');
+            return new Promise(resolve => {
+                confirmResolver = resolve;
+            });
+        }
+
+        function resolveCustomConfirm(result) {
+            closeModal('customConfirmModal');
+            if (confirmResolver) {
+                confirmResolver(result);
+                confirmResolver = null;
             }
         }
 
-    </script>
-</body>
-</html>
+        function getSafeNet(i) {
+            let n = parseFloat(i.netWt);
+            if(!isNaN(n) && n > 0) return n;
+            let g = parseFloat(i.grossWt) || 0;
+            let s = parseFloat(i.stoneWt) || 0;
+            if (g > 0) return g - s;
+            let f = parseFloat(i.fineWt) || 0;
+            if (f > 0) return f;
+            return parseFloat(i.weight) || 0;
+        }
+
+        let allInventory = [];
+        let allSalesData = []; 
+        let allCustomersData = [];
+        let goldRates = { rate22k: 0, rate24k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+        let groupedInventory = {}; 
+        
+        const BASE_GOLD_CATS = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
+        const BASE_SILVER_CATS = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
+        
+        let goldCategories = [...BASE_GOLD_CATS];
+        let silverCategories = [...BASE_SILVER_CATS];
+        let categoryModes = {}; 
+
+        let currentMetalFilter = 'GOLD_TAGGED'; 
+        let activeCatManagerMode = 'Gold'; 
+
+        window.onload = async function() {
+            const r = await getSetting('gold_rates');
+            if(r) goldRates = r;
+            
+            const savedGoldCats = await getSetting('gold_categories');
+            const savedSilvCats = await getSetting('silver_categories');
+            const savedModes = await getSetting('category_modes');
+            
+            if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
+            else await updateItem('settings', {key: 'gold_categories', value: goldCategories});
+            
+            if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
+            else await updateItem('settings', {key: 'silver_categories', value: silverCategories});
+
+            if (savedModes) {
+                categoryModes = savedModes;
+            } else {
+                [...BASE_GOLD_CATS, ...BASE_SILVER_CATS].forEach(c => categoryModes[c] = 'individual');
+                categoryModes['MIX'] = 'bulk';
+                await updateItem('settings', { key: 'category_modes', value: categoryModes });
+            }
+
+            populatePurityDropdowns('Gold', 'editPurity');
+            populatePurityDropdowns('Gold', 'manPurity');
+            
+            buildFilterBar();
+            await loadInventory();
+            setupBarcodeScanner();
+        };
+
+        function getCategoryMode(catName) {
+            if (!catName) return 'individual';
+            const upper = catName.toUpperCase();
+            if (upper === 'MIX') return 'bulk';
+            if (categoryModes[catName]) return categoryModes[catName];
+            if (upper.includes('LOOSE') || upper.includes('BULK')) return 'bulk';
+            return 'individual';
+        }
+
+        function checkIsSilver(purity) {
+            if(!purity) return false;
+            const p = purity.toUpperCase();
+            if (p.includes('SIL') || p.includes('%') || p.includes('92.5') || p.includes('99.9')) return true;
+            let customS = goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
+            if (customS) return true;
+            return false;
+        }
+
+        const getPurityFactor = (key) => {
+            if (!key) return 1.000;
+            if (key === '24K' || key === 'Silver') return 1.000;
+            if (key === '22K') return 0.9166;
+            if (key === '18K') return 0.7500;
+            if (key === 'Silver 92.5%') return 0.925;
+            
+            let customG = goldRates.customPurities?.find(cp => cp.name === key);
+            if (customG) return customG.pct / 100;
+            
+            let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
+            if (customS) return customS.pct / 100;
+            
+            if(key.toString().includes('%')) {
+                const val = parseFloat(key.toString().replace('%', ''));
+                if(!isNaN(val)) return val / 100;
+            }
+            return 1.0;
+        };
+
+        function calculateFineWeight(item) {
+            const net = parseFloat(item.netWt !== undefined ? item.netWt : (item.grossWt || item.weight || 0));
+            if (!item.purity) return net;
+            if (item.purity.includes('%')) {
+                const pct = parseFloat(item.purity.replace('%', '').trim()) / 100;
+                if (!isNaN(pct)) return net * pct;
+            }
+            return net * getPurityFactor(item.purity);
+        }
+
+        function populatePurityDropdowns(metal, elementId) {
+            const select = document.getElementById(elementId);
+            if(!select) return;
+            select.innerHTML = '';
+
+            if (metal === 'Gold') {
+                select.innerHTML = `
+                    <option value="24K">24K (Fine)</option>
+                    <option value="22K" selected>22K (91.66%)</option>
+                    <option value="18K">18K (75.00%)</option>
+                `;
+                if(goldRates.customPurities) {
+                    goldRates.customPurities.forEach(cp => { 
+                        select.innerHTML += `<option value="${cp.name}">${cp.name} (${cp.pct}%)</option>`; 
+                    });
+                }
+            } else {
+                select.innerHTML = `
+                    <option value="Silver">Silver (99.9%)</option>
+                    <option value="Silver 92.5%" selected>Sterling Silver (92.5%)</option>
+                `;
+                if(goldRates.customSilverPurities) {
+                    goldRates.customSilverPurities.forEach(cp => { 
+                        select.innerHTML += `<option value="${cp.name}">${cp.name} (${cp.pct}%)</option>`; 
+                    });
+                }
+            }
+        }
+
+        function populateCategoryDropdowns(metalType = null) {
+            const isSilv = (metalType === 'Silver' || currentMetalFilter === 'SILVER');
+            const cats = isSilv ? silverCategories : goldCategories;
+            
+            const tagSelect = document.getElementById('tagCategory');
+            const editSelect = document.getElementById('editCategory');
+            const manSelect = document.getElementById('manCategory');
+            
+            let opts = '';
+            cats.forEach(cat => { opts += `<option value="${cat}">${cat}</option>`; });
+            opts += `<option value="Other">Other</option>`;
+            
+            if(tagSelect) { tagSelect.innerHTML = opts; }
+            if(editSelect) {
+                editSelect.innerHTML = opts; 
+                editSelect.innerHTML += `<option value="MIX">MIXED</option>`;
+            }
+            if(manSelect) {
+                manSelect.innerHTML = opts;
+                manSelect.innerHTML += `<option value="MIX">Mixed / Untagged</option>`;
+            }
+        }
+
+        function buildFilterBar() {
+            const catSelect = document.getElementById('filterCategory');
+            if(!catSelect) return;
+            
+            const isSilv = currentMetalFilter === 'SILVER';
+            const activeCats = isSilv ? silverCategories : goldCategories;
+            
+            let html = `<option value="ALL">All Categories</option>`;
+            activeCats.forEach(cat => {
+                html += `<option value="${cat}">${cat}</option>`;
+            });
+            html += `<option value="Other">Other</option>`;
+            
+            catSelect.innerHTML = html;
+            populateCategoryDropdowns();
+        }
+
+        function openCatModal() {
+            switchCatMode(currentMetalFilter === 'SILVER' ? 'Silver' : 'Gold');
+            document.getElementById('catModal').style.display = 'flex';
+        }
+
+        function switchCatMode(mode) {
+            activeCatManagerMode = mode;
+            document.getElementById('catTabGold').className = mode === 'Gold' ? 'cat-tab active' : 'cat-tab';
+            document.getElementById('catTabSilver').className = mode === 'Silver' ? 'cat-tab active' : 'cat-tab';
+            renderCatList();
+        }
+
+        function renderCatList() {
+            const list = document.getElementById('catListDisplay');
+            list.innerHTML = '';
+            
+            const cats = activeCatManagerMode === 'Gold'<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inventory - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+        :root {
+            --header-bg: #000000; 
+            --sidebar-bg: #111111; 
+            --accent-gold: #C5A059;
+            --accent-silver: #90a4ae;
+            --active-red: #D32F2F; 
+            --bg-light: #f4f6f9; 
+            --white: #ffffff;
+            --border-color: #2a2a2a; 
+            --whatsapp: #25D366; 
+            --info-blue: #1976d2;
+            --success-green: #2e7d32;
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; font-size: 0.9rem; color: #333;}
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- SIDEBAR & HEADER --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); transition: 0.2s; font-size: 1rem;}
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        /* --- INVENTORY DASHBOARD --- */
+        .app-container { padding: 25px; max-width: 1400px; margin: 0 auto; }
+        
+        .header-actions { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;}
+        .header-top-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;}
+        
+        .metal-toggle-container { display: flex; background: #e0e0e0; padding: 5px; border-radius: 12px; width: fit-content; gap: 5px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); flex-wrap: wrap;}
+        .metal-tab { padding: 10px 15px; font-weight: 600; font-size: 0.85rem; color: #555; cursor: pointer; border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 6px;}
+        .metal-tab i { font-size: 1rem; }
+        
+        /* Tab Colors */
+        .metal-tab.active-gold { background: white; color: var(--accent-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-gold);}
+        .metal-tab.active-gold-fine { background: white; color: #fbc02d; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #fbc02d;}
+        .metal-tab.active-gold-order { background: white; color: var(--info-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--info-blue);}
+        .metal-tab.active-silver { background: white; color: #455a64; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-silver);}
+        .metal-tab.active-all { background: white; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #333;}
+
+        .btn-export { background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; height: fit-content;}
+        .btn-export:hover { filter: brightness(0.9); box-shadow: 0 4px 10px rgba(0,0,0,0.2); transform: translateY(-2px);}
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--card-shadow); border-left: 5px solid var(--accent-gold); transition: 0.3s; display:flex; flex-direction:column; justify-content:center;}
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .stat-val { font-size: 1.8rem; font-weight: 700; color: #333; margin-top: 5px;}
+        .stat-lbl { font-size: 0.85rem; color: #666; font-weight: 600; text-transform: uppercase;}
+
+        .filter-bar-new { display: flex; gap: 15px; align-items: flex-end; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; border: 1px solid #eee; flex-wrap: wrap;}
+        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;}
+        .filter-group label { font-size: 0.8rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .filter-group select { padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: 'Poppins', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; background: #fafafa;}
+        .filter-group select:focus { border-color: var(--accent-gold); background: white; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);}
+        
+        .btn-manage-cats { background: #333; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; height: 45px;}
+        .btn-manage-cats:hover { background: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
+
+        .search-box-container { position: relative; margin-bottom: 20px; }
+        .search-box { width: 100%; padding: 16px 20px 16px 45px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.03); outline: none; transition: 0.2s;}
+        .search-box:focus { border-color: var(--accent-gold); box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);}
+        .search-icon { position: absolute; left: 16px; top: 18px; color: #999; font-size: 1.1rem; }
+
+        .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: var(--card-shadow); max-height: 65vh;}
+        .inv-table { width: 100%; border-collapse: collapse; min-width: 950px; }
+        .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 16px; font-weight: 700; font-size: 0.8rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
+        .inv-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.9rem; vertical-align: middle; }
+        .inv-table tr:hover { background: #f8fafc; }
+        .inv-table tr.row-mix { background: #fffbf1; border-left: 4px solid #fbc02d; } 
+        
+        .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .badge-mix { background: #fbc02d; color: #000; }
+        .badge-pending { background: #fee2e2; color: #b91c1c; letter-spacing: 0.5px; }
+        .badge-order { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-22k { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;}
+        .badge-18k { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
+        .badge-24k { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;}
+        .badge-silver { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;}
+
+        .btn-sm { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-right: 6px; font-weight: 600; transition: 0.2s;}
+        .btn-tag { background: #10b981; color: white; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
+        .btn-tag:hover { background: #059669; }
+        .btn-view { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+        .btn-view:hover { background: #e2e8f0; }
+        .btn-print { background: #333; color: white; }
+        .btn-edit { background: var(--info-blue); color: white; }
+        .btn-del { background: var(--active-red); color: white; }
+
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 64px; height: 64px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s; }
+        .fab:hover { transform: scale(1.05) rotate(5deg); }
+        .fab:active { transform: scale(0.95); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: white; padding: 30px; width: 95%; max-width: 600px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; position: relative; animation: slideUp 0.3s ease-out;}
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 20px; right: 25px; font-size: 1.8rem; background: none; border: none; cursor: pointer; color: #94a3b8; transition: 0.2s;}
+        .close-btn:hover { color: var(--active-red); }
+        
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
+        input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; font-family: inherit; transition: 0.2s;}
+        input:focus, select:focus, textarea:focus { border-color: var(--active-red); outline: none; background: white; box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);}
+        input[readonly], select:disabled { background: #e2e8f0; color: #334155; font-weight: 700; border-color: #cbd5e1; cursor: not-allowed; opacity: 1;}
+        
+        .btn-block { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-top: 15px; transition: 0.2s;}
+        .btn-primary { background: var(--active-red); color: white; }
+        .btn-primary:hover { background: #b71c1c; box-shadow: 0 4px 10px rgba(211, 47, 47, 0.2);}
+        .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1;}
+        .btn-danger { background: #d32f2f; color: white; padding: 14px; width: 100%; border:none; border-radius:10px; font-weight:700; font-size:1rem; cursor:pointer;}
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+
+        .item-detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.95rem; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
+        .item-detail-lbl { color: #64748b; font-weight: 600; }
+        .item-detail-val { font-weight: 700; color: #1e293b; }
+
+        .cat-tabs { display: flex; margin-bottom: 15px; background: #f1f5f9; border-radius: 10px; padding: 4px;}
+        .cat-tab { flex: 1; text-align: center; padding: 10px; cursor: pointer; font-weight: 600; font-size: 0.9rem; border-radius: 8px; color: #64748b; transition: 0.2s;}
+        .cat-tab.active { background: white; color: var(--header-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+        
+        .cat-list { list-style: none; padding: 0; margin: 0 0 15px 0; border: 1px solid #e2e8f0; border-radius: 10px; max-height: 250px; overflow-y: auto;}
+        .cat-item { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #e2e8f0; background: #fff; font-weight: 500;}
+        .cat-item:last-child { border-bottom: none; }
+        .cat-del { color: var(--active-red); cursor: pointer; font-weight: bold; transition: 0.2s;}
+        .cat-del:hover { transform: scale(1.2); }
+        .mode-badge { font-size:0.7rem; padding:3px 6px; border-radius:4px; margin-left:8px; font-weight:700; text-transform:uppercase;}
+
+        /* Select Print List Styles */
+        .print-item-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s; }
+        .print-item-row:hover { background: #f8fafc; }
+        .print-item-row input[type="checkbox"] { width: 20px; height: 20px; margin-right: 15px; accent-color: var(--info-blue); }
+
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #1e293b; color: #fff;
+            text-align: center; border-radius: 10px; padding: 16px 20px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { border-left: 5px solid var(--success-green); }
+        #toast.error { border-left: 5px solid var(--active-red); }
+
+        @media (max-width: 768px) {
+            .app-container { padding: 15px; }
+            .header-top-row { flex-direction: column; align-items: stretch; gap: 10px;}
+            .metal-toggle-container { width: 100%; border-radius: 12px; background: transparent; box-shadow: none; gap: 8px; padding: 0; }
+            .metal-tab { width: calc(50% - 4px); justify-content: center; background: #e0e0e0; border-radius: 8px; border-bottom: none; border-left: 5px solid transparent; }
+            .metal-tab.active-gold, .metal-tab.active-gold-fine, .metal-tab.active-gold-order, .metal-tab.active-silver, .metal-tab.active-all { border-bottom: none; border-left-width: 5px; }
+            
+            .metal-tab.active-gold { border-left-color: var(--accent-gold); }
+            .metal-tab.active-gold-fine { border-left-color: #fbc02d; }
+            .metal-tab.active-gold-order { border-left-color: var(--info-blue); }
+            .metal-tab.active-silver { border-left-color: var(--accent-silver); }
+            .metal-tab.active-all { border-left-color: #333; }
+            
+            .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+            
+            .filter-bar-new { flex-direction: column; align-items: stretch; padding: 15px;}
+            .filter-group { min-width: 100%; }
+            .btn-manage-cats { width: 100%; justify-content: center; margin-top: 5px;}
+
+            .grid-2, .grid-3 { grid-template-columns: 1fr !important; gap: 15px; }
+            .modal-content { padding: 20px; width: 95%; max-height: 90vh; }
+            .btn-sm { padding: 8px; }
+            .btn-sm i { margin: 0; }
+        }
+
+        /* NEW UNIFIED PRINT STYLES */
+        #printContainer { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #printContainer, #printContainer * { visibility: visible; }
+            #printContainer { 
+                display: block; position: absolute; left: 0; top: 0; width: 100%; 
+                background: white; padding: 0; margin: 0; 
+            }
+            .print-label { 
+                page-break-after: always; /* Ensure each tag is on a new print segment */
+                width: 100%; box-sizing: border-box; text-align: center;
+                padding: 10px;
+                border: 1px dashed #ccc; /* Optional border for alignment visually */
+                margin-bottom: 20px;
+                max-width: 300px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .modal, .fab, .app-header, .sidebar-drawer, .app-container { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+    
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html" class="active"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <div class="app-container">
+        
+        <div class="header-actions">
+            <div class="header-top-row">
+                <div class="metal-toggle-container">
+                    <div class="metal-tab active-gold" id="metal-tab-gold-tagged" onclick="setMetalFilter('GOLD_TAGGED')"><i class="fas fa-tags"></i> Gold (Tagged)</div>
+                    <div class="metal-tab" id="metal-tab-gold-fine" onclick="setMetalFilter('GOLD_FINE')"><i class="fas fa-cubes"></i> Gold (Fine/Melt)</div>
+                    <div class="metal-tab" id="metal-tab-gold-order" onclick="setMetalFilter('GOLD_ORDER')"><i class="fas fa-hammer"></i> Gold (Orders)</div>
+                    <div class="metal-tab" id="metal-tab-silver" onclick="setMetalFilter('SILVER')"><i class="fas fa-ring"></i> Silver Stock</div>
+                    <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
+                    <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card" id="card-weight" style="border-left-color: var(--accent-gold);">
+                <div class="stat-lbl" id="lbl-weight">Total Gold Weight (Net)</div>
+                <div class="stat-val" id="total-weight">0.000 g</div>
+            </div>
+            <div class="stat-card" id="card-value" style="border-left-color: var(--success-green);">
+                <div class="stat-lbl" id="lbl-value">Total Est. Gold Value</div>
+                <div class="stat-val" id="total-value" style="color:var(--success-green);">₹0</div>
+            </div>
+            <div class="stat-card" id="card-count" style="border-left-color: var(--info-blue);">
+                <div class="stat-lbl" id="lbl-count">Total Active Items / Batches</div>
+                <div class="stat-val" id="total-count" style="color:var(--info-blue);">0</div>
+            </div>
+        </div>
+
+        <div class="filter-bar-new">
+            <div class="filter-group">
+                <label><i class="fas fa-layer-group"></i> Sub-View Filter:</label>
+                <select id="filterType" onchange="applyFilters()">
+                    <option value="ALL">All Active Stock in this Tab</option>
+                    <option value="MIX">Untagged (Mix) Stock Only</option>
+                    <option value="SOLD">Sold Invoices (History)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label><i class="fas fa-tags"></i> Item Category:</label>
+                <select id="filterCategory" onchange="applyFilters()">
+                    <option value="ALL">All Categories</option>
+                </select>
+            </div>
+            <button class="btn-manage-cats" onclick="openCatModal()"><i class="fas fa-cog"></i> Manage Categories</button>
+        </div>
+
+        <div class="search-box-container">
+            <i class="fas fa-barcode search-icon"></i>
+            <input type="text" id="searchInput" class="search-box" placeholder="Scan Barcode or Search HUID / Name..." onkeyup="applyFilters()">
+        </div>
+
+        <div class="table-container">
+            <table class="inv-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Barcodes / Ref</th>
+                        <th>Purity</th>
+                        <th>Stock Qty</th>
+                        <th>Gross Wt</th>
+                        <th>Net Wt</th>
+                        <th style="color:#8e24aa;">Stone Wt</th>
+                        <th>Fine Wt</th>
+                        <th style="text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-list">
+                    <tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
+    </div>
+
+    <div id="selectPrintModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeModal('selectPrintModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-print"></i> Select Tags to Print</h3>
+            <p style="font-size:0.85rem; color:#64748b;">Search and select the inventory items you want to print barcodes for.</p>
+            
+            <input type="text" id="printSearchInput" class="search-box" placeholder="Search Barcode, Category or Purity..." onkeyup="filterPrintList()" style="margin-bottom:15px; width: 100%; box-sizing: border-box;">
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 0.9rem;">
+                <label style="cursor:pointer; color:var(--info-blue);"><input type="checkbox" id="selectAllPrint" onclick="toggleSelectAllPrint()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
+                <span id="selectedPrintCount" style="font-weight:bold;">0 Selected</span>
+            </div>
+
+            <div id="printCheckList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+                </div>
+            
+            <button class="btn-block btn-primary" onclick="printSelectedBarcodes()" style="margin-top: 20px;"><i class="fas fa-print"></i> Generate & Print Labels</button>
+        </div>
+    </div>
+
+    <div id="customConfirmModal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-question-circle" style="color:var(--info-blue); font-size: 2rem; display:block; margin-bottom: 10px;"></i> Confirm</h3>
+            <p id="customConfirmMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+            <div style="display:flex; gap:10px; margin-top:25px;">
+                <button class="btn-secondary" style="flex:1; padding: 12px; border-radius: 8px; font-weight: bold; border: 1px solid #ccc; background: #fff;" onclick="resolveCustomConfirm(false)">Cancel</button>
+                <button class="btn-primary" style="flex:1; margin-top:0;" onclick="resolveCustomConfirm(true)">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="customAlertModal" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color:var(--active-red); font-size: 1.4rem;"><i class="fas fa-exclamation-triangle" style="font-size: 2rem; display:block; margin-bottom: 10px;"></i> Notice</h3>
+            <p id="customAlertMessage" style="font-size:0.95rem; color:#555; white-space: pre-wrap; line-height: 1.5;"></p>
+            <button class="btn-primary" style="margin-top:25px;" onclick="closeModal('customAlertModal')">OK</button>
+        </div>
+    </div>
+
+    <div id="catModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-tags"></i> Manage Categories</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-top:-5px; margin-bottom:15px;">Lock categories to either Unique (Individual Tags) or Loose (Bulk Stock).</p>
+            
+            <div class="cat-tabs">
+                <div class="cat-tab active" id="catTabGold" onclick="switchCatMode('Gold')">Gold Categories</div>
+                <div class="cat-tab" id="catTabSilver" onclick="switchCatMode('Silver')">Silver Categories</div>
+            </div>
+
+            <ul class="cat-list" id="catListDisplay"></ul>
+            
+            <div style="display:flex; gap:10px; align-items:center; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0; flex-wrap: wrap;">
+                <input type="text" id="newCatName" placeholder="Category Name" style="margin:0; flex:1; min-width:150px;">
+                <select id="newCatMode" style="margin:0; width:auto; padding:12px; font-weight:600; color:#333;">
+                    <option value="individual">Unique Item</option>
+                    <option value="bulk">Bulk / Loose Item</option>
+                </select>
+                <button class="btn-primary" style="margin:0; width:auto; padding:12px 20px;" onclick="addCategory()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="itemDetailsModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <button class="close-btn" onclick="closeModal('itemDetailsModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-search"></i> Item Details
+            </h3>
+            
+            <div class="barcode-box" style="text-align:center; margin-bottom: 20px;">
+                <div style="font-weight:bold; font-size:0.9rem; color:#64748b;">BHARTI JEWELLERS</div>
+                <div class="barcode-text" id="idmBarcode" style="font-weight:bold; font-size:1.5rem; letter-spacing:2px; margin-top:5px;">BARCODE</div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; margin-bottom:20px;">
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Category:</span>
+                    <span class="item-detail-val" id="idmCategory">...</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Purity:</span>
+                    <span class="item-detail-val" id="idmPurity">...</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Quantity / Pieces:</span>
+                    <span class="item-detail-val" id="idmPieces">1</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Gross Weight:</span>
+                    <span class="item-detail-val" id="idmGross">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Stone Weight:</span>
+                    <span class="item-detail-val" id="idmStone">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Net Weight:</span>
+                    <span class="item-detail-val" id="idmNet" style="color:var(--active-red);">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Fine Weight:</span>
+                    <span class="item-detail-val" id="idmFine" style="color:var(--info-blue);">0.000 g</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">HUID / Mark:</span>
+                    <span class="item-detail-val" id="idmHuid">N/A</span>
+                </div>
+                <div class="item-detail-row">
+                    <span class="item-detail-lbl">Current Status:</span>
+                    <span class="item-detail-val" id="idmStatus">...</span>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <button class="btn-block btn-primary" style="margin-top:0;" id="idmEditBtn"><i class="fas fa-pen"></i> Edit Item</button>
+                <button class="btn-block btn-secondary" style="margin-top:0;" id="idmPrintBtn"><i class="fas fa-print"></i> Print Tag</button>
+            </div>
+            <p id="idmOrderWarning" style="display:none; color:var(--active-red); font-size:0.8rem; text-align:center; font-weight:bold; margin-top:15px;">
+                <i class="fas fa-exclamation-triangle"></i> This is a Custom Order item. Edit restricted.
+            </p>
+        </div>
+    </div>
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid```javascript
+        function autoPrint(items) {
+            const container = document.getElementById('printContainer');
+            container.innerHTML = '';
+            
+            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold');
+            if(printItems.length === 0) return; // Nothing to print
+
+            printItems.forEach((item, index) => {
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                container.innerHTML += `
+                    <div class="print-label">
+                        <div style="font-weight:900; font-size:1.1rem; text-transform: uppercase;">BHARTI JEWELLERS</div>
+                        <div style="font-weight:900; font-size:2rem; letter-spacing:3px; margin: 10px 0;">${item.barcode}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; font-weight:700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 15px;">
+                            <span>${gross}g</span>
+                            <span>${item.purity}</span>
+                        </div>
+                        <svg id="barcode-svg-${index}"></svg>
+                    </div>
+                `;
+            });
+            
+            // Wait for DOM update then render SVGs
+            setTimeout(() => {
+                printItems.forEach((item, index) => {
+                    JsBarcode(`#barcode-svg-${index}`, item.barcode, {
+                        format: "CODE128", 
+                        displayValue: false, 
+                        height: 60, 
+                        width: 2.5, 
+                        margin: 0,
+                        background: "#ffffff",
+                        lineColor: "#000000"
+                    });
+                });
+                
+                // Give JsBarcode a moment to draw before firing print dialog
+                setTimeout(() => {
+                    triggerPrint();
+                }, 300);
+            }, 100);
+        }
+
+        function viewBarcode(code, wt, purity) {
+            autoPrint([{ barcode: code, grossWt: parseFloat(wt), purity: purity, category: 'Single' }]);
+        }
