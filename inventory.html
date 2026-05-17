@@ -60,7 +60,7 @@
         .metal-tab.active-all { background: white; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #333;}
 
         .btn-export { background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; height: fit-content;}
-        .btn-export:hover { background: #059669; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); transform: translateY(-2px);}
+        .btn-export:hover { filter: brightness(0.9); box-shadow: 0 4px 10px rgba(0,0,0,0.2); transform: translateY(-2px);}
 
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--card-shadow); border-left: 5px solid var(--accent-gold); transition: 0.3s; display:flex; flex-direction:column; justify-content:center;}
@@ -148,6 +148,11 @@
         .cat-del:hover { transform: scale(1.2); }
         .mode-badge { font-size:0.7rem; padding:3px 6px; border-radius:4px; margin-left:8px; font-weight:700; text-transform:uppercase;}
 
+        /* Select Print List Styles */
+        .print-item-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s; }
+        .print-item-row:hover { background: #f8fafc; }
+        .print-item-row input[type="checkbox"] { width: 20px; height: 20px; margin-right: 15px; accent-color: var(--info-blue); }
+
         #toast {
             visibility: hidden; min-width: 250px; background-color: #1e293b; color: #fff;
             text-align: center; border-radius: 10px; padding: 16px 20px; position: fixed;
@@ -172,7 +177,6 @@
             .metal-tab.active-silver { border-left-color: var(--accent-silver); }
             .metal-tab.active-all { border-left-color: #333; }
             
-            .btn-export { justify-content: center; }
             .stats-grid { grid-template-columns: 1fr; gap: 10px; }
             
             .filter-bar-new { flex-direction: column; align-items: stretch; padding: 15px;}
@@ -185,13 +189,26 @@
             .btn-sm i { margin: 0; }
         }
 
+        /* NEW UNIFIED PRINT STYLES */
+        #printContainer { display: none; }
         @media print {
             body * { visibility: hidden; }
-            #barcodePrintModal, #barcodePrintModal * { visibility: visible; }
-            #barcodePrintModal { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; padding: 0; display: block; }
-            .modal-content { box-shadow: none; border: none; padding: 0; max-width: 100%; }
-            .close-btn, .btn-primary { display: none !important; }
-            .barcode-box { border: none !important; padding: 0 !important; }
+            #printContainer, #printContainer * { visibility: visible; }
+            #printContainer { 
+                display: block; position: absolute; left: 0; top: 0; width: 100%; 
+                background: white; padding: 0; margin: 0; 
+            }
+            .print-label { 
+                page-break-after: always; /* Ensure each tag is on a new print segment */
+                width: 100%; box-sizing: border-box; text-align: center;
+                padding: 10px;
+                border: 1px dashed #ccc; /* Optional border for alignment visually */
+                margin-bottom: 20px;
+                max-width: 300px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .modal, .fab, .app-header, .sidebar-drawer, .app-container { display: none !important; }
         }
     </style>
 </head>
@@ -239,7 +256,10 @@
                     <div class="metal-tab" id="metal-tab-silver" onclick="setMetalFilter('SILVER')"><i class="fas fa-ring"></i> Silver Stock</div>
                     <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
                 </div>
-                <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
+                    <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
+                </div>
             </div>
         </div>
 
@@ -307,6 +327,28 @@
 
     <!-- MODALS -->
 
+    <!-- Bulk / Selection Print Modal -->
+    <div id="selectPrintModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeModal('selectPrintModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-print"></i> Select Tags to Print</h3>
+            <p style="font-size:0.85rem; color:#64748b;">Search and select the inventory items you want to print barcodes for.</p>
+            
+            <input type="text" id="printSearchInput" class="search-box" placeholder="Search Barcode, Category or Purity..." onkeyup="filterPrintList()" style="margin-bottom:15px; width: 100%; box-sizing: border-box;">
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 0.9rem;">
+                <label style="cursor:pointer; color:var(--info-blue);"><input type="checkbox" id="selectAllPrint" onclick="toggleSelectAllPrint()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
+                <span id="selectedPrintCount" style="font-weight:bold;">0 Selected</span>
+            </div>
+
+            <div id="printCheckList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+                <!-- List renders here -->
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="printSelectedBarcodes()" style="margin-top: 20px;"><i class="fas fa-print"></i> Generate & Print Labels</button>
+        </div>
+    </div>
+
     <div id="customConfirmModal" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="max-width: 350px; text-align: center; padding: 30px 20px;">
             <h3 style="margin-top:0; color:var(--header-bg); font-size: 1.4rem;"><i class="fas fa-question-circle" style="color:var(--info-blue); font-size: 2rem; display:block; margin-bottom: 10px;"></i> Confirm</h3>
@@ -326,6 +368,7 @@
         </div>
     </div>
 
+    <!-- Other Modals (Categories, Item Details, etc) -->
     <div id="catModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <button class="close-btn" onclick="closeModal('catModal')">&times;</button>
@@ -438,7 +481,6 @@
         </div>
     </div>
 
-    <!-- Tag/Extract Modal with Dropdown Lock Event -->
     <div id="tagModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
@@ -522,7 +564,6 @@
         </div>
     </div>
 
-    <!-- Manual Entry Modal with Dropdown Lock Event -->
     <div id="manualEntryModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -681,31 +722,12 @@
         </div>
     </div>
 
-    <div id="barcodePrintModal" class="modal">
-        <div class="modal-content" style="text-align:center; max-width:400px; padding: 40px 20px;">
-            <button class="close-btn" onclick="closeModal('barcodePrintModal')">&times;</button>
-            <h3 style="margin-top:0; margin-bottom: 20px; color:#444;"><i class="fas fa-print"></i> Print Tag</h3>
-            
-            <div class="barcode-box" style="margin: 0 auto; width: 100%; border: 1px dashed #ccc; padding: 20px; border-radius: 8px; background: white;">
-                <div style="font-weight:900; font-size:1.1rem; color:#333; margin-bottom:15px; text-transform: uppercase;">BHARTI JEWELLERS</div>
-                
-                <div style="font-weight:900; font-size:2rem; letter-spacing:3px; margin-bottom: 10px; color: #000;" id="printCodeText">CHA001</div>
-                
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:1rem; font-weight:700; color:#000; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; padding: 10px 0; margin-bottom: 15px;">
-                    <span id="printWt">20.000g</span>
-                    <span id="printPurity">22K</span>
-                </div>
-
-                <svg id="barcodeSvg"></svg>
-            </div>
-            
-            <button class="btn-block btn-primary" onclick="triggerPrint()" style="margin-top: 25px;"><i class="fas fa-print"></i> Print Label</button>
-        </div>
-    </div>
+    <!-- Hidden Print Container for Labels -->
+    <div id="printContainer"></div>
 
     <div id="toast">Message Saved!</div>
 
-    <script src="db.js?v=35"></script>
+    <script src="db.js?v=36"></script>
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -726,6 +748,133 @@
                 window.print();
             }
         }
+
+        // =======================
+        // NEW UNIFIED PRINTING LOGIC
+        // =======================
+
+        function autoPrint(items) {
+            const container = document.getElementById('printContainer');
+            container.innerHTML = '';
+            
+            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold');
+            if(printItems.length === 0) return; // Nothing to print
+
+            printItems.forEach((item, index) => {
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                container.innerHTML += `
+                    <div class="print-label">
+                        <div style="font-weight:900; font-size:1.1rem; text-transform: uppercase;">BHARTI JEWELLERS</div>
+                        <div style="font-weight:900; font-size:2rem; letter-spacing:3px; margin: 10px 0;">${item.barcode}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; font-weight:700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; margin-bottom: 15px;">
+                            <span>${gross}g</span>
+                            <span>${item.purity}</span>
+                        </div>
+                        <svg id="barcode-svg-${index}"></svg>
+                    </div>
+                `;
+            });
+            
+            // Wait for DOM update then render SVGs
+            setTimeout(() => {
+                printItems.forEach((item, index) => {
+                    JsBarcode(`#barcode-svg-${index}`, item.barcode, {
+                        format: "CODE128", 
+                        displayValue: false, 
+                        height: 60, 
+                        width: 2.5, 
+                        margin: 0,
+                        background: "#ffffff",
+                        lineColor: "#000000"
+                    });
+                });
+                
+                // Give JsBarcode a moment to draw before firing print dialog
+                setTimeout(() => {
+                    triggerPrint();
+                }, 300);
+            }, 100);
+        }
+
+        function viewBarcode(code, wt, purity) {
+            autoPrint([{ barcode: code, grossWt: parseFloat(wt), purity: purity, category: 'Single' }]);
+        }
+
+        // SELECT PRINT LOGIC
+        let printSelectionList = [];
+
+        function openSelectPrintModal() {
+            printSelectionList = allInventory.filter(i => i.status === 'stock' && i.category !== 'MIX' && !i.barcode.includes('MIX'));
+            document.getElementById('printSearchInput').value = '';
+            document.getElementById('selectAllPrint').checked = false;
+            renderPrintCheckList(printSelectionList);
+            openModal('selectPrintModal');
+        }
+
+        function renderPrintCheckList(items) {
+            const listContainer = document.getElementById('printCheckList');
+            listContainer.innerHTML = '';
+            
+            if(items.length === 0) {
+                listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #888;">No valid tags found.</div>`;
+                updateSelectedPrintCount();
+                return;
+            }
+
+            items.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                listContainer.innerHTML += `
+                    <label class="print-item-row" style="cursor:pointer; display:flex;">
+                        <input type="checkbox" class="print-checkbox" value="${item.id}" onchange="updateSelectedPrintCount()">
+                        <div style="flex:1;">
+                            <div style="font-weight:700; color:var(--info-blue);">${item.barcode}</div>
+                            <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${item.purity} | ${gross}g</div>
+                        </div>
+                    </label>
+                `;
+            });
+            updateSelectedPrintCount();
+        }
+
+        function filterPrintList() {
+            const term = document.getElementById('printSearchInput').value.toUpperCase().trim();
+            const filtered = printSelectionList.filter(i => 
+                (i.barcode && i.barcode.toUpperCase().includes(term)) || 
+                (i.category && i.category.toUpperCase().includes(term)) ||
+                (i.purity && i.purity.toUpperCase().includes(term))
+            );
+            renderPrintCheckList(filtered);
+            document.getElementById('selectAllPrint').checked = false;
+        }
+
+        function toggleSelectAllPrint() {
+            const isChecked = document.getElementById('selectAllPrint').checked;
+            const checkboxes = document.querySelectorAll('.print-checkbox');
+            checkboxes.forEach(cb => cb.checked = isChecked);
+            updateSelectedPrintCount();
+        }
+
+        function updateSelectedPrintCount() {
+            const selected = document.querySelectorAll('.print-checkbox:checked').length;
+            document.getElementById('selectedPrintCount').innerText = `${selected} Selected`;
+        }
+
+        function printSelectedBarcodes() {
+            const checkboxes = document.querySelectorAll('.print-checkbox:checked');
+            if(checkboxes.length === 0) {
+                appAlert("Please select at least one item to print.");
+                return;
+            }
+            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const itemsToPrint = allInventory.filter(i => selectedIds.includes(i.id));
+            
+            closeModal('selectPrintModal');
+            autoPrint(itemsToPrint);
+        }
+
+        // =======================
+        // STANDARD LOGIC CONTINUES
+        // =======================
 
         let confirmResolver = null;
         
@@ -1557,6 +1706,8 @@
             const isSilv = checkIsSilver(purity);
             const catPrefix = cat === 'MIX' ? 'MIX' : (cat && cat.length >= 3 ? cat.substring(0, 3).toUpperCase() : cat.toUpperCase());
             
+            let newlyAddedItems = [];
+
             if (finalMode === 'bulk') {
                 const net = Math.max(0, totalGross - totalStone);
                 const fine = net * getPurityFactor(purity);
@@ -1578,6 +1729,7 @@
                     existingBulk.weight = existingBulk.grossWt;
 
                     await updateItem('inventory', existingBulk);
+                    newlyAddedItems.push(existingBulk);
                 } else {
                     let barcode = '';
                     const uniqueSuffix = Date.now().toString().slice(-4);
@@ -1593,6 +1745,7 @@
                     };
                     
                     await addItem('inventory', newItem);
+                    newlyAddedItems.push(newItem);
                 }
             } else {
                 if (pieces <= 1) {
@@ -1609,6 +1762,7 @@
                         status: 'stock', source: 'manual', addedDate: new Date().toISOString()
                     };
                     await addItem('inventory', newItem);
+                    newlyAddedItems.push(newItem);
                 } else {
                     const grossInputs = document.querySelectorAll('.man-piece-gross');
                     const stoneInputs = document.querySelectorAll('.man-piece-stone');
@@ -1634,6 +1788,7 @@
                             status: 'stock', source: 'manual', addedDate: new Date().toISOString()
                         };
                         await addItem('inventory', newItem);
+                        newlyAddedItems.push(newItem);
                     }
                 }
             }
@@ -1641,6 +1796,10 @@
             showToast("Added to Inventory!", "success");
             closeModal('manualEntryModal');
             loadInventory();
+
+            if (newlyAddedItems.length > 0) {
+                autoPrint(newlyAddedItems);
+            }
         }
 
         async function openItemDetails(id) {
@@ -1920,6 +2079,7 @@
             
             let totalExtractedNet = 0;
             let sumStone = 0;
+            let newlyAddedItems = [];
 
             if (mode === 'bulk') {
                 const g = parseFloat(grossInputs[0].value) || 0;
@@ -1947,6 +2107,7 @@
                     existingBulk.weight = existingBulk.grossWt;
 
                     await updateItem('inventory', existingBulk);
+                    newlyAddedItems.push(existingBulk);
                 } else {
                     let barcode = '';
                     const uniqueSuffix = Date.now().toString().slice(-4);
@@ -1960,6 +2121,7 @@
                         status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
                     };
                     await addItem('inventory', newItem);
+                    newlyAddedItems.push(newItem);
                 }
 
             } else {
@@ -1981,6 +2143,7 @@
                         status: 'stock', source: `mix_${batchItem.barcode}`, addedDate: new Date().toISOString()
                     };
                     await addItem('inventory', newItem);
+                    newlyAddedItems.push(newItem);
                 }
             }
 
@@ -2004,6 +2167,10 @@
             showToast("Stock Extracted & Tagged Successfully!", "success");
             closeModal('tagModal');
             loadInventory();
+
+            if(newlyAddedItems.length > 0) {
+                autoPrint(newlyAddedItems);
+            }
         }
 
         async function openCancelModal(saleId) {
@@ -2271,25 +2438,6 @@
             }
         }
 
-        function viewBarcode(code, wt, purity) {
-            closeModal('itemDetailsModal');
-            closeModal('detailsModal');
-            document.getElementById('printCodeText').innerText = code;
-            document.getElementById('printWt').innerText = wt + "g";
-            document.getElementById('printPurity').innerText = purity;
-            
-            JsBarcode("#barcodeSvg", code, {
-                format: "CODE128",
-                displayValue: false, 
-                height: 60,
-                width: 2.5,
-                margin: 0,
-                background: "#ffffff",
-                lineColor: "#000000"
-            });
-            
-            openModal('barcodePrintModal');
-        }
     </script>
 </body>
 </html>
