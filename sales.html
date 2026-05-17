@@ -88,11 +88,58 @@
         .pay-chip { background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; border: 1px solid transparent; color: white; }
         .pay-chip.active { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(197, 160, 89, 0.1);}
 
-        @media print { .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .tabs { display: none !important; } #invoice-area { display: block !important; } }
-        #invoice-area { display: none; background: white; padding: 20px; font-family: 'Times New Roman', serif; color: #000; }
-        .inv-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
-        .inv-table th, .inv-table td { border: 1px solid #000; padding: 6px; }
+        /* ------------------ PRINT SPECIFIC CSS FOR NEW INVOICE ------------------ */
+        @media print { 
+            @page { size: A4; margin: 0; }
+            body { background: white; padding: 0; margin: 0; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .tabs { display: none !important; } 
+            #invoice-area { display: block !important; width: 100%; }
+        }
+
+        #invoice-area { display: none; background: white; padding: 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #000; }
         
+        .print-page { width: 210mm; min-height: 297mm; padding: 15mm; margin: 0 auto; box-sizing: border-box; background: white; position: relative; }
+        .print-border-maroon { border: 1px solid #6c1122; }
+        .text-maroon { color: #6c1122; }
+        .bg-maroon { background-color: #6c1122; color: white; }
+        
+        /* Front Page CSS */
+        .inv-header-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 5px; }
+        .inv-address-box { font-size: 12px; font-weight: bold; padding-top: 10px; }
+        .inv-logo-box { text-align: right; }
+        .inv-logo-text { font-size: 32px; font-weight: 900; color: #6c1122; margin:0; line-height:1; }
+        .inv-logo-sub { font-size: 16px; font-weight: bold; color: #6c1122; margin:0; letter-spacing: 2px;}
+        .inv-gst-text { font-size: 10px; font-weight: bold; margin-top: 5px; }
+
+        .inv-middle-bar { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #6c1122; border-bottom: 1px solid #6c1122; padding: 5px; font-size: 11px; font-weight: bold; }
+        .inv-middle-title { font-size: 12px; font-weight: 800; text-align: center; flex: 1; }
+
+        .inv-cust-grid { display: grid; grid-template-columns: 80px 10px 1fr; row-gap: 4px; font-size: 11px; font-weight: 600; padding: 8px; border-bottom: 1px solid #6c1122; }
+        
+        .inv-main-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; font-weight: 600; }
+        .inv-main-table th { border: 1px solid #6c1122; padding: 6px 2px; }
+        .inv-main-table td { border-left: 1px solid #6c1122; border-right: 1px solid #6c1122; padding: 6px 2px; vertical-align: top; }
+        .inv-items-container { min-height: 120mm; border-bottom: 1px solid #6c1122; }
+
+        .inv-footer-grid { display: grid; grid-template-columns: 1.8fr 1fr; font-size: 11px; font-weight: 600; }
+        .inv-footer-left { border-right: 1px solid #6c1122; display: flex; flex-direction: column; justify-content: space-between; }
+        .inv-footer-right { padding: 0; }
+        
+        .inv-summary-row { display: flex; justify-content: space-between; padding: 3px 8px; border-bottom: 1px solid #eee; }
+        .inv-summary-row.bold { font-weight: 800; border-bottom: none; border-top: 1px solid #6c1122; padding-top: 5px; margin-top: auto;}
+        
+        .inv-urd-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; margin-top: auto; }
+        .inv-urd-table th, .inv-urd-table td { border: 1px solid #6c1122; padding: 4px; }
+        
+        /* Back Page CSS */
+        .page-break { page-break-before: always; }
+        .tc-container { display: flex; height: 100%; border: 1px solid #6c1122; }
+        .tc-sidebar { background-color: #6c1122; width: 60px; color: white; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 24px; font-weight: bold; letter-spacing: 5px; }
+        .tc-content { padding: 30px; flex: 1; }
+        .tc-title { color: #6c1122; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-decoration: underline; }
+        .tc-list { font-size: 12px; line-height: 1.6; color: #333; padding-left: 20px; font-weight: 600;}
+        .tc-list li { margin-bottom: 12px; text-align: justify; }
+
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(3px);}
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative;}
         .close-btn { position: absolute; top: 15px; right: 15px; font-size: 1.5rem; background: none; border: none; cursor: pointer; color:#888;}
@@ -424,7 +471,6 @@
         </div>
     </div>
 
-    <!-- Modals -->
     <div id="custModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="document.getElementById('custModal').style.display='none'">&times;</button>
@@ -489,6 +535,21 @@
             } else {
                 window.print();
             }
+        }
+
+        // Convert number to words (Indian Format)
+        function numberToWords(num) {
+            const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+            const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+            if ((num = num.toString()).length > 9) return 'overflow';
+            n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n) return; var str = '';
+            str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+            str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+            str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+            str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+            str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+            return str.trim() + ' Only';
         }
 
         // --- UI CONTROLS ---
@@ -1347,9 +1408,12 @@
             
             const applyGst = document.getElementById('applyGstToggle').checked;
 
-            let baseSubtotal = 0; let totalGst = 0; let totalOldGold = 0;
+            let baseSubtotal = 0; let totalGst = 0; let totalOldGold = 0; let totalExchWt = 0;
             cart.forEach(i => {
-                if(i.isOldGold) totalOldGold += Math.abs(i.total);
+                if(i.isOldGold) {
+                    totalOldGold += Math.abs(i.total);
+                    totalExchWt += (i.grossWt || i.weight || 0);
+                }
                 else { baseSubtotal += i.baseAmount; totalGst += applyGst ? i.gstAmount : 0; }
             });
 
@@ -1360,10 +1424,9 @@
             const paid = payments.reduce((a,b)=>a+b.amount,0);
             const pendingDue = grand - paid;
 
-            // CONFIRMATION POPUP IF PENDING DUE IS GREATER THAN 0
             if (pendingDue > 0) {
                 if (!confirm(`Warning: The customer has a remaining due of ₹${pendingDue.toLocaleString()}.\n\nAre you sure you want to save this bill and add this to their due account?`)) {
-                    return; // Stop the function if the user cancels
+                    return; 
                 }
             }
 
@@ -1383,6 +1446,7 @@
             const saleData = {
                 date: originalDate, customerId: cid, items: cart,
                 subTotal: baseSubtotal, gst: totalGst, oldGoldDeduction: totalOldGold,
+                totalExchWt: totalExchWt, // Saved for URD print box
                 discountMode: 'flat', discount: discVal, 
                 bcWalletDeduction: appliedBcAmount, 
                 grandTotal: grand, paidAmount: paid, pendingAmount: pendingDue, payments: cleanPayments,
@@ -1811,137 +1875,180 @@
             
             const isGst = sale.isGstBill !== false; 
             const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
+            const cgstAmt = (sale.gst / 2).toFixed(2);
+            const sgstAmt = (sale.gst / 2).toFixed(2);
+
+            let subTotalDisplay = sale.subTotal;
+            if (isGst) {
+                subTotalDisplay = sale.subTotal + sale.gst;
+            }
+            if (sale.discount > 0) {
+                subTotalDisplay -= sale.discount;
+            }
 
             let html = `
-                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
-                    <h2 style="margin:0; font-size:24px;">BHARTI JEWELLERS</h2>
-                    <p style="margin:5px 0 0 0; font-size:12px;">Main Market, City | Ph: 9876543210</p>
-                    <h3 style="margin:10px 0 0 0; font-size:16px;">${titleText}</h3>
-                </div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:13px;">
-                    <div>
-                        <strong>To:</strong> <span>${cust.name}</span><br>
-                        <span>${cust.mobile}</span>
+            <div class="print-page front-page print-border-maroon">
+                <div class="inv-header-grid">
+                    <div class="inv-address-box text-maroon">
+                        प्लॉट नं.डी ५६, गोखले स्कुल समोर,<br>
+                        सेक्टर १२, खारघर, नवी मुंबई ४१०२१०.
                     </div>
-                    <div style="text-align:right;">
-                        <strong>Invoice #:</strong> <span>${formatInv(sale.id)}</span><br>
-                        <strong>Date:</strong> <span>${new Date(sale.date).toLocaleString('en-IN')}</span>
+                    <div class="inv-logo-box">
+                        <div class="inv-logo-text">भारती</div>
+                        <div class="inv-logo-sub">ज्वेलर्स</div>
                     </div>
                 </div>
-                <table class="inv-table">
-                    <thead>
-                        <tr style="background:#f0f0f0;">
-                            <th style="text-align:left;">Description</th>
-                            <th>Wt (g)</th>
-                            <th>Rate</th>
-                            <th>Mk</th>
-                            ${isGst ? '<th>GST</th>' : ''}
-                            <th style="text-align:right;">Total Amt</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+                
+                <div style="display:grid; grid-template-columns: 1fr 1.5fr 1fr; margin-bottom:10px;">
+                    <div style="border:1px solid #6c1122; border-left:none; padding:5px; font-size:12px; font-weight:bold;">
+                        <div style="border-bottom:1px solid #6c1122; padding-bottom:3px; margin-bottom:3px;">
+                            Invoice No. <span style="color:#D32F2F; margin-left:10px;">${formatInv(sale.id).replace('INV-', '')}</span>
+                        </div>
+                        <div>Date & Time &nbsp; ${new Date(sale.date).toLocaleString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}</div>
+                    </div>
+                    <div style="text-align:center; padding:10px 0; font-size:14px; font-weight:bold; color:#6c1122;">
+                        ${titleText}<br>GOLD SALES BILL
+                    </div>
+                    <div style="font-size:10px; font-weight:bold; text-align:right; padding-top:5px;">
+                        GSTN No. : 27BGYPJ5125N1ZM<br>
+                        GST Type : SGST + CGST
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid #6c1122;">
+                    <div class="inv-cust-grid">
+                        <div>Name</div> <div>:</div> <div>${cust.name}</div>
+                        <div>Address</div> <div>:</div> <div>${cust.city || ''}</div>
+                        <div>Mobile No.</div> <div>:</div> <div>${cust.mobile}</div>
+                        <div style="margin-top:10px;">City & Pin No.</div> <div style="margin-top:10px;">:</div> <div style="margin-top:10px;">Kharghar - 410210</div>
+                        <div>Pan No.</div> <div>:</div> <div></div>
+                        <div>GSTN No.</div> <div>:</div> <div>NA</div>
+                        <div>State & Code</div> <div>:</div> <div>27 - Maharashtra</div>
+                    </div>
+                </div>
+
+                <div class="inv-items-container">
+                    <table class="inv-main-table">
+                        <thead class="bg-maroon">
+                            <tr>
+                                <th>HSN<br>Code</th>
+                                <th>Particular</th>
+                                <th>HUID</th>
+                                <th>Purity</th>
+                                <th>Pcs</th>
+                                <th>Gross<br>Wt</th>
+                                <th>Net<br>Wt</th>
+                                <th>Rate<br>Per Gm</th>
+                                <th>Other<br>Amt</th>
+                                <th>Making</th>
+                                <th style="border-right:none;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
             
             sale.items.forEach(i => {
-                let mkDisplay = '-'; let gstDisplay = '-';
-                let rowTotal = Math.abs(i.total);
-                
-                if(!i.isOldGold) {
-                    mkDisplay = i.makingAmount ? '₹' + i.makingAmount.toLocaleString() : '-';
-                    gstDisplay = i.gstPct + '%';
-                    if (!isGst) rowTotal = i.baseAmount; 
-                }
-                
-                const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
-                const wtDisplay = (i.netWt || i.weight).toFixed(3);
-                
-                let pName = `<b>${i.category}</b><br><small style="font-size:10px;">${i.purity}`;
-                if(i.huid) pName += ` | HUID: ${i.huid}`;
-                pName += `</small>`;
+                if(i.isOldGold) return; // Exchanged items don't go in the main sales grid
+
+                let mkDisplay = i.makingAmount ? i.makingAmount : '-';
+                let amtDisplay = i.baseAmount;
 
                 html += `
-                <tr>
-                    <td style="border: 1px solid #000; padding: 6px;">${pName}</td>
-                    <td style="border: 1px solid #000; padding: 6px; text-align:center;">${pcsText}${wtDisplay}g</td>
-                    <td style="border: 1px solid #000; padding: 6px; text-align:center;">${i.rate}</td>
-                    <td style="border: 1px solid #000; padding: 6px; text-align:center;">${mkDisplay}</td>
-                    ${isGst ? `<td style="border: 1px solid #000; padding: 6px; text-align:center;">${gstDisplay}</td>` : ''}
-                    <td style="border: 1px solid #000; padding: 6px; text-align:right;">${rowTotal.toLocaleString()}</td>
-                </tr>`;
+                            <tr>
+                                <td></td>
+                                <td style="text-align:left;">${i.category}</td>
+                                <td>${i.huid || ''}</td>
+                                <td>${i.purity}</td>
+                                <td>${i.sellQty || 1}</td>
+                                <td>${(i.grossWt || i.weight).toFixed(3)}</td>
+                                <td>${(i.netWt || i.weight).toFixed(3)}</td>
+                                <td>${i.rate}</td>
+                                <td></td>
+                                <td>${mkDisplay}</td>
+                                <td style="border-right:none;">${amtDisplay.toLocaleString()}</td>
+                            </tr>`;
             });
-            
-            html += `
-                    </tbody>
-                </table>
-                <div style="display:flex; justify-content:flex-end; margin-top:15px; font-size:14px;">
-                    <table style="width:280px;">
-                        <tr><td>Items Value:</td><td style="text-align:right;">₹${sale.subTotal.toLocaleString()}</td></tr>
-            `;
-
-            if(isGst && sale.gst > 0) {
-                html += `<tr><td>Total GST:</td><td style="text-align:right;">+₹${sale.gst.toLocaleString()}</td></tr>`;
-            }
-
-            if(sale.oldGoldDeduction > 0) {
-                html += `<tr><td>Less Exchanged Metal:</td><td style="text-align:right; color:#8e24aa;">-₹${sale.oldGoldDeduction.toLocaleString()}</td></tr>`;
-            }
-
-            if(sale.bcWalletDeduction > 0) {
-                html += `<tr><td>Less BC Wallet:</td><td style="text-align:right; color:#1976d2;">-₹${sale.bcWalletDeduction.toLocaleString()}</td></tr>`;
-            }
-
-            if(sale.discount > 0) {
-                html += `<tr><td>Discount:</td><td style="text-align:right;">-₹${sale.discount.toLocaleString()}</td></tr>`;
-            }
 
             html += `
-                        <tr style="font-weight:bold; font-size:16px; border-top:2px solid #000; padding-top:5px;">
-                            <td style="padding-top:5px;">Grand Total:</td><td style="text-align:right; padding-top:5px;">₹${sale.grandTotal.toLocaleString()}</td>
-                        </tr>
-                    </table>
-                </div>
-            `;
-
-            html += `<div style="margin-top:15px; border-top:1px dashed #000; padding-top:10px; font-size:13px;">`;
-
-            if (sale.payments && sale.payments.length > 0) {
-                html += `
-                    <strong style="display:block; margin-bottom:8px;">Payment History:</strong>
-                    <table style="width:100%; margin-top:5px; font-size:12px; border-collapse: collapse;">
-                        <tbody>
-                `;
-                sale.payments.forEach(p => {
-                    const pDate = new Date(p.date || sale.date).toLocaleDateString('en-IN');
-                    html += `<tr><td style="padding:4px; border-bottom:1px solid #eee;">${pDate}</td><td style="padding:4px; border-bottom:1px solid #eee;">${p.mode}</td><td style="text-align:right; padding:4px; border-bottom:1px solid #eee;">₹${Math.abs(p.amount).toLocaleString()}</td></tr>`;
-                });
-                html += `
                         </tbody>
                     </table>
-                `;
-            }
+                </div>
 
-            html += `
-                <div style="display:flex; justify-content:flex-end; margin-top:10px;">
-                    <table style="width:250px; font-size:14px;">
-                        <tr><td style="padding-top:5px;">Total Paid:</td><td style="text-align:right; padding-top:5px; color:#2e7d32;">₹${Math.abs(sale.paidAmount).toLocaleString()}</td></tr>
-            `;
-            
-            if (sale.pendingAmount < 0) {
-                html += `<tr style="font-weight:bold; font-size:15px; color:#8e24aa;"><td style="padding-top:5px;">Refund Due:</td><td style="text-align:right; padding-top:5px;">₹${Math.abs(sale.pendingAmount).toLocaleString()}</td></tr>`;
-            } else {
-                html += `<tr style="font-weight:bold; font-size:15px; color:#d32f2f;"><td style="padding-top:5px;">Remaining Due:</td><td style="text-align:right; padding-top:5px;">₹${sale.pendingAmount.toLocaleString()}</td></tr>`;
-            }
+                <div class="inv-footer-grid">
+                    <div class="inv-footer-left">
+                        <div style="padding:5px;">
+                            <div style="border-bottom:1px solid #6c1122; padding-bottom:5px;">
+                                <strong>Invoice Value (In Words) :</strong><br>
+                                <span style="font-weight:normal; margin-left:10px;">Rupees ${numberToWords(sale.grandTotal)}</span>
+                            </div>
+                            <div style="border-bottom:1px solid #6c1122; padding:5px 0;">
+                                <strong>Narration :</strong>
+                            </div>
+                            <div style="padding:30px 0 5px 0;">
+                                <strong>Reference Person :</strong>
+                            </div>
+                        </div>
+                        <div style="border-top:1px solid #6c1122; display:flex;">
+                            <div style="padding:5px; border-right:1px solid #6c1122; flex:1;">
+                                <strong>URD Details:</strong>
+                            </div>
+                            <table class="inv-urd-table" style="flex:3; border:none; margin:0;">
+                                <tr style="background:#eee;">
+                                    <th style="border-top:none; border-bottom:none;">Doc No.</th>
+                                    <th style="border-top:none; border-bottom:none;">Old Gold Wt.</th>
+                                    <th style="border-top:none; border-bottom:none; border-right:none;">URD Amount</th>
+                                </tr>
+                                <tr>
+                                    <td style="border-bottom:none;"></td>
+                                    <td style="border-bottom:none;">${sale.totalExchWt ? sale.totalExchWt.toFixed(3) + ' g' : '-'}</td>
+                                    <td style="border-bottom:none; border-right:none;">${sale.oldGoldDeduction > 0 ? sale.oldGoldDeduction.toLocaleString() : '-'}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
 
-            html += `
-                    </table>
+                    <div class="inv-footer-right">
+                        <div class="inv-summary-row"><span>Gross Amt</span> <span>${sale.subTotal.toLocaleString()}</span></div>
+                        <div class="inv-summary-row"><span>CC Charges</span> <span></span></div>
+                        <div class="inv-summary-row"><span>Less Disc.</span> <span>${sale.discount > 0 ? sale.discount.toLocaleString() : ''}</span></div>
+                        <div class="inv-summary-row"><span>Add CGST</span> <span>${isGst && sale.gst > 0 ? cgstAmt : ''}</span></div>
+                        <div class="inv-summary-row"><span>Add SGST</span> <span>${isGst && sale.gst > 0 ? sgstAmt : ''}</span></div>
+                        <div class="inv-summary-row"><span>Add IGST</span> <span></span></div>
+                        <div class="inv-summary-row"><span>Other Charges</span> <span></span></div>
+                        <div class="inv-summary-row bold"><span>Sub Total</span> <span>${Math.round(subTotalDisplay).toLocaleString()}</span></div>
+                        <div class="inv-summary-row"><span>Less URD</span> <span>${(sale.oldGoldDeduction + (sale.bcWalletDeduction||0)) > 0 ? (sale.oldGoldDeduction + (sale.bcWalletDeduction||0)).toLocaleString() : ''}</span></div>
+                        <div class="inv-summary-row"><span>Round Off</span> <span></span></div>
+                        <div class="inv-summary-row bold" style="border-bottom:none;"><span>Net Payable</span> <span>${sale.grandTotal.toLocaleString()}</span></div>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid #6c1122; text-align:right; padding:20px 10px 5px 10px; font-weight:bold; font-size:12px; color:#6c1122;">
+                    For Bharti Jewellers
                 </div>
             </div>
-            `;
 
-            html += `
-                <div style="margin-top:40px; text-align:center; font-size:11px; color:#555; border-top:1px dashed #ccc; padding-top:10px;">
-                    Thank you for shopping with us! Standard terms and conditions apply.
+            <div class="print-page page-break tc-container">
+                <div class="tc-sidebar">
+                    BHARTI JEWELLERS
                 </div>
+                <div class="tc-content">
+                    <div class="tc-title">TERMS AND CONDITIONS</div>
+                    <ul class="tc-list">
+                        <li>Jewellery once sold can be exchanged to full value only if returned by the customer in same condition in which it was sold, within seven (7) days from date of invoice/sale. No cash refund is admissible.</li>
+                        <li>Only the jewellery purchased from Bharti Jewellery is applicable for buyback/refund. 5% of current gold value will be deducted while granting the refund. (Stone and wax weight will be deducted).</li>
+                        <li>Hallmark jewellery will be eligible for weight to weight exchange, only making charges and GST will have to be paid. (Stone and wax weight will be deducted)</li>
+                        <li>Payment of amount greater than Rs 10,000 to customers will be done only through Cheque/RTGS/IMPS/NEFT</li>
+                        <li>We are not responsible for any loss due to mishandle of ornaments which may cause breakage, chipping of enamel and falling of stones.</li>
+                        <li>The original Sales bill has to be submitted at the time of above sales return / exchange.</li>
+                        <li>If the payment is made by Cheque/IMPS/RTGS/NEFT, delivery of items purchased will be made only after realization of the amount to company.</li>
+                        <li>The daily rates of sale, exchange and purchase (buyback) displayed in showroom will be applicable for all transactions.</li>
+                        <li>Only the diamond and platinum jewellery purchased from Bharti Jewellers is applicable for buyback/refund. 25% of the total invoice value and G.S.T. will be deducted while granting the refund.</li>
+                        <li>While exchanging diamond jewellery 10% of the total invoice value and G.S.T. will be deducted.</li>
+                        <li>While exchanging platinum jewellery 10% of the total invoice value and G.S.T. will be deducted.</li>
+                        <li>In case of any dispute, only the courts in Mumbai will have jurisdiction.</li>
+                        <li>We reserve the right to modify these terms and condition from to time.</li>
+                    </ul>
+                </div>
+            </div>
             `;
 
             document.getElementById('invoice-area').innerHTML = html;
