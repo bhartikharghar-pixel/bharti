@@ -387,7 +387,6 @@
                     </div>
                 </div>
 
-                <!-- NEW ROUND OFF FEATURE -->
                 <div class="sum-row" style="margin-top:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; border:1px solid #444;">
                     <span style="color:#C5A059; font-weight:bold; font-size: 0.9rem;">Final Round-Off (Auto Adjust Making)</span>
                     <div style="display:flex; gap:5px;">
@@ -1063,7 +1062,6 @@
             document.getElementById('manualItemEntry').style.display = 'none';
         }
 
-        // Apply Round Off Logic by adjusting making charge proportionally
         function applyAutoRoundOff() {
             const target = getSafeNum(document.getElementById('targetGrand').value);
             if (!target || target <= 0) return;
@@ -1360,6 +1358,14 @@
             const grandTotalText = document.getElementById('sumGrand').innerText.replace(/₹|,/g,'');
             const grand = parseFloat(grandTotalText);
             const paid = payments.reduce((a,b)=>a+b.amount,0);
+            const pendingDue = grand - paid;
+
+            // CONFIRMATION POPUP IF PENDING DUE IS GREATER THAN 0
+            if (pendingDue > 0) {
+                if (!confirm(`Warning: The customer has a remaining due of ₹${pendingDue.toLocaleString()}.\n\nAre you sure you want to save this bill and add this to their due account?`)) {
+                    return; // Stop the function if the user cancels
+                }
+            }
 
             const editId = document.getElementById('editingSaleId').value;
             
@@ -1379,7 +1385,7 @@
                 subTotal: baseSubtotal, gst: totalGst, oldGoldDeduction: totalOldGold,
                 discountMode: 'flat', discount: discVal, 
                 bcWalletDeduction: appliedBcAmount, 
-                grandTotal: grand, paidAmount: paid, pendingAmount: grand - paid, payments: cleanPayments,
+                grandTotal: grand, paidAmount: paid, pendingAmount: pendingDue, payments: cleanPayments,
                 isGstBill: applyGst,
                 status: 'completed'
             };
