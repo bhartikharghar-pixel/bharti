@@ -309,6 +309,7 @@
         <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
     </div>
 
+    <!-- Modals (SelectPrint, Confirm, Alert, CatModal, ItemDetailsModal) remain unchanged -->
     <div id="selectPrintModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <button class="close-btn" onclick="closeModal('selectPrintModal')">&times;</button>
@@ -416,7 +417,7 @@
     </div>
 
     <div id="detailsModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-content" style="max-width: 900px;"> <!-- Increased width to accommodate Purity Column -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
                 <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-layer-group"></i> Group Details</h3>
                 <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
@@ -427,6 +428,7 @@
                     <thead>
                         <tr>
                             <th>Barcode</th>
+                            <th>Purity</th> <!-- Added Purity Header -->
                             <th>Qty</th>
                             <th>Gross Wt</th>
                             <th>Net Wt</th>
@@ -491,6 +493,7 @@
         </div>
     </div>
 
+    <!-- Manual Entry, Edit, Cancel Modals remain the same -->
     <div id="manualEntryModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -1003,6 +1006,9 @@
             return 0;
         }
 
+        // =======================
+        // UPDATED RENDER LIST (Category grouping without purity split)
+        // =======================
         function renderList(items) {
             const container = document.getElementById('inventory-list'); container.innerHTML = ''; groupedInventory = {}; 
             let totalWt = 0; let totalVal = 0; let totalCount = 0;
@@ -1017,18 +1023,27 @@
                 totalWt += net; totalCount += pcs;
                 totalVal += Math.round(net * (getRate(item.purity) / 10));
 
-                const key = (item.category==='MIX' || item.barcode?.startsWith('ORD-')) ? `K_${item.id}` : `${item.category}_${item.purity}_${item.status}`;
-                if(!groupedInventory[key]) groupedInventory[key] = { name: item.category, category: item.category, purity: item.purity, count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] };
+                // GROUP ONLY BY CATEGORY (Removed Purity from the Key to merge them)
+                const key = (item.category==='MIX' || item.barcode?.startsWith('ORD-')) ? `K_${item.id}` : `${item.category}_${item.status}`;
                 
-                groupedInventory[key].count += pcs; groupedInventory[key].gross += gross; groupedInventory[key].net += net; 
-                groupedInventory[key].stone += parseFloat(item.stoneWt||0); groupedInventory[key].fine += calculateFineWeight(item);
+                if(!groupedInventory[key]) {
+                    groupedInventory[key] = { key: key, name: item.category, category: item.category, purities: new Set(), count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] };
+                }
+                
+                groupedInventory[key].count += pcs; 
+                groupedInventory[key].gross += gross; 
+                groupedInventory[key].net += net; 
+                groupedInventory[key].stone += parseFloat(item.stoneWt||0); 
+                groupedInventory[key].fine += calculateFineWeight(item);
+                groupedInventory[key].purities.add(item.purity); // Add purity to the Set
                 groupedInventory[key].items.push(item);
             });
 
             Object.values(groupedInventory).forEach(group => {
                 const tr = document.createElement('tr');
                 const isMix = group.category === 'MIX';
-                let actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.category}_${group.purity}_stock')"><i class="fas fa-list"></i> List</button>`;
+                let actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}')"><i class="fas fa-list"></i> List</button>`;
+                
                 if(group.items.length === 1 && !isMix) actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${group.items[0].id})"><i class="fas fa-eye"></i> View</button>`;
                 if(isMix && group.items.length===1) actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${group.items[0].id})"><i class="fas fa-tags"></i> Tag</button>`;
 
@@ -1040,10 +1055,13 @@
                     displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
                 }
 
+                // Convert Set of purities to Badge Elements
+                let purityHtml = Array.from(group.purities).map(p => `<span class="badge badge-22k" style="margin-right:4px;">${p}</span>`).join('');
+
                 tr.innerHTML = `
                     <td><strong>${group.name}</strong></td>
                     <td>${displayBarcode}</td>
-                    <td><span class="badge badge-22k">${group.purity}</span></td>
+                    <td>${purityHtml}</td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
                     <td>${group.gross.toFixed(3)} g</td>
                     <td style="color:var(--active-red); font-weight:700;">${group.net.toFixed(3)} g</td>
@@ -1150,15 +1168,18 @@
             
             closeModal('detailsModal'); openModal('itemDetailsModal');
         }
+
         function openGroupDetails(key) {
             const group = groupedInventory[key]; if(!group) return;
             const tbody = document.getElementById('groupDetailsList'); tbody.innerHTML = '';
+            
             group.items.forEach(item => {
                 const g = parseFloat(item.grossWt||item.weight).toFixed(3);
                 let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
                 let printBtn = item.barcode && item.barcode.startsWith('LOOSE') ? '' : `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
                 
-                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${printBtn} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+                // ADDED PURITY BADGE COLUMN in details to clearly separate items
+                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${printBtn} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
             });
             openModal('detailsModal');
         }
