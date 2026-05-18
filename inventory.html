@@ -1124,9 +1124,23 @@
             const prefix = cat === 'MIX' ? 'MIX' : cat.substring(0,3).toUpperCase();
 
             if (getCategoryMode(cat) === 'bulk') {
-                const barcode = `LOOSE-${prefix}-${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 100)}`;
-                const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
-                await addItem('inventory', item); newlyAddedItems.push(item);
+                const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                const barcode = `LOOSE-${prefix}-${cleanPurity}`;
+                
+                let existingItem = allInventory.find(i => i.barcode === barcode && i.purity === purity && i.status === 'stock');
+                
+                if (existingItem) {
+                    existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + g).toFixed(3));
+                    existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) + s).toFixed(3));
+                    existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + n).toFixed(3));
+                    existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + f).toFixed(3));
+                    existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
+                    await updateItem('inventory', existingItem);
+                } else {
+                    const item = { barcode, category: cat, name: `Loose ${cat} ${purity}`, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
+                    await addItem('inventory', item); 
+                    allInventory.push(item);
+                }
             } else {
                 if(pieces <= 1) {
                     const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
@@ -1223,14 +1237,34 @@
             const count = parseInt(document.getElementById('tagPieces').value)||1;
             let newlyAddedItems = [];
             
-            document.querySelectorAll('.tag-gross').forEach(async (inp, i) => {
-                const g = parseFloat(inp.value)||0; if(g>0) {
-                    const barcode = stockMode === 'bulk' ? `LOOSE-${cat.substring(0,3).toUpperCase()}-${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 100)}` : generateSafeBarcode(cat);
-                    const pcs = stockMode === 'bulk' ? count : 1;
-                    const newItem = { barcode, category: cat, name:`${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g*getPurityFactor(purity), pieces: pcs, status: 'stock', addedDate: new Date().toISOString() };
-                    await addItem('inventory', newItem); newlyAddedItems.push(newItem);
+            const inputs = document.querySelectorAll('.tag-gross');
+            for (let i = 0; i < inputs.length; i++) {
+                const g = parseFloat(inputs[i].value) || 0;
+                if (g > 0) {
+                    if (stockMode === 'bulk') {
+                        const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                        const barcode = `LOOSE-${cat.substring(0,3).toUpperCase()}-${cleanPurity}`;
+                        let existingItem = allInventory.find(item => item.barcode === barcode && item.purity === purity && item.status === 'stock');
+                        
+                        if (existingItem) {
+                            existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + g).toFixed(3));
+                            existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + g).toFixed(3));
+                            existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + (g * getPurityFactor(purity))).toFixed(3));
+                            existingItem.pieces = parseInt(existingItem.pieces || 0) + count;
+                            await updateItem('inventory', existingItem);
+                        } else {
+                            const newItem = { barcode, category: cat, name: `Loose ${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: count, status: 'stock', addedDate: new Date().toISOString() };
+                            await addItem('inventory', newItem);
+                            allInventory.push(newItem); 
+                        }
+                    } else {
+                        const barcode = generateSafeBarcode(cat);
+                        const newItem = { barcode, category: cat, name: `${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString() };
+                        await addItem('inventory', newItem); 
+                        newlyAddedItems.push(newItem);
+                    }
                 }
-            });
+            }
 
             if (available - sum <= 0.01) await deleteItemReal(item.id);
             else { item.grossWt = available - sum; item.netWt = item.grossWt; await updateItem('inventory', item); }
