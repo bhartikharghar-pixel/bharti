@@ -783,6 +783,7 @@
         let allInventory = []; let allSalesData = []; let allCustomersData = [];
         let goldRates = { rate22k: 0, rate24k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
         let groupedInventory = {}; 
+        let savedSubCategories = {};
         
         const BASE_GOLD_CATS = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
         const BASE_SILVER_CATS = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
@@ -795,10 +796,12 @@
             const savedGoldCats = await getSetting('gold_categories');
             const savedSilvCats = await getSetting('silver_categories');
             const savedModes = await getSetting('category_modes');
+            const sc = await getSetting('sub_categories');
             
             if (savedGoldCats && Array.isArray(savedGoldCats)) goldCategories = savedGoldCats;
             if (savedSilvCats && Array.isArray(savedSilvCats)) silverCategories = savedSilvCats;
             if (savedModes) categoryModes = savedModes;
+            if (sc) savedSubCategories = sc;
 
             populatePurityDropdowns('Gold', 'editPurity');
             populatePurityDropdowns('Gold', 'manPurity');
@@ -876,14 +879,10 @@
                 return;
             }
             
-            const uniqueSubCats = [...new Set(allInventory.filter(i => 
-                i.category === cat && 
-                i.name && 
-                i.name.trim() !== '' && 
-                i.name !== cat &&
-                !i.name.toLowerCase().includes('loose') && 
-                !i.name.toLowerCase().includes('mix')
-            ).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+            let permanent = savedSubCategories[cat] || [];
+            let extracted = allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim());
+            
+            const uniqueSubCats = [...new Set([...permanent, ...extracted])];
             
             if (uniqueSubCats.length > 0) {
                 subCatGroup.style.display = 'flex';
@@ -1160,6 +1159,7 @@
             document.getElementById('manStockMode').disabled = true;
         }
         function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
+        
         function handleManCategoryChange() { 
             const cat = document.getElementById('manCategory').value;
             const modeSelect = document.getElementById('manStockMode');
@@ -1170,7 +1170,12 @@
             const subCatSelect = document.getElementById('manSubCatSelect');
             if(subCatSelect) {
                 subCatSelect.innerHTML = '<option value="">-- No Sub-Category --</option>';
-                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+                
+                let permanent = savedSubCategories[cat] || [];
+                let extracted = allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim());
+                
+                const uniqueNames = [...new Set([...permanent, ...extracted])];
+                
                 uniqueNames.forEach(n => {
                     subCatSelect.innerHTML += `<option value="${n}">${n}</option>`;
                 });
@@ -1179,12 +1184,20 @@
             }
         }
         
-        function toggleManSubCatInput() {
+        async function toggleManSubCatInput() {
             const select = document.getElementById('manSubCatSelect');
+            const cat = document.getElementById('manCategory').value;
             if(select && select.value === 'NEW') {
                 const newSub = prompt("Enter New Sub-Category:");
                 if (newSub && newSub.trim() !== '') {
                     const formatted = newSub.trim();
+                    
+                    if (!savedSubCategories[cat]) savedSubCategories[cat] = [];
+                    if (!savedSubCategories[cat].includes(formatted)) {
+                        savedSubCategories[cat].push(formatted);
+                        await updateItem('settings', { key: 'sub_categories', value: savedSubCategories });
+                    }
+                    
                     const newOption = new Option(formatted, formatted);
                     select.add(newOption, select.options[select.options.length - 1]);
                     select.value = formatted;
@@ -1366,13 +1379,19 @@
             
             openModal('tagModal');
         }
+        
         function handleTagCategoryChange() { 
             const cat = document.getElementById('tagCategory').value;
             
             const subCatSelect = document.getElementById('tagSubCatSelect');
             if(subCatSelect) {
                 subCatSelect.innerHTML = '<option value="">-- No Sub-Category --</option>';
-                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+                
+                let permanent = savedSubCategories[cat] || [];
+                let extracted = allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim());
+                
+                const uniqueNames = [...new Set([...permanent, ...extracted])];
+                
                 uniqueNames.forEach(n => {
                     subCatSelect.innerHTML += `<option value="${n}">${n}</option>`;
                 });
@@ -1382,12 +1401,20 @@
             generateTagInputs(); 
         }
         
-        function toggleTagSubCatInput() {
+        async function toggleTagSubCatInput() {
             const select = document.getElementById('tagSubCatSelect');
+            const cat = document.getElementById('tagCategory').value;
             if(select && select.value === 'NEW') {
                 const newSub = prompt("Enter New Sub-Category:");
                 if (newSub && newSub.trim() !== '') {
                     const formatted = newSub.trim();
+                    
+                    if (!savedSubCategories[cat]) savedSubCategories[cat] = [];
+                    if (!savedSubCategories[cat].includes(formatted)) {
+                        savedSubCategories[cat].push(formatted);
+                        await updateItem('settings', { key: 'sub_categories', value: savedSubCategories });
+                    }
+                    
                     const newOption = new Option(formatted, formatted);
                     select.add(newOption, select.options[select.options.length - 1]);
                     select.value = formatted;
