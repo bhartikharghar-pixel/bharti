@@ -60,7 +60,7 @@
 
         .cust-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
         .cust-header-left { display: flex; align-items: center; gap: 15px; }
-        .avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--accent-gold); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; text-transform: uppercase; flex-shrink: 0;}
+        .avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--accent-gold); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; text-transform: uppercase; flex-shrink: 0; overflow: hidden;}
         
         .cust-info h4 { margin: 0 0 4px 0; font-size: 1.15rem; color: #222; }
         .cust-info p { margin: 0; font-size: 0.85rem; color: #666; display: flex; align-items: center; gap: 8px; }
@@ -106,6 +106,7 @@
         .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 6px; font-size: 0.9rem; color: #555; font-weight: 600;}
         input, select, textarea { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; background: #fafafa; font-family: inherit; transition: 0.2s;}
+        input[type="file"] { padding: 10px; background: white; }
         input:focus, select:focus, textarea:focus { border-color: var(--active-red); background: #fff; box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);}
         .btn-save { width: 100%; padding: 15px; background: var(--active-red); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1.05rem; margin-top: 10px; transition: 0.2s;}
         .btn-save:hover { background: #b71c1c; }
@@ -241,7 +242,7 @@
         </div>
     </div>
 
-    <!-- NEW CUSTOMER MODAL WITH KYC -->
+    <!-- NEW CUSTOMER MODAL WITH PHOTO & OPTIONAL KYC -->
     <div id="custModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <div class="modal-header">
@@ -251,6 +252,12 @@
             
             <div class="modal-body">
                 <input type="hidden" id="cId">
+                <div class="form-group" style="text-align:center;">
+                    <label style="text-align:left;">Customer Photo</label>
+                    <input type="file" id="cPhoto" accept="image/*" capture="environment" onchange="previewPhoto(event)">
+                    <img id="photoPreview" src="" style="display:none; width: 120px; height: 120px; border-radius: 50%; margin: 15px auto 0 auto; object-fit: cover; border: 3px solid #eee;">
+                    <input type="hidden" id="cPhotoBase64">
+                </div>
                 <div class="form-group">
                     <label>Full Name <span class="text-red">*</span></label>
                     <input type="text" id="cName" placeholder="e.g. Rahul Sharma">
@@ -260,7 +267,7 @@
                     <input type="tel" id="cMobile" placeholder="e.g. 9876543210">
                 </div>
                 <div class="form-group">
-                    <label>Aadhar Number (Mandatory KYC) <span class="text-red">*</span></label>
+                    <label>Aadhar Number (Optional)</label>
                     <input type="text" id="cAadhar" placeholder="12-digit Aadhar Number" maxlength="12">
                 </div>
                 <div class="form-group">
@@ -340,7 +347,7 @@
             <div class="modal-body">
                 <div class="c360-header">
                     <div style="display:flex; justify-content:center; margin-bottom:15px;">
-                        <div class="avatar" id="v360Avatar" style="width:70px; height:70px; font-size:2rem;"></div>
+                        <div class="avatar" id="v360Avatar" style="width:90px; height:90px; font-size:2.5rem;"></div>
                     </div>
                     <h2 class="c360-name" id="v360Name">Customer Name</h2>
                     <div class="c360-phone">
@@ -489,6 +496,20 @@
             filterData(); // re-trigger search based on tab
         }
 
+        // --- Photo Upload Preview Logic ---
+        function previewPhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('photoPreview').src = e.target.result;
+                    document.getElementById('photoPreview').style.display = 'block';
+                    document.getElementById('cPhotoBase64').value = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
         // Global Data Caches
         let dbCustomers = [], dbSales = [], dbOrders = [], dbLoans = [], dbSchemes = [], dbDeposits = [];
         let aggregatedCustomers = [];
@@ -575,12 +596,13 @@
             list.forEach(c => {
                 const hasDue = c.pendingSales > 0 || c.activeLoanPrin > 0;
                 const initial = c.name ? c.name.charAt(0).toUpperCase() : 'U';
+                const avatarContent = c.photo ? `<img src="${c.photo}" style="width:100%; height:100%; object-fit:cover;">` : initial;
                 
                 container.innerHTML += `
                     <div class="card ${hasDue ? 'has-due' : ''}">
                         <div class="cust-header">
                             <div class="cust-header-left">
-                                <div class="avatar">${initial}</div>
+                                <div class="avatar" style="${c.photo ? 'background:transparent;' : ''}">${avatarContent}</div>
                                 <div class="cust-info">
                                     <h4>${c.name}</h4>
                                     <p><i class="fas fa-phone"></i> ${c.mobile} | <i class="fas fa-map-marker-alt"></i> ${c.city || 'N/A'}</p>
@@ -696,7 +718,6 @@
             // 1. Check if customer exists by phone number
             let cust = dbCustomers.find(c => c.mobile == mobile);
             if(!cust) {
-                // If it's a new lead, we can save a partial profile without Aadhar for now.
                 const newId = await addItem('customers', { name, mobile, joined: new Date().toISOString(), inquiries: [] });
                 cust = await getItem('customers', newId);
             }
@@ -740,6 +761,13 @@
         // --- BASIC CUSTOMER CRUD ---
         function openCustomerModal(id = null) {
             const delBtn = document.getElementById('btnDeleteCust');
+            
+            // Clear photo
+            document.getElementById('cPhoto').value = ''; 
+            document.getElementById('photoPreview').style.display = 'none';
+            document.getElementById('photoPreview').src = '';
+            document.getElementById('cPhotoBase64').value = '';
+
             if(id) {
                 const c = dbCustomers.find(x => x.id === id);
                 document.getElementById('custModalTitle').innerText = "Edit Customer";
@@ -749,6 +777,13 @@
                 document.getElementById('cAadhar').value = c.aadhar || '';
                 document.getElementById('cPan').value = c.pan || '';
                 document.getElementById('cCity').value = c.city || '';
+                
+                if(c.photo) {
+                    document.getElementById('photoPreview').src = c.photo;
+                    document.getElementById('photoPreview').style.display = 'block';
+                    document.getElementById('cPhotoBase64').value = c.photo;
+                }
+
                 delBtn.style.display = 'block';
             } else {
                 document.getElementById('custModalTitle').innerText = "New Customer";
@@ -770,13 +805,15 @@
             const aadhar = document.getElementById('cAadhar').value.trim();
             const pan = document.getElementById('cPan').value.trim().toUpperCase();
             const city = document.getElementById('cCity').value;
+            const photo = document.getElementById('cPhotoBase64').value;
 
-            // Validation Check for mandatory KYC
-            if(!name || !mobile || !aadhar) {
-                return alert("Name, Mobile, and Aadhar Number are mandatory for KYC.");
+            // Name and Mobile are mandatory
+            if(!name || !mobile) {
+                return alert("Name and Mobile are mandatory.");
             }
-            if(aadhar.length !== 12 || isNaN(aadhar)) {
-                return alert("Please enter a valid 12-digit Aadhar Number.");
+            // Aadhar is optional, but if entered, must be 12 digits
+            if(aadhar && (aadhar.length !== 12 || isNaN(aadhar))) {
+                return alert("Please enter a valid 12-digit Aadhar Number or leave it blank.");
             }
 
             if(id) {
@@ -786,9 +823,10 @@
                 c.aadhar = aadhar; 
                 c.pan = pan; 
                 c.city = city;
+                c.photo = photo; // Update Photo
                 await updateItem('customers', c);
             } else {
-                await addItem('customers', { name, mobile, aadhar, pan, city, joined: new Date().toISOString(), inquiries: [] });
+                await addItem('customers', { name, mobile, aadhar, pan, city, photo, joined: new Date().toISOString(), inquiries: [] });
             }
             
             closeModal('custModal');
@@ -840,7 +878,16 @@
             const c = aggregatedCustomers.find(x => x.id === id);
             if(!c) return;
 
-            document.getElementById('v360Avatar').innerText = c.name.charAt(0).toUpperCase();
+            // Render Avatar (Photo or Initial)
+            const v360Avatar = document.getElementById('v360Avatar');
+            if(c.photo) {
+                v360Avatar.innerHTML = `<img src="${c.photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                v360Avatar.style.background = 'transparent';
+            } else {
+                v360Avatar.innerHTML = c.name.charAt(0).toUpperCase();
+                v360Avatar.style.background = 'var(--accent-gold)';
+            }
+
             document.getElementById('v360Name').innerText = c.name;
             document.getElementById('v360Phone').innerText = c.mobile;
             
