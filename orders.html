@@ -97,6 +97,7 @@
         input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; font-family: inherit; background: #fafafa; transition: 0.2s;}
         input:focus, select:focus, textarea:focus { border-color: var(--active-red); background: white; outline: none;}
         input[readonly] { background: #eee; color: #333; font-weight: 600; border-color: #ccc; }
+        input[type="file"] { background: #fff; border: 1px dashed #ccc; cursor: pointer; }
 
         .input-group { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
         .input-group input { border: none; flex: 1; border-radius: 0; }
@@ -228,6 +229,15 @@
 
             <div class="form-section">
                 <div class="form-section-title">Order Details</div>
+                
+                <!-- NEW PHOTO UPLOAD FIELD -->
+                <div class="form-group" style="background: #f9f9f9; padding: 10px; border: 1px dashed #ccc; border-radius: 8px;">
+                    <label><i class="fas fa-camera"></i> Design Photo (Optional)</label>
+                    <input type="file" id="oImage" accept="image/*" onchange="previewImage(event)">
+                    <img id="oImagePreview" style="display:none; width:100%; max-height:200px; object-fit:contain; margin-top:10px; border-radius:8px; border:1px solid #ddd; background:#fff;">
+                    <input type="hidden" id="oImageBase64">
+                </div>
+
                 <div class="form-group">
                     <label>Order Description</label>
                     <textarea id="oDesc" rows="2" placeholder="Item details (e.g., 22K Men's Ring with specific design)"></textarea>
@@ -408,12 +418,17 @@
             </div>
 
             <div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px; border-left: 4px solid #333;">
-                <div style="display:flex; justify-content:space-between; align-items:start;">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom: 10px;">
                     <div>
                         <h4 style="margin:0 0 5px 0; font-size:1.2rem;" id="vCustName"></h4>
                         <p style="margin:0 0 10px 0; font-size:0.9rem; color:#555;"><i class="fas fa-info-circle"></i> <span id="vDesc"></span></p>
                     </div>
                     <span id="vStatusBadge" class="badge"></span>
+                </div>
+
+                <!-- NEW: Show Image if uploaded -->
+                <div id="vImageContainer" style="display:none; text-align:center; margin-bottom:15px; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                    <img id="vImage" style="max-width:100%; max-height:250px; border-radius:4px; object-fit: contain;">
                 </div>
                 
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.85rem; background:white; padding:10px; border-radius:6px; margin-bottom:10px;">
@@ -463,7 +478,7 @@
                 <button class="btn-primary btn-outline" style="margin-top:0;" id="btnPrintCustomerReceipt" onclick="printReceiptEngine()"><i class="fas fa-print"></i> Print Receipt</button>
                 
                 <button class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
-                <button class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print Karigar Issue Slip</button>
+                <button class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print / PDF Karigar Details</button>
                 
                 <button class="btn-primary" style="background:var(--receive-green); margin-top:0; grid-column: span 2;" id="btnReceiveMerchant" onclick="openReceiveModal()"><i class="fas fa-box-open"></i> Receive from Karigar</button>
                 
@@ -474,6 +489,7 @@
         </div>
     </div>
 
+    <!-- Rest of your HTML Modals (assignModal, receiveModal, billingModal, cancelModal) remain same -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
@@ -519,187 +535,12 @@
         </div>
     </div>
 
-    <div id="receiveModal" class="modal">
-        <div class="modal-content" style="max-width:550px;">
-            <button class="close-btn" onclick="closeModal('receiveModal')">&times;</button>
-            <h3 style="margin-top:0; color:var(--receive-green);"><i class="fas fa-box-open"></i> Receive & Finalize</h3>
-            <input type="hidden" id="rOrderId">
-            
-            <div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid var(--receive-green); margin-bottom:15px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <div style="color:#2e7d32; font-weight:bold;">Issued to Karigar:</div>
-                    <div id="rIssuedGrossDisplay">0.000 g</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="color:#2e7d32; font-weight:bold;">Total Issued:</div>
-                    <strong id="rIssuedWtDisplay" style="font-size:1.1rem; color:#1b5e20;">0.000 g</strong>
-                </div>
-            </div>
+    <!-- ... (Other modals: receiveModal, billingModal, cancelModal) remain same as original ... -->
+    <div id="receiveModal" class="modal"><div class="modal-content" style="max-width:550px;"><button class="close-btn" onclick="closeModal('receiveModal')">&times;</button><h3 style="margin-top:0; color:var(--receive-green);"><i class="fas fa-box-open"></i> Receive & Finalize</h3><input type="hidden" id="rOrderId"><div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid var(--receive-green); margin-bottom:15px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;"><div><div style="color:#2e7d32; font-weight:bold;">Issued to Karigar:</div><div id="rIssuedGrossDisplay">0.000 g</div></div><div style="text-align:right;"><div style="color:#2e7d32; font-weight:bold;">Total Issued:</div><strong id="rIssuedWtDisplay" style="font-size:1.1rem; color:#1b5e20;">0.000 g</strong></div></div><div class="form-section"><div class="form-section-title">Final Received Weights</div><div style="display:flex; justify-content:flex-end; margin-bottom:5px;"><button class="btn-outline" style="margin:0; padding:4px 8px; font-size:0.75rem; border-color:#ccc; color:#555;" onclick="autoFillFinalGross()"><i class="fas fa-copy"></i> Copy Est.</button></div><div class="form-grid"><div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rFinalGross" step="0.001" oninput="calcReceiveTotals()"></div><div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rFinalStone" step="0.001" value="0" oninput="calcReceiveTotals()"></div></div><div class="form-grid"><div class="form-group"><label>Final Net Wt (g)</label><input type="number" id="rFinalNet" readonly style="background:#f0f0f0; font-weight:bold;"></div><div class="form-group"><label>Actual Wastage</label><div class="input-group"><input type="number" id="rWastageVal" step="0.01" value="0" oninput="calcReceiveTotals()"><select id="rWastageMode" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="gm">+ g</option></select></div></div></div><div class="form-group"><label>Final Chargeable Fine Wt (24K Equivalent)</label><input type="number" id="rFinalFine" readonly style="background:#fffde7; color:#f57f17; font-weight:bold; border-color:#ffe0b2;"></div><div class="form-group" style="padding:10px; background:#fafafa; border:1px dashed #ccc;"><label>Karigar Ledger Diff</label><input type="text" id="rWtDiff" readonly style="font-weight:bold; background:transparent; border:none; padding:0;"></div></div><div class="form-section"><div class="form-section-title">Final Costing</div><div class="form-grid"><div class="form-group"><label>Actual Making Chg Logic</label><div class="input-group"><input type="number" id="rActualMakingInput" oninput="calcReceiveTotals()" placeholder="0"><select id="rActualMakingType" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="per_gram">₹/g</option></select></div><input type="hidden" id="rActualMaking" value="0"><div style="font-size:0.8rem; color:var(--accent-gold); margin-top:4px; font-weight:bold; text-align:right;" id="rActualMakingDisplay">₹0</div></div><div class="form-group"><label>Other Charges (₹)</label><input type="number" id="rActualOther" value="0" oninput="calcReceiveTotals()"></div></div><div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9; margin-top:10px;"><input type="checkbox" id="rApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcReceiveTotals()"><label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Total</label></div><input type="hidden" id="rGstAmountVal" value="0"></div><div class="summary-highlight"><div class="summary-row"><span>New Final Order Total:</span><span class="summary-val" id="rNewGrandTotal" style="color:var(--accent-gold); font-size:1.2rem;">₹0</span></div></div><input type="hidden" id="rNewGrandTotalVal"><input type="hidden" id="rNewBaseVal"><button class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Mark Ready for Stock</button></div></div>
+    
+    <div id="billingModal" class="modal"><div class="modal-content" style="max-width: 650px;"><button class="close-btn" onclick="closeModal('billingModal')">&times;</button><h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3><input type="hidden" id="billOrderId"><input type="hidden" id="billCustId"><div id="billCustSearch" style="display:none;"></div><div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;"><div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-user-tag" style="font-size:1.1rem;"></i><span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span></div><span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span></div><div class="form-section" style="border-left: 4px solid var(--bill-blue); background: #e3f2fd;"><div class="form-section-title" style="color: #1565c0; border-color: #90caf9;">Final Adjustments (Modify Rate/Making at Delivery)</div><div class="form-grid"><div class="form-group"><label>Final Gold Rate (₹/g)</label><input type="number" id="billFinalRate" oninput="calcBillingAdjustment()" style="font-weight:bold; border-color:#64b5f6;"></div><div class="form-group"><label>Final Making Charge</label><div class="input-group"><input type="number" id="billMakingInput" oninput="calcBillingAdjustment()"><select id="billMakingType" onchange="calcBillingAdjustment()"><option value="pct">%</option><option value="per_gram">₹/g</option></select></div></div></div><div class="form-grid"><div class="form-group"><label>Other Charges (₹)</label><input type="number" id="billOtherCharge" oninput="calcBillingAdjustment()"></div><div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:20px;"><input type="checkbox" id="billApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcBillingAdjustment()"><label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST</label></div></div><input type="hidden" id="billUpdatedGrandTotal"><input type="hidden" id="billUpdatedBaseAmount"><input type="hidden" id="billUpdatedMaking"><input type="hidden" id="billUpdatedGST"></div><div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px;"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Adjusted Gross Order Total:</span> <strong id="bOrdGross" style="font-size:1.1rem; color:#333;">₹0</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div><div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.2rem;"><span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong></div></div><div class="form-section"><div class="form-section-title">Receive Final Payment</div><div class="form-grid"><div class="form-group" style="margin-bottom:0;"><label>Amount (₹)</label><input type="number" id="billPayAmt"></div><div class="form-group" style="margin-bottom:0;"><label>Mode</label><select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select></div></div><button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button><div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div><div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong></div></div><button class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button></div></div>
 
-            <div class="form-section">
-                <div class="form-section-title">Final Received Weights</div>
-                <div style="display:flex; justify-content:flex-end; margin-bottom:5px;">
-                    <button class="btn-outline" style="margin:0; padding:4px 8px; font-size:0.75rem; border-color:#ccc; color:#555;" onclick="autoFillFinalGross()"><i class="fas fa-copy"></i> Copy Est.</button>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rFinalGross" step="0.001" oninput="calcReceiveTotals()"></div>
-                    <div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rFinalStone" step="0.001" value="0" oninput="calcReceiveTotals()"></div>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group"><label>Final Net Wt (g)</label><input type="number" id="rFinalNet" readonly style="background:#f0f0f0; font-weight:bold;"></div>
-                    <div class="form-group">
-                        <label>Actual Wastage</label>
-                        <div class="input-group">
-                            <input type="number" id="rWastageVal" step="0.01" value="0" oninput="calcReceiveTotals()">
-                            <select id="rWastageMode" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="gm">+ g</option></select>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-group"><label>Final Chargeable Fine Wt (24K Equivalent)</label><input type="number" id="rFinalFine" readonly style="background:#fffde7; color:#f57f17; font-weight:bold; border-color:#ffe0b2;"></div>
-                <div class="form-group" style="padding:10px; background:#fafafa; border:1px dashed #ccc;"><label>Karigar Ledger Diff</label><input type="text" id="rWtDiff" readonly style="font-weight:bold; background:transparent; border:none; padding:0;"></div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title">Final Costing</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Actual Making Chg Logic</label>
-                        <div class="input-group">
-                            <input type="number" id="rActualMakingInput" oninput="calcReceiveTotals()" placeholder="0">
-                            <select id="rActualMakingType" onchange="calcReceiveTotals()">
-                                <option value="pct">%</option>
-                                <option value="per_gram">₹/g</option>
-                            </select>
-                        </div>
-                        <input type="hidden" id="rActualMaking" value="0">
-                        <div style="font-size:0.8rem; color:var(--accent-gold); margin-top:4px; font-weight:bold; text-align:right;" id="rActualMakingDisplay">₹0</div>
-                    </div>
-                    
-                    <div class="form-group"><label>Other Charges (₹)</label><input type="number" id="rActualOther" value="0" oninput="calcReceiveTotals()"></div>
-                </div>
-
-                <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9; margin-top:10px;">
-                    <input type="checkbox" id="rApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcReceiveTotals()">
-                    <label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Total</label>
-                </div>
-                <input type="hidden" id="rGstAmountVal" value="0">
-            </div>
-
-            <div class="summary-highlight">
-                <div class="summary-row"><span>New Final Order Total:</span><span class="summary-val" id="rNewGrandTotal" style="color:var(--accent-gold); font-size:1.2rem;">₹0</span></div>
-            </div>
-
-            <input type="hidden" id="rNewGrandTotalVal">
-            <input type="hidden" id="rNewBaseVal">
-
-            <button class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Mark Ready for Stock</button>
-        </div>
-    </div>
-
-    <div id="billingModal" class="modal">
-        <div class="modal-content" style="max-width: 650px;">
-            <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
-            <h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3>
-            <input type="hidden" id="billOrderId">
-            <input type="hidden" id="billCustId">
-            
-            <div id="billCustSearch" style="display:none;"></div>
-            <div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <i class="fas fa-user-tag" style="font-size:1.1rem;"></i>
-                    <span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span>
-                </div>
-                <span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span>
-            </div>
-            
-            <div class="form-section" style="border-left: 4px solid var(--bill-blue); background: #e3f2fd;">
-                <div class="form-section-title" style="color: #1565c0; border-color: #90caf9;">Final Adjustments (Modify Rate/Making at Delivery)</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Final Gold Rate (₹/g)</label>
-                        <input type="number" id="billFinalRate" oninput="calcBillingAdjustment()" style="font-weight:bold; border-color:#64b5f6;">
-                    </div>
-                    <div class="form-group">
-                        <label>Final Making Charge</label>
-                        <div class="input-group">
-                            <input type="number" id="billMakingInput" oninput="calcBillingAdjustment()">
-                            <select id="billMakingType" onchange="calcBillingAdjustment()">
-                                <option value="pct">%</option>
-                                <option value="per_gram">₹/g</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Other Charges (₹)</label>
-                        <input type="number" id="billOtherCharge" oninput="calcBillingAdjustment()">
-                    </div>
-                    <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:20px;">
-                        <input type="checkbox" id="billApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcBillingAdjustment()">
-                        <label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST</label>
-                    </div>
-                </div>
-                <input type="hidden" id="billUpdatedGrandTotal">
-                <input type="hidden" id="billUpdatedBaseAmount">
-                <input type="hidden" id="billUpdatedMaking">
-                <input type="hidden" id="billUpdatedGST">
-            </div>
-
-            <div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Adjusted Gross Order Total:</span> <strong id="bOrdGross" style="font-size:1.1rem; color:#333;">₹0</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.2rem;">
-                    <span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title">Receive Final Payment</div>
-                <div class="form-grid">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Amount (₹)</label>
-                        <input type="number" id="billPayAmt">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Mode</label>
-                        <select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select>
-                    </div>
-                </div>
-                <button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button>
-                <div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div>
-                <div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">
-                    Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong>
-                </div>
-            </div>
-
-            <button class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button>
-        </div>
-    </div>
-
-    <div id="cancelModal" class="modal">
-        <div class="modal-content">
-            <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
-            <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Order</h3>
-            <input type="hidden" id="cOrderId">
-            <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Advance Paid:</span> <strong id="cOrderAdv" style="color:#2e7d32;">₹0</strong></div>
-                <div id="cOrderOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--old-gold); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
-                    <span>Old Gold Held:</span> <strong id="cOrderOldGold">0g</strong>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Refund Advance Cash (₹)</label>
-                <input type="number" id="cRefundAmt">
-            </div>
-            <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
-                <input type="checkbox" id="cReturnOldGold" checked style="width:20px; height:20px; accent-color:#ef6c00;"> 
-                <label for="cReturnOldGold" style="margin:0; color:#ef6c00; font-weight:bold; cursor:pointer;">Return Old Gold to Customer?</label>
-            </div>
-            <button class="btn btn-danger" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button>
-        </div>
-    </div>
+    <div id="cancelModal" class="modal"><div class="modal-content"><button class="close-btn" onclick="closeModal('cancelModal')">&times;</button><h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Order</h3><input type="hidden" id="cOrderId"><div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Advance Paid:</span> <strong id="cOrderAdv" style="color:#2e7d32;">₹0</strong></div><div id="cOrderOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--old-gold); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;"><span>Old Gold Held:</span> <strong id="cOrderOldGold">0g</strong></div></div><div class="form-group"><label>Refund Advance Cash (₹)</label><input type="number" id="cRefundAmt"></div><div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;"><input type="checkbox" id="cReturnOldGold" checked style="width:20px; height:20px; accent-color:#ef6c00;"> <label for="cReturnOldGold" style="margin:0; color:#ef6c00; font-weight:bold; cursor:pointer;">Return Old Gold to Customer?</label></div><button class="btn btn-danger" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button></div></div>
 
     <div id="invoice-area"></div>
     <div id="challan-area"></div>
@@ -726,6 +567,21 @@
         let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
         let billingPayments = []; 
         let activeJobData = null; 
+
+        // NEW: Photo Preview Logic
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('oImagePreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    document.getElementById('oImageBase64').value = e.target.result; // Store as base64 for saving
+                }
+                reader.readAsDataURL(file);
+            }
+        }
 
         function autoWhatsApp(orderData, stage) {
             if (!orderData.custMobile) {
@@ -883,7 +739,8 @@
                 
                 if (o.status === 'billed' || o.status === 'delivered') netPayable = 0; 
 
-                const icon = '<i class="fas fa-ring" style="color:var(--accent-gold);"></i>';
+                // If image exists, show a tiny image icon
+                const icon = o.itemImage ? '<i class="fas fa-image" style="color:var(--bill-blue);"></i>' : '<i class="fas fa-ring" style="color:var(--accent-gold);"></i>';
                 let displayWt = o.finalGross ? `${o.finalGross}g (Final)` : `${o.grossWt}g (Est)`;
 
                 container.innerHTML += `
@@ -953,6 +810,13 @@
         function openNewJobModal() { 
             openModal('newJobModal');
             resetCustSearch();
+            
+            // Image reset
+            document.getElementById('oImage').value = '';
+            document.getElementById('oImagePreview').style.display = 'none';
+            document.getElementById('oImagePreview').src = '';
+            document.getElementById('oImageBase64').value = '';
+            
             document.getElementById('oDesc').value = ''; 
             document.getElementById('oGrossWt').value = '';
             document.getElementById('oStoneWt').value = 0; 
@@ -1106,6 +970,7 @@
                 dueDate: new Date(document.getElementById('oDue').value).toISOString(),
                 description: desc, 
                 category: document.getElementById('oCat').value, 
+                itemImage: document.getElementById('oImageBase64').value || null, // NEW: Save image
                 status: 'pending', 
                 advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
                 payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
@@ -1176,6 +1041,15 @@
             setText('vOrderId', `${invoiceNo}`);
             setText('vCustName', o.custName);
             setText('vDesc', `${o.category} - ${o.description}`);
+            
+            // Display Image if it exists
+            if (o.itemImage) {
+                document.getElementById('vImageContainer').style.display = 'block';
+                document.getElementById('vImage').src = o.itemImage;
+            } else {
+                document.getElementById('vImageContainer').style.display = 'none';
+                document.getElementById('vImage').src = '';
+            }
             
             const steps = ['step1', 'step2', 'step3', 'step4'];
             steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
@@ -1466,9 +1340,14 @@
                 closeModal('assignModal'); 
                 loadOrders(); 
 
-                if(confirm("Order Assigned to Karigar!\n\nSend an update to the customer on WhatsApp that processing has started?")) {
-                    autoWhatsApp(activeJobData, 'karigar');
-                }
+                // ASK FOR KARIGAR PRINT SLIP OR WHATSAPP CUSTOMER
+                setTimeout(() => {
+                    if(confirm("Order assigned to Karigar successfully!\n\nDo you want to Print/PDF the Karigar Details Slip (with Photo) now?")) {
+                        printKarigarSlip();
+                    } else if(confirm("Do you want to send a WhatsApp update to the Customer that processing has started?")) {
+                        autoWhatsApp(activeJobData, 'karigar');
+                    }
+                }, 300);
             };
         }
 
@@ -1504,9 +1383,6 @@
             }
         }
 
-        // ==========================================
-        // UPDATED: calcReceiveTotals
-        // ==========================================
         function calcReceiveTotals() {
             const o = activeJobData;
             const issuedFine = o.issuedFineWt || 0;
@@ -1535,7 +1411,6 @@
             else if (diff < 0) { diffEl.value = `${diff.toFixed(3)} g (Karigar Returned / Karigar Owes)`; diffEl.style.color = "var(--receive-green)"; } 
             else { diffEl.value = "0.000 g (No Difference)"; diffEl.style.color = "#333"; }
 
-            // CUSTOMER COSTING: सिर्फ असल वजन (finalNet) पर कैलकुलेट करें
             const rate = o.lockedRate || 0;
             const goldValue = finalNet * rate;
             
@@ -1682,9 +1557,6 @@
             calcBillingAdjustment();
         }
 
-        // ==========================================
-        // UPDATED: calcBillingAdjustment
-        // ==========================================
         function calcBillingAdjustment() {
             const o = activeJobData;
             if(!o) return;
@@ -1754,9 +1626,6 @@
             document.getElementById('billRemainingDue').innerText = "₹" + Math.max(0, netDue - paidNow).toLocaleString();
         }
 
-        // ==========================================
-        // UPDATED: confirmFinalBill
-        // ==========================================
         async function confirmFinalBill() {
             const o = activeJobData;
             const finalCustId = document.getElementById('billCustId').value;
@@ -1892,9 +1761,6 @@
             };
         }
 
-        // ==========================================
-        // UPDATED: printReceiptEngine
-        // ==========================================
         function printReceiptEngine(targetId = null) {
             const o = targetId ? allOrders.find(x => x.id === targetId) : activeJobData;
             if(!o) return;
@@ -1909,7 +1775,6 @@
                 </div>
                 <b>Customer:</b> ${o.custName}<br><b>Item:</b> ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
             
-            // कस्टमर की रसीद में सिर्फ असली नेट वजन या ग्रॉस वजन जाएगा
             const wVal = isFinal ? (o.finalNet || o.finalGross) : o.grossWt;
             const base = o.baseAmount || o.estAmount || 0;
             html += `<table style="width:100%; margin-top:15px;">
@@ -1927,10 +1792,13 @@
             html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000; padding-top:5px;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
             
             html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
+            
+            document.getElementById('challan-area').innerHTML = ''; // clear challan area
             document.getElementById('invoice-area').innerHTML = html;
             window.print();
         }
 
+        // NEW: Updated Karigar Slip Printing Logic
         function printKarigarSlip() {
             const o = activeJobData;
             if(!o) return;
@@ -1938,29 +1806,55 @@
             const m = allMerchants.find(x => x.id == mId);
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
             
-            document.getElementById('chKarigarName').innerText = m ? m.name : 'Unknown';
-            document.getElementById('chDate').innerText = new Date().toLocaleDateString();
-            document.getElementById('chOrderId').innerText = invoiceNo;
-            document.getElementById('chDueDate').innerText = new Date(o.dueDate).toLocaleDateString();
+            // Inject Image if present
+            let imgHtml = o.itemImage ? `<div style="text-align:center; margin-bottom:15px;"><img src="${o.itemImage}" style="max-width:100%; max-height:350px; border:2px solid #000; border-radius:4px; object-fit:contain;"></div>` : '';
+
+            let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 600px; margin: 0 auto; font-family:monospace;">
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0;">BHARTI JEWELLERS</h2>
+                    <h3 style="margin:5px 0 0 0;">KARIGAR ISSUE SLIP</h3>
+                    <div style="font-size:15px; margin-top:6px; font-weight:bold;">Order Ref: ${invoiceNo}</div>
+                </div>
+                
+                ${imgHtml}
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <div><b>Karigar:</b> ${m ? m.name : 'N/A'}</div>
+                    <div><b>Date:</b> ${new Date().toLocaleDateString()}</div>
+                </div>
+                <div style="margin-bottom:10px;"><b>Due By:</b> ${new Date(o.dueDate).toLocaleDateString()}</div>
+                
+                <h4 style="margin: 15px 0 5px 0; border-bottom: 1px dashed #000; padding-bottom: 5px;">Item Details</h4>
+                <table style="width:100%; border-collapse: collapse; margin-top:10px;" border="1">
+                    <tr>
+                        <th style="padding:8px; text-align:left;">Description</th>
+                        <th style="padding:8px; text-align:center;">Purity Required</th>
+                        <th style="padding:8px; text-align:center;">Est. Gross Wt</th>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px;"><b>${o.category}</b><br><small>${o.description}</small></td>
+                        <td style="padding:8px; text-align:center;">${o.purity}</td>
+                        <td style="padding:8px; text-align:center;">${o.grossWt}g</td>
+                    </tr>
+                </table>
+
+                <h4 style="margin: 20px 0 5px 0; border-bottom: 1px dashed #000; padding-bottom: 5px;">Metal Issued Info</h4>
+                <table style="width:100%; border-collapse: collapse; margin-top:10px;" border="1">
+                    <tr>
+                        <th style="padding:8px; text-align:center;">Gross Wt Issued</th>
+                        <th style="padding:8px; text-align:center;">Purity Issued</th>
+                        <th style="padding:8px; text-align:center;">Fine Wt (Liability)</th>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px; text-align:center;">${o.issuedGrossWt > 0 ? o.issuedGrossWt.toFixed(3) + 'g' : '0.000g'}</td>
+                        <td style="padding:8px; text-align:center;">${o.issuedGrossWt > 0 ? (o.issuedPurity || 'N/A') : '-'}</td>
+                        <td style="padding:8px; text-align:center; font-weight:bold;">${o.issuedGrossWt > 0 ? (o.issuedFineWt || 0).toFixed(3) + 'g' : '0.000 (Pure Labor)'}</td>
+                    </tr>
+                </table>
+            </div>`;
             
-            document.getElementById('chItemBody').innerHTML = `
-                <tr>
-                    <td style="border: 1px solid #000; padding: 8px;"><b>${o.category}</b><br><small>${o.description}</small></td>
-                    <td style="border: 1px solid #000; padding: 8px;">${o.purity}</td>
-                    <td style="border: 1px solid #000; padding: 8px;">${o.grossWt}g</td>
-                </tr>
-            `;
-            
-            if(o.issuedGrossWt > 0) {
-                document.getElementById('chIssuedGross').innerText = o.issuedGrossWt.toFixed(3);
-                document.getElementById('chIssuedPurity').innerText = o.issuedPurity || 'N/A';
-                document.getElementById('chIssuedWt').innerText = (o.issuedFineWt || 0).toFixed(3);
-            } else {
-                document.getElementById('chIssuedGross').innerText = "0.000";
-                document.getElementById('chIssuedPurity').innerText = "-";
-                document.getElementById('chIssuedWt').innerText = "0.000 (Pure Labor / Metal by Karigar)";
-            }
-            
+            document.getElementById('invoice-area').innerHTML = ''; // clear customer area
+            document.getElementById('challan-area').innerHTML = html;
             window.print();
         }
 
