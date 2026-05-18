@@ -958,32 +958,50 @@
             
             // BULK GENERATION (Loose Items - Handled correctly with LOOSE- tag to match inventory page)
             if (finalMode === 'bulk') {
-                const looseBarcode = `LOOSE-${catPrefix}-${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 100)}`;
-                const itemData = {
-                    barcode: looseBarcode,
-                    merchantId: mId,
-                    purchaseDate: date,
-                    category: cat === 'MIX' ? 'MIX' : cat,
-                    name: pieces > 1 ? `Loose / Bulk ${cat} (${purity})` : `Loose ${cat} (${purity})`,
-                    purity: purity,
-                    mark: mark,
-                    pieces: pieces, 
-                    grossWt: totalGross, 
-                    stoneWt: totalStone,
-                    netWt: totalNet,
-                    fineWt: fineWt, 
-                    wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
-                    wastageMode: document.getElementById('wastageMode').value,
-                    rate: isUnfixed ? 0 : rateVal,
-                    making: totalMaking,
-                    other: totalOther,
-                    status: 'stock',
-                    source: 'purchase',
-                    addedDate: new Date().toISOString()
-                };
-                const invId = await addItem('inventory', itemData);
-                itemData.id = invId; 
-                itemDetailsArray.push(itemData);
+                const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                const looseBarcode = `LOOSE-${catPrefix}-${cleanPurity}`;
+                
+                let existingItem = null;
+                const invList = await getAllItems('inventory');
+                existingItem = invList.find(i => i.barcode === looseBarcode && i.purity === purity && i.status === 'stock');
+                
+                let invId = null;
+                if(existingItem) {
+                    existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + totalGross).toFixed(3));
+                    existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) + totalStone).toFixed(3));
+                    existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + totalNet).toFixed(3));
+                    existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + fineWt).toFixed(3));
+                    existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
+                    await updateItem('inventory', existingItem);
+                    invId = existingItem.id;
+                    itemDetailsArray.push(existingItem);
+                } else {
+                    const itemData = {
+                        barcode: looseBarcode,
+                        merchantId: mId,
+                        purchaseDate: date,
+                        category: cat === 'MIX' ? 'MIX' : cat,
+                        name: pieces > 1 ? `Loose / Bulk ${cat} (${purity})` : `Loose ${cat} (${purity})`,
+                        purity: purity,
+                        mark: mark,
+                        pieces: pieces, 
+                        grossWt: totalGross, 
+                        stoneWt: totalStone,
+                        netWt: totalNet,
+                        fineWt: fineWt, 
+                        wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
+                        wastageMode: document.getElementById('wastageMode').value,
+                        rate: isUnfixed ? 0 : rateVal,
+                        making: totalMaking,
+                        other: totalOther,
+                        status: 'stock',
+                        source: 'purchase',
+                        addedDate: new Date().toISOString()
+                    };
+                    invId = await addItem('inventory', itemData);
+                    itemData.id = invId; 
+                    itemDetailsArray.push(itemData);
+                }
             } 
             // INDIVIDUAL PIECE GENERATION (Unique Tags)
             else {
@@ -1433,9 +1451,33 @@
              
              // Safely delete all inventory items associated with this purchase
              if (p.itemDetails && Array.isArray(p.itemDetails)) {
-                 p.itemDetails.forEach(i => {
-                     tx.objectStore('inventory').delete(parseInt(i.id));
-                 });
+                 for (let i of p.itemDetails) {
+                     const isBulkMode = !i.barcode || i.barcode === '' || (i.barcode && (i.barcode.toUpperCase().startsWith('BL') || i.barcode.toUpperCase().startsWith('LOOSE') || i.barcode.toUpperCase().includes('MIX') || i.barcode.toUpperCase().includes('BULK'))) || i.category === 'MIX' || (i.name && i.name.includes('Loose'));
+                     
+                     if (isBulkMode) {
+                         // Find the existing bulk item and subtract
+                         const invStore = tx.objectStore('inventory');
+                         const getRequest = invStore.get(parseInt(i.id));
+                         getRequest.onsuccess = (e) => {
+                             const existingItem = e.target.result;
+                             if (existingItem) {
+                                 existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) - (i.grossWt || i.weight || 0)).toFixed(3));
+                                 existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) - (i.stoneWt || 0)).toFixed(3));
+                                 existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) - (i.netWt || i.weight || 0)).toFixed(3));
+                                 existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) - (i.fineWt || 0)).toFixed(3));
+                                 existingItem.pieces = parseInt(existingItem.pieces || 0) - (i.pieces || 1);
+                                 
+                                 if (existingItem.grossWt <= 0 || existingItem.pieces <= 0) {
+                                     invStore.delete(existingItem.id);
+                                 } else {
+                                     invStore.put(existingItem);
+                                 }
+                             }
+                         };
+                     } else {
+                         tx.objectStore('inventory').delete(parseInt(i.id));
+                     }
+                 }
              }
 
              const mStore = tx.objectStore('merchants');
@@ -1464,8 +1506,11 @@
             let safe = true;
             if (p.itemDetails && Array.isArray(p.itemDetails)) {
                 for (let i of p.itemDetails) {
-                    const isSafe = await checkInventoryStatus(i.id);
-                    if (!isSafe) { safe = false; break; }
+                    const isBulkMode = !i.barcode || i.barcode === '' || (i.barcode && (i.barcode.toUpperCase().startsWith('BL') || i.barcode.toUpperCase().startsWith('LOOSE') || i.barcode.toUpperCase().includes('MIX') || i.barcode.toUpperCase().includes('BULK'))) || i.category === 'MIX' || (i.name && i.name.includes('Loose'));
+                    if (!isBulkMode) {
+                        const isSafe = await checkInventoryStatus(i.id);
+                        if (!isSafe) { safe = false; break; }
+                    }
                 }
             }
             if(!safe) return showToast("Cannot Delete: One or more items from this batch are already Sold.", "error");
