@@ -872,6 +872,15 @@
             if(manSelect) manSelect.innerHTML = opts + `<option value="MIX">Mixed / Untagged</option>`;
         }
 
+        function selectCategoryFilter(cat) {
+            const catSelect = document.getElementById('filterCategory');
+            if (catSelect) {
+                catSelect.value = cat;
+                updateSubCatFilter();
+                applyFilters();
+            }
+        }
+
         function updateSubCatFilter() {
             const cat = document.getElementById('filterCategory').value;
             const subCatSelect = document.getElementById('filterSubCategory');
@@ -1079,6 +1088,8 @@
 
             if (items.length === 0) { container.innerHTML = '<tr><td colspan="9" style="text-align:center;">No items found.</td></tr>'; return; }
 
+            const catFilterVal = document.getElementById('filterCategory').value;
+
             items.forEach(item => {
                 const net = parseFloat(item.netWt || item.grossWt || item.weight || 0);
                 const gross = parseFloat(item.grossWt || item.weight || 0);
@@ -1087,22 +1098,32 @@
                 totalWt += net; totalCount += pcs;
                 totalVal += Math.round(net * (getRate(item.purity) / 10));
 
-                let isLooseOrMix = item.category === 'MIX' || (item.name && (item.name.toLowerCase().includes('loose') || item.name.toLowerCase().includes('mix')));
-                let subCatName = item.category;
-                let rawSubCat = "";
-                
-                if (!isLooseOrMix && item.name && item.name.trim() !== '' && item.name !== item.category) {
-                    rawSubCat = item.name.replace(/\s+\d+$/, '').trim();
-                    subCatName = rawSubCat;
-                }
-
                 let key = '';
+                let subCatName = item.category;
+
                 if (item.category === 'MIX' || item.barcode?.startsWith('ORD-')) {
                     key = `K_${item.id}`;
-                } else if (rawSubCat !== "") {
-                    key = `${item.category}_${rawSubCat}_${item.status}`;
+                    subCatName = item.category;
+                } else if (catFilterVal !== 'ALL') {
+                    // Category Filter Active -> Show Sub-Category Rows
+                    let isLooseOrMix = item.category === 'MIX' || (item.name && (item.name.toLowerCase().includes('loose') || item.name.toLowerCase().includes('mix')));
+                    let rawSubCat = "";
+                    
+                    if (!isLooseOrMix && item.name && item.name.trim() !== '' && item.name !== item.category) {
+                        rawSubCat = item.name.replace(/\s+\d+$/, '').trim();
+                    }
+
+                    if (rawSubCat !== "") {
+                        key = `${item.category}_SUBCAT_${rawSubCat}_${item.status}`;
+                        subCatName = rawSubCat;
+                    } else {
+                        key = `${item.category}_BASE_${item.status}`;
+                        subCatName = `Base ${item.category} (Unassigned)`;
+                    }
                 } else {
-                    key = `${item.category}_BASE_${item.status}`;
+                    // Default Root View (All Categories) -> Group Strictly by Main Category
+                    key = `${item.category}_${item.status}`;
+                    subCatName = item.category;
                 }
                 
                 if(!groupedInventory[key]) {
@@ -1148,8 +1169,14 @@
                 // Convert Set of purities to Badge Elements
                 let purityHtml = Array.from(group.purities).map(p => `<span class="badge badge-22k" style="margin-right:4px;">${p}</span>`).join('');
 
+                // Clickable name only if viewing all categories
+                let nameTd = `<td><strong>${group.name}</strong></td>`;
+                if (catFilterVal === 'ALL' && group.category !== 'MIX') {
+                    nameTd = `<td style="cursor:pointer; color:var(--info-blue);" onclick="selectCategoryFilter('${group.category}')" title="Click to view Sub-Categories Breakdown"><strong>${group.name}</strong> <i class="fas fa-chevron-right" style="font-size:0.7rem; margin-left:4px; opacity:0.7;"></i></td>`;
+                }
+
                 tr.innerHTML = `
-                    <td><strong>${group.name}</strong></td>
+                    ${nameTd}
                     <td>${displayBarcode}</td>
                     <td>${purityHtml}</td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
@@ -1344,8 +1371,6 @@
             }
             
             handleTagCategoryChange(); 
-            document.getElementById('tagStockMode').disabled = false; 
-            document.getElementById('tagStockMode').value = 'individual'; 
             generateTagInputs();
             
             openModal('tagModal');
