@@ -72,11 +72,11 @@
         .search-icon { position: absolute; left: 16px; top: 18px; color: #999; font-size: 1.1rem; }
 
         .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: var(--card-shadow); max-height: 65vh;}
-        .inv-table { width: 100%; border-collapse: collapse; min-width: 950px; }
+        .inv-table { width: 100%; border-collapse: collapse; min-width: 1050px; }
         .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 16px; font-weight: 700; font-size: 0.8rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
         .inv-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.9rem; }
         
-        .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;}
+        .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-bottom: 2px;}
         .badge-mix { background: #fbc02d; color: #000; }
         .badge-pending { background: #fee2e2; color: #b91c1c; }
         .badge-order { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
@@ -296,6 +296,7 @@
                 <thead>
                     <tr>
                         <th>Category</th>
+                        <th>Sub-Category</th>
                         <th>Barcodes / Ref</th>
                         <th>Purity</th>
                         <th>Stock Qty</th>
@@ -307,7 +308,7 @@
                     </tr>
                 </thead>
                 <tbody id="inventory-list">
-                    <tr><td colspan="9" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
+                    <tr><td colspan="10" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -391,6 +392,10 @@
                 <span class="item-detail-val" id="idmCategory">...</span>
             </div>
             <div class="item-detail-row">
+                <span class="item-detail-lbl">Sub-Category:</span>
+                <span class="item-detail-val" id="idmSubCat">...</span>
+            </div>
+            <div class="item-detail-row">
                 <span class="item-detail-lbl">Purity:</span>
                 <span class="item-detail-val" id="idmPurity">...</span>
             </div>
@@ -424,7 +429,7 @@
     </div>
 
     <div id="detailsModal" class="modal">
-        <div class="modal-content" style="max-width: 900px;"> <!-- Increased width to accommodate Purity Column -->
+        <div class="modal-content" style="max-width: 950px;"> 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
                 <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-layer-group"></i> Group Details</h3>
                 <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
@@ -435,7 +440,8 @@
                     <thead>
                         <tr>
                             <th>Barcode</th>
-                            <th>Purity</th> <!-- Added Purity Header -->
+                            <th>Sub-Cat</th>
+                            <th>Purity</th>
                             <th>Qty</th>
                             <th>Gross Wt</th>
                             <th>Net Wt</th>
@@ -630,10 +636,6 @@
             }
         }
 
-        // =======================
-        // EXACT 5.5cm x 1cm PRINTING LOGIC (AS PER IMAGES)
-        // =======================
-
         function autoPrint(items) {
             const container = document.getElementById('printContainer');
             container.innerHTML = '';
@@ -645,8 +647,6 @@
                 const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
                 const net = parseFloat(item.netWt || gross).toFixed(3);
                 
-                // Left Side: BHARTI JEW. | Gross | Net | Purity
-                // Right Side: Category | Barcode SVG | Barcode Text
                 container.innerHTML += `
                     <div class="print-label">
                         <div class="print-half-left">
@@ -669,8 +669,8 @@
                     JsBarcode(`#barcode-svg-${index}`, item.barcode, {
                         format: "CODE128", 
                         displayValue: false, 
-                        height: 20,     // Short lines for 1cm height
-                        width: 1.2,     // Thin lines to fit 2.75cm width
+                        height: 20,     
+                        width: 1.2,     
                         margin: 0,
                         background: "#ffffff",
                         lineColor: "#000000"
@@ -683,7 +683,6 @@
 
         function viewBarcode(code, wt, purity) {
             if(code.startsWith('LOOSE')) return;
-            // Find full item details to print correct data
             let item = allInventory.find(i => i.barcode === code);
             if(item) {
                 autoPrint([item]);
@@ -692,7 +691,6 @@
             }
         }
 
-        // SELECT PRINT LOGIC
         let printSelectionList = [];
 
         function openSelectPrintModal() {
@@ -763,10 +761,6 @@
             closeModal('selectPrintModal');
             autoPrint(itemsToPrint);
         }
-
-        // =======================
-        // STANDARD LOGIC CONTINUES
-        // =======================
 
         let confirmResolver = null;
         function appAlert(msg) { document.getElementById('customAlertMessage').innerText = msg; openModal('customAlertModal'); }
@@ -1080,13 +1074,13 @@
         }
 
         // =======================
-        // UPDATED RENDER LIST (Category + SubCategory grouping)
+        // UPDATED RENDER LIST (Dedicated Sub-Category Column)
         // =======================
         function renderList(items) {
             const container = document.getElementById('inventory-list'); container.innerHTML = ''; groupedInventory = {}; 
             let totalWt = 0; let totalVal = 0; let totalCount = 0;
 
-            if (items.length === 0) { container.innerHTML = '<tr><td colspan="9" style="text-align:center;">No items found.</td></tr>'; return; }
+            if (items.length === 0) { container.innerHTML = '<tr><td colspan="10" style="text-align:center;">No items found.</td></tr>'; return; }
 
             const catFilterVal = document.getElementById('filterCategory').value;
 
@@ -1098,36 +1092,33 @@
                 totalWt += net; totalCount += pcs;
                 totalVal += Math.round(net * (getRate(item.purity) / 10));
 
-                let key = '';
-                let subCatName = item.category;
+                let rawSubCat = "";
+                let isLooseOrMix = item.category === 'MIX' || (item.name && (item.name.toLowerCase().includes('loose') || item.name.toLowerCase().includes('mix')));
+                if (!isLooseOrMix && item.name && item.name.trim() !== '' && item.name !== item.category) {
+                    rawSubCat = item.name.replace(/\s+\d+$/, '').trim();
+                }
 
+                let key = '';
                 if (item.category === 'MIX' || item.barcode?.startsWith('ORD-')) {
                     key = `K_${item.id}`;
-                    subCatName = item.category;
                 } else if (catFilterVal !== 'ALL') {
-                    // Category Filter Active -> Show Sub-Category Rows
-                    let isLooseOrMix = item.category === 'MIX' || (item.name && (item.name.toLowerCase().includes('loose') || item.name.toLowerCase().includes('mix')));
-                    let rawSubCat = "";
-                    
-                    if (!isLooseOrMix && item.name && item.name.trim() !== '' && item.name !== item.category) {
-                        rawSubCat = item.name.replace(/\s+\d+$/, '').trim();
-                    }
-
                     if (rawSubCat !== "") {
                         key = `${item.category}_SUBCAT_${rawSubCat}_${item.status}`;
-                        subCatName = rawSubCat;
                     } else {
                         key = `${item.category}_BASE_${item.status}`;
-                        subCatName = `Base ${item.category} (Unassigned)`;
                     }
                 } else {
-                    // Default Root View (All Categories) -> Group Strictly by Main Category
                     key = `${item.category}_${item.status}`;
-                    subCatName = item.category;
                 }
                 
                 if(!groupedInventory[key]) {
-                    groupedInventory[key] = { key: key, name: subCatName, category: item.category, purities: new Set(), count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] };
+                    groupedInventory[key] = { 
+                        key: key, 
+                        category: item.category, 
+                        purities: new Set(), 
+                        subCategories: new Set(),
+                        count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] 
+                    };
                 }
                 
                 groupedInventory[key].count += pcs; 
@@ -1135,7 +1126,8 @@
                 groupedInventory[key].net += net; 
                 groupedInventory[key].stone += parseFloat(item.stoneWt||0); 
                 groupedInventory[key].fine += calculateFineWeight(item);
-                groupedInventory[key].purities.add(item.purity); // Add purity to the Set
+                groupedInventory[key].purities.add(item.purity);
+                if(rawSubCat) groupedInventory[key].subCategories.add(rawSubCat);
                 groupedInventory[key].items.push(item);
             });
 
@@ -1166,17 +1158,22 @@
                     displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
                 }
 
-                // Convert Set of purities to Badge Elements
                 let purityHtml = Array.from(group.purities).map(p => `<span class="badge badge-22k" style="margin-right:4px;">${p}</span>`).join('');
+                
+                // --- SUB-CATEGORY COLUMN RENDER ---
+                let subCatArr = Array.from(group.subCategories);
+                let subCatHtml = subCatArr.length > 0 
+                    ? subCatArr.map(sc => `<span class="badge badge-silver" style="margin-right:4px;">${sc}</span>`).join('') 
+                    : '<span style="color:#aaa; font-size:0.8rem;">-</span>';
 
-                // Clickable name only if viewing all categories
-                let nameTd = `<td><strong>${group.name}</strong></td>`;
+                let nameTd = `<td><strong>${group.category}</strong></td>`;
                 if (catFilterVal === 'ALL' && group.category !== 'MIX') {
-                    nameTd = `<td style="cursor:pointer; color:var(--info-blue);" onclick="selectCategoryFilter('${group.category}')" title="Click to view Sub-Categories Breakdown"><strong>${group.name}</strong> <i class="fas fa-chevron-right" style="font-size:0.7rem; margin-left:4px; opacity:0.7;"></i></td>`;
+                    nameTd = `<td style="cursor:pointer; color:var(--info-blue);" onclick="selectCategoryFilter('${group.category}')" title="Click to view Sub-Categories Breakdown"><strong>${group.category}</strong> <i class="fas fa-chevron-right" style="font-size:0.7rem; margin-left:4px; opacity:0.7;"></i></td>`;
                 }
 
                 tr.innerHTML = `
                     ${nameTd}
+                    <td>${subCatHtml}</td>
                     <td>${displayBarcode}</td>
                     <td>${purityHtml}</td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
@@ -1300,6 +1297,14 @@
             document.getElementById('idmBarcode').innerHTML = isLoose ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
             
             document.getElementById('idmCategory').innerText = item.category;
+            
+            // Show Sub-Category in details modal too
+            let rawSub = "";
+            if (item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+                rawSub = item.name.replace(/\s+\d+$/, '').trim();
+            }
+            document.getElementById('idmSubCat').innerText = rawSub || '-';
+            
             document.getElementById('idmPurity').innerText = item.purity; document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
             document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g"; document.getElementById('idmStatus').innerText = item.status.toUpperCase();
             
@@ -1333,8 +1338,13 @@
                      actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
                 }
                 
-                // ADDED PURITY BADGE COLUMN in details to clearly separate items
-                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${actionBtnHTML} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+                let rawSub = "";
+                if (item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+                    rawSub = item.name.replace(/\s+\d+$/, '').trim();
+                }
+                let subHtml = rawSub ? `<span class="badge badge-silver">${rawSub}</span>` : '-';
+                
+                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td>${subHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${actionBtnHTML} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
             });
             openModal('detailsModal');
         }
@@ -1354,7 +1364,6 @@
             
             let opts = ''; 
             let availableCats = [];
-            // Filter to only show categories that are set to "individual" (Unique Tags)
             catsToUse.forEach(cat => { 
                 if (getCategoryMode(cat) === 'individual') {
                     opts += `<option value="${cat}">${cat}</option>`; 
