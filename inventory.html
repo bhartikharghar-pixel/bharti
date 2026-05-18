@@ -524,7 +524,7 @@
                     <label>Stock Mode</label>
                     <select id="manStockMode">
                         <option value="individual">Individual Tags</option>
-                        <option value="bulk">Bulk Stock</option>
+                        <option value="bulk">Bulk / Loose Stock</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -627,7 +627,7 @@
             const container = document.getElementById('printContainer');
             container.innerHTML = '';
             
-            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold');
+            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && !(i.barcode && i.barcode.startsWith('LOOSE')));
             if(printItems.length === 0) return;
 
             printItems.forEach((item, index) => {
@@ -671,6 +671,7 @@
         }
 
         function viewBarcode(code, wt, purity) {
+            if(code.startsWith('LOOSE')) return;
             // Find full item details to print correct data
             let item = allInventory.find(i => i.barcode === code);
             if(item) {
@@ -684,7 +685,7 @@
         let printSelectionList = [];
 
         function openSelectPrintModal() {
-            printSelectionList = allInventory.filter(i => i.status === 'stock' && i.category !== 'MIX' && !i.barcode.includes('MIX'));
+            printSelectionList = allInventory.filter(i => i.status === 'stock' && i.category !== 'MIX' && !i.barcode.includes('MIX') && !(i.barcode && i.barcode.startsWith('LOOSE')));
             document.getElementById('printSearchInput').value = '';
             document.getElementById('selectAllPrint').checked = false;
             renderPrintCheckList(printSelectionList);
@@ -906,7 +907,6 @@
         async function deleteCategory(idx) {
             const catToDelete = activeCatManagerMode === 'Gold' ? goldCategories[idx] : silverCategories[idx];
             
-            // Check if this category is currently tied to any existing item in the inventory (in stock or sold)
             const isUsed = allInventory.some(item => item.category && item.category.toLowerCase() === catToDelete.toLowerCase());
             
             if (isUsed) {
@@ -947,20 +947,6 @@
                 }
             });
             const code = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
-            allInventory.push({ barcode: code }); // reserve
-            return code;
-        }
-
-        function generateBulkBarcode(category) {
-            const prefix = category === 'MIX' ? 'BLMIX' : 'BL' + (category.length >= 3 ? category.substring(0, 3).toUpperCase() : category.toUpperCase());
-            let maxNum = 0;
-            allInventory.forEach(i => {
-                if (i.barcode && i.barcode.toUpperCase().startsWith(prefix)) {
-                    const num = parseInt(i.barcode.substring(prefix.length), 10);
-                    if (!isNaN(num) && num > maxNum) maxNum = num;
-                }
-            });
-            const code = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
             allInventory.push({ barcode: code }); // reserve
             return code;
         }
@@ -1046,9 +1032,17 @@
                 if(group.items.length === 1 && !isMix) actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${group.items[0].id})"><i class="fas fa-eye"></i> View</button>`;
                 if(isMix && group.items.length===1) actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${group.items[0].id})"><i class="fas fa-tags"></i> Tag</button>`;
 
+                let displayBarcode = group.items.length === 1 ? group.items[0].barcode : 'Multiple';
+                let isLooseGroup = group.items.every(i => i.barcode && i.barcode.startsWith('LOOSE'));
+                if (isLooseGroup) {
+                    displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
+                } else if (group.items.length === 1 && group.items[0].barcode && group.items[0].barcode.startsWith('LOOSE')) {
+                    displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
+                }
+
                 tr.innerHTML = `
                     <td><strong>${group.name}</strong></td>
-                    <td>${group.items.length===1 ? group.items[0].barcode : 'Multiple'}</td>
+                    <td>${displayBarcode}</td>
                     <td><span class="badge badge-22k">${group.purity}</span></td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
                     <td>${group.gross.toFixed(3)} g</td>
@@ -1112,7 +1106,7 @@
             const prefix = cat === 'MIX' ? 'MIX' : cat.substring(0,3).toUpperCase();
 
             if (getCategoryMode(cat) === 'bulk') {
-                const barcode = generateBulkBarcode(cat);
+                const barcode = `LOOSE-${prefix}-${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 100)}`;
                 const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
                 await addItem('inventory', item); newlyAddedItems.push(item);
             } else {
@@ -1139,10 +1133,21 @@
         // ---------- ITEM DETAILS & GROUP VIEW ----------
         function openItemDetails(id) {
             const item = allInventory.find(i => i.id === id); if(!item) return;
-            document.getElementById('idmBarcode').innerText = item.barcode; document.getElementById('idmCategory').innerText = item.category;
+            
+            let isLoose = item.barcode && item.barcode.startsWith('LOOSE');
+            document.getElementById('idmBarcode').innerHTML = isLoose ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
+            
+            document.getElementById('idmCategory').innerText = item.category;
             document.getElementById('idmPurity').innerText = item.purity; document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
             document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g"; document.getElementById('idmStatus').innerText = item.status.toUpperCase();
-            document.getElementById('idmPrintBtn').onclick = () => autoPrint([item]);
+            
+            if (isLoose) {
+                document.getElementById('idmPrintBtn').style.display = 'none';
+            } else {
+                document.getElementById('idmPrintBtn').style.display = 'block';
+                document.getElementById('idmPrintBtn').onclick = () => autoPrint([item]);
+            }
+            
             closeModal('detailsModal'); openModal('itemDetailsModal');
         }
         function openGroupDetails(key) {
@@ -1150,7 +1155,10 @@
             const tbody = document.getElementById('groupDetailsList'); tbody.innerHTML = '';
             group.items.forEach(item => {
                 const g = parseFloat(item.grossWt||item.weight).toFixed(3);
-                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})"><u>${item.barcode}</u></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;"><button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button> <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+                let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
+                let printBtn = item.barcode && item.barcode.startsWith('LOOSE') ? '' : `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
+                
+                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${printBtn} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
             });
             openModal('detailsModal');
         }
@@ -1196,7 +1204,7 @@
             
             document.querySelectorAll('.tag-gross').forEach(async (inp, i) => {
                 const g = parseFloat(inp.value)||0; if(g>0) {
-                    const barcode = stockMode === 'bulk' ? generateBulkBarcode(cat) : generateSafeBarcode(cat);
+                    const barcode = stockMode === 'bulk' ? `LOOSE-${cat.substring(0,3).toUpperCase()}-${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 100)}` : generateSafeBarcode(cat);
                     const pcs = stockMode === 'bulk' ? count : 1;
                     const newItem = { barcode, category: cat, name:`${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g*getPurityFactor(purity), pieces: pcs, status: 'stock', addedDate: new Date().toISOString() };
                     await addItem('inventory', newItem); newlyAddedItems.push(newItem);
