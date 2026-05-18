@@ -412,6 +412,7 @@
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:20px;">
                 <button class="btn-block btn-primary" style="margin-top:0;" id="idmEditBtn"><i class="fas fa-pen"></i> Edit Item</button>
                 <button class="btn-block btn-secondary" style="margin-top:0;" id="idmPrintBtn"><i class="fas fa-print"></i> Print Tag</button>
+                <button class="btn-block btn-tag" style="margin-top:0; display:none; background:#10b981; color:white; grid-column: 1 / -1;" id="idmExtractBtn"><i class="fas fa-cut"></i> Extract to Unique Tag</button>
             </div>
         </div>
     </div>
@@ -1042,13 +1043,24 @@
             Object.values(groupedInventory).forEach(group => {
                 const tr = document.createElement('tr');
                 const isMix = group.category === 'MIX';
-                let actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}')"><i class="fas fa-list"></i> List</button>`;
+                let isLooseGroup = group.items.every(i => i.barcode && i.barcode.startsWith('LOOSE'));
+                let actionBtn = '';
                 
-                if(group.items.length === 1 && !isMix) actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${group.items[0].id})"><i class="fas fa-eye"></i> View</button>`;
-                if(isMix && group.items.length===1) actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${group.items[0].id})"><i class="fas fa-tags"></i> Tag</button>`;
+                if(group.items.length === 1) {
+                    let singleItem = group.items[0];
+                    let isLooseSingle = singleItem.barcode && singleItem.barcode.startsWith('LOOSE');
+                    
+                    if(isMix || isLooseSingle) {
+                        actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${singleItem.id})"><i class="fas fa-cut"></i> Extract</button>
+                                     <button class="btn-sm btn-view" onclick="openItemDetails(${singleItem.id})"><i class="fas fa-eye"></i></button>`;
+                    } else {
+                        actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${singleItem.id})"><i class="fas fa-eye"></i> View</button>`;
+                    }
+                } else {
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}')"><i class="fas fa-list"></i> List</button>`;
+                }
 
                 let displayBarcode = group.items.length === 1 ? group.items[0].barcode : 'Multiple';
-                let isLooseGroup = group.items.every(i => i.barcode && i.barcode.startsWith('LOOSE'));
                 if (isLooseGroup) {
                     displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
                 } else if (group.items.length === 1 && group.items[0].barcode && group.items[0].barcode.startsWith('LOOSE')) {
@@ -1067,7 +1079,7 @@
                     <td style="color:var(--active-red); font-weight:700;">${group.net.toFixed(3)} g</td>
                     <td>${group.stone.toFixed(3)} g</td>
                     <td style="color:var(--info-blue); font-weight:700;">${group.fine.toFixed(3)} g</td>
-                    <td style="text-align:center;">${actionBtn}</td>
+                    <td style="text-align:center; white-space:nowrap;">${actionBtn}</td>
                 `;
                 container.appendChild(tr);
             });
@@ -1173,12 +1185,17 @@
             document.getElementById('idmPurity').innerText = item.purity; document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
             document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g"; document.getElementById('idmStatus').innerText = item.status.toUpperCase();
             
-            if (isLoose) {
+            if (isLoose || item.category === 'MIX') {
                 document.getElementById('idmPrintBtn').style.display = 'none';
+                document.getElementById('idmExtractBtn').style.display = 'block';
+                document.getElementById('idmExtractBtn').onclick = () => { closeModal('itemDetailsModal'); openTagModal(item.id); };
             } else {
                 document.getElementById('idmPrintBtn').style.display = 'block';
+                document.getElementById('idmExtractBtn').style.display = 'none';
                 document.getElementById('idmPrintBtn').onclick = () => autoPrint([item]);
             }
+            
+            document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
             
             closeModal('detailsModal'); openModal('itemDetailsModal');
         }
@@ -1190,10 +1207,16 @@
             group.items.forEach(item => {
                 const g = parseFloat(item.grossWt||item.weight).toFixed(3);
                 let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
-                let printBtn = item.barcode && item.barcode.startsWith('LOOSE') ? '' : `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
+                
+                let actionBtnHTML = '';
+                if(item.barcode && item.barcode.startsWith('LOOSE') || item.category === 'MIX') {
+                     actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal(${item.id})"><i class="fas fa-cut"></i> Ext</button>`;
+                } else {
+                     actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
+                }
                 
                 // ADDED PURITY BADGE COLUMN in details to clearly separate items
-                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${printBtn} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})">${displayBc}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center;">${actionBtnHTML} <button class="btn-sm btn-del" onclick="deleteItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
             });
             openModal('detailsModal');
         }
@@ -1203,13 +1226,34 @@
             const item = allInventory.find(i => i.id === id); if(!item) return;
             document.getElementById('tagSourceId').value = item.id;
             document.getElementById('tagSourceMaxWt').value = item.grossWt||item.weight;
-            document.getElementById('tagPurity').value = item.purity; document.getElementById('tagPieces').value = 1;
-            populateCategoryDropdowns(); handleTagCategoryChange(); openModal('tagModal');
+            document.getElementById('tagPurity').value = item.purity; 
+            document.getElementById('tagPieces').value = 1;
+            
+            populateCategoryDropdowns(); 
+            const catDrop = document.getElementById('tagCategory');
+            
+            if(item.category !== 'MIX') {
+                if(Array.from(catDrop.options).some(o => o.value === item.category)) {
+                    catDrop.value = item.category;
+                } else {
+                    catDrop.innerHTML += `<option value="${item.category}">${item.category}</option>`;
+                    catDrop.value = item.category;
+                }
+            } else {
+                catDrop.value = 'Other'; // Force manual selection if extracting from MIX
+            }
+            
+            handleTagCategoryChange(); 
+            document.getElementById('tagStockMode').disabled = false; // Allow users to override logic when extracting
+            document.getElementById('tagStockMode').value = 'individual'; // Most extractions will be to Individual Unique Tags
+            generateTagInputs();
+            
+            openModal('tagModal');
         }
         function handleTagCategoryChange() { 
             const modeSelect = document.getElementById('tagStockMode');
             modeSelect.value = getCategoryMode(document.getElementById('tagCategory').value); 
-            modeSelect.disabled = true;
+            modeSelect.disabled = false; 
             generateTagInputs(); 
         }
         function generateTagInputs() {
@@ -1228,11 +1272,13 @@
         async function confirmTagging() {
             const sum = parseFloat(document.getElementById('tagTotalWt').innerText);
             if(sum<=0) return appAlert("Enter Valid Weights");
-            const item = allInventory.find(i => i.id === parseInt(document.getElementById('tagSourceId').value));
+            const sourceId = parseInt(document.getElementById('tagSourceId').value);
+            const item = allInventory.find(i => i.id === sourceId);
             const available = parseFloat(item.grossWt||item.weight);
-            if(sum > available+0.1) return appAlert("Weight Exceeds Source");
+            if(sum > available+0.01) return appAlert("Weight Exceeds Source");
             
-            const cat = document.getElementById('tagCategory').value; const purity = item.purity;
+            const cat = document.getElementById('tagCategory').value; 
+            const purity = item.purity;
             const stockMode = document.getElementById('tagStockMode').value;
             const count = parseInt(document.getElementById('tagPieces').value)||1;
             let newlyAddedItems = [];
@@ -1244,7 +1290,7 @@
                     if (stockMode === 'bulk') {
                         const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
                         const barcode = `LOOSE-${cat.substring(0,3).toUpperCase()}-${cleanPurity}`;
-                        let existingItem = allInventory.find(item => item.barcode === barcode && item.purity === purity && item.status === 'stock');
+                        let existingItem = allInventory.find(itm => itm.barcode === barcode && itm.purity === purity && itm.status === 'stock' && itm.id !== sourceId);
                         
                         if (existingItem) {
                             existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + g).toFixed(3));
@@ -1266,10 +1312,18 @@
                 }
             }
 
-            if (available - sum <= 0.01) await deleteItemReal(item.id);
-            else { item.grossWt = available - sum; item.netWt = item.grossWt; await updateItem('inventory', item); }
+            if (available - sum <= 0.01) {
+                await deleteItemReal(item.id);
+            } else { 
+                item.grossWt = parseFloat((available - sum).toFixed(3)); 
+                item.netWt = parseFloat((parseFloat(item.netWt) - sum).toFixed(3)); 
+                if(item.netWt < 0) item.netWt = 0;
+                item.fineWt = parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3));
+                item.pieces = Math.max(1, (parseInt(item.pieces)||1) - count);
+                await updateItem('inventory', item); 
+            }
             
-            showToast("Stock Extracted!"); closeModal('tagModal'); loadInventory();
+            showToast("Stock Extracted Successfully!"); closeModal('tagModal'); loadInventory();
             setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
         }
 
