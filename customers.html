@@ -154,9 +154,14 @@
         .tag-budget { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;}
         .tag-design { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb;}
         
-        .history-log { font-size: 0.8rem; color: #718096; margin-top: 5px; max-height: 80px; overflow-y: auto; background: #f8f9fa; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
-        .history-log div { margin-bottom: 4px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 4px; }
+        .history-log { font-size: 0.85rem; color: #4a5568; margin-top: 5px; max-height: 120px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);}
+        .history-log div { margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; line-height: 1.4;}
         .history-log div:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .history-date { font-size: 0.7rem; color: #94a3b8; font-weight: bold; display: block; margin-bottom: 2px;}
+
+        /* Task Box */
+        .task-box { margin-top:10px; padding:10px; background:#fff4e5; border-radius:8px; border-left:4px solid #f57c00; font-size:0.85rem; line-height:1.4; color:#333; }
+        .task-box strong { color:#e65100; display:block; margin-bottom:3px; }
 
         @media (max-width: 768px) {
             .app-container { padding: 15px; }
@@ -225,10 +230,10 @@
                     <thead>
                         <tr>
                             <th>Customer Info</th>
-                            <th>Interest & Objection</th>
+                            <th>Interest & Pending Task</th>
                             <th>Occasion</th>
-                            <th>Follow-up History</th>
-                            <th style="text-align:center;">Action Tools</th>
+                            <th style="min-width:250px;">Follow-up / Task History</th>
+                            <th style="text-align:center; min-width:160px;">Action Tools</th>
                         </tr>
                     </thead>
                     <tbody id="crmBody">
@@ -287,7 +292,7 @@
     <div id="leadModal" class="modal">
         <div class="modal-content" style="max-width:500px;">
             <div class="modal-header">
-                <h3 class="modal-title">Log Store Walk-in</h3>
+                <h3 class="modal-title">Log Store Walk-in & Tasks</h3>
                 <button class="close-btn" onclick="closeModal('leadModal')">&times;</button>
             </div>
             
@@ -301,12 +306,17 @@
                     <input type="tel" id="lPhone" placeholder="Mobile Number">
                 </div>
                 <div class="form-group">
-                    <label>Viewed Jewellery</label>
-                    <input type="text" id="lItem" placeholder="e.g., Bridal Choker Set">
+                    <label>Viewed Jewellery / Product</label>
+                    <input type="text" id="lItem" placeholder="e.g., 12 Inch Payal">
                 </div>
                 <div class="form-group">
-                    <label>Reason for Not Buying</label>
+                    <label>Pending Task / To-Do (Optional)</label>
+                    <input type="text" id="lTask" placeholder="e.g., Market se photo lakar bhejna hai">
+                </div>
+                <div class="form-group">
+                    <label>Reason for Not Buying Yet</label>
                     <select id="lReason">
+                        <option value="Item Not in Stock">Item Not in Stock (Need to Arrange)</option>
                         <option value="Waiting for Rate Drop">Waiting for Rate Drop</option>
                         <option value="Out of Budget">Out of Budget</option>
                         <option value="Didn't Like Design">Didn't Like Design</option>
@@ -358,7 +368,7 @@
                 
                 <div class="tabs">
                     <button class="tab active" onclick="switch360Tab('khata', this)"><i class="fas fa-book"></i> Khata (Dues)</button>
-                    <button class="tab" onclick="switch360Tab('inquiries', this)"><i class="fas fa-comment-dots"></i> CRM Leads</button>
+                    <button class="tab" onclick="switch360Tab('inquiries', this)"><i class="fas fa-tasks"></i> CRM & Tasks</button>
                     <button class="tab" onclick="switch360Tab('orders', this)"><i class="fas fa-hammer"></i> Orders</button>
                     <button class="tab" onclick="switch360Tab('loans', this)"><i class="fas fa-coins"></i> Loans</button>
                     <button class="tab" onclick="switch360Tab('schemes', this)"><i class="fas fa-heart"></i> Schemes</button>
@@ -391,7 +401,7 @@
                 <div id="tab-inquiries" class="tab-content">
                     <div class="table-responsive">
                         <table class="data-table">
-                            <thead><tr><th>Item/Interest</th><th>Reason & Budget</th><th>History</th></tr></thead>
+                            <thead><tr><th>Item/Task</th><th>Reason & Budget</th><th>History</th></tr></thead>
                             <tbody id="b360Inquiries"></tbody>
                         </table>
                     </div>
@@ -644,6 +654,7 @@
             if(!reason) return 'tag-design';
             if(reason.includes('Rate')) return 'tag-rate';
             if(reason.includes('Budget')) return 'tag-budget';
+            if(reason.includes('Stock')) return 'tag-rate'; // Orange color for stock issues
             return 'tag-design';
         }
 
@@ -657,32 +668,49 @@
                 if(c.inquiries && c.inquiries.length > 0) {
                     c.inquiries.forEach((inq, idx) => {
                         hasLeads = true;
-                        const historyHTML = inq.history.map(note => `<div>- ${note}</div>`).join('');
+                        const historyHTML = inq.history.map(note => {
+                            // Extract date and message for cleaner UI
+                            const parts = note.split('] ');
+                            if(parts.length > 1) {
+                                return `<div><span class="history-date">${parts[0].replace('[', '')}</span>${parts[1]}</div>`;
+                            }
+                            return `<div>${note}</div>`;
+                        }).join('');
                         
                         let actionLogic = '';
                         if(inq.reason === "Waiting for Rate Drop") {
-                            actionLogic = `<button class="btn-small pay" style="width:100%; margin-bottom:5px; justify-content:center;" onclick="sendOffer(${c.id}, ${idx}, 'Rate Dropped! Come to store.')"><i class="fas fa-chart-line"></i> Send Rate Alert</button>`;
-                        } else if(inq.reason === "Didn't Like Design") {
-                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:5px; justify-content:center;" onclick="sendOffer(${c.id}, ${idx}, 'New Stock Arrived. View Catalog.')"><i class="fas fa-images"></i> Send New Catalog</button>`;
+                            actionLogic = `<button class="btn-small pay" style="width:100%; margin-bottom:8px; justify-content:center;" onclick="sendOffer(${c.id}, ${idx}, 'Rate Dropped! Come to store.')"><i class="fas fa-chart-line"></i> Send Rate Alert</button>`;
+                        } else if(inq.reason === "Item Not in Stock") {
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#f57c00; color:#f57c00;" onclick="sendOffer(${c.id}, ${idx}, 'Aapke pasand ka item market se aa gaya hai, Photos check karein.')"><i class="fas fa-images"></i> Send Item Photos</button>`;
                         } else if(inq.occasion && inq.occasion !== "None") {
-                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:5px; justify-content:center; border-color:#e53e3e; color:#e53e3e;" onclick="sendOffer(${c.id}, ${idx}, 'Special ${inq.occasion} Discount inside!')"><i class="fas fa-gift"></i> Send Event Offer</button>`;
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#e53e3e; color:#e53e3e;" onclick="sendOffer(${c.id}, ${idx}, 'Special ${inq.occasion} Discount inside!')"><i class="fas fa-gift"></i> Send Event Offer</button>`;
                         } else {
-                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:5px; justify-content:center; border-color:#3182ce; color:#3182ce;" onclick="sendOffer(${c.id}, ${idx}, 'Special Discount on ${inq.item}')"><i class="fas fa-tag"></i> Send General Offer</button>`;
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#3182ce; color:#3182ce;" onclick="sendOffer(${c.id}, ${idx}, 'Special Discount on ${inq.item}')"><i class="fas fa-tag"></i> Send General Offer</button>`;
+                        }
+
+                        // Task Box Logic
+                        let taskHtml = '';
+                        if(inq.task) {
+                            taskHtml = `<div class="task-box">
+                                <strong><i class="fas fa-tasks"></i> Pending Task:</strong>
+                                ${inq.task}
+                            </div>`;
                         }
 
                         tbody.innerHTML += `
                             <tr>
                                 <td><strong style="font-size:1.05rem;">${c.name}</strong><br><span style="color:#666; font-size:0.85rem;"><i class="fas fa-phone"></i> ${c.mobile}</span></td>
                                 <td>
-                                    <span style="font-weight:600;">${inq.item}</span><br>
+                                    <span style="font-weight:600; font-size:1rem;">${inq.item}</span><br>
                                     <span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span>
-                                    ${inq.price ? `<br><small style="color:#888;">Target: ₹${inq.price}</small>` : ''}
+                                    ${inq.price ? `<br><small style="color:#888; display:block; margin-top:4px;">Budget: ₹${inq.price}</small>` : ''}
+                                    ${taskHtml}
                                 </td>
                                 <td>${(inq.occasion && inq.occasion !== 'None') ? `<b>${inq.occasion}</b><br><small>${inq.date}</small>` : '-'}</td>
                                 <td><div class="history-log">${historyHTML}</div></td>
                                 <td>
                                     ${actionLogic}
-                                    <button class="btn-small" style="width:100%; justify-content:center; background:#e2e8f0;" onclick="logFollowUp(${c.id}, ${idx})"><i class="fas fa-phone-alt"></i> Log Customer Call</button>
+                                    <button class="btn-small" style="width:100%; justify-content:center; background:#1e293b; color:white; border:none;" onclick="logFollowUp(${c.id}, ${idx})"><i class="fas fa-plus-circle"></i> Log Update / Task Entry</button>
                                 </td>
                             </tr>
                         `;
@@ -691,7 +719,7 @@
             });
 
             if(!hasLeads) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">No active follow-ups. Log a new walk-in!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">No active follow-ups or tasks. Log a new walk-in!</td></tr>';
             }
         }
 
@@ -699,6 +727,7 @@
             document.getElementById('lName').value = '';
             document.getElementById('lPhone').value = '';
             document.getElementById('lItem').value = '';
+            document.getElementById('lTask').value = '';
             document.getElementById('lPrice').value = '';
             document.getElementById('lDate').value = '';
             openModal('leadModal');
@@ -708,6 +737,7 @@
             const name = document.getElementById('lName').value;
             const mobile = document.getElementById('lPhone').value;
             const item = document.getElementById('lItem').value;
+            const task = document.getElementById('lTask').value;
             const reason = document.getElementById('lReason').value;
             const price = document.getElementById('lPrice').value;
             const occasion = document.getElementById('lOccasion').value;
@@ -722,27 +752,29 @@
                 cust = await getItem('customers', newId);
             }
 
-            // 2. Push inquiry to profile
+            // 2. Push inquiry & task to profile
             if(!cust.inquiries) cust.inquiries = [];
+            
+            const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
             
             cust.inquiries.push({
                 id: Date.now(),
-                item, reason, price, occasion, date,
+                item, task, reason, price, occasion, date,
                 status: 'Active',
-                history: [`[${new Date().toLocaleDateString()}] Store visit. Added to CRM.`]
+                history: [`[${timestamp}] Store visit recorded. Added to CRM.`]
             });
 
             await updateItem('customers', cust);
             closeModal('leadModal');
-            await loadAllData(); // Refresh UI completely
+            await loadAllData(); 
         }
 
         async function logFollowUp(custId, inqIndex) {
-            const feedback = prompt(`What did the customer say during the follow-up call?`);
+            const feedback = prompt(`Enter progress update or customer response (e.g., "Market gaya tha, design nahi mili" or "Customer ko photo bhej diye"):`);
             if(feedback) {
                 const c = dbCustomers.find(x => x.id === custId);
-                const dateStr = new Date().toLocaleDateString();
-                c.inquiries[inqIndex].history.push(`[${dateStr}] Called: ${feedback}`);
+                const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+                c.inquiries[inqIndex].history.unshift(`[${timestamp}] ${feedback}`); // unshift adds to top of list
                 await updateItem('customers', c);
                 await loadAllData();
             }
@@ -750,8 +782,8 @@
 
         async function sendOffer(custId, inqIndex, message) {
             const c = dbCustomers.find(x => x.id === custId);
-            const dateStr = new Date().toLocaleDateString();
-            c.inquiries[inqIndex].history.push(`[${dateStr}] System sent Offer: ${message}`);
+            const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+            c.inquiries[inqIndex].history.unshift(`[${timestamp}] WhatsApp Sent: ${message}`);
             await updateItem('customers', c);
             await loadAllData();
 
@@ -942,18 +974,30 @@
             
             document.getElementById('v360TotalUdhari').innerText = "₹" + totalUdhari.toLocaleString();
 
-            // 2. Render CRM Inquiries
+            // 2. Render CRM Inquiries & Tasks
             const bInquiries = document.getElementById('b360Inquiries');
             bInquiries.innerHTML = '';
             if(!c.inquiries || c.inquiries.length === 0) {
-                bInquiries.innerHTML = '<tr><td colspan="3" style="text-align:center;">No inquiries or store walk-in records found.</td></tr>';
+                bInquiries.innerHTML = '<tr><td colspan="3" style="text-align:center;">No CRM leads or tasks found.</td></tr>';
             } else {
                 c.inquiries.forEach(inq => {
-                    const historyHTML = inq.history.map(note => `<div>- ${note}</div>`).join('');
+                    const historyHTML = inq.history.map(note => {
+                        const parts = note.split('] ');
+                        if(parts.length > 1) {
+                            return `<div><span class="history-date">${parts[0].replace('[', '')}</span>${parts[1]}</div>`;
+                        }
+                        return `<div>${note}</div>`;
+                    }).join('');
+                    
+                    let taskHtml = '';
+                    if(inq.task) {
+                        taskHtml = `<div class="task-box" style="margin-top:6px;"><strong>Pending Task:</strong>${inq.task}</div>`;
+                    }
+
                     bInquiries.innerHTML += `
                         <tr>
-                            <td><strong style="font-size:1rem;">${inq.item}</strong></td>
-                            <td><span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span><br><small style="color:#666;">Target: ₹${inq.price || 'N/A'}</small></td>
+                            <td style="vertical-align:top;"><strong style="font-size:1rem;">${inq.item}</strong>${taskHtml}</td>
+                            <td style="vertical-align:top;"><span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span><br><small style="color:#666;">Budget: ₹${inq.price || 'N/A'}</small></td>
                             <td><div class="history-log">${historyHTML}</div></td>
                         </tr>
                     `;
