@@ -464,18 +464,19 @@
                 </div>
             </div>
 
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>Stock Management Mode</label>
-                    <select id="tagStockMode" disabled style="background:#f0fdf4; color:#15803d; font-weight:bold;">
-                        <option value="individual">Create Unique Tag(s)</option>
-                    </select>
+            <div class="grid-2" style="margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Sub-Category / Description</label>
+                    <input type="text" id="tagSubCat" list="tagSubCatList" placeholder="Select or type new (Optional)">
+                    <datalist id="tagSubCatList"></datalist>
                 </div>
-                <div class="form-group">
+                <div class="form-group" style="margin-bottom: 0;">
                     <label>Number of Pieces</label>
                     <input type="number" id="tagPieces" value="1" min="1" oninput="generateTagInputs()">
                 </div>
             </div>
+            
+            <input type="hidden" id="tagStockMode" value="individual">
 
             <div class="form-group">
                 <label>Enter Weights (g)</label>
@@ -514,8 +515,9 @@
             </div>
 
             <div class="form-group">
-                <label>Item Description / Name</label>
-                <input type="text" id="manName" placeholder="e.g. Unique Ring Batch">
+                <label>Sub-Category / Description</label>
+                <input type="text" id="manName" list="manSubCatList" placeholder="Select or type new (e.g. Gents Ring)">
+                <datalist id="manSubCatList"></datalist>
             </div>
             
             <div class="grid-3">
@@ -1097,10 +1099,20 @@
         }
         function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
         function handleManCategoryChange() { 
+            const cat = document.getElementById('manCategory').value;
             const modeSelect = document.getElementById('manStockMode');
-            modeSelect.value = getCategoryMode(document.getElementById('manCategory').value);
+            modeSelect.value = getCategoryMode(cat);
             modeSelect.disabled = true;
             generateManPieceInputs(); 
+            
+            const datalist = document.getElementById('manSubCatList');
+            if(datalist) {
+                datalist.innerHTML = '';
+                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix')).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+                uniqueNames.forEach(n => {
+                    datalist.innerHTML += `<option value="${n}">`;
+                });
+            }
         }
         function generateManPieceInputs() {
             const mode = document.getElementById('manStockMode').value;
@@ -1124,7 +1136,10 @@
             document.getElementById('manNet').value = net.toFixed(3); document.getElementById('manFine').value = (net * getPurityFactor(document.getElementById('manPurity').value)).toFixed(3);
         }
         async function saveManualEntry() {
-            const name = document.getElementById('manName').value; const cat = document.getElementById('manCategory').value;
+            const cat = document.getElementById('manCategory').value;
+            let name = document.getElementById('manName').value.trim();
+            if(!name) name = cat;
+            
             const purity = document.getElementById('manPurity').value; const pieces = parseInt(document.getElementById('manPieces').value) || 1;
             const g = parseFloat(document.getElementById('manGross').value) || 0; const s = parseFloat(document.getElementById('manStone').value) || 0;
             if(!g || g<=0) return appAlert("Enter Valid Weight");
@@ -1148,7 +1163,7 @@
                     existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
                     await updateItem('inventory', existingItem);
                 } else {
-                    const item = { barcode, category: cat, name: `Loose ${cat} ${purity}`, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
+                    const item = { barcode, category: cat, name: `Loose ${name} ${purity}`, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
                     await addItem('inventory', item); 
                     allInventory.push(item);
                 }
@@ -1227,6 +1242,7 @@
             document.getElementById('tagSourceMaxWt').value = item.grossWt||item.weight;
             document.getElementById('tagPurity').value = item.purity; 
             document.getElementById('tagPieces').value = 1;
+            document.getElementById('tagSubCat').value = '';
             
             const isSilv = checkIsSilver(item.purity);
             const catsToUse = isSilv ? silverCategories : goldCategories;
@@ -1251,14 +1267,20 @@
             }
             
             handleTagCategoryChange(); 
-            document.getElementById('tagStockMode').disabled = false; 
-            document.getElementById('tagStockMode').value = 'individual'; 
             generateTagInputs();
             
             openModal('tagModal');
         }
         function handleTagCategoryChange() { 
-            document.getElementById('tagStockMode').value = 'individual'; 
+            const cat = document.getElementById('tagCategory').value;
+            const datalist = document.getElementById('tagSubCatList');
+            if(datalist) {
+                datalist.innerHTML = '';
+                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix')).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+                uniqueNames.forEach(n => {
+                    datalist.innerHTML += `<option value="${n}">`;
+                });
+            }
             generateTagInputs(); 
         }
         function generateTagInputs() {
@@ -1284,6 +1306,9 @@
             const cat = document.getElementById('tagCategory').value; 
             const purity = item.purity;
             const count = parseInt(document.getElementById('tagPieces').value)||1;
+            let subCat = document.getElementById('tagSubCat').value.trim();
+            let finalName = subCat ? subCat : cat;
+
             let newlyAddedItems = [];
             
             const isSilv = checkIsSilver(purity);
@@ -1294,7 +1319,7 @@
                 const g = parseFloat(inputs[i].value) || 0;
                 if (g > 0) {
                     const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                    const newItem = { barcode, category: cat, name: `${cat} ${purity}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString() };
+                    const newItem = { barcode, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString() };
                     await addItem('inventory', newItem); 
                     newlyAddedItems.push(newItem);
                 }
