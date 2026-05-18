@@ -364,7 +364,7 @@
                             <label>Stock Generation Mode</label>
                             <select id="stockMode">
                                 <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
-                                <option value="bulk">Bulk Stock / Loose (NO Barcode)</option>
+                                <option value="bulk">Bulk Stock / Loose (Background Tag)</option>
                             </select>
                         </div>
                     </div>
@@ -932,7 +932,7 @@
                 const hasIndividual = currentInv.some(inv => 
                     inv.category === cat && 
                     inv.status === 'stock' && 
-                    (inv.barcode && inv.barcode.trim() !== '') // Sirf unhe roko jinke pass proper barcode ho
+                    (inv.barcode && inv.barcode.trim() !== '' && !inv.barcode.toUpperCase().startsWith('LOOSE') && !inv.barcode.toUpperCase().startsWith('BL'))
                 );
                 if (hasIndividual && cat !== 'MIX') {
                     return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
@@ -956,10 +956,11 @@
             let itemDetailsArray = [];
             const isSilv = checkIsSilver(purity);
             
-            // BULK GENERATION (Loose Items - Bina Barcode Ke)
+            // BULK GENERATION (Loose Items - Handled correctly with LOOSE- tag to match inventory page)
             if (finalMode === 'bulk') {
+                const looseBarcode = `LOOSE-${catPrefix}-${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 100)}`;
                 const itemData = {
-                    barcode: '', // <-- NO BARCODE FOR LOOSE
+                    barcode: looseBarcode,
                     merchantId: mId,
                     purchaseDate: date,
                     category: cat === 'MIX' ? 'MIX' : cat,
@@ -1253,8 +1254,8 @@
 
                 const barcodeText = invItem.barcode || '';
                 
-                // CHECK IF BULK: Bina barcode waali entries, purani BL entries, ya Loose/Mix categories
-                const isBulkEntry = !invItem.barcode || barcodeText === '' || barcodeText.toUpperCase().startsWith('BL') || barcodeText.toUpperCase().includes('MIX') || barcodeText.toUpperCase().includes('BULK') || (invItem.name && invItem.name.includes('Loose'));
+                // CHECK IF BULK: Bina barcode waali entries, purani BL entries, ya LOOSE/MIX/BULK categories
+                const isBulkEntry = !invItem.barcode || barcodeText === '' || barcodeText.toUpperCase().startsWith('BL') || barcodeText.toUpperCase().startsWith('LOOSE') || barcodeText.toUpperCase().includes('MIX') || barcodeText.toUpperCase().includes('BULK') || (invItem.name && invItem.name.includes('Loose'));
                 const rowTextColor = isBulkEntry ? 'color: var(--active-red);' : 'color: #111;';
                 const descTextColor = isBulkEntry ? 'color: #D32F2F;' : '';
 
@@ -1272,7 +1273,7 @@
                         <td>
                             <span class="party-name" style="${rowTextColor}">${mName}</span>
                             <span class="tx-desc" style="${descTextColor}">${metalBadge} ${p.category} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem; color:#333;">${purityText}</span></span>
-                            ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> LOOSE ENTRY</span>` : ''}
+                            ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> LOOSE ENTRY (No Barcode)</span>` : ''}
                         </td>
                         <td style="font-weight:600; color:#c5a059;">${(p.totalFineWeight||0).toFixed(3)}g</td>
                         <td class="text-right" style="font-weight:bold;">${amtDisplay}</td>
@@ -1344,7 +1345,7 @@
                 document.getElementById('itemPieces').value = p.totalPieces || 1;
                 
                 // Detect Stock Mode
-                const isBulkMode = !item.barcode || item.barcode === '' || (item.barcode && (item.barcode.startsWith('BL') || item.barcode.includes('MIX') || item.barcode.includes('BULK'))) || item.category === 'MIX' || (item.name && item.name.includes('Loose'));
+                const isBulkMode = !item.barcode || item.barcode === '' || (item.barcode && (item.barcode.toUpperCase().startsWith('BL') || item.barcode.toUpperCase().startsWith('LOOSE') || item.barcode.toUpperCase().includes('MIX') || item.barcode.toUpperCase().includes('BULK'))) || item.category === 'MIX' || (item.name && item.name.includes('Loose'));
                 
                 if (isBulkMode) {
                     document.getElementById('stockMode').value = 'bulk';
