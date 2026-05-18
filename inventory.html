@@ -72,7 +72,7 @@
         .search-icon { position: absolute; left: 16px; top: 18px; color: #999; font-size: 1.1rem; }
 
         .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: var(--card-shadow); max-height: 65vh;}
-        .inv-table { width: 100%; border-collapse: collapse; min-width: 950px; }
+        .inv-table { width: 100%; border-collapse: collapse; min-width: 1050px; }
         .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 16px; font-weight: 700; font-size: 0.8rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
         .inv-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.9rem; }
         
@@ -296,7 +296,6 @@
                 <thead>
                     <tr>
                         <th>Category</th>
-                        <!-- Sub-Category column removed from Main Table -->
                         <th>Barcodes / Ref</th>
                         <th>Purity</th>
                         <th>Stock Qty</th>
@@ -479,8 +478,10 @@
             <div class="grid-2" style="margin-bottom: 15px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Sub-Category / Description</label>
-                    <input type="text" id="tagSubCat" list="tagSubCatList" placeholder="Select or type new (Optional)">
-                    <datalist id="tagSubCatList"></datalist>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="tagSubCatSelect" onchange="toggleTagSubCatInput()" style="flex: 1;"></select>
+                        <input type="text" id="tagSubCat" placeholder="Type new..." style="display:none; flex: 1;">
+                    </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Number of Pieces</label>
@@ -526,10 +527,12 @@
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="grid-column: 1 / -1;">
                 <label>Sub-Category / Description</label>
-                <input type="text" id="manName" list="manSubCatList" placeholder="Select or type new (e.g. Gents Ring)">
-                <datalist id="manSubCatList"></datalist>
+                <div style="display: flex; gap: 10px;">
+                    <select id="manSubCatSelect" onchange="toggleManSubCatInput()" style="flex: 1;"></select>
+                    <input type="text" id="manName" placeholder="Type new sub-category..." style="display:none; flex: 1;">
+                </div>
             </div>
             
             <div class="grid-3">
@@ -1158,7 +1161,15 @@
         function openManualEntry() {
             document.getElementById('manualEntryModal').style.display = 'flex';
             document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
-            handleManualMetalChange(); document.getElementById('manName').value = ''; document.getElementById('manGross').value = '';
+            handleManualMetalChange();
+            
+            const manNameInput = document.getElementById('manName');
+            if (manNameInput) {
+                manNameInput.value = '';
+                manNameInput.style.display = 'none';
+            }
+            
+            document.getElementById('manGross').value = '';
             document.getElementById('manStockMode').disabled = true;
         }
         function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
@@ -1169,15 +1180,37 @@
             modeSelect.disabled = true;
             generateManPieceInputs(); 
             
-            const datalist = document.getElementById('manSubCatList');
-            if(datalist) {
-                datalist.innerHTML = '';
-                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix')).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+            const subCatSelect = document.getElementById('manSubCatSelect');
+            const manNameInput = document.getElementById('manName');
+            if(subCatSelect) {
+                subCatSelect.innerHTML = '<option value="">-- No Sub-Category --</option>';
+                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
                 uniqueNames.forEach(n => {
-                    datalist.innerHTML += `<option value="${n}">`;
+                    subCatSelect.innerHTML += `<option value="${n}">${n}</option>`;
                 });
+                subCatSelect.innerHTML += `<option value="NEW" style="color:var(--info-blue); font-weight:bold;">+ Add New Sub-Category</option>`;
+                
+                subCatSelect.value = "";
+                if(manNameInput) {
+                    manNameInput.style.display = "none";
+                    manNameInput.value = "";
+                }
             }
         }
+        
+        function toggleManSubCatInput() {
+            const val = document.getElementById('manSubCatSelect').value;
+            const input = document.getElementById('manName');
+            if(input) {
+                if (val === 'NEW') {
+                    input.style.display = 'block';
+                    input.focus();
+                } else {
+                    input.style.display = 'none';
+                }
+            }
+        }
+        
         function generateManPieceInputs() {
             const mode = document.getElementById('manStockMode').value;
             const pieces = parseInt(document.getElementById('manPieces').value) || 1;
@@ -1201,7 +1234,14 @@
         }
         async function saveManualEntry() {
             const cat = document.getElementById('manCategory').value;
-            let name = document.getElementById('manName').value.trim();
+            
+            let name = "";
+            const subCatVal = document.getElementById('manSubCatSelect').value;
+            if (subCatVal === 'NEW') {
+                name = document.getElementById('manName').value.trim();
+            } else if (subCatVal !== "") {
+                name = subCatVal;
+            }
             if(!name) name = cat;
             
             const purity = document.getElementById('manPurity').value; const pieces = parseInt(document.getElementById('manPieces').value) || 1;
@@ -1318,7 +1358,12 @@
             document.getElementById('tagSourceMaxWt').value = item.grossWt||item.weight;
             document.getElementById('tagPurity').value = item.purity; 
             document.getElementById('tagPieces').value = 1;
-            document.getElementById('tagSubCat').value = '';
+            
+            const tagSubCatInput = document.getElementById('tagSubCat');
+            if (tagSubCatInput) {
+                tagSubCatInput.value = '';
+                tagSubCatInput.style.display = 'none';
+            }
             
             const isSilv = checkIsSilver(item.purity);
             const catsToUse = isSilv ? silverCategories : goldCategories;
@@ -1348,16 +1393,39 @@
         }
         function handleTagCategoryChange() { 
             const cat = document.getElementById('tagCategory').value;
-            const datalist = document.getElementById('tagSubCatList');
-            if(datalist) {
-                datalist.innerHTML = '';
-                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix')).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+            
+            const subCatSelect = document.getElementById('tagSubCatSelect');
+            const tagSubCatInput = document.getElementById('tagSubCat');
+            if(subCatSelect) {
+                subCatSelect.innerHTML = '<option value="">-- No Sub-Category --</option>';
+                const uniqueNames = [...new Set(allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
                 uniqueNames.forEach(n => {
-                    datalist.innerHTML += `<option value="${n}">`;
+                    subCatSelect.innerHTML += `<option value="${n}">${n}</option>`;
                 });
+                subCatSelect.innerHTML += `<option value="NEW" style="color:var(--info-blue); font-weight:bold;">+ Add New Sub-Category</option>`;
+                
+                subCatSelect.value = "";
+                if(tagSubCatInput) {
+                    tagSubCatInput.style.display = "none";
+                    tagSubCatInput.value = "";
+                }
             }
             generateTagInputs(); 
         }
+        
+        function toggleTagSubCatInput() {
+            const val = document.getElementById('tagSubCatSelect').value;
+            const input = document.getElementById('tagSubCat');
+            if(input) {
+                if (val === 'NEW') {
+                    input.style.display = 'block';
+                    input.focus();
+                } else {
+                    input.style.display = 'none';
+                }
+            }
+        }
+        
         function generateTagInputs() {
             const container = document.getElementById('tagInputsContainer'); container.innerHTML = '';
             const count = parseInt(document.getElementById('tagPieces').value)||1;
@@ -1381,7 +1449,14 @@
             const cat = document.getElementById('tagCategory').value; 
             const purity = item.purity;
             const count = parseInt(document.getElementById('tagPieces').value)||1;
-            let subCat = document.getElementById('tagSubCat').value.trim();
+            
+            let subCat = "";
+            const tagSubCatVal = document.getElementById('tagSubCatSelect').value;
+            if (tagSubCatVal === 'NEW') {
+                subCat = document.getElementById('tagSubCat').value.trim();
+            } else if (tagSubCatVal !== "") {
+                subCat = tagSubCatVal;
+            }
             let finalName = subCat ? subCat : cat;
 
             let newlyAddedItems = [];
