@@ -273,8 +273,14 @@
             </div>
             <div class="filter-group">
                 <label><i class="fas fa-tags"></i> Item Category:</label>
-                <select id="filterCategory" onchange="applyFilters()">
+                <select id="filterCategory" onchange="updateSubCatFilter(); applyFilters()">
                     <option value="ALL">All Categories</option>
+                </select>
+            </div>
+            <div class="filter-group" id="subCatFilterGroup" style="display:none;">
+                <label><i class="fas fa-sitemap"></i> Sub-Category:</label>
+                <select id="filterSubCategory" onchange="applyFilters()">
+                    <option value="ALL">All Sub-Categories</option>
                 </select>
             </div>
             <button class="btn-manage-cats" onclick="openCatModal()"><i class="fas fa-cog"></i> Manage Categories</button>
@@ -866,6 +872,42 @@
             if(manSelect) manSelect.innerHTML = opts + `<option value="MIX">Mixed / Untagged</option>`;
         }
 
+        function updateSubCatFilter() {
+            const cat = document.getElementById('filterCategory').value;
+            const subCatSelect = document.getElementById('filterSubCategory');
+            const subCatGroup = document.getElementById('subCatFilterGroup');
+            
+            if (!subCatSelect || !subCatGroup) return;
+
+            if (cat === 'ALL' || cat === 'Other') {
+                subCatGroup.style.display = 'none';
+                subCatSelect.value = 'ALL';
+                return;
+            }
+            
+            const uniqueSubCats = [...new Set(allInventory.filter(i => 
+                i.category === cat && 
+                i.name && 
+                i.name.trim() !== '' && 
+                i.name !== cat &&
+                !i.name.toLowerCase().includes('loose') && 
+                !i.name.toLowerCase().includes('mix')
+            ).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+            
+            if (uniqueSubCats.length > 0) {
+                subCatGroup.style.display = 'flex';
+                let opts = `<option value="ALL">All Sub-Categories</option>`;
+                uniqueSubCats.forEach(sub => {
+                    opts += `<option value="${sub}">${sub}</option>`;
+                });
+                opts += `<option value="BASE">Base ${cat} (No Sub)</option>`;
+                subCatSelect.innerHTML = opts;
+            } else {
+                subCatGroup.style.display = 'none';
+                subCatSelect.value = 'ALL';
+            }
+        }
+
         function buildFilterBar() {
             const catSelect = document.getElementById('filterCategory');
             if(!catSelect) return;
@@ -961,10 +1003,19 @@
             allSalesData = await getAllItems('sales').catch(()=>[]);
             allInventory.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0));
             applyFilters();
+            updateSubCatFilter();
         }
 
         function setMetalFilter(metalFilter) {
-            currentMetalFilter = metalFilter; document.getElementById('filterCategory').value = 'ALL'; document.getElementById('filterType').value = 'ALL';
+            currentMetalFilter = metalFilter; 
+            document.getElementById('filterCategory').value = 'ALL'; 
+            document.getElementById('filterType').value = 'ALL';
+            
+            const subCatGroup = document.getElementById('subCatFilterGroup');
+            if(subCatGroup) subCatGroup.style.display = 'none';
+            const subCatSelect = document.getElementById('filterSubCategory');
+            if(subCatSelect) subCatSelect.value = 'ALL';
+
             document.querySelectorAll('.metal-tab').forEach(btn => btn.classList.remove('active-gold', 'active-gold-fine', 'active-gold-order', 'active-silver', 'active-all'));
             if(metalFilter === 'GOLD_TAGGED') document.getElementById('metal-tab-gold-tagged').classList.add('active-gold');
             else if(metalFilter === 'GOLD_FINE') document.getElementById('metal-tab-gold-fine').classList.add('active-gold-fine');
@@ -978,6 +1029,8 @@
             const searchTerm = document.getElementById('searchInput').value.toUpperCase().trim();
             const viewType = document.getElementById('filterType').value;
             const catType = document.getElementById('filterCategory').value;
+            const subCatSelect = document.getElementById('filterSubCategory');
+            const subCatType = subCatSelect ? subCatSelect.value : 'ALL';
             
             let filtered = allInventory.filter(i => i.status !== 'sold' && parseFloat(i.netWt || i.grossWt || i.weight) > 0);
             filtered = filtered.filter(i => {
@@ -994,8 +1047,17 @@
             });
 
             if (viewType === 'MIX') filtered = filtered.filter(i => i.category === 'MIX');
-            if (catType !== 'ALL') filtered = filtered.filter(i => i.category === catType);
-            if (searchTerm) filtered = filtered.filter(i => i.barcode?.toUpperCase().includes(searchTerm) || i.category?.toUpperCase().includes(searchTerm));
+            if (catType !== 'ALL') {
+                filtered = filtered.filter(i => i.category === catType);
+                if (subCatType !== 'ALL') {
+                    if (subCatType === 'BASE') {
+                        filtered = filtered.filter(i => !i.name || i.name === i.category || i.name.toLowerCase().includes('loose') || i.name.toLowerCase().includes('mix'));
+                    } else {
+                        filtered = filtered.filter(i => i.name && i.name.replace(/\s+\d+$/, '').trim() === subCatType);
+                    }
+                }
+            }
+            if (searchTerm) filtered = filtered.filter(i => i.barcode?.toUpperCase().includes(searchTerm) || i.category?.toUpperCase().includes(searchTerm) || (i.name && i.name.toUpperCase().includes(searchTerm)));
 
             renderList(filtered);
         }
@@ -1009,7 +1071,7 @@
         }
 
         // =======================
-        // UPDATED RENDER LIST (Category grouping without purity split)
+        // UPDATED RENDER LIST (Category + SubCategory grouping)
         // =======================
         function renderList(items) {
             const container = document.getElementById('inventory-list'); container.innerHTML = ''; groupedInventory = {}; 
@@ -1025,11 +1087,26 @@
                 totalWt += net; totalCount += pcs;
                 totalVal += Math.round(net * (getRate(item.purity) / 10));
 
-                // GROUP ONLY BY CATEGORY (Removed Purity from the Key to merge them)
-                const key = (item.category==='MIX' || item.barcode?.startsWith('ORD-')) ? `K_${item.id}` : `${item.category}_${item.status}`;
+                let isLooseOrMix = item.category === 'MIX' || (item.name && (item.name.toLowerCase().includes('loose') || item.name.toLowerCase().includes('mix')));
+                let subCatName = item.category;
+                let rawSubCat = "";
+                
+                if (!isLooseOrMix && item.name && item.name.trim() !== '' && item.name !== item.category) {
+                    rawSubCat = item.name.replace(/\s+\d+$/, '').trim();
+                    subCatName = rawSubCat;
+                }
+
+                let key = '';
+                if (item.category === 'MIX' || item.barcode?.startsWith('ORD-')) {
+                    key = `K_${item.id}`;
+                } else if (rawSubCat !== "") {
+                    key = `${item.category}_${rawSubCat}_${item.status}`;
+                } else {
+                    key = `${item.category}_BASE_${item.status}`;
+                }
                 
                 if(!groupedInventory[key]) {
-                    groupedInventory[key] = { key: key, name: item.category, category: item.category, purities: new Set(), count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] };
+                    groupedInventory[key] = { key: key, name: subCatName, category: item.category, purities: new Set(), count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] };
                 }
                 
                 groupedInventory[key].count += pcs; 
@@ -1267,6 +1344,8 @@
             }
             
             handleTagCategoryChange(); 
+            document.getElementById('tagStockMode').disabled = false; 
+            document.getElementById('tagStockMode').value = 'individual'; 
             generateTagInputs();
             
             openModal('tagModal');
