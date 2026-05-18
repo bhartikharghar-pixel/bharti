@@ -241,6 +241,7 @@
         </div>
     </div>
 
+    <!-- NEW CUSTOMER MODAL WITH KYC -->
     <div id="custModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <div class="modal-header">
@@ -251,12 +252,20 @@
             <div class="modal-body">
                 <input type="hidden" id="cId">
                 <div class="form-group">
-                    <label>Full Name</label>
+                    <label>Full Name <span class="text-red">*</span></label>
                     <input type="text" id="cName" placeholder="e.g. Rahul Sharma">
                 </div>
                 <div class="form-group">
-                    <label>Mobile Number</label>
+                    <label>Mobile Number <span class="text-red">*</span></label>
                     <input type="tel" id="cMobile" placeholder="e.g. 9876543210">
+                </div>
+                <div class="form-group">
+                    <label>Aadhar Number (Mandatory KYC) <span class="text-red">*</span></label>
+                    <input type="text" id="cAadhar" placeholder="12-digit Aadhar Number" maxlength="12">
+                </div>
+                <div class="form-group">
+                    <label>PAN Card (Optional KYC)</label>
+                    <input type="text" id="cPan" placeholder="e.g. ABCDE1234F" maxlength="10" style="text-transform: uppercase;">
                 </div>
                 <div class="form-group">
                     <label>City / Address</label>
@@ -687,6 +696,7 @@
             // 1. Check if customer exists by phone number
             let cust = dbCustomers.find(c => c.mobile == mobile);
             if(!cust) {
+                // If it's a new lead, we can save a partial profile without Aadhar for now.
                 const newId = await addItem('customers', { name, mobile, joined: new Date().toISOString(), inquiries: [] });
                 cust = await getItem('customers', newId);
             }
@@ -736,6 +746,8 @@
                 document.getElementById('cId').value = c.id;
                 document.getElementById('cName').value = c.name;
                 document.getElementById('cMobile').value = c.mobile;
+                document.getElementById('cAadhar').value = c.aadhar || '';
+                document.getElementById('cPan').value = c.pan || '';
                 document.getElementById('cCity').value = c.city || '';
                 delBtn.style.display = 'block';
             } else {
@@ -743,6 +755,8 @@
                 document.getElementById('cId').value = '';
                 document.getElementById('cName').value = '';
                 document.getElementById('cMobile').value = '';
+                document.getElementById('cAadhar').value = '';
+                document.getElementById('cPan').value = '';
                 document.getElementById('cCity').value = '';
                 delBtn.style.display = 'none';
             }
@@ -753,16 +767,28 @@
             const id = document.getElementById('cId').value;
             const name = document.getElementById('cName').value;
             const mobile = document.getElementById('cMobile').value;
+            const aadhar = document.getElementById('cAadhar').value.trim();
+            const pan = document.getElementById('cPan').value.trim().toUpperCase();
             const city = document.getElementById('cCity').value;
 
-            if(!name || !mobile) return alert("Name and Mobile are required");
+            // Validation Check for mandatory KYC
+            if(!name || !mobile || !aadhar) {
+                return alert("Name, Mobile, and Aadhar Number are mandatory for KYC.");
+            }
+            if(aadhar.length !== 12 || isNaN(aadhar)) {
+                return alert("Please enter a valid 12-digit Aadhar Number.");
+            }
 
             if(id) {
                 const c = await getItem('customers', id);
-                c.name = name; c.mobile = mobile; c.city = city;
+                c.name = name; 
+                c.mobile = mobile; 
+                c.aadhar = aadhar; 
+                c.pan = pan; 
+                c.city = city;
                 await updateItem('customers', c);
             } else {
-                await addItem('customers', { name, mobile, city, joined: new Date().toISOString(), inquiries: [] });
+                await addItem('customers', { name, mobile, aadhar, pan, city, joined: new Date().toISOString(), inquiries: [] });
             }
             
             closeModal('custModal');
@@ -817,7 +843,14 @@
             document.getElementById('v360Avatar').innerText = c.name.charAt(0).toUpperCase();
             document.getElementById('v360Name').innerText = c.name;
             document.getElementById('v360Phone').innerText = c.mobile;
-            document.getElementById('v360City').innerText = c.city || 'N/A';
+            
+            // Render City along with KYC Badges
+            document.getElementById('v360City').innerHTML = `
+                ${c.city || 'N/A'}<br>
+                <span style="display:inline-block; margin-top:8px; padding:4px 8px; background:#e2e8f0; border-radius:6px; font-size:0.85rem; color:#333;">
+                    <i class="fas fa-id-card"></i> Aadhar: <b>${c.aadhar || '<span style="color:#c62828;">Pending</span>'}</b> &nbsp;|&nbsp; PAN: <b>${c.pan || 'N/A'}</b>
+                </span>
+            `;
 
             // 1. Render Khata (Udhari / Sales Ledger)
             const bKhata = document.getElementById('b360Khata');
