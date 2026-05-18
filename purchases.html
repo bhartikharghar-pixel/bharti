@@ -346,9 +346,9 @@
                 </div>
 
                 <div class="form-section">
-                    <div class="sec-label"><i class="fas fa-gem"></i> Item Details (Enter Totals)</div>
+                    <div class="sec-label"><i class="fas fa-gem"></i> Item Details</div>
                     
-                    <div class="grid-3">
+                    <div class="grid-2">
                         <div class="form-group">
                             <label>Metal</label>
                             <select id="itemMetal" onchange="populateCategoryDropdown(); populatePurityDropdowns(); autoFillRate(); handlePurchaseCategoryChange();">
@@ -359,6 +359,14 @@
                         <div class="form-group">
                             <label>Category</label>
                             <select id="itemCategory" onchange="handlePurchaseCategoryChange()"></select>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Sub-Category / Description</label>
+                            <input type="text" id="itemSubCat" list="subCatList" placeholder="Select or type new (e.g. Gents Ring)">
+                            <datalist id="subCatList"></datalist>
                         </div>
                         <div class="form-group">
                             <label>Stock Generation Mode</label>
@@ -517,6 +525,7 @@
 
             document.getElementById('merchantSelect').value = "";
             document.getElementById('itemPieces').value = 1;
+            document.getElementById('itemSubCat').value = '';
             document.getElementById('itemMark').value = '';
             
             document.getElementById('totalGrossWt').value = '';
@@ -538,6 +547,7 @@
         }
         
         let allPurchasesData = [];
+        let allInventoryData = [];
         let currentMetalFilter = 'GOLD';
         let categoryModes = {};
 
@@ -609,6 +619,8 @@
                 [...BASE_GOLD_CATS, ...BASE_SILVER_CATS].forEach(c => categoryModes[c] = 'individual');
                 categoryModes['MIX'] = 'bulk';
             }
+            
+            allInventoryData = await getAllItems('inventory');
 
             // Initialize UI
             document.getElementById('itemMetal').value = 'Gold';
@@ -637,6 +649,22 @@
                 modeEl.value = getCategoryMode(cat);
                 modeEl.disabled = true;
                 generatePieceInputs();
+            }
+            
+            // Populate Sub-Category Datalist based on inventory data
+            const datalist = document.getElementById('subCatList');
+            if(datalist) {
+                datalist.innerHTML = '';
+                const uniqueNames = [...new Set(allInventoryData.filter(i => 
+                    i.category === cat && 
+                    i.name && 
+                    !i.name.toLowerCase().includes('loose') && 
+                    !i.name.toLowerCase().includes('mix')
+                ).map(i => i.name.replace(/\s+\d+$/, '').trim()))];
+                
+                uniqueNames.forEach(n => {
+                    datalist.innerHTML += `<option value="${n}">`;
+                });
             }
         }
 
@@ -863,7 +891,7 @@
             }
         }
 
-        // Custom Custom Sequential Barcode Generator for strict sequencing (0001)
+        // Custom Sequential Barcode Generator for strict sequencing (0001)
         async function generateCustomBarcode(prefix) {
             const list = await getAllItems('inventory');
             let maxCount = 0;
@@ -901,9 +929,12 @@
             const isUnfixed = (type === 'Unfixed');
             const date = document.getElementById('purchaseDate').value;
             const cat = document.getElementById('itemCategory').value;
+            let subCat = document.getElementById('itemSubCat').value.trim();
             const purity = document.getElementById('itemPurity').value;
             const mark = document.getElementById('itemMark').value;
             const rateVal = parseFloat(document.getElementById('metalRate').value) || 0;
+            
+            let finalName = subCat ? subCat : cat;
             
             if (!isUnfixed && rateVal <= 0) {
                 return showToast("Please enter a valid Rate for a Fixed Purchase", "error");
@@ -981,7 +1012,7 @@
                         merchantId: mId,
                         purchaseDate: date,
                         category: cat === 'MIX' ? 'MIX' : cat,
-                        name: pieces > 1 ? `Loose / Bulk ${cat} (${purity})` : `Loose ${cat} (${purity})`,
+                        name: pieces > 1 ? `Loose / Bulk ${finalName} (${purity})` : `Loose ${finalName} (${purity})`,
                         purity: purity,
                         mark: mark,
                         pieces: pieces, 
@@ -1048,7 +1079,7 @@
                         merchantId: mId,
                         purchaseDate: date,
                         category: cat === 'MIX' ? 'MIX' : cat,
-                        name: `${cat} (${purity})`,
+                        name: pieces > 1 ? `${finalName} ${i+1}` : finalName,
                         purity: purity,
                         mark: mark,
                         pieces: 1, 
@@ -1127,6 +1158,8 @@
                  });
             }
 
+            allInventoryData = await getAllItems('inventory'); // Reload inventory cache after save
+            
             showToast(editId ? "Purchase Updated Successfully!" : "Purchase Saved & Stock Updated!", "success");
             closeModal('entryModal');
             loadHistory();
@@ -1257,6 +1290,14 @@
                 if(isSilv) metalBadge = `<span class="badge b-metal-silver" style="margin-right:5px;">Silver</span>`;
                 else metalBadge = `<span class="badge b-metal-gold" style="margin-right:5px;">Gold</span>`;
 
+                // Fetch Sub-Category display logic
+                let itemDesc = p.category;
+                let rawSub = "";
+                if (invItem.name && invItem.name.trim() !== '' && invItem.name !== invItem.category && !invItem.name.toLowerCase().includes('loose') && !invItem.name.toLowerCase().includes('mix')) {
+                    rawSub = invItem.name.replace(/\s+\d+$/, '').trim();
+                }
+                if (rawSub) itemDesc = `${p.category} <span style="color:#888;">(${rawSub})</span>`;
+
                 const pcsText = p.totalPieces > 1 ? ` (${p.totalPieces} Pcs)` : '';
                 
                 // Show Mode if paid
@@ -1290,7 +1331,7 @@
                         <td><span class="badge ${badge}">${p.type}</span></td>
                         <td>
                             <span class="party-name" style="${rowTextColor}">${mName}</span>
-                            <span class="tx-desc" style="${descTextColor}">${metalBadge} ${p.category} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem; color:#333;">${purityText}</span></span>
+                            <span class="tx-desc" style="${descTextColor}">${metalBadge} ${itemDesc} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem; color:#333;">${purityText}</span></span>
                             ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> LOOSE ENTRY (No Barcode)</span>` : ''}
                         </td>
                         <td style="font-weight:600; color:#c5a059;">${(p.totalFineWeight||0).toFixed(3)}g</td>
@@ -1361,6 +1402,13 @@
                 document.getElementById('itemCategory').value = item.category;
                 document.getElementById('itemPurity').value = item.purity;
                 document.getElementById('itemPieces').value = p.totalPieces || 1;
+                
+                // Extract Sub-category if any
+                let rawSub = "";
+                if (item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+                    rawSub = item.name.replace(/\s+\d+$/, '').trim();
+                }
+                document.getElementById('itemSubCat').value = rawSub;
                 
                 // Detect Stock Mode
                 const isBulkMode = !item.barcode || item.barcode === '' || (item.barcode && (item.barcode.toUpperCase().startsWith('BL') || item.barcode.toUpperCase().startsWith('LOOSE') || item.barcode.toUpperCase().includes('MIX') || item.barcode.toUpperCase().includes('BULK'))) || item.category === 'MIX' || (item.name && item.name.includes('Loose'));
@@ -1494,7 +1542,11 @@
              };
 
              if(!isSilent) {
-                 tx.oncomplete = () => { showToast("Purchase Deleted & Ledger Reversed.", "success"); loadHistory(); };
+                 tx.oncomplete = async () => { 
+                     allInventoryData = await getAllItems('inventory'); // update cache 
+                     showToast("Purchase Deleted & Ledger Reversed.", "success"); 
+                     loadHistory(); 
+                 };
              }
         }
 
