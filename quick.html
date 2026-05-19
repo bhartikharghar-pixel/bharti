@@ -976,6 +976,23 @@
                         let spl = `(₹${fmtNum(amt)}*)`; 
                         let wt = Math.abs(parseNum(l.weight));
                         pushLog('Girvi Diya', amt, cNameWithId, `${itemN} ${wt.toFixed(3)}g`, spl, false);
+
+                        // --- FIX: Mark the base loan cashflow as handled to prevent double counting ---
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                let cAmt = Math.abs(parseNum(c.amount));
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                let cType = c.type || 'OUT';
+                                if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
+                                
+                                if (cType === 'OUT' && cAmt === amt) {
+                                    if (cat.includes('loan') || cat.includes('girvi') || note.includes('loan') || note.includes('girvi') || note.includes(String(l.id))) {
+                                        c.alreadyHandled = true;
+                                    }
+                                }
+                            }
+                        });
                     }
                 }
                 
@@ -1007,6 +1024,23 @@
                         if (intAmt === 0 && prinAmt === 0 && totalAmt > 0) {
                              pushLog('Byaaj Jama', totalAmt, cNameWithId, 'Byaaj / Jama', splText, true);
                         }
+
+                        // --- FIX: Mark loan payment cashflows as handled ---
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                let flowAmt = Math.abs(parseNum(c.amount));
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                let cType = c.type || 'OUT';
+                                if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
+                                
+                                if (cType === 'IN' && flowAmt === totalAmt) {
+                                    if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || note.includes('loan') || note.includes('girvi') || cat.includes('payment') || note.includes(String(l.id))) {
+                                        c.alreadyHandled = true;
+                                    }
+                                }
+                            }
+                        });
                     });
                 }
             });
