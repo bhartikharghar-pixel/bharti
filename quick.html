@@ -1085,16 +1085,29 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
+                // --- 🚀 NEW FIX FOR EXTRA LOAN MONEY GIVEN ---
+                let loanMatch = note.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || cat.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i);
+                if (type === 'OUT' && loanMatch) {
+                    let lId = loanMatch[1];
+                    let matchedLoan = loans.find(x => String(x.id) === String(lId));
+                    let displayTitle = '';
+                    
+                    if (matchedLoan) {
+                        displayTitle = `${getCustName(matchedLoan.customerId)} [L-${lId}]`;
+                    } else if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+                        displayTitle = `${getCustName(c.customerId)} [L-${lId}]`;
+                    } else {
+                        displayTitle = `Customer [L-${lId}]`;
+                    }
+
+                    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
+                    return; // Stop further processing for this cashflow
+                }
+                // ----------------------------------------------
+
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
 
-                if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
-                    cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') ||
-                    cat.includes('old gold') || cat.includes('oldgold') ||
-                    cat.includes('purchase') || cat.includes('khareedi'))) {
-                    return;
-                }
-
-                // ---- FIX: DEEP MERCHANT NAME EXTRACTION ----
+                // ---- DEEP MERCHANT NAME EXTRACTION ----
                 let vyapariName = '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
                 
@@ -1120,10 +1133,16 @@
                 if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
                     entityName = `${getCustName(c.customerId)} - ${entityName}`;
                 } else if (isVyapariPayment) {
-                    // Force the name to be just the merchant name, discarding the ugly settlement note
                     entityName = (vyapariName && vyapariName !== 'Merchant') ? vyapariName : 'Vyapari';
                 }
                 // ---------------------------------------------
+
+                if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
+                    cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') ||
+                    cat.includes('old gold') || cat.includes('oldgold') ||
+                    cat.includes('purchase') || cat.includes('khareedi'))) {
+                    return;
+                }
 
                 if (cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) {
                     let bcTitle = c.note || 'BC Scheme';
@@ -1194,4 +1213,3 @@
 
 </body>
 </html>
-
