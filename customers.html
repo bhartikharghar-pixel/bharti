@@ -1,9 +1,4 @@
-Ye check karo sahi he ki nahi
-
-
-
-
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -837,8 +832,8 @@ Ye check karo sahi he ki nahi
 
         async function saveCustomer() {
             const id = document.getElementById('cId').value;
-            const name = document.getElementById('cName').value;
-            const mobile = document.getElementById('cMobile').value;
+            const name = document.getElementById('cName').value.trim();
+            const mobile = document.getElementById('cMobile').value.trim();
             const aadhar = document.getElementById('cAadhar').value.trim();
             const pan = document.getElementById('cPan').value.trim().toUpperCase();
             const city = document.getElementById('cCity').value;
@@ -852,6 +847,36 @@ Ye check karo sahi he ki nahi
             if(aadhar && (aadhar.length !== 12 || isNaN(aadhar))) {
                 return alert("Please enter a valid 12-digit Aadhar Number or leave it blank.");
             }
+
+            // --- DUPLICATE CHECKING LOGIC START ---
+            let duplicateReason = "";
+            const isDuplicate = dbCustomers.some(c => {
+                // Edit karte waqt khud ko (current customer) duplicate check se ignore karna hai
+                if (id && c.id == id) return false;
+
+                // Check Name and Mobile combination
+                if (c.name.toLowerCase() === name.toLowerCase() && c.mobile === mobile) {
+                    duplicateReason = "This Name and Mobile Number combination already exists!";
+                    return true;
+                }
+                // Check Aadhar
+                if (aadhar && c.aadhar === aadhar) {
+                    duplicateReason = "This Aadhar Number already exists in the system!";
+                    return true;
+                }
+                // Check PAN
+                if (pan && c.pan === pan) {
+                    duplicateReason = "This PAN Card already exists in the system!";
+                    return true;
+                }
+
+                return false;
+            });
+
+            if (isDuplicate) {
+                return alert("⚠️ Duplicate Entry Detected:\n\n" + duplicateReason);
+            }
+            // --- DUPLICATE CHECKING LOGIC END ---
 
             if(id) {
                 const c = await getItem('customers', id);
