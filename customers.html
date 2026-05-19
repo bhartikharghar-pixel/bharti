@@ -115,7 +115,7 @@
 
         /* 360 Dashboard Profile Header */
         .c360-header { text-align: center; border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 20px; background: #fafafa; border-radius: 12px; padding-top: 20px;}
-        .c360-name { font-size: 1.6rem; font-weight: 700; color: #222; margin: 0; }
+        .c360-name { font-size: 1.6rem; font-weight: 700; color: #222; margin: 0; display: flex; align-items: center; justify-content: center; gap: 10px;}
         .c360-phone { color: #666; font-size: 0.95rem; margin-top: 8px;}
         
         .tabs { display: flex; overflow-x: auto; background: #e0e0e0; border-radius: 10px; padding: 5px; gap: 5px; scrollbar-width: none; margin-bottom: 20px;}
@@ -642,7 +642,7 @@
 
                         <div class="cust-actions">
                             <button class="btn-action btn-primary" onclick="open360Modal(${c.id})"><i class="fas fa-book-open"></i> Open Khata & Profile</button>
-                            <button class="btn-action" onclick="openCustomerModal(${c.id})" style="flex: 0.3;"><i class="fas fa-edit"></i></button>
+                            <button class="btn-action" onclick="openCustomerModal(${c.id})" style="flex: 0.4;" title="Edit Customer Details"><i class="fas fa-edit"></i> Edit</button>
                         </div>
                     </div>
                 `;
@@ -831,7 +831,10 @@
         }
 
         async function saveCustomer() {
-            const id = document.getElementById('cId').value;
+            // FIXED: parseInt added so the DB correctly finds the numeric ID during update
+            const rawId = document.getElementById('cId').value;
+            const id = rawId ? parseInt(rawId, 10) : null;
+            
             const name = document.getElementById('cName').value.trim();
             const mobile = document.getElementById('cMobile').value.trim();
             const aadhar = document.getElementById('cAadhar').value.trim();
@@ -852,7 +855,7 @@
             let duplicateReason = "";
             const isDuplicate = dbCustomers.some(c => {
                 // Edit karte waqt khud ko (current customer) duplicate check se ignore karna hai
-                if (id && c.id == id) return false;
+                if (id && c.id === id) return false;
 
                 // Check Name and Mobile combination
                 if (c.name.toLowerCase() === name.toLowerCase() && c.mobile === mobile) {
@@ -950,7 +953,9 @@
                 v360Avatar.style.background = 'var(--accent-gold)';
             }
 
-            document.getElementById('v360Name').innerText = c.name;
+            // ADDED: Explicit Edit Button in the 360 Profile Name Header
+            document.getElementById('v360Name').innerHTML = `${c.name} <button class="btn-small" style="font-size:0.85rem; margin-left:10px; background:#f1f5f9; color:#333; border: 1px solid #ddd;" onclick="closeModal('c360Modal'); openCustomerModal(${c.id});"><i class="fas fa-edit"></i> Edit</button>`;
+            
             document.getElementById('v360Phone').innerText = c.mobile;
             
             // Render City along with KYC Badges
