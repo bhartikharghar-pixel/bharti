@@ -495,11 +495,10 @@
         </div>
     </div>
 
-    <!-- Rest of your HTML Modals (assignModal, receiveModal, billingModal, cancelModal) remain same -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
-            <h3 style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-truck-loading"></i> Issue to Karigar</h3>
+            <h3 id="aAssignTitle" style="margin-top:0; color:var(--merchant-orange);"><i class="fas fa-truck-loading"></i> Issue to Karigar</h3>
             
             <input type="hidden" id="aOrderId">
             
@@ -508,36 +507,38 @@
                 <select id="aMerchantSelect"></select>
             </div>
 
-            <div class="form-group" style="margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 6px; border: 1px solid #90caf9;">
-                <label style="display: flex; align-items: center; gap: 8px; margin: 0; color: #1565c0; font-weight: bold; cursor: pointer;">
-                    <input type="checkbox" id="aProvideShopGold" style="width: 18px; height: 18px; accent-color: #1976d2;" onchange="toggleShopGoldSection()">
-                    Issue Metal to Karigar (Check if providing metal)
-                </label>
+            <div id="aShopGoldWrapper">
+                <div class="form-group" style="margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 6px; border: 1px solid #90caf9;">
+                    <label style="display: flex; align-items: center; gap: 8px; margin: 0; color: #1565c0; font-weight: bold; cursor: pointer;">
+                        <input type="checkbox" id="aProvideShopGold" style="width: 18px; height: 18px; accent-color: #1976d2;" onchange="toggleShopGoldSection()">
+                        Issue Metal to Karigar (Check if providing metal)
+                    </label>
+                </div>
+
+                <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Inventory Source (Optional)</label>
+                        <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Issued Purity</label>
+                            <select id="aIssuedPurity" onchange="calcAssignFine()" style="font-weight:bold; color:#333; text-align:center; padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%;"></select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Weight to Issue (g)</label>
+                            <input type="number" id="aIssuedWt" step="0.001" placeholder="e.g. 15.000" oninput="calcAssignFine()">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top:10px; margin-bottom:0;">
+                        <label>Calculated Fine Gold Liability (g)</label>
+                        <input type="number" id="aIssuedFineWt" readonly style="background:#fff3e0; color:#e65100; font-weight:bold; border-color:#ffcc80;">
+                    </div>
+                </div>
             </div>
 
-            <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Inventory Source (Optional)</label>
-                    <select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Issued Purity</label>
-                        <select id="aIssuedPurity" onchange="calcAssignFine()" style="font-weight:bold; color:#333; text-align:center; padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%;"></select>
-                    </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Weight to Issue (g)</label>
-                        <input type="number" id="aIssuedWt" step="0.001" placeholder="e.g. 15.000" oninput="calcAssignFine()">
-                    </div>
-                </div>
-                <div class="form-group" style="margin-top:10px; margin-bottom:0;">
-                    <label>Calculated Fine Gold Liability (g)</label>
-                    <input type="number" id="aIssuedFineWt" readonly style="background:#fff3e0; color:#e65100; font-weight:bold; border-color:#ffcc80;">
-                </div>
-            </div>
-
-            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
+            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm</button>
         </div>
     </div>
 
@@ -1140,11 +1141,18 @@
             } else {
                 toggleDisplay('btnGoToSales', 'none');
                 if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    toggleDisplay('btnForwardMerchant', 'none');
+                    // NEW CHANGE: Show "Change Karigar" instead of hiding assignment option
+                    toggleDisplay('btnForwardMerchant', 'block');
+                    document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-exchange-alt"></i> Change Karigar';
+                    document.getElementById('btnForwardMerchant').style.background = '#8e24aa'; // Purple color for change
+                    
                     toggleDisplay('btnPrintKarigarSlip', 'block');
                     toggleDisplay('btnReceiveMerchant', 'block');
                 } else {
                     toggleDisplay('btnForwardMerchant', 'block');
+                    document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-truck-loading"></i> Assign to Karigar';
+                    document.getElementById('btnForwardMerchant').style.background = 'var(--merchant-orange)';
+                    
                     toggleDisplay('btnPrintKarigarSlip', 'none');
                     toggleDisplay('btnReceiveMerchant', 'none');
                 }
@@ -1207,10 +1215,21 @@
             const o = activeJobData;
             document.getElementById('aOrderId').value = o.id;
 
-            document.getElementById('aProvideShopGold').checked = false;
+            if (o.status === 'in_progress' || o.status === 'with_karigar') {
+                // Changing existing Karigar
+                document.getElementById('aAssignTitle').innerHTML = '<i class="fas fa-exchange-alt"></i> Change Assigned Karigar';
+                document.getElementById('aMerchantSelect').value = o.merchantId || '';
+                document.getElementById('aShopGoldWrapper').style.display = 'none'; // Hide metal issue section to prevent double deduction
+            } else {
+                // New Assignment
+                document.getElementById('aAssignTitle').innerHTML = '<i class="fas fa-truck-loading"></i> Issue to Karigar';
+                document.getElementById('aMerchantSelect').value = '';
+                document.getElementById('aShopGoldWrapper').style.display = 'block';
+                document.getElementById('aProvideShopGold').checked = false;
+                toggleShopGoldSection();
+                populateAssignSourceDropdown(); 
+            }
             
-            toggleShopGoldSection();
-            populateAssignSourceDropdown(); 
             closeModal('viewJobModal'); openModal('assignModal');
         }
 
@@ -1302,6 +1321,22 @@
             
             if(!mId) return showToast("Select a Karigar", "error");
 
+            const o = activeJobData;
+
+            // NEW: If already assigned, just update the Karigar ID (so metal issue isn't repeated/messed up)
+            if (o.status === 'in_progress' || o.status === 'with_karigar') {
+                const db = await dbPromise;
+                const tx = db.transaction(['orders'], 'readwrite');
+                o.merchantId = mId;
+                tx.objectStore('orders').put(o);
+                tx.oncomplete = () => {
+                    showToast("Assigned Karigar updated successfully!", "success");
+                    closeModal('assignModal');
+                    loadOrders();
+                };
+                return;
+            }
+
             const provideShopGold = document.getElementById('aProvideShopGold').checked;
             
             const stockId = document.getElementById('aRepSourceSelect').value;
@@ -1313,7 +1348,6 @@
                 if(issuedGrossWt <= 0) return showToast("Weight to Issue must be greater than zero!", "error");
             }
 
-            const o = activeJobData;
             o.status = 'in_progress';
             
             const db = await dbPromise;
