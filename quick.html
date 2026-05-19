@@ -616,12 +616,10 @@
 
             // --- INVENTORY MANUAL (CUSTOM STOCK) METAL TRACKING ---
             inventory.forEach(inv => {
-                // FIX: 'source' missing hone par bhi ab count karega (sirf purchase bill se aaye items ko chhod kar)
                 if (inv.source !== 'purchase') {
                     let mIn = getSafeNet(inv);
                     let itemDate = inv.addedDate || inv.date || '';
                     
-                    // All custom stock added from inventory goes to NET (Fine)
                     logMetal(itemDate, mIn, true, 'NET');
 
                     // Metal Daybook Integration
@@ -771,7 +769,6 @@
                     let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
                     let ogWt = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
                     
-                    // --- MODIFIED LINE BELOW ---
                     let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
                     
                     let totalIn = advCash + ogAmt;
@@ -983,7 +980,6 @@
                         let wt = Math.abs(parseNum(l.weight));
                         pushLog('Girvi Diya', amt, cNameWithId, `${itemN} ${wt.toFixed(3)}g`, spl, false);
 
-                        // --- FIX: Mark the base loan cashflow as handled to prevent double counting ---
                         cFlows.forEach(c => {
                             if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                                 let cAmt = Math.abs(parseNum(c.amount));
@@ -1031,7 +1027,6 @@
                              pushLog('Byaaj Jama', totalAmt, cNameWithId, 'Byaaj / Jama', splText, true);
                         }
 
-                        // --- FIX: Mark loan payment cashflows as handled ---
                         cFlows.forEach(c => {
                             if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                                 let flowAmt = Math.abs(parseNum(c.amount));
@@ -1125,7 +1120,6 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                // --- 🚀 NEW FIX FOR EXTRA LOAN MONEY GIVEN ---
                 let loanMatch = note.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || cat.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i);
                 if (type === 'OUT' && loanMatch) {
                     let lId = loanMatch[1];
@@ -1141,17 +1135,14 @@
                     }
 
                     pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
-                    return; // Stop further processing for this cashflow
+                    return; 
                 }
-                // ----------------------------------------------
 
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
 
-                // ---- DEEP MERCHANT NAME EXTRACTION ----
                 let vyapariName = '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
                 
-                // Deep extract from "ledger settlement id #1"
                 if (!mId && (note.includes('settlement') || cat.includes('settlement'))) {
                     let match = note.match(/(?:#|id)\s*(\d+)/i);
                     if (match && match[1]) {
@@ -1175,7 +1166,6 @@
                 } else if (isVyapariPayment) {
                     entityName = (vyapariName && vyapariName !== 'Merchant') ? vyapariName : 'Vyapari';
                 }
-                // ---------------------------------------------
 
                 if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
                     cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') ||
@@ -1202,8 +1192,9 @@
                     if (type === 'IN') pushLog('Repair In', amt, entityName, 'In', spl, true);
                     else pushLog('Repair Out', amt, entityName, 'Refund', spl, false);
                 }
-                else if (cat.includes('order') || note.includes('ord-')) {
+                else if (cat.includes('order') || note.includes('ord-') || cat.includes('job cancel')) {
                     if (type === 'IN') pushLog('Order In', amt, entityName, 'Payment', spl, true);
+                    else pushLog('Other Out', amt, entityName, 'Refund', spl, false);
                 }
                 else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
                     if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
