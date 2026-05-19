@@ -1,232 +1,124 @@
-/**
- * Bharti Jewellers - Core Database Engine
- * Technology: IndexedDB (100% Offline)
- * Version: 30.0 (Upgraded for Dual-Metal Support & Net Weight Engine)
- */
+// 1. Firebase Configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyA2jrYahFtup857gd7_OTtA967boF8N_3I",
+    authDomain: "goldflow-aac03.firebaseapp.com",
+    projectId: "goldflow-aac03",
+    storageBucket: "goldflow-aac03.firebasestorage.app",
+    messagingSenderId: "454558793172",
+    appId: "1:454558793172:web:288f594c0da9b83b2caa41"
+};
 
-const DB_NAME = 'BhartiJewellersDB';
-const DB_VERSION = 35; // Bumped to sync with UI upgrades and force schema refresh
+// 2. Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+console.log(`[DB] Firebase Database Connected Successfully!`);
 
-const dbPromise = new Promise((resolve, reject) => {
-    console.log(`[DB] Opening Database: ${DB_NAME} (v${DB_VERSION})...`);
-    
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-        console.log(`[DB] Upgrade needed from v${event.oldVersion} to v${DB_VERSION}`);
-        const db = event.target.result;
-        const tx = event.target.transaction;
-
-        // --- Robust Table Creator Helper ---
-        function createStore(name, keyPath = 'id', autoIncrement = true, indexes = []) {
-            let store;
-            if (!db.objectStoreNames.contains(name)) {
-                console.log(`[DB] Creating table: ${name}`);
-                store = db.createObjectStore(name, { keyPath, autoIncrement });
-            } else {
-                store = tx.objectStore(name);
-            }
-
-            indexes.forEach(idx => {
-                if (!store.indexNames.contains(idx.name)) {
-                    console.log(`[DB] Adding index '${idx.name}' to ${name}`);
-                    store.createIndex(idx.name, idx.keyPath, idx.options);
-                }
-            });
-        }
-
-        // --- ALL SYSTEM TABLES (15 Total) ---
-        createStore('settings', 'key', false);
-        createStore('merchants', 'id', true, [{ name: 'name', keyPath: 'name', options: { unique: false } }]);
-        createStore('merchant_payments', 'id', true, [
-            { name: 'merchantId', keyPath: 'merchantId', options: { unique: false } }, 
-            { name: 'date', keyPath: 'date', options: { unique: false } }
-        ]);
-        createStore('customers', 'id', true, [
-            { name: 'mobile', keyPath: 'mobile', options: { unique: true } }, 
-            { name: 'name', keyPath: 'name', options: { unique: false } }
-        ]);
-        createStore('purchases', 'id', true, [
-            { name: 'merchantId', keyPath: 'merchantId', options: { unique: false } }, 
-            { name: 'date', keyPath: 'date', options: { unique: false } }
-        ]);
-        createStore('inventory', 'id', true, [
-            { name: 'barcode', keyPath: 'barcode', options: { unique: true } }, 
-            { name: 'category', keyPath: 'category', options: { unique: false } }, 
-            { name: 'status', keyPath: 'status', options: { unique: false } }, 
-            { name: 'purity', keyPath: 'purity', options: { unique: false } }
-        ]);
-        createStore('sales', 'id', true, [
-            { name: 'customerId', keyPath: 'customerId', options: { unique: false } }, 
-            { name: 'date', keyPath: 'date', options: { unique: false } }
-        ]);
-        createStore('loans', 'id', true, [
-            { name: 'customerId', keyPath: 'customerId', options: { unique: false } }, 
-            { name: 'status', keyPath: 'status', options: { unique: false } }
-        ]);
-        createStore('rate_cuts', 'id', true, [
-            { name: 'merchantId', keyPath: 'merchantId', options: { unique: false } }, 
-            { name: 'status', keyPath: 'status', options: { unique: false } }
-        ]);
-        createStore('cashflow', 'id', true, [
-            { name: 'date', keyPath: 'date', options: { unique: false } },
-            { name: 'mode', keyPath: 'mode', options: { unique: false } }
-        ]);
-        createStore('orders', 'id', true, [
-            { name: 'customerId', keyPath: 'customerId', options: { unique: false } },
-            { name: 'status', keyPath: 'status', options: { unique: false } }
-        ]);
-        createStore('karigars', 'id', true, [
-            { name: 'name', keyPath: 'name', options: { unique: false } }
-        ]);
-        createStore('schemes', 'id', true, [
-            { name: 'customerId', keyPath: 'customerId', options: { unique: false } },
-            { name: 'status', keyPath: 'status', options: { unique: false } }
-        ]);
-        createStore('deposits', 'id', true, [
-            { name: 'customerId', keyPath: 'customerId', options: { unique: false } },
-            { name: 'date', keyPath: 'date', options: { unique: false } }
-        ]);
-        createStore('old_gold', 'id', true, [
-            { name: 'customerId', keyPath: 'customerId', options: { unique: false } },
-            { name: 'date', keyPath: 'date', options: { unique: false } },
-            { name: 'saleId', keyPath: 'saleId', options: { unique: false } } // Added for faster reverse lookups
-        ]);
-    };
-
-    request.onsuccess = (event) => {
-        console.log('[DB] Database Connected Successfully.');
-        resolve(event.target.result);
-    };
-
-    request.onerror = (event) => {
-        console.error('[DB] Critical Error:', event.target.error);
-        alert("Database Error: " + event.target.error.message);
-        reject(event.target.error);
-    };
-});
-
-// --- Smart Key Parser (Fixes string vs int ID bugs) ---
 function parseKey(id) {
-    if (typeof id === 'string') {
-        const parsed = parseInt(id, 10);
-        // If the string is purely numeric, return the integer, else return the string (e.g., 'manual_123')
-        return String(parsed) === id ? parsed : id;
-    }
-    return id;
+    return String(id);
 }
 
 // --- API Helper Functions ---
-
 async function addItem(storeName, data) {
-    const db = await dbPromise;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-        const request = store.add(data);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (e) => {
-            console.error(`[DB] Add Error (${storeName}):`, e.target.error);
-            reject(e.target.error);
-        };
-    });
+    try {
+        let docRef;
+        if (storeName === 'settings' && data.key) {
+            docRef = db.collection(storeName).doc(parseKey(data.key));
+        } else {
+            docRef = db.collection(storeName).doc(); 
+            data.id = docRef.id; 
+        }
+        await docRef.set(data);
+        return storeName === 'settings' ? data.key : data.id;
+    } catch (e) {
+        console.error(`[DB] Add Error:`, e);
+        throw e;
+    }
 }
 
 async function getAllItems(storeName) {
-    const db = await dbPromise;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readonly');
-        const store = tx.objectStore(storeName);
-        const request = store.getAll();
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
+    try {
+        const snapshot = await db.collection(storeName).get();
+        let items = [];
+        snapshot.forEach(doc => {
+            let data = doc.data();
+            if(storeName !== 'settings') data.id = doc.id;
+            items.push(data);
+        });
+        return items;
+    } catch (e) {
+        console.error(`[DB] GetAll Error:`, e);
+        return [];
+    }
 }
 
 async function getItem(storeName, id) {
-    const db = await dbPromise;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readonly');
-        const store = tx.objectStore(storeName);
-        
-        const request = store.get(parseKey(id));
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
+    try {
+        const doc = await db.collection(storeName).doc(parseKey(id)).get();
+        if (doc.exists) {
+            let data = doc.data();
+            if(storeName !== 'settings') data.id = doc.id;
+            return data;
+        }
+        return null;
+    } catch (e) {
+        console.error(`[DB] GetItem Error:`, e);
+        return null;
+    }
 }
 
 async function updateItem(storeName, data) {
-    const db = await dbPromise;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-        const request = store.put(data);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = (e) => reject(e.target.error);
-    });
+    try {
+        let docId = storeName === 'settings' ? data.key : data.id;
+        if (!docId) throw new Error("ID/Key is missing for update");
+        
+        await db.collection(storeName).doc(parseKey(docId)).set(data, { merge: true });
+        return data;
+    } catch (e) {
+        console.error(`[DB] Update Error:`, e);
+        throw e;
+    }
 }
 
 async function deleteItem(storeName, id) {
-    const db = await dbPromise;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-        
-        const request = store.delete(parseKey(id));
-
-        request.onsuccess = () => resolve(true);
-        request.onerror = (e) => reject(e.target.error);
-    });
+    try {
+        await db.collection(storeName).doc(parseKey(id)).delete();
+        return true;
+    } catch (e) {
+        console.error(`[DB] Delete Error:`, e);
+        throw e;
+    }
 }
 
 async function getSetting(key) {
-    const db = await dbPromise;
-    return new Promise((resolve) => {
-        const tx = db.transaction('settings', 'readonly');
-        const request = tx.objectStore('settings').get(key);
-        request.onsuccess = () => resolve(request.result ? request.result.value : null);
-        request.onerror = () => resolve(null);
-    });
+    try {
+        const doc = await db.collection('settings').doc(parseKey(key)).get();
+        return doc.exists ? doc.data().value : null;
+    } catch (e) {
+        console.error("[DB] GetSetting Error:", e);
+        return null;
+    }
 }
 
 async function generateBarcode(prefix) {
     try {
         const items = await getAllItems('inventory');
         const catItems = items.filter(i => i.barcode && i.barcode.startsWith(prefix));
-        
         let maxNum = 0;
+        
         catItems.forEach(item => {
-            // Safely extract the numeric part immediately following the prefix
             const suffix = item.barcode.substring(prefix.length);
-            const match = suffix.match(/^\d+/); // Matches only consecutive numbers at the start of the suffix
-            
+            const match = suffix.match(/^\d+/);
             if (match) {
                 const numPart = parseInt(match[0], 10);
                 if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
             }
         });
-
+        
         const nextNum = maxNum + 1;
         return `${prefix}${String(nextNum).padStart(3, '0')}`;
     } catch (error) {
-        console.error("[DB] Barcode Error:", error);
-        return `${prefix}${Date.now().toString().slice(-4)}`; 
+        return `${prefix}${Date.now().toString().slice(-4)}`;
     }
 }
-
-// --- Request Persistent Storage to prevent browser eviction ---
-async function requestPersistentStorage() {
-    if (navigator.storage && navigator.storage.persist) {
-        const isPersisted = await navigator.storage.persist();
-        console.log(`[DB] Persistent storage granted: ${isPersisted}`);
-        if (!isPersisted) {
-            console.warn("[DB] Warning: Browser may clear data if disk space gets extremely low. Remember to backup daily via Settings.");
-        }
-    }
-}
-// Trigger request on load
-requestPersistentStorage();
