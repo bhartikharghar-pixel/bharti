@@ -429,13 +429,13 @@
     <div id="detailsModal" class="modal">
         <div class="modal-content" style="max-width: 950px;"> 
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
-                <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-layer-group"></i> Category Items List</h3>
+                <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;" id="detailsModalTitle"><i class="fas fa-layer-group"></i> Category Items List</h3>
                 <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
             </div>
             
             <div class="table-container" style="max-height:60vh; box-shadow:none; border:1px solid #e2e8f0;">
                 <table class="inv-table">
-                    <thead>
+                    <thead id="detailsModalHead">
                         <tr>
                             <th>Barcode</th>
                             <th>Sub-Cat</th>
@@ -522,11 +522,6 @@
                 </div>
             </div>
 
-            <div class="form-group" style="grid-column: 1 / -1;">
-                <label>Sub-Category / Description</label>
-                <select id="manSubCatSelect" onchange="toggleManSubCatInput()" style="width: 100%;"></select>
-            </div>
-            
             <div class="grid-3">
                 <div class="form-group">
                     <label>Purity</label>
@@ -543,6 +538,18 @@
                     <label>Total Pieces / Qty</label>
                     <input type="number" id="manPieces" value="1" min="1" oninput="generateManPieceInputs()">
                 </div>
+            </div>
+
+            <div class="form-group" id="manFolderToggleGroup" style="display:none; grid-column: 1 / -1; margin-bottom:15px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; color:var(--info-blue); background:#f0f9ff; padding:10px 14px; border-radius:8px; border:1px solid #bae6fd;">
+                    <input type="checkbox" id="manUseFolder" onchange="toggleManFolderFields()" style="width:18px; height:18px; margin:0; accent-color:var(--info-blue);">
+                    Isme Folder / Sub-Category enable karein (Multi-Category Folder)
+                </label>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;" id="manSubCatWrapper">
+                <label>Sub-Category / Description</label>
+                <select id="manSubCatSelect" onchange="toggleManSubCatInput()" style="width: 100%;"></select>
             </div>
             
             <div class="grid-2">
@@ -1086,14 +1093,19 @@
                 totalWt += net; totalCount += pcs;
                 totalVal += Math.round(net * (getRate(item.purity) / 10));
 
+                let isBulkItem = getCategoryMode(item.category) === 'bulk' || item.barcode?.startsWith('LOOSE') || item.category === 'MIX';
                 let key = '';
-                // Grouping Logic: Include sub-category in the key if it exists
                 let subCatName = "";
-                if (item.name && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+                
+                if (item.subFolder) {
+                    subCatName = item.subFolder;
+                } else if (item.name && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
                     subCatName = item.name.replace(/\s+\d+$/, '').trim();
                 }
                 
-                if (item.category === 'MIX' || item.barcode?.startsWith('ORD-')) {
+                if (isBulkItem) {
+                    key = `BULK_MASTER_${item.category}_${item.status}`;
+                } else if (item.barcode?.startsWith('ORD-')) {
                     key = `K_${item.id}`;
                 } else {
                     key = `${item.category}_${subCatName}_${item.status}`;
@@ -1120,36 +1132,31 @@
 
             Object.values(groupedInventory).forEach(group => {
                 const tr = document.createElement('tr');
-                const isMix = group.category === 'MIX';
-                let isLooseGroup = group.items.every(i => i.barcode && i.barcode.startsWith('LOOSE'));
+                const isBulkMaster = group.key.startsWith('BULK_MASTER_');
                 let actionBtn = '';
                 
-                if(group.items.length === 1) {
+                if (isBulkMaster) {
+                    actionBtn = `<button class="btn-sm btn-view" style="background:var(--info-blue); color:white;" onclick="openBulkFolderDetails('${group.key}')"><i class="fas fa-folder-open"></i> View Folders</button>`;
+                } else if(group.items.length === 1) {
                     let singleItem = group.items[0];
-                    let isLooseSingle = singleItem.barcode && singleItem.barcode.startsWith('LOOSE');
-                    
-                    if(isMix || isLooseSingle) {
-                        actionBtn = `<button class="btn-sm btn-tag" onclick="openTagModal(${singleItem.id})"><i class="fas fa-tags"></i> Tag</button>
-                                     <button class="btn-sm btn-view" onclick="openItemDetails(${singleItem.id})"><i class="fas fa-eye"></i></button>`;
-                    } else {
-                        actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${singleItem.id})"><i class="fas fa-eye"></i> View</button>`;
-                    }
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${singleItem.id})"><i class="fas fa-eye"></i> View</button>`;
                 } else {
                     actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}')"><i class="fas fa-list"></i> List</button>`;
                 }
 
                 let displayBarcode = group.items.length === 1 ? group.items[0].barcode : 'Multiple';
-                if (isLooseGroup) {
-                    displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
-                } else if (group.items.length === 1 && group.items[0].barcode && group.items[0].barcode.startsWith('LOOSE')) {
-                    displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock (No Barcode)</span>';
+                if (isBulkMaster) {
+                    displayBarcode = '<span style="color:var(--info-blue); font-weight:600;"><i class="fas fa-folder"></i> Multi-Category Folder</span>';
+                } else if (group.items.every(i => i.barcode && i.barcode.startsWith('LOOSE'))) {
+                    displayBarcode = '<span style="color:#888; font-weight:600; font-style:italic;">Loose Stock</span>';
                 }
 
                 let purityHtml = Array.from(group.purities).map(p => `<span class="badge badge-22k" style="margin-right:4px;">${p}</span>`).join('');
-                let subCatDisplay = group.subCategory ? `<br><span style="font-size: 0.8em; color: #666;">${group.subCategory}</span>` : '';
+                let categoryDisplay = isBulkMaster ? `📁 <strong>${group.category}</strong>` : `<strong>${group.category}</strong>`;
+                let subCatDisplay = (!isBulkMaster && group.subCategory) ? `<br><span style="font-size: 0.8em; color: #666;">${group.subCategory}</span>` : '';
 
                 tr.innerHTML = `
-                    <td><strong>${group.category}</strong>${subCatDisplay}</td>
+                    <td>${categoryDisplay}${subCatDisplay}</td>
                     <td>${displayBarcode}</td>
                     <td>${purityHtml}</td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
@@ -1167,22 +1174,97 @@
             document.getElementById('total-count').innerText = totalCount;
         }
 
+        // ---------- MASTER SUB-FOLDER VIEW DRILLING ----------
+        function openBulkFolderDetails(key) {
+            const group = groupedInventory[key]; if(!group) return;
+            
+            document.getElementById('detailsModalTitle').innerHTML = `<i class="fas fa-folder-open" style="color:#eab308;"></i> ${group.category} Master Folders`;
+            const thead = document.getElementById('detailsModalHead');
+            thead.innerHTML = `
+                <tr>
+                    <th>📁 Sub-Category Folder Name</th>
+                    <th>Purity</th>
+                    <th style="text-align:center;">Total Items</th>
+                    <th>Total Gross Wt</th>
+                    <th>Total Net Wt</th>
+                    <th>Total Fine Wt</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            `;
+            
+            const tbody = document.getElementById('groupDetailsList'); tbody.innerHTML = '';
+            
+            let subFolders = {};
+            group.items.forEach(item => {
+                let folderName = item.subFolder || "General Loose";
+                let fKey = `${folderName}_${item.purity}`;
+                
+                if(!subFolders[fKey]) {
+                    subFolders[fKey] = { name: folderName, purity: item.purity, gross: 0, net: 0, fine: 0, count: 0, items: [] };
+                }
+                subFolders[fKey].gross += parseFloat(item.grossWt || item.weight || 0);
+                subFolders[fKey].net += parseFloat(item.netWt || item.weight || 0);
+                subFolders[fKey].fine += calculateFineWeight(item);
+                subFolders[fKey].count += parseInt(item.pieces || 1);
+                subFolders[fKey].items.push(item);
+            });
+            
+            Object.values(subFolders).forEach(folder => {
+                const tr = document.createElement('tr');
+                let targetId = folder.items[0].id;
+                
+                let actionButtons = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal(${targetId})"><i class="fas fa-tags"></i> Tag / Extract</button>
+                                     <button class="btn-sm btn-del" onclick="closeModal('detailsModal'); deleteItem(${targetId})"><i class="fas fa-trash"></i></button>`;
+                
+                tr.innerHTML = `
+                    <td><span style="font-weight:600; color:#222;"><i class="fas fa-folder" style="color:#eab308; margin-right:6px;"></i> ${folder.name}</span></td>
+                    <td><span class="badge badge-22k">${folder.purity}</span></td>
+                    <td style="text-align:center; font-weight:700;">${folder.count}</td>
+                    <td>${folder.gross.toFixed(3)} g</td>
+                    <td style="color:var(--active-red); font-weight:700;">${folder.net.toFixed(3)} g</td>
+                    <td style="color:var(--info-blue); font-weight:700;">${folder.fine.toFixed(3)} g</td>
+                    <td style="text-align:center; white-space:nowrap;">${actionButtons}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            openModal('detailsModal');
+        }
+
         // ---------- MANUAL ENTRY LOGIC ----------
         function openManualEntry() {
             document.getElementById('manualEntryModal').style.display = 'flex';
             document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
             handleManualMetalChange();
             document.getElementById('manGross').value = '';
-            document.getElementById('manStockMode').disabled = true;
+            document.getElementById('manStockMode').disabled = false;
         }
         function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
         
         function handleManCategoryChange() { 
             const cat = document.getElementById('manCategory').value;
             const modeSelect = document.getElementById('manStockMode');
-            modeSelect.value = getCategoryMode(cat);
-            modeSelect.disabled = true;
+            
+            const isBulk = getCategoryMode(cat) === 'bulk' || cat === 'MIX';
+            if(isBulk) {
+                modeSelect.value = 'bulk';
+            } else {
+                modeSelect.value = 'individual';
+            }
+            
             generateManPieceInputs(); 
+            
+            const folderToggleGroup = document.getElementById('manFolderToggleGroup');
+            const subCatWrapper = document.getElementById('manSubCatWrapper');
+            
+            if (isBulk) {
+                if (folderToggleGroup) folderToggleGroup.style.display = 'block';
+                document.getElementById('manUseFolder').checked = false;
+                if (subCatWrapper) subCatWrapper.style.display = 'none';
+            } else {
+                if (folderToggleGroup) folderToggleGroup.style.display = 'none';
+                if (subCatWrapper) subCatWrapper.style.display = 'block';
+            }
             
             const subCatSelect = document.getElementById('manSubCatSelect');
             if(subCatSelect) {
@@ -1201,11 +1283,19 @@
             }
         }
         
+        function toggleManFolderFields() {
+            const checked = document.getElementById('manUseFolder').checked;
+            const subCatWrapper = document.getElementById('manSubCatWrapper');
+            if (subCatWrapper) {
+                subCatWrapper.style.display = checked ? 'block' : 'none';
+            }
+        }
+        
         async function toggleManSubCatInput() {
             const select = document.getElementById('manSubCatSelect');
             const cat = document.getElementById('manCategory').value;
             if(select && select.value === 'NEW') {
-                const newSub = prompt("Enter New Sub-Category:");
+                const newSub = prompt("Enter New Sub-Category Folder Name:");
                 if (newSub && newSub.trim() !== '') {
                     const formatted = newSub.trim();
                     
@@ -1247,13 +1337,19 @@
         }
         async function saveManualEntry() {
             const cat = document.getElementById('manCategory').value;
+            const mode = document.getElementById('manStockMode').value;
+            const isBulk = mode === 'bulk' || cat === 'MIX';
+            const useFolder = isBulk && document.getElementById('manUseFolder')?.checked;
             
             let name = "";
-            const subCatVal = document.getElementById('manSubCatSelect').value;
-            if (subCatVal && subCatVal !== 'NEW') {
-                name = subCatVal;
+            if (!isBulk || useFolder) {
+                const subCatVal = document.getElementById('manSubCatSelect').value;
+                if (subCatVal && subCatVal !== 'NEW') {
+                    name = subCatVal;
+                }
             }
-            if(!name) name = cat;
+            
+            if(!name) name = isBulk ? "General Loose" : cat;
             
             const purity = document.getElementById('manPurity').value; const pieces = parseInt(document.getElementById('manPieces').value) || 1;
             const g = parseFloat(document.getElementById('manGross').value) || 0; const s = parseFloat(document.getElementById('manStone').value) || 0;
@@ -1264,9 +1360,10 @@
             const isSilv = checkIsSilver(purity);
             const prefix = cat === 'MIX' ? 'MIX' : cat.substring(0,3).toUpperCase();
 
-            if (getCategoryMode(cat) === 'bulk') {
+            if (isBulk) {
+                const finalFolderName = useFolder ? name : "General Loose";
                 const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                const cleanName = finalFolderName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
                 const barcode = `LOOSE-${prefix}-${cleanName}-${cleanPurity}`;
                 
                 let existingItem = allInventory.find(i => i.barcode === barcode && i.purity === purity && i.status === 'stock');
@@ -1277,9 +1374,10 @@
                     existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + n).toFixed(3));
                     existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + f).toFixed(3));
                     existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
+                    existingItem.subFolder = finalFolderName;
                     await updateItem('inventory', existingItem);
                 } else {
-                    const item = { barcode, category: cat, name: `Loose ${name} ${purity}`, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
+                    const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString() };
                     await addItem('inventory', item); 
                     allInventory.push(item);
                 }
@@ -1313,8 +1411,8 @@
             
             document.getElementById('idmCategory').innerText = item.category;
             
-            let rawSub = "";
-            if (item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+            let rawSub = item.subFolder || "";
+            if (!rawSub && item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
                 rawSub = item.name.replace(/\s+\d+$/, '').trim();
             }
             document.getElementById('idmSubCat').innerText = rawSub || '-';
@@ -1338,12 +1436,28 @@
         }
 
         function openGroupDetails(key) {
+            document.getElementById('detailsModalTitle').innerHTML = `<i class="fas fa-layer-group"></i> Category Items List`;
+            const thead = document.getElementById('detailsModalHead');
+            thead.innerHTML = `
+                <tr>
+                    <th>Barcode</th>
+                    <th>Sub-Cat</th>
+                    <th>Purity</th>
+                    <th>Qty</th>
+                    <th>Gross Wt</th>
+                    <th>Net Wt</th>
+                    <th style="color:#8e24aa;">Stone Wt</th>
+                    <th>Fine Wt</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            `;
+
             const group = groupedInventory[key]; if(!group) return;
             const tbody = document.getElementById('groupDetailsList'); tbody.innerHTML = '';
             
             group.items.forEach(item => {
                 const g = parseFloat(item.grossWt||item.weight).toFixed(3);
-                let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
+                let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : item.barcode;
                 
                 let actionBtnHTML = '';
                 if(item.barcode && item.barcode.startsWith('LOOSE') || item.category === 'MIX') {
@@ -1352,8 +1466,8 @@
                      actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
                 }
                 
-                let rawSub = "";
-                if (item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+                let rawSub = item.subFolder || "";
+                if (!rawSub && item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
                     rawSub = item.name.replace(/\s+\d+$/, '').trim();
                 }
                 let subHtml = rawSub ? `<span class="badge badge-silver">${rawSub}</span>` : '-';
