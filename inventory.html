@@ -933,6 +933,14 @@
             const mode = document.getElementById('newCatMode').value;
             if(!val) return;
             const formatted = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+            
+            // LOGIC UPDATE: Prevent duplicate category rows from being created inside settings array
+            const cats = activeCatManagerMode === 'Gold' ? goldCategories : silverCategories;
+            if (cats.some(c => c.toLowerCase() === formatted.toLowerCase())) {
+                appAlert("Yeh category pehle se maujood hai! Dobara nahi bana sakte.");
+                return;
+            }
+
             if (activeCatManagerMode === 'Gold') { goldCategories.push(formatted); await updateItem('settings', { key: 'gold_categories', value: goldCategories }); } 
             else { silverCategories.push(formatted); await updateItem('settings', { key: 'silver_categories', value: silverCategories }); }
             categoryModes[formatted] = mode; await updateItem('settings', { key: 'category_modes', value: categoryModes });
@@ -940,11 +948,15 @@
         }
 
         async function deleteCategory(idx) {
-            const catToDelete = activeCatManagerMode === 'Gold' ? goldCategories[idx] : silverCategories[idx];
+            const cats = activeCatManagerMode === 'Gold' ? goldCategories : silverCategories;
+            const catToDelete = cats[idx];
             
+            // LOGIC UPDATE: Target duplicates counts natively in setup list array before checking stock dependencies
+            const duplicateCount = cats.filter(c => c.toLowerCase() === catToDelete.toLowerCase()).length;
             const isUsed = allInventory.some(item => item.category && item.category.toLowerCase() === catToDelete.toLowerCase());
             
-            if (isUsed) {
+            // Bypass error and allow deletion if dynamic list maps matching duplicates row
+            if (isUsed && duplicateCount <= 1) {
                 appAlert("Item used in transaction or inventory. Cannot delete this category.");
                 return;
             }
@@ -1254,7 +1266,6 @@
 
             if (getCategoryMode(cat) === 'bulk') {
                 const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                // FIX: Include name in barcode search to prevent grouping different subcategories into the same loose item record
                 const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
                 const barcode = `LOOSE-${prefix}-${cleanName}-${cleanPurity}`;
                 
