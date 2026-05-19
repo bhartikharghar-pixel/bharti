@@ -230,7 +230,6 @@
             <div class="form-section">
                 <div class="form-section-title">Order Details</div>
                 
-                <!-- NEW PHOTO UPLOAD FIELD -->
                 <div class="form-group" style="background: #f9f9f9; padding: 10px; border: 1px dashed #ccc; border-radius: 8px;">
                     <label><i class="fas fa-camera"></i> Design Photo (Optional)</label>
                     <input type="file" id="oImage" accept="image/*" onchange="previewImage(event)">
@@ -242,17 +241,23 @@
                     <label>Order Description</label>
                     <textarea id="oDesc" rows="2" placeholder="Item details (e.g., 22K Men's Ring with specific design)"></textarea>
                 </div>
+                
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="oCat">
+                        <option value="Chain">Chain</option>
+                        <option value="Ring">Ring</option>
+                        <option value="Bangle">Bangle</option>
+                        <option value="Necklace">Necklace</option>
+                        <option value="Earring">Earring</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
                 <div class="form-grid">
                     <div class="form-group">
-                        <label>Category</label>
-                        <select id="oCat">
-                            <option value="Chain">Chain</option>
-                            <option value="Ring">Ring</option>
-                            <option value="Bangle">Bangle</option>
-                            <option value="Necklace">Necklace</option>
-                            <option value="Earring">Earring</option>
-                            <option value="Other">Other</option>
-                        </select>
+                        <label>Order Taken Date</label>
+                        <input type="date" id="oDate">
                     </div>
                     <div class="form-group">
                         <label>Delivery Due Date</label>
@@ -289,21 +294,21 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Purity</label>
-                        <select id="oOldPurity" onchange="autoFillOldRate()"></select>
+                        <select id="oOldPurity" onchange="autoCalcOldGold()"></select>
                     </div>
                     <div class="form-group">
                         <label>Rate (₹/g)</label>
-                        <input type="number" id="oOldGoldRate" oninput="calcOrderTotal()">
+                        <input type="number" id="oOldGoldRate" oninput="autoCalcOldGold()">
                     </div>
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Gross Wt (g)</label>
-                        <input type="number" id="oOldGrossWt" step="0.001" value="0" oninput="calcOrderTotal()">
+                        <input type="number" id="oOldGrossWt" step="0.001" value="0" oninput="autoCalcOldGold()">
                     </div>
                     <div class="form-group">
                         <label>Stone Wt (g)</label>
-                        <input type="number" id="oOldStoneWt" step="0.001" value="0" oninput="calcOrderTotal()">
+                        <input type="number" id="oOldStoneWt" step="0.001" value="0" oninput="autoCalcOldGold()">
                     </div>
                 </div>
                 <div class="form-grid">
@@ -313,11 +318,12 @@
                     </div>
                     <div class="form-group">
                         <label>Exchange / Return %</label>
-                        <input type="number" id="oOldExchangePct" value="100" oninput="calcOrderTotal()">
+                        <input type="number" id="oOldExchangePct" value="100" oninput="autoCalcOldGold()">
                     </div>
                 </div>
-                <div style="font-size:0.85rem; color:#666; text-align:right; margin-top:5px;">
-                    Old Gold Value: <strong id="oOldGoldValueDisplay" style="color:var(--old-gold);">₹0</strong>
+                <div class="form-group" style="margin-top:10px;">
+                    <label>Final Old Gold Value (₹) <small style="color:#d32f2f;">(Edit manually if agreed on different amount)</small></label>
+                    <input type="number" id="oOldGoldFinalVal" oninput="calcOrderTotal()" style="font-weight:bold; color:var(--old-gold); font-size:1.1rem; background:#fff; border:1px solid #ce93d8;">
                 </div>
             </div>
 
@@ -421,12 +427,12 @@
                 <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom: 10px;">
                     <div>
                         <h4 style="margin:0 0 5px 0; font-size:1.2rem;" id="vCustName"></h4>
-                        <p style="margin:0 0 10px 0; font-size:0.9rem; color:#555;"><i class="fas fa-info-circle"></i> <span id="vDesc"></span></p>
+                        <p style="margin:0 0 5px 0; font-size:0.9rem; color:#555;"><i class="fas fa-info-circle"></i> <span id="vDesc"></span></p>
+                        <p style="margin:0 0 10px 0; font-size:0.85rem; color:#1976d2; font-weight:600;"><i class="fas fa-calendar-alt"></i> Ordered On: <span id="vOrderDateDisplay"></span></p>
                     </div>
                     <span id="vStatusBadge" class="badge"></span>
                 </div>
 
-                <!-- NEW: Show Image if uploaded -->
                 <div id="vImageContainer" style="display:none; text-align:center; margin-bottom:15px; background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
                     <img id="vImage" style="max-width:100%; max-height:250px; border-radius:4px; object-fit: contain;">
                 </div>
@@ -535,7 +541,6 @@
         </div>
     </div>
 
-    <!-- ... (Other modals: receiveModal, billingModal, cancelModal) remain same as original ... -->
     <div id="receiveModal" class="modal"><div class="modal-content" style="max-width:550px;"><button class="close-btn" onclick="closeModal('receiveModal')">&times;</button><h3 style="margin-top:0; color:var(--receive-green);"><i class="fas fa-box-open"></i> Receive & Finalize</h3><input type="hidden" id="rOrderId"><div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid var(--receive-green); margin-bottom:15px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;"><div><div style="color:#2e7d32; font-weight:bold;">Issued to Karigar:</div><div id="rIssuedGrossDisplay">0.000 g</div></div><div style="text-align:right;"><div style="color:#2e7d32; font-weight:bold;">Total Issued:</div><strong id="rIssuedWtDisplay" style="font-size:1.1rem; color:#1b5e20;">0.000 g</strong></div></div><div class="form-section"><div class="form-section-title">Final Received Weights</div><div style="display:flex; justify-content:flex-end; margin-bottom:5px;"><button class="btn-outline" style="margin:0; padding:4px 8px; font-size:0.75rem; border-color:#ccc; color:#555;" onclick="autoFillFinalGross()"><i class="fas fa-copy"></i> Copy Est.</button></div><div class="form-grid"><div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rFinalGross" step="0.001" oninput="calcReceiveTotals()"></div><div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rFinalStone" step="0.001" value="0" oninput="calcReceiveTotals()"></div></div><div class="form-grid"><div class="form-group"><label>Final Net Wt (g)</label><input type="number" id="rFinalNet" readonly style="background:#f0f0f0; font-weight:bold;"></div><div class="form-group"><label>Actual Wastage</label><div class="input-group"><input type="number" id="rWastageVal" step="0.01" value="0" oninput="calcReceiveTotals()"><select id="rWastageMode" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="gm">+ g</option></select></div></div></div><div class="form-group"><label>Final Chargeable Fine Wt (24K Equivalent)</label><input type="number" id="rFinalFine" readonly style="background:#fffde7; color:#f57f17; font-weight:bold; border-color:#ffe0b2;"></div><div class="form-group" style="padding:10px; background:#fafafa; border:1px dashed #ccc;"><label>Karigar Ledger Diff</label><input type="text" id="rWtDiff" readonly style="font-weight:bold; background:transparent; border:none; padding:0;"></div></div><div class="form-section"><div class="form-section-title">Final Costing</div><div class="form-grid"><div class="form-group"><label>Actual Making Chg Logic</label><div class="input-group"><input type="number" id="rActualMakingInput" oninput="calcReceiveTotals()" placeholder="0"><select id="rActualMakingType" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="per_gram">₹/g</option></select></div><input type="hidden" id="rActualMaking" value="0"><div style="font-size:0.8rem; color:var(--accent-gold); margin-top:4px; font-weight:bold; text-align:right;" id="rActualMakingDisplay">₹0</div></div><div class="form-group"><label>Other Charges (₹)</label><input type="number" id="rActualOther" value="0" oninput="calcReceiveTotals()"></div></div><div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9; margin-top:10px;"><input type="checkbox" id="rApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcReceiveTotals()"><label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Total</label></div><input type="hidden" id="rGstAmountVal" value="0"></div><div class="summary-highlight"><div class="summary-row"><span>New Final Order Total:</span><span class="summary-val" id="rNewGrandTotal" style="color:var(--accent-gold); font-size:1.2rem;">₹0</span></div></div><input type="hidden" id="rNewGrandTotalVal"><input type="hidden" id="rNewBaseVal"><button class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Mark Ready for Stock</button></div></div>
     
     <div id="billingModal" class="modal"><div class="modal-content" style="max-width: 650px;"><button class="close-btn" onclick="closeModal('billingModal')">&times;</button><h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3><input type="hidden" id="billOrderId"><input type="hidden" id="billCustId"><div id="billCustSearch" style="display:none;"></div><div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;"><div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-user-tag" style="font-size:1.1rem;"></i><span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span></div><span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span></div><div class="form-section" style="border-left: 4px solid var(--bill-blue); background: #e3f2fd;"><div class="form-section-title" style="color: #1565c0; border-color: #90caf9;">Final Adjustments (Modify Rate/Making at Delivery)</div><div class="form-grid"><div class="form-group"><label>Final Gold Rate (₹/g)</label><input type="number" id="billFinalRate" oninput="calcBillingAdjustment()" style="font-weight:bold; border-color:#64b5f6;"></div><div class="form-group"><label>Final Making Charge</label><div class="input-group"><input type="number" id="billMakingInput" oninput="calcBillingAdjustment()"><select id="billMakingType" onchange="calcBillingAdjustment()"><option value="pct">%</option><option value="per_gram">₹/g</option></select></div></div></div><div class="form-grid"><div class="form-group"><label>Other Charges (₹)</label><input type="number" id="billOtherCharge" oninput="calcBillingAdjustment()"></div><div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:20px;"><input type="checkbox" id="billApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcBillingAdjustment()"><label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST</label></div></div><input type="hidden" id="billUpdatedGrandTotal"><input type="hidden" id="billUpdatedBaseAmount"><input type="hidden" id="billUpdatedMaking"><input type="hidden" id="billUpdatedGST"></div><div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px;"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Adjusted Gross Order Total:</span> <strong id="bOrdGross" style="font-size:1.1rem; color:#333;">₹0</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div><div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.2rem;"><span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong></div></div><div class="form-section"><div class="form-section-title">Receive Final Payment</div><div class="form-grid"><div class="form-group" style="margin-bottom:0;"><label>Amount (₹)</label><input type="number" id="billPayAmt"></div><div class="form-group" style="margin-bottom:0;"><label>Mode</label><select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select></div></div><button class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button><div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div><div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong></div></div><button class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button></div></div>
@@ -568,7 +573,6 @@
         let billingPayments = []; 
         let activeJobData = null; 
 
-        // NEW: Photo Preview Logic
         function previewImage(event) {
             const file = event.target.files[0];
             if (file) {
@@ -577,7 +581,7 @@
                     const preview = document.getElementById('oImagePreview');
                     preview.src = e.target.result;
                     preview.style.display = 'block';
-                    document.getElementById('oImageBase64').value = e.target.result; // Store as base64 for saving
+                    document.getElementById('oImageBase64').value = e.target.result; 
                 }
                 reader.readAsDataURL(file);
             }
@@ -621,9 +625,6 @@
         }
 
         window.onload = async function() {
-            const d = new Date(); d.setDate(d.getDate() + 10);
-            if(document.getElementById('oDue')) document.getElementById('oDue').valueAsDate = d;
-            
             const r = await getSetting('gold_rates'); if(r) goldRates = r;
 
             let opts = `<option value="24K">24K (Fine)</option><option value="22K">22K</option><option value="18K">18K</option>`;
@@ -715,6 +716,7 @@
             filtered.forEach(o => {
                 const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
                 const due = new Date(o.dueDate);
+                const orderDateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString() : 'Unknown';
                 let badgeClass = 'b-pending'; let badgeText = 'Pending'; let isOverdue = false;
 
                 if(o.status === 'billed' || o.status === 'delivered') { badgeClass = 'b-billed'; badgeText = 'Delivered'; } 
@@ -733,13 +735,12 @@
                 
                 const dateStyle = isOverdue ? 'color:#c62828; font-weight:bold;' : 'color:#333;';
                 const adv = o.advancePaid || 0;
-                const oldGoldVal = o.oldGoldValue || 0;
                 const grandTotal = o.grandTotal || o.estAmount || 0; 
+                const oldGoldVal = o.oldGoldValue || 0;
                 let netPayable = grandTotal - oldGoldVal - adv;
                 
                 if (o.status === 'billed' || o.status === 'delivered') netPayable = 0; 
 
-                // If image exists, show a tiny image icon
                 const icon = o.itemImage ? '<i class="fas fa-image" style="color:var(--bill-blue);"></i>' : '<i class="fas fa-ring" style="color:var(--accent-gold);"></i>';
                 let displayWt = o.finalGross ? `${o.finalGross}g (Final)` : `${o.grossWt}g (Est)`;
 
@@ -754,9 +755,9 @@
                         </div>
                         <div class="o-desc">${icon} ${o.category} - ${o.description}</div>
                         <div class="o-meta">
-                            <div><span>Weight</span><strong>${displayWt}</strong></div>
+                            <div><span>Order Date</span><strong style="color:var(--bill-blue);">${orderDateStr}</strong></div>
                             <div><span>Due Date</span><strong style="${dateStyle}">${due.toLocaleDateString()}</strong></div>
-                            <div><span>Locked Rate</span><strong>₹${(o.lockedRate || 0)}/g</strong></div>
+                            <div><span>Weight</span><strong>${displayWt}</strong></div>
                             <div><span>Advance Paid</span><strong style="color:#2e7d32;">₹${adv.toLocaleString()}</strong></div>
                         </div>
                         <div class="o-footer">
@@ -811,7 +812,6 @@
             openModal('newJobModal');
             resetCustSearch();
             
-            // Image reset
             document.getElementById('oImage').value = '';
             document.getElementById('oImagePreview').style.display = 'none';
             document.getElementById('oImagePreview').src = '';
@@ -821,9 +821,14 @@
             document.getElementById('oGrossWt').value = '';
             document.getElementById('oStoneWt').value = 0; 
             
+            document.getElementById('oDate').valueAsDate = new Date();
+            const d = new Date(); d.setDate(d.getDate() + 10);
+            document.getElementById('oDue').valueAsDate = d;
+
             document.getElementById('oOldGrossWt').value = 0; document.getElementById('oOldStoneWt').value = 0;
             document.getElementById('oOldNetWt').value = 0; document.getElementById('oOldFineWt').value = 0;
             document.getElementById('oOldExchangePct').value = 100; 
+            document.getElementById('oOldGoldFinalVal').value = 0;
             
             document.getElementById('oMakingInput').value = '';
             document.getElementById('oMakingType').value = 'pct';
@@ -865,22 +870,8 @@
             }
             calcOrderTotal();
         }
-        
-        function autoFillOldRate() {
-            document.getElementById('oOldGoldRate').value = Math.round((goldRates.rate24k / 10));
-            calcOrderTotal();
-        }
 
-        function calcOrderTotal() {
-            const gross = parseFloat(document.getElementById('oGrossWt').value) || 0;
-            const stone = parseFloat(document.getElementById('oStoneWt').value) || 0;
-            const net = Math.max(0, gross - stone);
-            document.getElementById('oNetWt').value = net.toFixed(3);
-
-            const purityFactor = getPurityFactor(document.getElementById('oPurity').value);
-            const finalFineWt = net * purityFactor;
-            document.getElementById('oFineWtVal').value = finalFineWt;
-
+        function autoCalcOldGold() {
             const oldGross = parseFloat(document.getElementById('oOldGrossWt').value) || 0;
             const oldStone = parseFloat(document.getElementById('oOldStoneWt').value) || 0;
             const oldNet = Math.max(0, oldGross - oldStone);
@@ -894,7 +885,21 @@
             const oldPct = parseFloat(document.getElementById('oOldExchangePct').value) || 100;
             const oldGoldVal = Math.round(oldFine * oldRate * (oldPct / 100));
             
-            document.getElementById('oOldGoldValueDisplay').innerText = "₹" + oldGoldVal.toLocaleString();
+            document.getElementById('oOldGoldFinalVal').value = oldGoldVal;
+            calcOrderTotal();
+        }
+
+        function calcOrderTotal() {
+            const gross = parseFloat(document.getElementById('oGrossWt').value) || 0;
+            const stone = parseFloat(document.getElementById('oStoneWt').value) || 0;
+            const net = Math.max(0, gross - stone);
+            document.getElementById('oNetWt').value = net.toFixed(3);
+
+            const purityFactor = getPurityFactor(document.getElementById('oPurity').value);
+            const finalFineWt = net * purityFactor;
+            document.getElementById('oFineWtVal').value = finalFineWt;
+
+            const oldGoldVal = parseFloat(document.getElementById('oOldGoldFinalVal').value) || 0;
             
             if(oldGoldVal > 0) {
                 document.getElementById('oOldGoldSummaryRow').style.display = 'flex';
@@ -963,14 +968,17 @@
             if(!desc) return showToast("Enter Description", "error");
             if(grossWt <= 0) return showToast("Enter Est. Gross Weight", "error");
 
+            const inputOrderDate = document.getElementById('oDate').value;
+            const finalOrderDate = inputOrderDate ? new Date(inputOrderDate).toISOString() : new Date().toISOString();
+
             let jobObj = {
                 jobType: 'Order',
                 customerId: parseInt(custId),
-                orderDate: new Date().toISOString(),
+                orderDate: finalOrderDate,
                 dueDate: new Date(document.getElementById('oDue').value).toISOString(),
                 description: desc, 
                 category: document.getElementById('oCat').value, 
-                itemImage: document.getElementById('oImageBase64').value || null, // NEW: Save image
+                itemImage: document.getElementById('oImageBase64').value || null, 
                 status: 'pending', 
                 advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
                 payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
@@ -987,7 +995,7 @@
                 oldGoldFine: parseFloat(document.getElementById('oOldFineWt').value) || 0,
                 oldGoldPct: parseFloat(document.getElementById('oOldExchangePct').value) || 100,
                 oldGoldRate: parseFloat(document.getElementById('oOldGoldRate').value) || 0,
-                oldGoldValue: Math.round(parseFloat(document.getElementById('oOldFineWt').value||0) * parseFloat(document.getElementById('oOldGoldRate').value||0) * (parseFloat(document.getElementById('oOldExchangePct').value||100)/100)),
+                oldGoldValue: parseFloat(document.getElementById('oOldGoldFinalVal').value) || 0,
                 
                 lockedRate: parseFloat(document.getElementById('oRate').value) || 0,
                 
@@ -1014,7 +1022,15 @@
                 tx.objectStore('orders').put(o);
                 
                 if(jobObj.advancePaid > 0) {
-                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
+                    await addItem('cashflow', { 
+                        date: finalOrderDate, 
+                        type: 'IN', 
+                        mode: document.getElementById('oPayMode').value, 
+                        category: 'Order Advance', 
+                        amount: jobObj.advancePaid, 
+                        note: `Adv for ${invoiceNo}`,
+                        orderId: orderId 
+                    });
                 }
                 
                 const c = allCustomers.find(x => x.id == jobObj.customerId);
@@ -1041,8 +1057,8 @@
             setText('vOrderId', `${invoiceNo}`);
             setText('vCustName', o.custName);
             setText('vDesc', `${o.category} - ${o.description}`);
+            setText('vOrderDateDisplay', o.orderDate ? new Date(o.orderDate).toLocaleDateString() : 'Unknown');
             
-            // Display Image if it exists
             if (o.itemImage) {
                 document.getElementById('vImageContainer').style.display = 'block';
                 document.getElementById('vImage').src = o.itemImage;
@@ -1174,7 +1190,15 @@
                 o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
                 store.put(o);
 
-                await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: mode, category: 'Order Payment', amount: amt, note: `Payment for ${invoiceNo}` });
+                await addItem('cashflow', { 
+                    date: new Date().toISOString(), 
+                    type: 'IN', 
+                    mode: mode, 
+                    category: 'Order Payment', 
+                    amount: amt, 
+                    note: `Payment for ${invoiceNo}`,
+                    orderId: id 
+                });
                 showToast("Advance Added!", "success"); document.getElementById('vNewPay').value = ''; closeModal('viewJobModal'); loadOrders();
             };
         }
@@ -1340,7 +1364,6 @@
                 closeModal('assignModal'); 
                 loadOrders(); 
 
-                // ASK FOR KARIGAR PRINT SLIP OR WHATSAPP CUSTOMER
                 setTimeout(() => {
                     if(confirm("Order assigned to Karigar successfully!\n\nDo you want to Print/PDF the Karigar Details Slip (with Photo) now?")) {
                         printKarigarSlip();
@@ -1687,7 +1710,15 @@
             tx.objectStore('orders').put(o);
 
             billingPayments.forEach(p => {
-                tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Order Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}` });
+                tx.objectStore('cashflow').add({ 
+                    date: new Date().toISOString(), 
+                    type: 'IN', 
+                    mode: p.mode, 
+                    category: 'Order Final Payment', 
+                    amount: p.amount, 
+                    note: `Final pay for ${invoiceNo}`,
+                    orderId: o.id 
+                });
             });
 
             tx.oncomplete = () => { showToast("Order Billed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders(); };
@@ -1723,8 +1754,13 @@
             
             if(refundAmt > 0) {
                 tx.objectStore('cashflow').add({ 
-                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', 
-                    amount: refundAmt, note: `Refund for ${invoiceNo} (Job #${o.id})` 
+                    date: new Date().toISOString(), 
+                    type: 'OUT', 
+                    mode: 'Cash', 
+                    category: 'Job Cancel Refund', 
+                    amount: refundAmt, 
+                    note: `Refund for ${invoiceNo}`,
+                    orderId: o.id 
                 });
             }
             
@@ -1793,12 +1829,11 @@
             
             html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
             
-            document.getElementById('challan-area').innerHTML = ''; // clear challan area
+            document.getElementById('challan-area').innerHTML = ''; 
             document.getElementById('invoice-area').innerHTML = html;
             window.print();
         }
 
-        // NEW: Updated Karigar Slip Printing Logic
         function printKarigarSlip() {
             const o = activeJobData;
             if(!o) return;
@@ -1806,7 +1841,6 @@
             const m = allMerchants.find(x => x.id == mId);
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
             
-            // Inject Image if present
             let imgHtml = o.itemImage ? `<div style="text-align:center; margin-bottom:15px;"><img src="${o.itemImage}" style="max-width:100%; max-height:350px; border:2px solid #000; border-radius:4px; object-fit:contain;"></div>` : '';
 
             let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 600px; margin: 0 auto; font-family:monospace;">
@@ -1853,7 +1887,7 @@
                 </table>
             </div>`;
             
-            document.getElementById('invoice-area').innerHTML = ''; // clear customer area
+            document.getElementById('invoice-area').innerHTML = ''; 
             document.getElementById('challan-area').innerHTML = html;
             window.print();
         }
