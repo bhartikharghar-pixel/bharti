@@ -215,8 +215,12 @@
             <h3 style="margin-top:0;"><i class="fas fa-hammer"></i> New Custom Order</h3>
 
             <div class="form-section">
-                <div class="form-group" style="margin:0;">
-                    <label>Customer Name or Mobile</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                    <div class="form-section-title" style="margin:0; border:none; padding:0;">Customer Details</div>
+                    <button class="btn-outline" id="btnToggleNewCust" style="padding:4px 10px; font-size:0.75rem; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="toggleNewCustomerMode()"><i class="fas fa-plus"></i> New Customer</button>
+                </div>
+
+                <div id="existingCustSection" class="form-group" style="margin:0;">
                     <input type="text" id="custSearchInput" placeholder="Type to search..." onkeyup="searchCustomer('custSearchInput', 'custSearchResults', 'selectedCustId', 'selectedCustDisplay')" autocomplete="off">
                     <input type="hidden" id="selectedCustId">
                     <div id="custSearchResults" class="search-results"></div>
@@ -224,6 +228,20 @@
                         <span id="custNameText"></span>
                         <button class="btn-outline" style="padding:4px 8px; margin:0; border:none; background:white; color:var(--bill-blue);" onclick="resetCustSearch('custSearchInput', 'selectedCustId', 'selectedCustDisplay')">Change</button>
                     </div>
+                </div>
+
+                <div id="newCustSection" style="display:none; background:#fff8e1; padding:12px; border-radius:8px; border:1px dashed #ffb300;">
+                    <div class="form-grid">
+                        <div class="form-group" style="margin:0;">
+                            <label style="color:#d84315;">Full Name</label>
+                            <input type="text" id="newCustName" placeholder="Enter Name" style="border-color:#ffcc80;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="color:#d84315;">Mobile Number</label>
+                            <input type="tel" id="newCustMobile" placeholder="10-digit Mobile" style="border-color:#ffcc80;">
+                        </div>
+                    </div>
+                    <input type="hidden" id="isNewCustomer" value="false">
                 </div>
             </div>
 
@@ -809,9 +827,33 @@
             document.getElementById(inputId).focus();
         }
 
+        function toggleNewCustomerMode() {
+            const isNew = document.getElementById('isNewCustomer').value === 'true';
+            if (isNew) {
+                document.getElementById('isNewCustomer').value = 'false';
+                document.getElementById('newCustSection').style.display = 'none';
+                document.getElementById('existingCustSection').style.display = 'block';
+                document.getElementById('btnToggleNewCust').innerHTML = '<i class="fas fa-plus"></i> New Customer';
+            } else {
+                document.getElementById('isNewCustomer').value = 'true';
+                document.getElementById('existingCustSection').style.display = 'none';
+                document.getElementById('newCustSection').style.display = 'block';
+                document.getElementById('btnToggleNewCust').innerHTML = '<i class="fas fa-search"></i> Search Existing';
+            }
+        }
+
         function openNewJobModal() { 
             openModal('newJobModal');
             resetCustSearch();
+            
+            if(document.getElementById('isNewCustomer')) {
+                document.getElementById('isNewCustomer').value = 'false';
+                document.getElementById('newCustSection').style.display = 'none';
+                document.getElementById('existingCustSection').style.display = 'block';
+                document.getElementById('btnToggleNewCust').innerHTML = '<i class="fas fa-plus"></i> New Customer';
+                document.getElementById('newCustName').value = '';
+                document.getElementById('newCustMobile').value = '';
+            }
             
             document.getElementById('oImage').value = '';
             document.getElementById('oImagePreview').style.display = 'none';
@@ -961,11 +1003,30 @@
         }
 
         async function saveJob() {
-            const custId = document.getElementById('selectedCustId').value;
+            let custId = document.getElementById('selectedCustId').value;
+            const isNewCust = document.getElementById('isNewCustomer').value === 'true';
+
+            if (isNewCust) {
+                const newName = document.getElementById('newCustName').value.trim();
+                const newMob = document.getElementById('newCustMobile').value.trim();
+                if(!newName || !newMob) return showToast("Enter New Customer Name & Mobile", "error");
+                
+                const newCustObj = {
+                    name: newName,
+                    mobile: newMob,
+                    address: '',
+                    dateAdded: new Date().toISOString()
+                };
+                custId = await addItem('customers', newCustObj);
+                newCustObj.id = custId;
+                allCustomers.push(newCustObj);
+            } else {
+                if(!custId) return showToast("Select a Customer", "error");
+            }
+
             const desc = document.getElementById('oDesc').value;
             const grossWt = parseFloat(document.getElementById('oGrossWt').value) || 0;
             
-            if(!custId) return showToast("Select a Customer", "error");
             if(!desc) return showToast("Enter Description", "error");
             if(grossWt <= 0) return showToast("Enter Est. Gross Weight", "error");
 
