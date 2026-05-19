@@ -616,15 +616,18 @@
 
             // --- INVENTORY MANUAL (CUSTOM STOCK) METAL TRACKING ---
             inventory.forEach(inv => {
-                if (inv.source === 'manual') {
+                // FIX: 'source' missing hone par bhi ab count karega (sirf purchase bill se aaye items ko chhod kar)
+                if (inv.source !== 'purchase') {
                     let mIn = getSafeNet(inv);
+                    let itemDate = inv.addedDate || inv.date || '';
                     
                     // All custom stock added from inventory goes to NET (Fine)
-                    logMetal(inv.addedDate, mIn, true, 'NET');
+                    logMetal(itemDate, mIn, true, 'NET');
 
                     // Metal Daybook Integration
-                    if (inv.addedDate && inv.addedDate.startsWith(today) && mIn > 0) {
-                        pushMetalLog(mIn, 'Net', inv.name || 'Inventory', 'Custom Add Kiya', true);
+                    if (itemDate.startsWith(today) && mIn > 0) {
+                        let displayName = inv.category || inv.name || 'Inventory';
+                        pushMetalLog(mIn, 'Net', displayName, 'Custom Add Kiya', true);
                     }
                 }
             });
