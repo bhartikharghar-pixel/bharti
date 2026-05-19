@@ -247,7 +247,6 @@
         </div>
     </div>
 
-    <!-- NEW CUSTOMER MODAL WITH PHOTO & OPTIONAL KYC -->
     <div id="custModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <div class="modal-header">
@@ -451,7 +450,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=35"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <script src="db.js"></script>
+    
     <script>
         // --- UI CONTROLS & ANDROID BACK BUTTON SUPPORT ---
         function toggleSidebar() { 
@@ -542,7 +545,7 @@
         function aggregateData() {
             aggregatedCustomers = dbCustomers.map(c => {
                 // 1. Sales / Udhari Data
-                const mySales = dbSales.filter(s => s.customerId == c.id && s.status !== 'cancelled');
+                const mySales = dbSales.filter(s => String(s.customerId) === String(c.id) && s.status !== 'cancelled');
                 const totalSales = mySales.reduce((sum, s) => sum + (parseFloat(s.grandTotal) || 0), 0);
                 
                 let pendingSales = 0;
@@ -552,7 +555,7 @@
                 });
 
                 // 2. Loan Data
-                const myLoans = dbLoans.filter(l => l.customerId == c.id && l.status === 'active');
+                const myLoans = dbLoans.filter(l => String(l.customerId) === String(c.id) && l.status === 'active');
                 let activeLoanPrin = 0;
                 myLoans.forEach(l => {
                     if(l.ledger && l.ledger.length > 0) activeLoanPrin += l.ledger[l.ledger.length-1].closingPrincipal;
@@ -560,7 +563,7 @@
                 });
 
                 // 3. Deposit Data
-                const myDeps = dbDeposits.filter(d => d.customerId == c.id);
+                const myDeps = dbDeposits.filter(d => String(d.customerId) === String(c.id));
                 let depBalance = 0;
                 myDeps.forEach(d => {
                     if(d.type === 'IN') depBalance += parseFloat(d.amount);
@@ -573,12 +576,13 @@
                     pendingSales,
                     activeLoanPrin,
                     depBalance,
-                    inquiries: c.inquiries || [] // Inject inquiries array
+                    inquiries: c.inquiries || [] 
                 };
             });
 
-            aggregatedCustomers.sort((a,b) => b.id - a.id);
-            filterData(); // Renders appropriate tab
+            // FIXED SORTING LOGIC FOR FIREBASE STRING IDs
+            aggregatedCustomers.sort((a, b) => new Date(b.joined || 0) - new Date(a.joined || 0));
+            filterData(); 
         }
 
         function filterData() {
@@ -641,8 +645,8 @@
                         </div>
 
                         <div class="cust-actions">
-                            <button class="btn-action btn-primary" onclick="open360Modal(${c.id})"><i class="fas fa-book-open"></i> Open Khata & Profile</button>
-                            <button class="btn-action" onclick="openCustomerModal(${c.id})" style="flex: 0.3;"><i class="fas fa-edit"></i></button>
+                            <button class="btn-action btn-primary" onclick="open360Modal('${c.id}')"><i class="fas fa-book-open"></i> Open Khata & Profile</button>
+                            <button class="btn-action" onclick="openCustomerModal('${c.id}')" style="flex: 0.3;"><i class="fas fa-edit"></i></button>
                         </div>
                     </div>
                 `;
@@ -654,7 +658,7 @@
             if(!reason) return 'tag-design';
             if(reason.includes('Rate')) return 'tag-rate';
             if(reason.includes('Budget')) return 'tag-budget';
-            if(reason.includes('Stock')) return 'tag-rate'; // Orange color for stock issues
+            if(reason.includes('Stock')) return 'tag-rate'; 
             return 'tag-design';
         }
 
@@ -669,7 +673,6 @@
                     c.inquiries.forEach((inq, idx) => {
                         hasLeads = true;
                         const historyHTML = inq.history.map(note => {
-                            // Extract date and message for cleaner UI
                             const parts = note.split('] ');
                             if(parts.length > 1) {
                                 return `<div><span class="history-date">${parts[0].replace('[', '')}</span>${parts[1]}</div>`;
@@ -679,16 +682,15 @@
                         
                         let actionLogic = '';
                         if(inq.reason === "Waiting for Rate Drop") {
-                            actionLogic = `<button class="btn-small pay" style="width:100%; margin-bottom:8px; justify-content:center;" onclick="sendOffer(${c.id}, ${idx}, 'Rate Dropped! Come to store.')"><i class="fas fa-chart-line"></i> Send Rate Alert</button>`;
+                            actionLogic = `<button class="btn-small pay" style="width:100%; margin-bottom:8px; justify-content:center;" onclick="sendOffer('${c.id}', ${idx}, 'Rate Dropped! Come to store.')"><i class="fas fa-chart-line"></i> Send Rate Alert</button>`;
                         } else if(inq.reason === "Item Not in Stock") {
-                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#f57c00; color:#f57c00;" onclick="sendOffer(${c.id}, ${idx}, 'Aapke pasand ka item market se aa gaya hai, Photos check karein.')"><i class="fas fa-images"></i> Send Item Photos</button>`;
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#f57c00; color:#f57c00;" onclick="sendOffer('${c.id}', ${idx}, 'Aapke pasand ka item market se aa gaya hai, Photos check karein.')"><i class="fas fa-images"></i> Send Item Photos</button>`;
                         } else if(inq.occasion && inq.occasion !== "None") {
-                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#e53e3e; color:#e53e3e;" onclick="sendOffer(${c.id}, ${idx}, 'Special ${inq.occasion} Discount inside!')"><i class="fas fa-gift"></i> Send Event Offer</button>`;
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#e53e3e; color:#e53e3e;" onclick="sendOffer('${c.id}', ${idx}, 'Special ${inq.occasion} Discount inside!')"><i class="fas fa-gift"></i> Send Event Offer</button>`;
                         } else {
-                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#3182ce; color:#3182ce;" onclick="sendOffer(${c.id}, ${idx}, 'Special Discount on ${inq.item}')"><i class="fas fa-tag"></i> Send General Offer</button>`;
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#3182ce; color:#3182ce;" onclick="sendOffer('${c.id}', ${idx}, 'Special Discount on ${inq.item}')"><i class="fas fa-tag"></i> Send General Offer</button>`;
                         }
 
-                        // Task Box Logic
                         let taskHtml = '';
                         if(inq.task) {
                             taskHtml = `<div class="task-box">
@@ -710,7 +712,7 @@
                                 <td><div class="history-log">${historyHTML}</div></td>
                                 <td>
                                     ${actionLogic}
-                                    <button class="btn-small" style="width:100%; justify-content:center; background:#1e293b; color:white; border:none;" onclick="logFollowUp(${c.id}, ${idx})"><i class="fas fa-plus-circle"></i> Log Update / Task Entry</button>
+                                    <button class="btn-small" style="width:100%; justify-content:center; background:#1e293b; color:white; border:none;" onclick="logFollowUp('${c.id}', ${idx})"><i class="fas fa-plus-circle"></i> Log Update / Task Entry</button>
                                 </td>
                             </tr>
                         `;
@@ -745,16 +747,13 @@
 
             if(!name || !mobile || !item) return alert("Name, Phone, and Viewed Item are required.");
 
-            // 1. Check if customer exists by phone number
-            let cust = dbCustomers.find(c => c.mobile == mobile);
+            let cust = dbCustomers.find(c => String(c.mobile) === String(mobile));
             if(!cust) {
                 const newId = await addItem('customers', { name, mobile, joined: new Date().toISOString(), inquiries: [] });
                 cust = await getItem('customers', newId);
             }
 
-            // 2. Push inquiry & task to profile
             if(!cust.inquiries) cust.inquiries = [];
-            
             const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
             
             cust.inquiries.push({
@@ -772,36 +771,32 @@
         async function logFollowUp(custId, inqIndex) {
             const feedback = prompt(`Enter progress update or customer response (e.g., "Market gaya tha, design nahi mili" or "Customer ko photo bhej diye"):`);
             if(feedback) {
-                const c = dbCustomers.find(x => x.id === custId);
+                const c = dbCustomers.find(x => String(x.id) === String(custId));
                 const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-                c.inquiries[inqIndex].history.unshift(`[${timestamp}] ${feedback}`); // unshift adds to top of list
+                c.inquiries[inqIndex].history.unshift(`[${timestamp}] ${feedback}`);
                 await updateItem('customers', c);
                 await loadAllData();
             }
         }
 
         async function sendOffer(custId, inqIndex, message) {
-            const c = dbCustomers.find(x => x.id === custId);
+            const c = dbCustomers.find(x => String(x.id) === String(custId));
             const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
             c.inquiries[inqIndex].history.unshift(`[${timestamp}] WhatsApp Sent: ${message}`);
             await updateItem('customers', c);
             await loadAllData();
-
             waMessage(c.mobile, c.name, message);
         }
 
-        // --- BASIC CUSTOMER CRUD ---
         function openCustomerModal(id = null) {
             const delBtn = document.getElementById('btnDeleteCust');
-            
-            // Clear photo
             document.getElementById('cPhoto').value = ''; 
             document.getElementById('photoPreview').style.display = 'none';
             document.getElementById('photoPreview').src = '';
             document.getElementById('cPhotoBase64').value = '';
 
-            if(id) {
-                const c = dbCustomers.find(x => x.id === id);
+            if(id && id !== 'null') {
+                const c = dbCustomers.find(x => String(x.id) === String(id));
                 document.getElementById('custModalTitle').innerText = "Edit Customer";
                 document.getElementById('cId').value = c.id;
                 document.getElementById('cName').value = c.name;
@@ -815,7 +810,6 @@
                     document.getElementById('photoPreview').style.display = 'block';
                     document.getElementById('cPhotoBase64').value = c.photo;
                 }
-
                 delBtn.style.display = 'block';
             } else {
                 document.getElementById('custModalTitle').innerText = "New Customer";
@@ -839,23 +833,21 @@
             const city = document.getElementById('cCity').value;
             const photo = document.getElementById('cPhotoBase64').value;
 
-            // Name and Mobile are mandatory
             if(!name || !mobile) {
                 return alert("Name and Mobile are mandatory.");
             }
-            // Aadhar is optional, but if entered, must be 12 digits
             if(aadhar && (aadhar.length !== 12 || isNaN(aadhar))) {
                 return alert("Please enter a valid 12-digit Aadhar Number or leave it blank.");
             }
 
-            if(id) {
+            if(id && id !== '') {
                 const c = await getItem('customers', id);
                 c.name = name; 
                 c.mobile = mobile; 
                 c.aadhar = aadhar; 
                 c.pan = pan; 
                 c.city = city;
-                c.photo = photo; // Update Photo
+                c.photo = photo;
                 await updateItem('customers', c);
             } else {
                 await addItem('customers', { name, mobile, aadhar, pan, city, photo, joined: new Date().toISOString(), inquiries: [] });
@@ -866,14 +858,14 @@
         }
 
         async function deleteCustomer() {
-            const id = parseInt(document.getElementById('cId').value);
-            const c = aggregatedCustomers.find(x => x.id === id);
+            const id = document.getElementById('cId').value;
+            const c = aggregatedCustomers.find(x => String(x.id) === String(id));
             
-            const hasOrders = dbOrders.filter(o => o.customerId == id).length > 0;
-            const hasSchemes = dbSchemes.filter(s => s.customerId == id).length > 0;
+            const hasOrders = dbOrders.filter(o => String(o.customerId) === String(id)).length > 0;
+            const hasSchemes = dbSchemes.filter(s => String(s.customerId) === String(id)).length > 0;
             
             if(c.totalSales > 0 || c.activeLoanPrin > 0 || c.depBalance !== 0 || hasOrders || hasSchemes) {
-                return alert("⚠️ Cannot delete customer.\n\nThey have existing transactions (Sales, Loans, Orders, or Deposits) linked to their account. To maintain accounting integrity, customers with history cannot be deleted.");
+                return alert("⚠️ Cannot delete customer.\n\nThey have existing transactions linked.");
             }
 
             if(!confirm("Are you sure you want to permanently delete this customer profile?")) return;
@@ -901,16 +893,14 @@
         function switch360Tab(tab, btn) {
             document.querySelectorAll('#c360Modal .tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('#c360Modal .tab-content').forEach(c => c.classList.remove('active'));
-            
             btn.classList.add('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
         }
 
         function open360Modal(id) {
-            const c = aggregatedCustomers.find(x => x.id === id);
+            const c = aggregatedCustomers.find(x => String(x.id) === String(id));
             if(!c) return;
 
-            // Render Avatar (Photo or Initial)
             const v360Avatar = document.getElementById('v360Avatar');
             if(c.photo) {
                 v360Avatar.innerHTML = `<img src="${c.photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
@@ -923,7 +913,6 @@
             document.getElementById('v360Name').innerText = c.name;
             document.getElementById('v360Phone').innerText = c.mobile;
             
-            // Render City along with KYC Badges
             document.getElementById('v360City').innerHTML = `
                 ${c.city || 'N/A'}<br>
                 <span style="display:inline-block; margin-top:8px; padding:4px 8px; background:#e2e8f0; border-radius:6px; font-size:0.85rem; color:#333;">
@@ -931,11 +920,9 @@
                 </span>
             `;
 
-            // 1. Render Khata (Udhari / Sales Ledger)
             const bKhata = document.getElementById('b360Khata');
             bKhata.innerHTML = '';
-            
-            const mySales = dbSales.filter(s => s.customerId == id && s.status !== 'cancelled').sort((a,b) => new Date(b.date) - new Date(a.date));
+            const mySales = dbSales.filter(s => String(s.customerId) === String(id) && s.status !== 'cancelled').sort((a,b) => new Date(b.date) - new Date(a.date));
             let totalUdhari = 0;
 
             if(mySales.length === 0) {
@@ -974,7 +961,6 @@
             
             document.getElementById('v360TotalUdhari').innerText = "₹" + totalUdhari.toLocaleString();
 
-            // 2. Render CRM Inquiries & Tasks
             const bInquiries = document.getElementById('b360Inquiries');
             bInquiries.innerHTML = '';
             if(!c.inquiries || c.inquiries.length === 0) {
@@ -1004,10 +990,9 @@
                 });
             }
 
-            // 3. Render Orders
             const bOrders = document.getElementById('b360Orders');
             bOrders.innerHTML = '';
-            const myOrders = dbOrders.filter(o => o.customerId == id).sort((a,b) => new Date(b.orderDate) - new Date(a.orderDate));
+            const myOrders = dbOrders.filter(o => String(o.customerId) === String(id)).sort((a,b) => new Date(b.orderDate) - new Date(a.orderDate));
             if(myOrders.length === 0) bOrders.innerHTML = '<tr><td colspan="6" style="text-align:center;">No Custom Orders found.</td></tr>';
             else {
                 myOrders.forEach(o => {
@@ -1027,10 +1012,9 @@
                 });
             }
 
-            // 4. Render Loans
             const bLoans = document.getElementById('b360Loans');
             bLoans.innerHTML = '';
-            const myLoans = dbLoans.filter(l => l.customerId == id).sort((a,b) => new Date(b.date) - new Date(a.date));
+            const myLoans = dbLoans.filter(l => String(l.customerId) === String(id)).sort((a,b) => new Date(b.date) - new Date(a.date));
             if(myLoans.length === 0) bLoans.innerHTML = '<tr><td colspan="6" style="text-align:center;">No Gold Loans found.</td></tr>';
             else {
                 myLoans.forEach(l => {
@@ -1050,10 +1034,9 @@
                 });
             }
 
-            // 5. Render Schemes
             const bSchemes = document.getElementById('b360Schemes');
             bSchemes.innerHTML = '';
-            const mySchemes = dbSchemes.filter(s => s.customerId == id).sort((a,b) => new Date(b.startDate) - new Date(a.startDate));
+            const mySchemes = dbSchemes.filter(s => String(s.customerId) === String(id)).sort((a,b) => new Date(b.startDate) - new Date(a.startDate));
             if(mySchemes.length === 0) bSchemes.innerHTML = '<tr><td colspan="5" style="text-align:center;">No BC Schemes found.</td></tr>';
             else {
                 mySchemes.forEach(s => {
@@ -1073,11 +1056,10 @@
                 });
             }
 
-            // 6. Render Deposits
             const bDeps = document.getElementById('b360Deposits');
             document.getElementById('v360DepBal').innerText = "₹" + c.depBalance.toLocaleString();
             bDeps.innerHTML = '';
-            const myDeps = dbDeposits.filter(d => d.customerId == id).sort((a,b) => new Date(b.date) - new Date(a.date));
+            const myDeps = dbDeposits.filter(d => String(d.customerId) === String(id)).sort((a,b) => new Date(b.date) - new Date(a.date));
             if(myDeps.length === 0) bDeps.innerHTML = '<tr><td colspan="4" style="text-align:center;">No Deposit records found.</td></tr>';
             else {
                 myDeps.forEach(d => {
@@ -1098,11 +1080,5 @@
             openModal('c360Modal');
         }
     </script>
-
- <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="db.js"></script>
-    
-
 </body>
 </html>
