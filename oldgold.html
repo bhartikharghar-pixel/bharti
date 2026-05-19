@@ -291,12 +291,13 @@
             </div>
 
             <div style="background:#f9f9f9; padding:15px; border-radius:8px; border: 1px solid #ddd; margin-bottom:15px; text-align:center;">
-                <span style="font-size:0.9rem; color:#666;">Final Amount to Pay:</span><br>
-                <strong id="bLiveTotal" style="font-size:1.8rem; color:var(--out-red);">₹0</strong>
+                <span style="font-size:0.9rem; color:#666; font-weight:600;">Final Amount Paid to Customer (₹)</span><br>
+                <small style="color:#888; display:block; margin-bottom:8px;">You can manually change this if you paid a rounded or different amount.</small>
+                <input type="number" id="bFinalAmount" style="font-size:1.8rem; color:var(--out-red); font-weight:bold; text-align:center; padding:10px; border:2px dashed #ffccbc; border-radius:8px; background:#fff; width:100%; max-width:200px; margin:0 auto; display:block;" placeholder="0">
             </div>
 
             <button class="btn-primary" onclick="saveDirectPurchase()"><i class="fas fa-check-circle"></i> Save & Record Payment</button>
-            <p style="font-size:0.75rem; color:#666; text-align:center; margin-top:10px;">*This will automatically deduct the cash from your Master Cashbook.</p>
+            <p style="font-size:0.75rem; color:#666; text-align:center; margin-top:10px;">*This will automatically deduct the amount from your Master Cashbook.</p>
         </div>
     </div>
 
@@ -514,12 +515,11 @@
                         customerName: custName, customerPhone: c ? c.mobile : '',
                         description: d.description, purity: d.purity,
                         netWt: parseFloat(d.netWt), rate: d.rate,
-                        amount: parseFloat(d.amount)
+                        amount: parseFloat(d.amount),
+                        mode: d.mode || 'Cash' 
                     });
                 }
             });
-
-            // Loan Logic completely removed from here.
 
             globalOldGoldAvailable = 0;
             combinedLedger.forEach(t => {
@@ -616,8 +616,13 @@
                 }
 
                 let amountText = '';
-                if (t.source === 'MELT') amountText = `(Fee) ₹${t.amount.toLocaleString()}`;
-                else amountText = `₹${t.amount.toLocaleString()}`;
+                if (t.source === 'MELT') {
+                    amountText = `(Fee) ₹${t.amount.toLocaleString()}`;
+                } else if (t.source === 'DIRECT') {
+                    amountText = `₹${t.amount.toLocaleString()}<br><span style="font-size:0.75rem; background:#e0e0e0; padding:2px 6px; border-radius:4px; color:#555; display:inline-block; margin-top:4px;"><i class="fas fa-money-bill-wave" style="font-size:0.7rem;"></i> ${t.mode}</span>`;
+                } else {
+                    amountText = `₹${t.amount.toLocaleString()}`;
+                }
 
                 const wtColor = t.netWt < 0 ? 'color:var(--out-red);' : '';
                 const sign = t.netWt < 0 ? '' : '+';
@@ -646,7 +651,7 @@
             document.getElementById('bGrossWt').value = '';
             document.getElementById('bStoneWt').value = '';
             document.getElementById('bExchangePct').value = 100;
-            document.getElementById('bLiveTotal').innerText = "₹0";
+            document.getElementById('bFinalAmount').value = '';
             document.getElementById('buyModal').style.display = 'flex';
             autoFillBuyRate();
         }
@@ -686,7 +691,7 @@
             const exchPct = parseFloat(document.getElementById('bExchangePct').value) || 100;
             const finalTotal = Math.round(goldVal * (exchPct / 100));
             
-            document.getElementById('bLiveTotal').innerText = "₹" + finalTotal.toLocaleString();
+            document.getElementById('bFinalAmount').value = finalTotal;
         }
 
         async function saveDirectPurchase() {
@@ -697,7 +702,7 @@
             const desc = document.getElementById('bDesc').value;
             const netWt = parseFloat(document.getElementById('bNetWt').value) || 0;
             const rate = parseFloat(document.getElementById('bRate').value) || 0;
-            const finalTotal = parseFloat(document.getElementById('bLiveTotal').innerText.replace(/₹|,/g,'')) || 0;
+            const finalTotal = parseFloat(document.getElementById('bFinalAmount').value) || 0;
             const mode = document.getElementById('bMode').value;
 
             if(!desc) return showToast("Enter Item Description", "error");
@@ -860,7 +865,7 @@
             let msg = `Hello ${name},\n\nWe have successfully received your Old Gold at *Bharti Jewellers*.\n\n`;
             msg += `*Item:* Old Gold (${purity})\n`;
             msg += `*Net Weight:* ${weight}g\n`;
-            msg += `*Total Cash Paid:* Rs. ${total.toLocaleString()}\n`;
+            msg += `*Total Amount Paid:* Rs. ${total.toLocaleString()}\n`;
             msg += `\nThank you for your trust!\nRegards,\nBharti Jewellers`;
             
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
