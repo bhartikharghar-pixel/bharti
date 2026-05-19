@@ -12,7 +12,19 @@ const firebaseConfig = {
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
+
 const db = firebase.firestore();
+
+// 3. OFFLINE PERSISTENCE (Superfast Speed ke liye)
+db.enablePersistence()
+    .catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.warn("[DB] Offline mode: Multiple tabs open, works in one tab.");
+        } else if (err.code == 'unimplemented') {
+            console.warn("[DB] Offline mode: Browser doesn't support offline mode.");
+        }
+    });
+
 console.log(`[DB] Firebase Database Connected Successfully!`);
 
 function parseKey(id) {
