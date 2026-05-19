@@ -1075,17 +1075,23 @@
                 totalVal += Math.round(net * (getRate(item.purity) / 10));
 
                 let key = '';
-                // No subcategory splitting. Just group by main category.
+                // Grouping Logic: Include sub-category in the key if it exists
+                let subCatName = "";
+                if (item.name && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
+                    subCatName = item.name.replace(/\s+\d+$/, '').trim();
+                }
+                
                 if (item.category === 'MIX' || item.barcode?.startsWith('ORD-')) {
                     key = `K_${item.id}`;
                 } else {
-                    key = `${item.category}_${item.status}`;
+                    key = `${item.category}_${subCatName}_${item.status}`;
                 }
                 
                 if(!groupedInventory[key]) {
                     groupedInventory[key] = { 
                         key: key, 
                         category: item.category, 
+                        subCategory: subCatName,
                         purities: new Set(), 
                         count: 0, gross: 0, net: 0, stone: 0, fine: 0, items: [] 
                     };
@@ -1128,9 +1134,10 @@
                 }
 
                 let purityHtml = Array.from(group.purities).map(p => `<span class="badge badge-22k" style="margin-right:4px;">${p}</span>`).join('');
+                let subCatDisplay = group.subCategory ? `<br><span style="font-size: 0.8em; color: #666;">${group.subCategory}</span>` : '';
 
                 tr.innerHTML = `
-                    <td><strong>${group.category}</strong></td>
+                    <td><strong>${group.category}</strong>${subCatDisplay}</td>
                     <td>${displayBarcode}</td>
                     <td>${purityHtml}</td>
                     <td style="font-weight:700; text-align:center;">${group.count}</td>
@@ -1247,7 +1254,9 @@
 
             if (getCategoryMode(cat) === 'bulk') {
                 const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                const barcode = `LOOSE-${prefix}-${cleanPurity}`;
+                // FIX: Include name in barcode search to prevent grouping different subcategories into the same loose item record
+                const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                const barcode = `LOOSE-${prefix}-${cleanName}-${cleanPurity}`;
                 
                 let existingItem = allInventory.find(i => i.barcode === barcode && i.purity === purity && i.status === 'stock');
                 
