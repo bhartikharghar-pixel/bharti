@@ -564,28 +564,49 @@
 
     async function exportData() {
         const exportObj = {};
+        let totalRecords = 0; // Data count karne ke liye
+        
+        // Sabhi tables me se data nikalna
         for (const storeName of STORE_NAMES) {
             try {
-                exportObj[storeName] = await getAllItems(storeName);
-            } catch(e) { console.log(`Skipping empty/missing store: ${storeName}`); }
+                const data = await getAllItems(storeName);
+                exportObj[storeName] = data || [];
+                totalRecords += (data ? data.length : 0);
+            } catch(e) { 
+                console.error(`Skipping store: ${storeName}`, e); 
+            }
+        }
+
+        // Agar pure database me koi data hi nahi hai
+        if (totalRecords === 0) {
+            appAlert("Backup Failed! System me abhi tak koi data (customers, sales, etc.) nahi hai.");
+            return;
         }
 
         const dataStr = JSON.stringify(exportObj);
         const exportFileDefaultName = 'BhartiJewellers_FullBackup_' + new Date().toISOString().slice(0,10) + '.json';
 
-        // --- NATIVE ANDROID BRIDGE FOR SAVING ---
-        if (typeof AndroidInterface !== "undefined" && AndroidInterface.downloadBackup) {
-            AndroidInterface.downloadBackup(dataStr, exportFileDefaultName);
-        } else {
-            // Fallback for standard web browsers
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', url);
-            linkElement.setAttribute('download', exportFileDefaultName);
-            linkElement.click();
-            window.URL.revokeObjectURL(url);
-            showToast("Backup Download Triggered!");
+        // Download Logic
+        try {
+            if (typeof AndroidInterface !== "undefined" && AndroidInterface.downloadBackup) {
+                // Android App Bridge
+                AndroidInterface.downloadBackup(dataStr, exportFileDefaultName);
+                showToast("Backup saved to Mobile Storage!");
+            } else {
+                // Normal Browser / Web Logic
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', url);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                document.body.appendChild(linkElement); // IMPORTANT FIX
+                linkElement.click();
+                document.body.removeChild(linkElement); // IMPORTANT FIX
+                window.URL.revokeObjectURL(url);
+                showToast("Backup Downloaded Successfully!");
+            }
+        } catch (err) {
+            appAlert("Backup save nahi ho paya. Error: " + err.message);
         }
     }
 
