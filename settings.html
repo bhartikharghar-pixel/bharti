@@ -270,7 +270,7 @@
         <div class="card danger-zone">
             <h3 style="color:#d32f2f;"><i class="fas fa-exclamation-triangle"></i> Danger Zone</h3>
             <p style="font-size:0.85rem; color:#b71c1c; font-weight:500;">
-                Warning: This action will permanently delete all software data. Only do this if you are completely resetting the device or have exported a backup.
+                Warning: This action will permanently delete all data from Cloud!
             </p>
 
             <div class="form-group">
@@ -279,7 +279,7 @@
             </div>
 
             <button class="btn btn-danger" id="btnReset" disabled style="opacity: 0.5; cursor: not-allowed;" onclick="resetDB()">
-                <i class="fas fa-trash-alt"></i> FACTORY RESET APP
+                <i class="fas fa-trash-alt"></i> WIPE CLOUD DATABASE
             </button>
         </div>
     </div>
@@ -306,9 +306,8 @@
 
 <div id="toast">Message Saved!</div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
 <script src="db.js?v=35"></script>
 
 <script>
@@ -481,7 +480,7 @@
         pctEl.value = '';
 
         renderCustomPurities(type);
-        saveRates(true); // Silent Auto-Save
+        saveRates(true);
         showToast(`${name} added to ${type} dropdowns!`, 'success');
     }
 
@@ -491,7 +490,7 @@
         if(proceed) {
             puritiesArray.splice(idx, 1);
             renderCustomPurities(type);
-            saveRates(true); // Silent Auto-Save
+            saveRates(true);
         }
     }
 
@@ -527,7 +526,7 @@
         showToast('Billing Defaults Saved!');
     }
 
-    // --- DANGER: RESET DB ---
+    // --- DANGER: RESET CLOUD DB ---
     function checkDeleteSafe() {
         const input = document.getElementById('deleteConfirm').value;
         const btn = document.getElementById('btnReset');
@@ -545,20 +544,12 @@
     async function resetDB() {
         if(document.getElementById('deleteConfirm').value !== "DELETE") return;
 
-        const proceed = await appConfirm("⚠️ FINAL WARNING: You are about to permanently delete all customers, sales, inventory, and accounting data.\n\nPress OK to wipe everything and restart.");
+        const proceed = await appConfirm("⚠️ FINAL WARNING: You are about to wipe the entire Cloud Database. Proceed?");
         if(proceed) {
-            const req = indexedDB.deleteDatabase('BhartiJewellersDB');
-            req.onsuccess = () => {
-                appAlert("System Reset Complete. Reloading...");
-                setTimeout(() => { window.location.reload(); }, 1500);
-            };
-            req.onerror = () => {
-                appAlert("Error deleting database. Please clear browser data manually.");
-            };
+            appAlert("Cloud Wipe requested. Please delete collections directly from Firebase Console for safety.");
         }
     }
 
-    // --- Export / Import (Updated for Android Native Bridge) ---
     const STORE_NAMES = [
         'settings', 'merchants', 'customers', 'inventory', 'sales',
         'loans', 'purchases', 'rate_cuts', 'merchant_payments',
@@ -567,9 +558,9 @@
 
     async function exportData() {
         const exportObj = {};
-        let totalRecords = 0; // Data count karne ke liye
+        let totalRecords = 0;
         
-        // Sabhi tables me se data nikalna
+        appAlert("Backup starting. Please wait...");
         for (const storeName of STORE_NAMES) {
             try {
                 const data = await getAllItems(storeName);
@@ -580,39 +571,31 @@
             }
         }
 
-        // Agar pure database me koi data hi nahi hai
         if (totalRecords === 0) {
-            appAlert("Backup Failed! System me abhi tak koi data (customers, sales, etc.) nahi hai.");
+            appAlert("Backup Failed! No data found in Cloud.");
             return;
         }
 
         const dataStr = JSON.stringify(exportObj);
-        const exportFileDefaultName = 'BhartiJewellers_FullBackup_' + new Date().toISOString().slice(0,10) + '.json';
+        const exportFileDefaultName = 'BhartiJewellers_CloudBackup_' + new Date().toISOString().slice(0,10) + '.json';
 
-        // Download Logic
         try {
-            if (typeof AndroidInterface !== "undefined" && AndroidInterface.downloadBackup) {
-                // Android App Bridge
-                AndroidInterface.downloadBackup(dataStr, exportFileDefaultName);
-                showToast("Backup saved to Mobile Storage!");
-            } else {
-                // Normal Browser / Web Logic
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = window.URL.createObjectURL(blob);
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', url);
-                linkElement.setAttribute('download', exportFileDefaultName);
-                document.body.appendChild(linkElement); // IMPORTANT FIX
-                linkElement.click();
-                document.body.removeChild(linkElement); // IMPORTANT FIX
-                window.URL.revokeObjectURL(url);
-                showToast("Backup Downloaded Successfully!");
-            }
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', url);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            document.body.appendChild(linkElement);
+            linkElement.click();
+            document.body.removeChild(linkElement);
+            window.URL.revokeObjectURL(url);
+            showToast("Cloud Backup Downloaded Successfully!");
         } catch (err) {
-            appAlert("Backup save nahi ho paya. Error: " + err.message);
+            appAlert("Backup save failed. Error: " + err.message);
         }
     }
 
+    // --- FIREBASE RESTORE LOGIC ---
     function importData(input) {
         const file = input.files[0];
         if (!file) return;
@@ -621,28 +604,30 @@
         reader.onload = async function(e) {
             try {
                 const data = JSON.parse(e.target.result);
-                const proceed = await appConfirm("⚠️ Warning: This will OVERWRITE all current data with the backup file. Proceed?");
+                const proceed = await appConfirm("⚠️ Restore to Cloud: This will upload data to Firebase. Proceed?");
                 
                 if(!proceed) {
                     input.value = "";
                     return;
                 }
 
-                const db = await dbPromise;
-
+                showToast("Uploading to Cloud Database...", "success");
+                
+                // Using Firebase db directly
                 for (const storeName of STORE_NAMES) {
-                    if (data[storeName]) {
-                        const tx = db.transaction(storeName, 'readwrite');
-                        const store = tx.objectStore(storeName);
-                        store.clear();
-                        data[storeName].forEach(item => store.put(item));
+                    if (data[storeName] && Array.isArray(data[storeName])) {
+                        for (const item of data[storeName]) {
+                            // Automatically assigns ID and pushes to cloud
+                            await updateItem(storeName, item);
+                        }
                     }
                 }
 
-                appAlert("Data Restored Successfully! The system will now reload.");
+                appAlert("Data successfully pushed to Cloud! Reloading...");
                 setTimeout(() => { window.location.reload(); }, 2000);
             } catch (err) {
-                appAlert("Error importing file. It might be corrupted or in the wrong format.\nDetails: " + err);
+                appAlert("Restore Error: " + err);
+                console.error(err);
             }
         };
         reader.readAsText(file);
