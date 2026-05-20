@@ -1,8 +1,8 @@
 /**
  * Bharti Jewellers - Core Database Engine (ONLINE CLOUD)
- * Technology: Firebase Cloud Firestore
- * Features: Real-time Sync + Offline Superfast Support
- * Version: 36.0 (Cloud Migration)
+ * Technology: Firebase Cloud Firestore & Authentication
+ * Features: Real-time Sync + Offline Superfast Support + Security Lock
+ * Version: 37.0 (Cloud Migration + Auth)
  */
 
 // 1. Firebase Project Configuration
@@ -23,7 +23,6 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 
 // 3. 🔥 OFFLINE JADOO (Local Cache Enable Karna) 🔥
-// Ye line ensure karegi ki app bina internet ke bhi fast chale aur data save ho
 db.enablePersistence()
     .catch((err) => {
         if (err.code == 'failed-precondition') {
@@ -33,12 +32,33 @@ db.enablePersistence()
         }
     });
 
+// 4. 🔒 GLOBAL SECURITY LOCK (Auth Check) 🔒
+// Ye code har page par check karega ki malik ne login kiya hai ya nahi
+firebase.auth().onAuthStateChanged((user) => {
+    // Current page ka naam nikalte hain (jaise: index.html, login.html)
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    if (!user) {
+        // Agar user login nahi hai, aur page 'login.html' nahi hai, toh bahar nikalo
+        if (currentPage !== 'login.html' && currentPage !== '') {
+            console.log("Access Denied! Redirecting to login...");
+            window.location.href = 'login.html';
+        }
+    } else {
+        // Agar user login hai, aur galti se wapas login page par chala gaya, toh andar bhej do
+        if (currentPage === 'login.html') {
+            window.location.href = 'index.html';
+        }
+        console.log("[Auth] Logged in as:", user.email);
+    }
+});
+
+
 // --- API Helper Functions ---
-// Ye functions wese hi kaam karenge jaise pehle karte the, taaki HTML files change na karni pade.
+// Ye functions wese hi kaam karenge jaise pehle karte the.
 
 async function addItem(storeName, data) {
     try {
-        // Agar ID nahi hai toh naya ID banayenge (Date.now use karke)
         if (!data.id) {
             data.id = Date.now().toString(); 
         } else {
@@ -78,7 +98,6 @@ async function getItem(storeName, id) {
 
 async function updateItem(storeName, data) {
     try {
-        // Settings table me 'key' use hota hai, baaki sab me 'id'
         const docId = (data.id || data.key).toString();
         await db.collection(storeName).doc(docId).set(data, { merge: true });
         return true;
