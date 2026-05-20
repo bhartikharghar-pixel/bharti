@@ -524,7 +524,7 @@
     <div id="invoice-area"></div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <script src="db.js?v=35"></script>
@@ -650,10 +650,10 @@
             const editId = urlParams.get('edit');
             const cid = urlParams.get('cid');
             
-            if (viewId) { setTimeout(() => printHistory(parseInt(viewId)), 500); } 
-            else if (editId) { setTimeout(() => editSale(parseInt(editId)), 500); }
+            if (viewId) { setTimeout(() => printHistory(viewId), 500); } 
+            else if (editId) { setTimeout(() => editSale(editId), 500); }
             else if (cid) {
-                const c = await getItem('customers', parseInt(cid));
+                const c = await getItem('customers', cid);
                 if (c) selectCust(c);
             }
         };
@@ -1400,6 +1400,8 @@
             }
         }
 
+        // --- 🔥 FIREBASE ENGINE INTEGRATION START 🔥 ---
+
         async function saveSale() {
             const cid = document.getElementById('custId').value;
             if(!cid) return alert("Select Customer");
@@ -1438,7 +1440,7 @@
             
             let originalDate = new Date().toISOString();
             if (editId) {
-                const oldSale = allSalesData.find(os => os.id == editId);
+                const oldSale = allSalesData.find(os => String(os.id) === String(editId));
                 if (oldSale && oldSale.date) originalDate = oldSale.date;
             }
 
@@ -1450,7 +1452,7 @@
             const saleData = {
                 date: originalDate, customerId: cid, items: cart,
                 subTotal: baseSubtotal, gst: totalGst, oldGoldDeduction: totalOldGold,
-                totalExchWt: totalExchWt, // Saved for URD print box
+                totalExchWt: totalExchWt, 
                 discountMode: 'flat', discount: discVal, 
                 bcWalletDeduction: appliedBcAmount, 
                 grandTotal: grand, paidAmount: paid, pendingAmount: pendingDue, payments: cleanPayments,
@@ -1458,114 +1460,104 @@
                 status: 'completed'
             };
             
-            const db = await dbPromise;
-            const tx = db.transaction(['sales', 'customers', 'inventory', 'cashflow', 'schemes', 'old_gold'], 'readwrite');
-            
-            if (appliedBcAmount > 0 || maturedSchemesTotal > 0) {
-                for(let s of pendingMaturedSchemes) {
-                    s.status = 'redeemed';
-                    s.redeemDate = new Date().toISOString();
-                    tx.objectStore('schemes').put(s);
+            try {
+                if (appliedBcAmount > 0 || maturedSchemesTotal > 0) {
+                    for(let s of pendingMaturedSchemes) {
+                        s.status = 'redeemed';
+                        s.redeemDate = new Date().toISOString();
+                        await updateItem('schemes', s);
 
-                    tx.objectStore('cashflow').add({
-                        date: new Date().toISOString(), type: 'OUT', mode: 'System',
-                        category: 'Scheme Bonus Expense', amount: s.amount,
-                        note: `1 Month Bonus for Matured Scheme #${s.id} (Auto-Redeemed at POS)`
-                    });
-                }
+                        await addItem('cashflow', {
+                            date: new Date().toISOString(), type: 'OUT', mode: 'System',
+                            category: 'Scheme Bonus Expense', amount: s.amount,
+                            note: `1 Month Bonus for Matured Scheme #${s.id} (Auto-Redeemed at POS)`
+                        });
+                    }
 
-                let cReq = tx.objectStore('customers').get(parseInt(cid));
-                cReq.onsuccess = (e) => {
-                    const cust = e.target.result;
+                    let cust = await getItem('customers', cid);
                     if(cust) {
                         let oldBcDeduction = 0;
                         if (editId) {
-                            const oldSale = allSalesData.find(os => os.id == editId);
+                            const oldSale = allSalesData.find(os => String(os.id) === String(editId));
                             if (oldSale) oldBcDeduction = oldSale.bcWalletDeduction || 0;
                         }
                         
                         cust.bcBalance = (getSafeNum(cust.bcBalance)) + maturedSchemesTotal + oldBcDeduction - appliedBcAmount;
-                        tx.objectStore('customers').put(cust);
+                        await updateItem('customers', cust);
                     }
-                };
-            }
+                }
 
-            let sid;
-            if(editId) {
-                sid = parseInt(editId);
-                saleData.id = sid;
-                
-                const allOGReq = tx.objectStore('old_gold').getAll();
-                allOGReq.onsuccess = (e) => {
-                    const allOG = e.target.result || [];
-                    const linkedOG = allOG.filter(g => g.saleId === sid);
+                let sid;
+                if(editId) {
+                    sid = editId.toString();
+                    saleData.id = sid;
+                    
+                    const allOG = await getAllItems('old_gold');
+                    const linkedOG = allOG.filter(g => String(g.saleId) === String(sid));
                     for(const og of linkedOG) {
-                        tx.objectStore('old_gold').delete(og.id);
+                        await deleteItem('old_gold', og.id);
                     }
-                };
 
-                await updateStockStatusInternal(tx, cart, 'sold'); 
-                tx.objectStore('sales').put(saleData);
-            } else {
-                await updateStockStatusInternal(tx, cart, 'sold');
-                var sReq = tx.objectStore('sales').add(saleData);
-                sid = await new Promise(r => { sReq.onsuccess = e => r(e.target.result); });
-                saleData.id = sid; 
-            }
+                    await updateStockStatusInternal(cart, 'sold'); 
+                    await updateItem('sales', saleData);
+                } else {
+                    await updateStockStatusInternal(cart, 'sold');
+                    sid = await addItem('sales', saleData);
+                    saleData.id = sid; 
+                }
 
-            for(const i of cart) {
-                if(i.isOldGold) {
-                    tx.objectStore('old_gold').add({
-                        saleId: sid,
-                        type: 'BUY',
-                        metal: i.metal || (checkIsSilver(i.purity) ? 'Silver' : 'Gold'),
-                        customerId: parseInt(cid),
-                        date: originalDate,
-                        description: i.category,
-                        purity: i.purity,
-                        grossWt: i.grossWt || i.weight,
-                        stoneWt: i.stoneWt || 0,
-                        netWt: i.netWt || i.weight,
-                        fineWt: i.fineWt || ((i.netWt || i.weight) * getPurityFactor(i.purity)),
-                        rate: i.rate,
-                        exchPct: i.exchangePct || 100, 
-                        amount: Math.abs(i.total),
-                        mode: 'POS Exchange'
+                for(const i of cart) {
+                    if(i.isOldGold) {
+                        await addItem('old_gold', {
+                            saleId: sid,
+                            type: 'BUY',
+                            metal: i.metal || (checkIsSilver(i.purity) ? 'Silver' : 'Gold'),
+                            customerId: cid,
+                            date: originalDate,
+                            description: i.category,
+                            purity: i.purity,
+                            grossWt: i.grossWt || i.weight,
+                            stoneWt: i.stoneWt || 0,
+                            netWt: i.netWt || i.weight,
+                            fineWt: i.fineWt || ((i.netWt || i.weight) * getPurityFactor(i.purity)),
+                            rate: i.rate,
+                            exchPct: i.exchangePct || 100, 
+                            amount: Math.abs(i.total),
+                            mode: 'POS Exchange'
+                        });
+                    }
+                }
+                
+                for(const p of deletedPayments) {
+                    let flowType = p.amount < 0 ? 'IN' : 'OUT';
+                    let flowAmt = Math.abs(p.amount);
+                    
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(),
+                        type: flowType, mode: p.mode,
+                        category: 'POS Payment Reversal', amount: flowAmt, note: `Reversed payment for Bill #${formatInv(sid)} (Edit)`
                     });
                 }
-            }
-            
-            deletedPayments.forEach(p => {
-                let flowType = p.amount < 0 ? 'IN' : 'OUT';
-                let flowAmt = Math.abs(p.amount);
-                
-                tx.objectStore('cashflow').add({
-                    date: new Date().toISOString(),
-                    type: flowType, mode: p.mode,
-                    category: 'POS Payment Reversal', amount: flowAmt, note: `Reversed payment for Bill #${formatInv(sid)} (Edit)`
-                });
-            });
 
-            let noteSuffix = editId ? ` (Edited)` : '';
-            payments.forEach(p => {
-                if (editId && !p.isNew) return; 
-                
-                let flowType = p.amount < 0 ? 'OUT' : 'IN';
-                let flowAmt = Math.abs(p.amount);
-                
-                let cat = '';
-                if (p.amount < 0) cat = 'POS Refund (Payout)';
-                else if (editId) cat = 'POS Due Payment';
-                else cat = 'POS Sale';
+                let noteSuffix = editId ? ` (Edited)` : '';
+                for(const p of payments) {
+                    if (editId && !p.isNew) continue; 
+                    
+                    let flowType = p.amount < 0 ? 'OUT' : 'IN';
+                    let flowAmt = Math.abs(p.amount);
+                    
+                    let cat = '';
+                    if (p.amount < 0) cat = 'POS Refund (Payout)';
+                    else if (editId) cat = 'POS Due Payment';
+                    else cat = 'POS Sale';
 
-                tx.objectStore('cashflow').add({
-                    date: p.date || new Date().toISOString(),
-                    type: flowType, mode: p.mode,
-                    category: cat, amount: flowAmt, note: `Payment for Bill #${formatInv(sid)}${noteSuffix}`
-                });
-            });
+                    await addItem('cashflow', {
+                        date: p.date || new Date().toISOString(),
+                        type: flowType, mode: p.mode,
+                        category: cat, amount: flowAmt, note: `Payment for Bill #${formatInv(sid)}${noteSuffix}`
+                    });
+                }
 
-            tx.oncomplete = () => {
                 printInvoice(saleData);
                 
                 cart = []; payments = []; deletedPayments = []; 
@@ -1577,103 +1569,87 @@
                 document.getElementById('btnCancelEdit').style.display = 'none';
                 
                 loadHistory();
-            };
+            } catch(e) {
+                console.error("Save Bill Error:", e);
+                alert("Database Error! Bill save nahi ho paya. Console check karein.");
+            }
         }
 
-        function updateStockStatusInternal(tx, items, action) {
-            return new Promise((resolve) => {
-                const store = tx.objectStore('inventory');
-                let count = 0;
-                if(items.length === 0) resolve();
+        async function updateStockStatusInternal(items, action) {
+            if(items.length === 0) return;
 
-                for(const i of items) {
-                    if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
-                        count++;
-                        if(count === items.length) resolve();
-                        continue;
-                    }
-                    
-                    const req = store.get(parseInt(i.id));
-                    req.onsuccess = (e) => {
-                        const item = e.target.result;
-                        if(item) { 
-                            const sellQty = i.sellQty || 1;
-                            const sellGross = i.grossWt !== undefined ? i.grossWt : (i.weight || 0);
-                            const sellStone = i.stoneWt || 0;
-                            const sellNet = i.netWt !== undefined ? i.netWt : sellGross;
-                            
-                            const isSilver = checkIsSilver(item.purity);
-
-                            if (action === 'sold') {
-                                if (isSilver || item.category === 'MIX' || item.pieces > 1) {
-                                    item.pieces = (parseInt(item.pieces) || 1) - sellQty;
-                                    item.grossWt = Math.max(0, (parseFloat(item.grossWt) || 0) - sellGross);
-                                    item.stoneWt = Math.max(0, (parseFloat(item.stoneWt) || 0) - sellStone);
-                                    item.netWt = Math.max(0, (parseFloat(item.netWt) || 0) - sellNet);
-                                    item.weight = item.grossWt; 
-                                    item.fineWt = item.netWt * getPurityFactor(item.purity);
-
-                                    if (item.pieces <= 0 || item.netWt <= 0.05) {
-                                        item.status = 'sold';
-                                        item.pieces = 0;
-                                        item.netWt = 0;
-                                        item.grossWt = 0;
-                                        item.stoneWt = 0;
-                                        item.weight = 0;
-                                        item.fineWt = 0;
-                                    } else {
-                                        item.status = 'stock';
-                                    }
-                                } else {
-                                    item.status = 'sold';
-                                    item.pieces = 0;
-                                    item.netWt = 0;
-                                    item.grossWt = 0;
-                                    item.stoneWt = 0;
-                                    item.weight = 0;
-                                    item.fineWt = 0;
-                                }
-                            } else if (action === 'stock') {
-                                item.status = 'stock';
-                                item.pieces = (parseInt(item.pieces) || 0) + sellQty;
-                                item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
-                                item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
-                                item.netWt = (parseFloat(item.netWt) || 0) + sellNet;
-                                item.weight = item.grossWt;
-                                item.fineWt = item.netWt * getPurityFactor(item.purity);
-                            }
-                            store.put(item); 
-                        }
-                        count++;
-                        if(count === items.length) resolve();
-                    };
+            for(const i of items) {
+                if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
+                    continue;
                 }
-            });
+                
+                let item = await getItem('inventory', i.id);
+                if(item) { 
+                    const sellQty = i.sellQty || 1;
+                    const sellGross = i.grossWt !== undefined ? i.grossWt : (i.weight || 0);
+                    const sellStone = i.stoneWt || 0;
+                    const sellNet = i.netWt !== undefined ? i.netWt : sellGross;
+                    
+                    const isSilver = checkIsSilver(item.purity);
+
+                    if (action === 'sold') {
+                        if (isSilver || item.category === 'MIX' || item.pieces > 1) {
+                            item.pieces = (parseInt(item.pieces) || 1) - sellQty;
+                            item.grossWt = Math.max(0, (parseFloat(item.grossWt) || 0) - sellGross);
+                            item.stoneWt = Math.max(0, (parseFloat(item.stoneWt) || 0) - sellStone);
+                            item.netWt = Math.max(0, (parseFloat(item.netWt) || 0) - sellNet);
+                            item.weight = item.grossWt; 
+                            item.fineWt = item.netWt * getPurityFactor(item.purity);
+
+                            if (item.pieces <= 0 || item.netWt <= 0.05) {
+                                item.status = 'sold';
+                                item.pieces = 0;
+                                item.netWt = 0;
+                                item.grossWt = 0;
+                                item.stoneWt = 0;
+                                item.weight = 0;
+                                item.fineWt = 0;
+                            } else {
+                                item.status = 'stock';
+                            }
+                        } else {
+                            item.status = 'sold';
+                            item.pieces = 0;
+                            item.netWt = 0;
+                            item.grossWt = 0;
+                            item.stoneWt = 0;
+                            item.weight = 0;
+                            item.fineWt = 0;
+                        }
+                    } else if (action === 'stock') {
+                        item.status = 'stock';
+                        item.pieces = (parseInt(item.pieces) || 0) + sellQty;
+                        item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
+                        item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
+                        item.netWt = (parseFloat(item.netWt) || 0) + sellNet;
+                        item.weight = item.grossWt;
+                        item.fineWt = item.netWt * getPurityFactor(item.purity);
+                    }
+                    await updateItem('inventory', item);
+                }
+            }
         }
 
         async function editSale(id) {
             if(!confirm("Edit this bill? This will load the items back into the cart. Add your new payment and click Update.")) return;
-            const sale = await new Promise(async r => {
-                const db = await dbPromise;
-                db.transaction('sales').objectStore('sales').get(id).onsuccess = e => r(e.target.result);
-            });
+            
+            const sale = await getItem('sales', id);
             if(!sale) return;
             
-            const db = await dbPromise;
-            const tx = db.transaction('inventory', 'readwrite');
-            await updateStockStatusInternal(tx, sale.items, 'stock');
+            await updateStockStatusInternal(sale.items, 'stock');
             
             cart = sale.items; 
-            
             payments = sale.payments ? sale.payments.map(p => ({...p, isNew: false})) : [];
 
             document.getElementById('sumDiscVal').value = sale.discount || 0;
             document.getElementById('applyGstToggle').checked = sale.isGstBill !== false;
             
-            const cust = await new Promise(async r => {
-                const db2 = await dbPromise;
-                db2.transaction('customers').objectStore('customers').get(parseInt(sale.customerId)).onsuccess = e => r(e.target.result);
-            });
+            const cust = await getItem('customers', sale.customerId);
 
             if(cust) {
                 cust.bcBalance = (getSafeNum(cust.bcBalance)) + (sale.bcWalletDeduction || 0);
@@ -1697,7 +1673,7 @@
         }
 
         async function openCancelModal(id) {
-            const sale = allSalesData.find(s => s.id === id);
+            const sale = allSalesData.find(s => String(s.id) === String(id));
             if(!sale) return;
 
             document.getElementById('cancelSaleId').value = id;
@@ -1717,65 +1693,58 @@
         }
 
         async function confirmCancelSale() {
-            const id = parseInt(document.getElementById('cancelSaleId').value);
+            const id = document.getElementById('cancelSaleId').value;
             const refundAmt = getSafeNum(document.getElementById('cRefundAmt').value);
             const revertStock = document.getElementById('cRevertStock').checked;
             const refundMode = document.getElementById('cRefundMode').value || 'Cash';
 
-            const db = await dbPromise;
-            const tx = db.transaction(['sales', 'customers', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
-            const store = tx.objectStore('sales');
+            try {
+                const sale = await getItem('sales', id);
+                if(!sale) return;
 
-            store.get(id).onsuccess = async (e) => {
-                const sale = e.target.result;
                 sale.status = 'cancelled';
                 sale.refundedAmount = refundAmt;
-                store.put(sale);
+                await updateItem('sales', sale);
 
                 if (sale.bcWalletDeduction > 0) {
-                    let cReq = tx.objectStore('customers').get(parseInt(sale.customerId));
-                    cReq.onsuccess = (ev) => {
-                        const c = ev.target.result;
-                        if(c) {
-                            c.bcBalance = (getSafeNum(c.bcBalance)) + sale.bcWalletDeduction;
-                            tx.objectStore('customers').put(c);
-                        }
-                    };
+                    let c = await getItem('customers', sale.customerId);
+                    if(c) {
+                        c.bcBalance = (getSafeNum(c.bcBalance)) + sale.bcWalletDeduction;
+                        await updateItem('customers', c);
+                    }
                 }
 
                 if(revertStock) {
-                    await updateStockStatusInternal(tx, sale.items, 'stock');
+                    await updateStockStatusInternal(sale.items, 'stock');
                 }
 
-                const ogReq = tx.objectStore('old_gold').getAll();
-                ogReq.onsuccess = (ev) => {
-                    const allOG = ev.target.result || [];
-                    const linkedOG = allOG.filter(g => g.saleId === id);
-                    for(const og of linkedOG) {
-                        tx.objectStore('old_gold').delete(og.id);
-                    }
-                };
+                const allOG = await getAllItems('old_gold');
+                const linkedOG = allOG.filter(g => String(g.saleId) === String(id));
+                for(const og of linkedOG) {
+                    await deleteItem('old_gold', og.id);
+                }
 
                 if(refundAmt > 0) {
-                    tx.objectStore('cashflow').add({
+                    await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'OUT', mode: refundMode,
                         category: 'Bill Cancellation Refund', amount: refundAmt, note: `Refund for Cancelled Bill #${formatInv(id)}`
                     });
                 }
                 
                 if(sale.oldGoldDeduction > 0) {
-                    tx.objectStore('cashflow').add({
+                    await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'OUT', mode: 'Metal Exchange',
                         category: 'Bill Cancellation Reversal', amount: sale.oldGoldDeduction, note: `Reversing Exchange for Cancelled Bill #${formatInv(id)}`
                     });
                 }
 
-                tx.oncomplete = () => {
-                    alert("Bill Cancelled & Refund Processed!");
-                    closeModal('cancelModal');
-                    loadHistory();
-                };
-            };
+                alert("Bill Cancelled & Refund Processed!");
+                closeModal('cancelModal');
+                loadHistory();
+            } catch(e) {
+                console.error("Cancellation Error:", e);
+                alert("Error while cancelling the bill.");
+            }
         }
 
         async function loadHistory() {
@@ -1790,7 +1759,7 @@
             const custs = await getAllItems('customers');
 
             let filtered = allSalesData.filter(s => {
-                const c = custs.find(x => x.id == s.customerId);
+                const c = custs.find(x => String(x.id) === String(s.customerId));
                 const cName = c ? c.name.toLowerCase() : '';
                 const sId = formatInv(s.id).toLowerCase();
                 const matchesSearch = cName.includes(term) || sId.includes(term);
@@ -1817,7 +1786,7 @@
             }
 
             list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(s => {
-                const c = custs.find(x => x.id == s.customerId) || {name:'Unknown', mobile:''};
+                const c = custs.find(x => String(x.id) === String(s.customerId)) || {name:'Unknown', mobile:''};
                 
                 let statusHtml = '';
                 if(s.status === 'cancelled') {
@@ -1836,7 +1805,7 @@
                 const paidHtml = `<div style="font-size:0.85rem; color:#2e7d32;">Paid: ₹${s.paidAmount.toLocaleString()}</div>`;
                 const dueHtml = s.pendingAmount > 0 ? `<div style="font-size:0.85rem; color:#c62828; font-weight:bold;">Due: ₹${s.pendingAmount.toLocaleString()}</div>` : '';
                 
-                const payDueBtn = s.pendingAmount > 0 && !isCancelled ? `<button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--accent-gold); color:#000; font-weight:bold; cursor:pointer;" onclick="editSale(${s.id})"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>` : '';
+                const payDueBtn = s.pendingAmount > 0 && !isCancelled ? `<button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--accent-gold); color:#000; font-weight:bold; cursor:pointer;" onclick="editSale('${s.id}')"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>` : '';
 
                 div.innerHTML += `<div style="background:#fff; padding:20px; border-radius:12px; margin-bottom:15px; border-left:4px solid #333; ${cardStyle}">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1853,29 +1822,24 @@
                     </div>
                     ${!isCancelled ? `
                     <div style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f0; display:flex; gap:10px; font-size:0.85rem; font-weight:600; flex-wrap:wrap;">
-                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick='printHistory(${s.id})'><i class="fas fa-print"></i> Print</button>
-                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick="editSale(${s.id})"><i class="fas fa-edit"></i> Edit</button>
-                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--whatsapp); color:white; cursor:pointer;" onclick="waInvoice(${s.id}, '${c.mobile}', '${c.name}', ${s.grandTotal}, ${s.pendingAmount})"><i class="fab fa-whatsapp"></i> Send</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick="printHistory('${s.id}')"><i class="fas fa-print"></i> Print</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick="editSale('${s.id}')"><i class="fas fa-edit"></i> Edit</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--whatsapp); color:white; cursor:pointer;" onclick="waInvoice('${s.id}', '${c.mobile}', '${c.name}', ${s.grandTotal}, ${s.pendingAmount})"><i class="fab fa-whatsapp"></i> Send</button>
                         ${payDueBtn}
-                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#ffebee; color:#c62828; cursor:pointer;" onclick="openCancelModal(${s.id})"><i class="fas fa-undo"></i> Cancel</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#ffebee; color:#c62828; cursor:pointer;" onclick="openCancelModal('${s.id}')"><i class="fas fa-undo"></i> Cancel</button>
                     </div>` : ''}
                 </div>`;
             });
         }
 
         async function printHistory(id) {
-            const sale = await new Promise(async r => {
-                const db = await dbPromise;
-                db.transaction('sales').objectStore('sales').get(id).onsuccess = e => r(e.target.result);
-            });
-            printInvoice(sale);
+            const sale = await getItem('sales', id);
+            if(sale) printInvoice(sale);
         }
 
         async function printInvoice(sale) {
-            const cust = await new Promise(async r => {
-                const db = await dbPromise;
-                db.transaction('customers').objectStore('customers').get(parseInt(sale.customerId)).onsuccess = e => r(e.target.result);
-            });
+            const cust = await getItem('customers', sale.customerId);
+            if(!cust) return;
             
             const isGst = sale.isGstBill !== false; 
             const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
@@ -1895,7 +1859,7 @@
                 <div class="inv-header-grid">
                     <div class="inv-address-box text-maroon">
                         प्लॉट नं.डी ५६, गोखले स्कुल समोर,<br>
-                        सेक्टर १२, खारघर, नवी मुंबई ४१०२१०.
+                        सेक्टर १२, खारghar, नवी मुंबई ४१०२१०.
                     </div>
                     <div class="inv-logo-box">
                         <div class="inv-logo-text">भारती</div>
@@ -1951,7 +1915,7 @@
                         <tbody>`;
             
             sale.items.forEach(i => {
-                if(i.isOldGold) return; // Exchanged items don't go in the main sales grid
+                if(i.isOldGold) return; 
 
                 let mkDisplay = i.makingAmount ? i.makingAmount : '-';
                 let amtDisplay = i.baseAmount;
