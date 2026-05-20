@@ -297,9 +297,9 @@
 
 </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="db.js"></script>
+<script src="db.js?v=35"></script>
 
 <script>
     let allCustomers = [];
@@ -328,17 +328,14 @@
 
     function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
 
+    // --- UPDATED FIREBASE FETCH FUNCTION ---
     async function safeGetAll(storeName) {
         try {
-            const db = await dbPromise;
-            if (!db.objectStoreNames.contains(storeName)) return [];
-            const tx = db.transaction(storeName, 'readonly');
-            return await new Promise((resolve) => {
-                const req = tx.objectStore(storeName).getAll();
-                req.onsuccess = e => resolve(e.target.result || []);
-                req.onerror = () => resolve([]);
-            });
-        } catch(e) { return []; }
+            return await getAllItems(storeName);
+        } catch(e) { 
+            console.error("Error fetching " + storeName, e);
+            return []; 
+        }
     }
 
     function getCustName(id) { let c = allCustomers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in'; }
