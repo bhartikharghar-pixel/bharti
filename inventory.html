@@ -121,7 +121,7 @@
         .cat-del { color: var(--active-red); cursor: pointer; font-weight: bold;}
         .mode-badge { font-size:0.7rem; padding:3px 6px; border-radius:4px; margin-left:8px; font-weight:700; text-transform:uppercase;}
 
-        /* Select Print List Styles */
+        /* Select Print/Remove List Styles */
         .print-item-row { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s; }
         .print-item-row:hover { background: #f8fafc; }
         .print-item-row input[type="checkbox"] { width: 20px; height: 20px; margin-right: 15px; accent-color: var(--info-blue); }
@@ -349,25 +349,19 @@
         <div class="modal-content" style="max-width: 650px;">
             <button class="close-btn" onclick="closeModal('removeStockModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-minus-circle"></i> Batch Remove Stock</h3>
-            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Scan items to remove them from stock. A removal document will be generated.</p>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Select items or scan barcodes to remove them from active stock. A removal document will be generated.</p>
             
             <div class="search-box-container">
-                <i class="fas fa-barcode search-icon"></i>
-                <input type="text" id="removeScanner" class="search-box" placeholder="Scan Barcode to Remove..." onkeypress="handleRemoveScan(event)">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="removeScanner" class="search-box" placeholder="Search Barcode, Category or Scan..." onkeyup="filterRemoveList()">
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 0.9rem;">
+                <label style="cursor:pointer; color:var(--info-blue);"><input type="checkbox" id="selectAllRemove" onclick="toggleSelectAllRemove()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
+                <span id="selectedRemoveCount" style="font-weight:bold;">0 Selected</span>
             </div>
             
-            <div class="table-container" style="max-height: 350px; box-shadow: none; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                <table class="inv-table">
-                    <thead>
-                        <tr>
-                            <th>Barcode</th>
-                            <th>Category</th>
-                            <th>Net Wt (g)</th>
-                            <th style="text-align:center;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="removeScanList"></tbody>
-                </table>
+            <div id="removeCheckList" style="max-height: 350px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; margin-bottom: 15px;">
             </div>
             
             <button class="btn-block btn-primary" onclick="confirmBatchRemove()"><i class="fas fa-trash"></i> Confirm Removal Batch</button>
@@ -713,7 +707,7 @@
             const container = document.getElementById('printContainer');
             container.innerHTML = '';
             
-            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && !(i.barcode && i.barcode.startsWith('LOOSE')));
+            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && i.status !== 'cancelled' && !(i.barcode && i.barcode.startsWith('LOOSE')));
             if(printItems.length === 0) return;
 
             printItems.forEach((item, index) => {
@@ -1685,68 +1679,85 @@
         // --- BATCH REMOVE STOCK FUNCTIONS ---
         
         let removeBatchList = [];
+        let removeSelectionList = [];
 
         function openRemoveStockModal() {
             removeBatchList = [];
-            renderRemoveScanList();
+            removeSelectionList = allInventory.filter(i => i.status === 'stock');
             document.getElementById('removeScanner').value = '';
+            document.getElementById('selectAllRemove').checked = false;
+            renderRemoveCheckList(removeSelectionList);
             openModal('removeStockModal');
         }
 
-        function handleRemoveScan(e) {
-            if (e.key === 'Enter') {
-                const code = document.getElementById('removeScanner').value.toUpperCase().trim();
-                document.getElementById('removeScanner').value = '';
-                if (!code) return;
-
-                const item = allInventory.find(i => i.barcode === code && i.status === 'stock');
-                if (!item) {
-                    appAlert("Item not found or already sold/removed!");
-                    return;
-                }
-                
-                if (removeBatchList.find(i => i.id === item.id)) {
-                    appAlert("Item already in removal list!");
-                    return;
-                }
-                
-                removeBatchList.push(item);
-                renderRemoveScanList();
-            }
+        function filterRemoveList() {
+            const term = document.getElementById('removeScanner').value.toUpperCase().trim();
+            const filtered = removeSelectionList.filter(i => 
+                (i.barcode && i.barcode.toUpperCase().includes(term)) || 
+                (i.category && i.category.toUpperCase().includes(term)) ||
+                (i.purity && i.purity.toUpperCase().includes(term))
+            );
+            renderRemoveCheckList(filtered);
+            document.getElementById('selectAllRemove').checked = false;
         }
 
-        function removeFromBatch(id) {
-            removeBatchList = removeBatchList.filter(i => i.id !== id);
-            renderRemoveScanList();
-        }
-
-        function renderRemoveScanList() {
-            const tbody = document.getElementById('removeScanList');
-            tbody.innerHTML = '';
-            if (removeBatchList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #888;">Scan items to remove...</td></tr>';
+        function renderRemoveCheckList(items) {
+            const listContainer = document.getElementById('removeCheckList');
+            listContainer.innerHTML = '';
+            
+            if(items.length === 0) {
+                listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #888;">No active stock found.</div>`;
+                updateSelectedRemoveCount();
                 return;
             }
-            removeBatchList.forEach(item => {
-                const wt = parseFloat(item.netWt || item.grossWt || item.weight).toFixed(3);
-                tbody.innerHTML += `
-                    <tr>
-                        <td style="font-weight:bold; color:var(--info-blue);">${item.barcode}</td>
-                        <td>${item.category}</td>
-                        <td>${wt}</td>
-                        <td style="text-align:center;"><button class="btn-sm btn-del" onclick="removeFromBatch(${item.id})"><i class="fas fa-times"></i></button></td>
-                    </tr>
+
+            items.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
+                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                const isChecked = removeBatchList.includes(item.id) ? 'checked' : '';
+                
+                listContainer.innerHTML += `
+                    <label class="print-item-row" style="cursor:pointer; display:flex;">
+                        <input type="checkbox" class="remove-checkbox" value="${item.id}" ${isChecked} onchange="updateRemoveBatchList(this, ${item.id})">
+                        <div style="flex:1;">
+                            <div style="font-weight:700; color:var(--active-red);">${item.barcode}</div>
+                            <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${item.purity} | ${gross}g</div>
+                        </div>
+                    </label>
                 `;
+            });
+            updateSelectedRemoveCount();
+        }
+
+        function updateRemoveBatchList(cb, id) {
+            if(cb.checked) {
+                if(!removeBatchList.includes(id)) removeBatchList.push(id);
+            } else {
+                removeBatchList = removeBatchList.filter(i => i !== id);
+            }
+            updateSelectedRemoveCount();
+        }
+
+        function toggleSelectAllRemove() {
+            const isChecked = document.getElementById('selectAllRemove').checked;
+            const checkboxes = document.querySelectorAll('.remove-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                updateRemoveBatchList(cb, parseInt(cb.value));
             });
         }
 
+        function updateSelectedRemoveCount() {
+            document.getElementById('selectedRemoveCount').innerText = `${removeBatchList.length} Selected`;
+        }
+
         async function confirmBatchRemove() {
-            if (removeBatchList.length === 0) return appAlert("Scan at least one item to remove.");
+            if (removeBatchList.length === 0) return appAlert("Select at least one item to remove.");
             
+            const itemsToRemove = allInventory.filter(i => removeBatchList.includes(i.id));
             const remDocNo = 'REM-' + Date.now();
             const dateStr = new Date().toISOString();
             
-            for (let item of removeBatchList) {
+            for (let item of itemsToRemove) {
                 item.status = 'removed';
                 item.removeDocNo = remDocNo;
                 item.removeDate = dateStr;
@@ -1767,20 +1778,28 @@
             allInventory.forEach(item => {
                 if(item.docNo) {
                     if(!docs[item.docNo]) {
-                        docs[item.docNo] = { docNo: item.docNo, type: 'IN', date: item.addedDate, count: 0, gross: 0, items: [] };
+                        docs[item.docNo] = { docNo: item.docNo, type: 'IN', date: item.addedDate, count: 0, gross: 0, items: [], isCancelled: true };
                     }
                     docs[item.docNo].count += parseInt(item.pieces || 1);
                     docs[item.docNo].gross += parseFloat(item.grossWt || item.weight || 0);
                     docs[item.docNo].items.push(item);
+                    
+                    if(item.status !== 'cancelled') {
+                        docs[item.docNo].isCancelled = false;
+                    }
                 }
                 
                 if(item.removeDocNo) {
                     if(!docs[item.removeDocNo]) {
-                        docs[item.removeDocNo] = { docNo: item.removeDocNo, type: 'OUT', date: item.removeDate, count: 0, gross: 0, items: [] };
+                        docs[item.removeDocNo] = { docNo: item.removeDocNo, type: 'OUT', date: item.removeDate, count: 0, gross: 0, items: [], isCancelled: true };
                     }
                     docs[item.removeDocNo].count += parseInt(item.pieces || 1);
                     docs[item.removeDocNo].gross += parseFloat(item.grossWt || item.weight || 0);
                     docs[item.removeDocNo].items.push(item);
+                    
+                    if(!item.removeCancelled) {
+                        docs[item.removeDocNo].isCancelled = false;
+                    }
                 }
             });
             
@@ -1796,14 +1815,18 @@
                     const d = doc.date ? new Date(doc.date).toLocaleString('en-GB') : '-';
                     const typeBadge = doc.type === 'IN' ? `<span class="badge badge-22k">STOCK IN</span>` : `<span class="badge badge-pending">STOCK REMOVED</span>`;
                     
+                    let rowStyle = doc.isCancelled ? 'opacity: 0.6; background: #f8f9fa;' : '';
+                    let badgeExtra = doc.isCancelled ? `<br><span class="badge badge-pending" style="background:#e2e8f0; color:#475569; border: 1px solid #cbd5e1;">CANCELLED</span>` : '';
+                    let actionBtn = doc.isCancelled ? `<span style="color:#888; font-weight:bold; font-size:0.8rem;">Cancelled</span>` : `<button class="btn-sm btn-del" onclick="cancelDocument('${doc.docNo}', '${doc.type}')"><i class="fas fa-undo"></i> Cancel Doc</button>`;
+                    
                     tbody.innerHTML += `
-                        <tr>
-                            <td><span class="badge badge-order">${doc.docNo}</span><br>${typeBadge}</td>
+                        <tr style="${rowStyle}">
+                            <td><span class="badge badge-order">${doc.docNo}</span><br>${typeBadge}${badgeExtra}</td>
                             <td>${d}</td>
                             <td style="text-align:center; font-weight:bold;">${doc.count}</td>
                             <td>${doc.gross.toFixed(3)} g</td>
                             <td style="text-align:center;">
-                                <button class="btn-sm btn-del" onclick="cancelDocument('${doc.docNo}', '${doc.type}')"><i class="fas fa-undo"></i> Cancel Doc</button>
+                                ${actionBtn}
                             </td>
                         </tr>
                     `;
@@ -1817,28 +1840,28 @@
                 const items = allInventory.filter(i => i.docNo === docNo);
                 
                 if(items.some(i => i.status === 'sold' || i.status === 'removed')) {
-                    appAlert("Cannot cancel this document! Some items have been sold, extracted, or removed. Cancel those operations first.");
+                    appAlert("Cannot cancel this document! Some items have been sold, extracted, or manually removed. Cancel those operations first.");
                     return;
                 }
                 
-                const proceed = await appConfirm(`Are you sure you want to completely cancel IN document [${docNo}] and delete all its items?\n\nTotal Items: ${items.length}`);
+                const proceed = await appConfirm(`Are you sure you want to completely cancel IN document [${docNo}]?\nThis will mark all items as cancelled.\n\nTotal Items: ${items.length}`);
                 if(proceed) {
                     for(let item of items) {
-                        await deleteItem('inventory', item.id);
+                        item.status = 'cancelled';
+                        await updateItem('inventory', item);
                     }
-                    showToast("Document Cancelled and Items Deleted!", "success");
+                    showToast("Document Cancelled!", "success");
                     await loadInventory();
                     openDocHistoryModal(); 
                 }
             } else if(type === 'OUT') {
                 const items = allInventory.filter(i => i.removeDocNo === docNo);
                 
-                const proceed = await appConfirm(`Are you sure you want to cancel REMOVE document [${docNo}] and RESTORE these items to stock?\n\nTotal Items: ${items.length}`);
+                const proceed = await appConfirm(`Are you sure you want to cancel REMOVE document [${docNo}] and RESTORE these items to active stock?\n\nTotal Items: ${items.length}`);
                 if(proceed) {
                     for(let item of items) {
                         item.status = 'stock';
-                        delete item.removeDocNo;
-                        delete item.removeDate;
+                        item.removeCancelled = true;
                         await updateItem('inventory', item);
                     }
                     showToast("Items Restored to Stock!", "success");
