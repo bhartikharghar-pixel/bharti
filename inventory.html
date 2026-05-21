@@ -349,16 +349,23 @@
         <div class="modal-content" style="max-width: 650px;">
             <button class="close-btn" onclick="closeModal('removeStockModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-minus-circle"></i> Batch Remove Stock</h3>
-            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Select items or scan barcodes to remove them from active stock. A removal document will be generated.</p>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Search category (e.g., CHA) or barcode. Quick select items to bulk remove them.</p>
             
             <div class="search-box-container">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="removeScanner" class="search-box" placeholder="Search Barcode, Category or Scan..." onkeyup="filterRemoveList()">
+                <input type="text" id="removeScanner" class="search-box" placeholder="Search Barcode, Category (e.g., CHA)..." onkeyup="filterRemoveList()">
             </div>
 
-            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 0.9rem;">
-                <label style="cursor:pointer; color:var(--info-blue);"><input type="checkbox" id="selectAllRemove" onclick="toggleSelectAllRemove()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
-                <span id="selectedRemoveCount" style="font-weight:bold;">0 Selected</span>
+            <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 10px; font-size: 0.9rem; flex-wrap: wrap; gap: 10px;">
+                <label style="cursor:pointer; color:var(--info-blue); font-weight:600;"><input type="checkbox" id="selectAllRemove" onclick="toggleSelectAllRemove()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
+                
+                <div style="display:flex; align-items:center; gap:5px; background: #f1f5f9; padding: 5px 10px; border-radius: 8px;">
+                    <span style="font-size: 0.8rem; color:#555; font-weight:600;">Quick Select:</span>
+                    <input type="number" id="quickSelectCount" value="20" style="width: 50px; padding: 4px; text-align:center; border: 1px solid #cbd5e1; border-radius: 4px;" min="1">
+                    <button class="btn-sm btn-view" style="margin:0; background:var(--header-bg); color:white; border:none;" onclick="quickSelectN()">Apply</button>
+                </div>
+                
+                <span id="selectedRemoveCount" style="font-weight:bold; color:var(--active-red);">0 Selected</span>
             </div>
             
             <div id="removeCheckList" style="max-height: 350px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; margin-bottom: 15px;">
@@ -1686,6 +1693,7 @@
             removeSelectionList = allInventory.filter(i => i.status === 'stock');
             document.getElementById('removeScanner').value = '';
             document.getElementById('selectAllRemove').checked = false;
+            document.getElementById('quickSelectCount').value = 20;
             renderRemoveCheckList(removeSelectionList);
             openModal('removeStockModal');
         }
@@ -1711,7 +1719,9 @@
                 return;
             }
 
-            items.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
+            const displayItems = items.slice(0, 300);
+
+            displayItems.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
                 const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
                 const isChecked = removeBatchList.includes(item.id) ? 'checked' : '';
                 
@@ -1725,6 +1735,11 @@
                     </label>
                 `;
             });
+
+            if (items.length > 300) {
+                listContainer.innerHTML += `<div style="padding: 10px; text-align: center; color: #888; font-size: 0.8rem; background: #f8fafc; border-top: 1px solid #eee;">Showing 300 of ${items.length} items. Refine search to see more.</div>`;
+            }
+
             updateSelectedRemoveCount();
         }
 
@@ -1743,6 +1758,29 @@
             checkboxes.forEach(cb => {
                 cb.checked = isChecked;
                 updateRemoveBatchList(cb, parseInt(cb.value));
+            });
+        }
+
+        function quickSelectN() {
+            const count = parseInt(document.getElementById('quickSelectCount').value) || 0;
+            if(count <= 0) return;
+            
+            const checkboxes = document.querySelectorAll('.remove-checkbox');
+            let checkedCount = 0;
+            
+            checkboxes.forEach(cb => {
+                if(checkedCount < count) {
+                    if(!cb.checked) {
+                        cb.checked = true;
+                        updateRemoveBatchList(cb, parseInt(cb.value));
+                    }
+                    checkedCount++;
+                } else {
+                    if(cb.checked) {
+                        cb.checked = false;
+                        updateRemoveBatchList(cb, parseInt(cb.value));
+                    }
+                }
             });
         }
 
