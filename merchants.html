@@ -645,34 +645,35 @@
             document.getElementById('saveModal').style.display = 'flex';
         }
 
-        async function editMerchant(id) {
-            const db = await dbPromise;
-            const tx = db.transaction('merchants', 'readonly');
-            tx.objectStore('merchants').get(id).onsuccess = (e) => {
-                const m = e.target.result;
-                document.getElementById('mId').value = m.id;
-                document.getElementById('mName').value = m.name;
-                document.getElementById('mMobile').value = m.mobile;
-                setMCat(m.category || 'Both'); // Category Load Karega
-                
-                // POPULATING EXISTING BALANCES IN EDIT MODE
-                document.getElementById('mBalance').value = m.balance || 0;
-                document.getElementById('mGoldBalance').value = m.goldBalance || 0;
-                document.getElementById('mSilverBalance').value = m.silverBalance || 0;
-                
-                document.getElementById('balanceField').style.display = 'block'; 
-                document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit"></i> Edit Party Info';
-                document.getElementById('saveModal').style.display = 'flex';
-            };
+        function editMerchant(id) {
+            // Find the merchant data from the already loaded array in memory
+            const m = allMerchants.find(x => x.id == parseInt(id));
+            if (!m) {
+                showToast("Merchant data not found!", "error");
+                return;
+            }
+            
+            document.getElementById('mId').value = m.id;
+            document.getElementById('mName').value = m.name || '';
+            document.getElementById('mMobile').value = m.mobile || '';
+            setMCat(m.category || 'Both'); 
+            
+            // Populating Existing Balances
+            document.getElementById('mBalance').value = m.balance || 0;
+            document.getElementById('mGoldBalance').value = m.goldBalance || 0;
+            document.getElementById('mSilverBalance').value = m.silverBalance || 0;
+            
+            document.getElementById('balanceField').style.display = 'block'; 
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit"></i> Edit Party Info';
+            document.getElementById('saveModal').style.display = 'flex';
         }
 
         async function saveMerchant() {
             const id = document.getElementById('mId').value;
             const name = document.getElementById('mName').value.trim();
             const mobile = document.getElementById('mMobile').value;
-            const category = document.getElementById('mCategoryVal').value; // Category Save
+            const category = document.getElementById('mCategoryVal').value; 
             
-            // Fetch the inputs correctly regardless of add/edit mode
             const balance = parseFloat(document.getElementById('mBalance').value) || 0;
             const goldBalance = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
             const silverBalance = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
@@ -689,7 +690,6 @@
                     data.mobile = mobile;
                     data.category = category;
                     
-                    // SAVING UPDATED BALANCES IN EDIT MODE
                     data.balance = balance;
                     data.goldBalance = goldBalance;
                     data.silverBalance = silverBalance;
@@ -1046,7 +1046,6 @@
             let payments = []; try { payments = await getAllItems('merchant_payments'); } catch(e) {}
             const orders = await getAllItems('orders');
 
-            // --- BUG FIX: Added p.status !== 'cancelled' filter to ignore deleted entries from Report sum calculation ---
             const myPurchases = purchases.filter(p => p.merchantId == mId && p.status !== 'cancelled');
             const myPayments = payments.filter(p => p.merchantId == mId && p.status !== 'cancelled');
             const myOrders = orders.filter(o => o.merchantId == mId);
