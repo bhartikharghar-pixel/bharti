@@ -571,7 +571,7 @@
     <div id="toast">Message</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <script src="db.js"></script> 
@@ -1078,14 +1078,10 @@
             const orderId = await addItem('orders', jobObj);
             const invoiceNo = 'ORD-INV' + String(orderId).padStart(3, '0');
             
-            const db = await dbPromise;
-            const tx = db.transaction('orders', 'readwrite');
-            const req = tx.objectStore('orders').get(orderId);
-            
-            req.onsuccess = async (e) => {
-                let o = e.target.result;
+            let o = await getItem('orders', orderId);
+            if(o) {
                 o.invoiceNo = invoiceNo;
-                tx.objectStore('orders').put(o);
+                await updateItem('orders', o);
                 
                 if(jobObj.advancePaid > 0) {
                     await addItem('cashflow', { 
@@ -1110,7 +1106,7 @@
                 if(confirm("Order Saved Successfully!\n\nDo you want to send a WhatsApp Confirmation message to the customer?")) {
                     autoWhatsApp(o, 'intake');
                 }
-            };
+            }
         }
 
         function openViewModal(id) {
@@ -1206,10 +1202,9 @@
             } else {
                 toggleDisplay('btnGoToSales', 'none');
                 if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    // NEW CHANGE: Show "Change Karigar" instead of hiding assignment option
                     toggleDisplay('btnForwardMerchant', 'block');
                     document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-exchange-alt"></i> Change Karigar';
-                    document.getElementById('btnForwardMerchant').style.background = '#8e24aa'; // Purple color for change
+                    document.getElementById('btnForwardMerchant').style.background = '#8e24aa'; 
                     
                     toggleDisplay('btnPrintKarigarSlip', 'block');
                     toggleDisplay('btnReceiveMerchant', 'block');
@@ -1250,18 +1245,14 @@
             const mode = document.getElementById('vNewPayMode').value;
             if(!amt || amt <= 0) return showToast("Enter valid amount", "error");
 
-            const db = await dbPromise;
-            const tx = db.transaction('orders', 'readwrite');
-            const store = tx.objectStore('orders');
-
-            store.get(id).onsuccess = async (e) => {
-                const o = e.target.result;
+            const o = await getItem('orders', id);
+            if(o) {
                 const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
 
                 o.advancePaid = (o.advancePaid || 0) + amt;
                 if(!o.payments) o.payments = [];
                 o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
-                store.put(o);
+                await updateItem('orders', o);
 
                 await addItem('cashflow', { 
                     date: new Date().toISOString(), 
@@ -1273,7 +1264,7 @@
                     orderId: id 
                 });
                 showToast("Advance Added!", "success"); document.getElementById('vNewPay').value = ''; closeModal('viewJobModal'); loadOrders();
-            };
+            }
         }
 
         function openAssignModal() {
@@ -1281,12 +1272,10 @@
             document.getElementById('aOrderId').value = o.id;
 
             if (o.status === 'in_progress' || o.status === 'with_karigar') {
-                // Changing existing Karigar
                 document.getElementById('aAssignTitle').innerHTML = '<i class="fas fa-exchange-alt"></i> Change Assigned Karigar';
                 document.getElementById('aMerchantSelect').value = o.merchantId || '';
-                document.getElementById('aShopGoldWrapper').style.display = 'none'; // Hide metal issue section to prevent double deduction
+                document.getElementById('aShopGoldWrapper').style.display = 'none'; 
             } else {
-                // New Assignment
                 document.getElementById('aAssignTitle').innerHTML = '<i class="fas fa-truck-loading"></i> Issue to Karigar';
                 document.getElementById('aMerchantSelect').value = '';
                 document.getElementById('aShopGoldWrapper').style.display = 'block';
@@ -1388,17 +1377,12 @@
 
             const o = activeJobData;
 
-            // NEW: If already assigned, just update the Karigar ID (so metal issue isn't repeated/messed up)
             if (o.status === 'in_progress' || o.status === 'with_karigar') {
-                const db = await dbPromise;
-                const tx = db.transaction(['orders'], 'readwrite');
                 o.merchantId = mId;
-                tx.objectStore('orders').put(o);
-                tx.oncomplete = () => {
-                    showToast("Assigned Karigar updated successfully!", "success");
-                    closeModal('assignModal');
-                    loadOrders();
-                };
+                await updateItem('orders', o);
+                showToast("Assigned Karigar updated successfully!", "success");
+                closeModal('assignModal');
+                loadOrders();
                 return;
             }
 
@@ -1414,63 +1398,53 @@
             }
 
             o.status = 'in_progress';
-            
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'merchants', 'inventory', 'purchases'], 'readwrite');
 
             if (provideShopGold && stockId) {
-                let invReq = tx.objectStore('inventory').get(parseInt(stockId));
-                invReq.onsuccess = (e) => {
-                    let item = e.target.result;
-                    if(!item || item.netWt < issuedGrossWt) {
-                        tx.abort();
-                        showToast("Insufficient stock in the selected source!", "error");
-                        return;
-                    }
+                let item = await getItem('inventory', parseInt(stockId));
+                if(!item || item.netWt < issuedGrossWt) {
+                    showToast("Insufficient stock in the selected source!", "error");
+                    return;
+                }
 
-                    item.netWt -= issuedGrossWt;
-                    item.grossWt -= issuedGrossWt;
-                    item.weight = item.netWt;
-                    if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; } 
-                    tx.objectStore('inventory').put(item);
+                item.netWt -= issuedGrossWt;
+                item.grossWt -= issuedGrossWt;
+                item.weight = item.netWt;
+                if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; } 
+                await updateItem('inventory', item);
 
-                    o.merchantId = mId;
-                    o.sourceStockId = parseInt(stockId);
-                    o.issuedGrossWt = issuedGrossWt;
-                    o.issuedPurity = issuedPurity; 
-                    o.issuedFineWt = issuedFineWt; 
-                    tx.objectStore('orders').put(o);
-                };
+                o.merchantId = mId;
+                o.sourceStockId = parseInt(stockId);
+                o.issuedGrossWt = issuedGrossWt;
+                o.issuedPurity = issuedPurity; 
+                o.issuedFineWt = issuedFineWt; 
+                await updateItem('orders', o);
             } else if (provideShopGold && !stockId) {
                 o.merchantId = mId;
                 o.sourceStockId = null;
                 o.issuedGrossWt = issuedGrossWt;
                 o.issuedPurity = issuedPurity; 
                 o.issuedFineWt = issuedFineWt; 
-                tx.objectStore('orders').put(o);
+                await updateItem('orders', o);
             } else {
                 o.merchantId = mId;
                 o.sourceStockId = null;
                 o.issuedGrossWt = 0;
                 o.issuedPurity = 'N/A'; 
                 o.issuedFineWt = 0; 
-                tx.objectStore('orders').put(o);
+                await updateItem('orders', o);
             }
             
-            tx.onerror = (e) => { showToast("Error processing assignment.", "error"); };
-            tx.oncomplete = () => { 
-                showToast("Assigned to Karigar!", "success"); 
-                closeModal('assignModal'); 
-                loadOrders(); 
+            showToast("Assigned to Karigar!", "success"); 
+            closeModal('assignModal'); 
+            loadOrders(); 
 
-                setTimeout(() => {
-                    if(confirm("Order assigned to Karigar successfully!\n\nDo you want to Print/PDF the Karigar Details Slip (with Photo) now?")) {
-                        printKarigarSlip();
-                    } else if(confirm("Do you want to send a WhatsApp update to the Customer that processing has started?")) {
-                        autoWhatsApp(activeJobData, 'karigar');
-                    }
-                }, 300);
-            };
+            setTimeout(() => {
+                if(confirm("Order assigned to Karigar successfully!\n\nDo you want to Print/PDF the Karigar Details Slip (with Photo) now?")) {
+                    printKarigarSlip();
+                } else if(confirm("Do you want to send a WhatsApp update to the Customer that processing has started?")) {
+                    autoWhatsApp(activeJobData, 'karigar');
+                }
+            }, 300);
         }
 
         function openReceiveModal() {
@@ -1595,13 +1569,10 @@
             if (o.category && o.category.length >= 3) catPrefix = o.category.substring(0, 3).toUpperCase();
             const barcode = await generateBarcode('ORD-' + catPrefix);
 
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'merchants', 'purchases', 'inventory', 'merchant_payments'], 'readwrite');
-
             const issuedFine = o.issuedFineWt || 0;
             const metalDiffToKarigar = fFine - issuedFine; 
 
-            tx.objectStore('inventory').add({
+            await addItem('inventory', {
                 barcode: barcode, category: o.category, name: `Custom: ${o.description}`, purity: o.purity, 
                 grossWt: fGross, stoneWt: fStone, netWt: fNet, weight: fGross, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
             });
@@ -1625,29 +1596,26 @@
             o.baseAmount = fBase; 
             o.grandTotal = fGrand;
             
-            tx.objectStore('orders').put(o);
+            await updateItem('orders', o);
 
             if(o.merchantId && metalDiffToKarigar !== 0) {
-                let mReq = tx.objectStore('merchants').get(parseInt(o.merchantId));
-                mReq.onsuccess = (e) => {
-                    const m = e.target.result;
+                let m = await getItem('merchants', parseInt(o.merchantId));
+                if (m) {
                     m.goldBalance = (parseFloat(m.goldBalance)||0) + metalDiffToKarigar;
-                    tx.objectStore('merchants').put(m);
-                };
+                    await updateItem('merchants', m);
+                }
 
                 const now = new Date().toISOString();
-                tx.objectStore('purchases').add({ merchantId: o.merchantId, date: now, type: 'Unfixed', category: `Jobwork Liability (Ord #${o.id})`, totalFineWeight: metalDiffToKarigar, paidAmount: 0, dueAmount: 0, totalAmount: 0 });
+                await addItem('purchases', { merchantId: o.merchantId, date: now, type: 'Unfixed', category: `Jobwork Liability (Ord #${o.id})`, totalFineWeight: metalDiffToKarigar, paidAmount: 0, dueAmount: 0, totalAmount: 0 });
             }
 
-            tx.oncomplete = () => { 
-                showToast("Order Received to Stock!", "success"); 
-                closeModal('receiveModal'); 
-                loadOrders(); 
+            showToast("Order Received to Stock!", "success"); 
+            closeModal('receiveModal'); 
+            loadOrders(); 
 
-                if(confirm("Order is now Ready in Stock!\n\nSend a final WhatsApp message to the customer with Weight and Pending Amount details?")) {
-                    autoWhatsApp(activeJobData, 'ready');
-                }
-            };
+            if(confirm("Order is now Ready in Stock!\n\nSend a final WhatsApp message to the customer with Weight and Pending Amount details?")) {
+                autoWhatsApp(activeJobData, 'ready');
+            }
         }
 
         function openBillingModal() {
@@ -1764,8 +1732,6 @@
             o.grandTotal = parseFloat(document.getElementById('billUpdatedGrandTotal').value) || 0;
 
             const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'sales', 'inventory', 'cashflow', 'old_gold'], 'readwrite');
             
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
             o.invoiceNo = invoiceNo; 
@@ -1775,7 +1741,7 @@
             const totalCashReceived = (o.advancePaid || 0) + newlyPaid;
             const remainingDue = Math.max(0, o.grandTotal - (o.oldGoldValue || 0) - (o.advancePaid || 0) - newlyPaid);
 
-            tx.objectStore('sales').add({
+            await addItem('sales', {
                 date: new Date().toISOString(), customerId: parseInt(finalCustId), jobType: 'Order',
                 invoiceNo: invoiceNo, orderId: o.id,
                 items: [{ 
@@ -1792,24 +1758,25 @@
                 paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
             });
 
-            let iReq = tx.objectStore('inventory').index('barcode').get(o.barcode);
-            iReq.onsuccess = (e) => { const item = e.target.result; if(item) { item.status = 'sold'; tx.objectStore('inventory').put(item); } };
+            const allInventory = await getAllItems('inventory');
+            const invItem = allInventory.find(i => i.barcode === o.barcode);
+            if(invItem) { 
+                invItem.status = 'sold'; 
+                await updateItem('inventory', invItem); 
+            }
 
-            const allOGReq = tx.objectStore('old_gold').getAll();
-            allOGReq.onsuccess = (e) => {
-                const allOG = e.target.result || [];
-                const linkedOG = allOG.filter(g => g.saleId === o.id);
-                for(const og of linkedOG) {
-                    tx.objectStore('old_gold').delete(og.id);
-                }
-            };
+            const allOG = await getAllItems('old_gold');
+            const linkedOG = allOG.filter(g => g.saleId === o.id || g.orderId === o.id);
+            for(const og of linkedOG) {
+                await deleteItem('old_gold', og.id);
+            }
 
             o.status = 'billed'; o.customerId = parseInt(finalCustId);
             if(!o.payments) o.payments = []; o.payments.push(...billingPayments);
-            tx.objectStore('orders').put(o);
+            await updateItem('orders', o);
 
-            billingPayments.forEach(p => {
-                tx.objectStore('cashflow').add({ 
+            for (const p of billingPayments) {
+                await addItem('cashflow', { 
                     date: new Date().toISOString(), 
                     type: 'IN', 
                     mode: p.mode, 
@@ -1818,9 +1785,9 @@
                     note: `Final pay for ${invoiceNo}`,
                     orderId: o.id 
                 });
-            });
+            }
 
-            tx.oncomplete = () => { showToast("Order Billed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders(); };
+            showToast("Order Billed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders();
         }
 
         function openCancelModal() {
@@ -1846,14 +1813,13 @@
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
             
             const oldStatus = o.status; 
-
             
             o.status = 'cancelled'; 
             o.refundedAmount = totalRefundAmt;
-            await updateItem('orders',o);
+            await updateItem('orders', o);
             
             if(refundCash > 0) {
-                await addItem('cashflow',{ 
+                await addItem('cashflow', { 
                     date: new Date().toISOString(), 
                     type: 'OUT', 
                     mode: 'Cash', 
@@ -1864,7 +1830,7 @@
                 });
             }
             if(refundUPI > 0) {
-                tx.objectStore('cashflow').add({ 
+                await addItem('cashflow', { 
                     date: new Date().toISOString(), 
                     type: 'OUT', 
                     mode: 'UPI', 
@@ -1876,36 +1842,28 @@
             }
             
             if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && o.sourceStockId) {
-                let invReq = tx.objectStore('inventory').get(parseInt(o.sourceStockId));
-                invReq.onsuccess = (ev) => {
-                    let item = ev.target.result;
-                    if(item) {
-                        item.netWt += o.issuedGrossWt;
-                        item.grossWt += o.issuedGrossWt;
-                        item.weight = item.netWt;
-                        item.status = 'stock'; 
-                        tx.objectStore('inventory').put(item);
-                    }
+                let item = await getItem('inventory', parseInt(o.sourceStockId));
+                if(item) {
+                    item.netWt += o.issuedGrossWt;
+                    item.grossWt += o.issuedGrossWt;
+                    item.weight = item.netWt;
+                    item.status = 'stock'; 
+                    await updateItem('inventory', item);
                 }
             }
 
             const returnOldGold = document.getElementById('cReturnOldGold').checked;
             if(returnOldGold && (o.oldGoldValue > 0)) {
-                const allOGReq = tx.objectStore('old_gold').getAll();
-                allOGReq.onsuccess = (e) => {
-                    const allOG = e.target.result || [];
-                    const linkedOG = allOG.filter(g => g.saleId === o.id || g.orderId === o.id);
-                    for(const og of linkedOG) {
-                        tx.objectStore('old_gold').delete(og.id);
-                    }
-                };
+                const allOG = await getAllItems('old_gold');
+                const linkedOG = allOG.filter(g => g.saleId === o.id || g.orderId === o.id);
+                for(const og of linkedOG) {
+                    await deleteItem('old_gold', og.id);
+                }
             }
 
-            tx.oncomplete = () => { 
-                showToast("Order Cancelled & Refunded!", "success"); 
-                closeModal('cancelModal'); 
-                loadOrders(); 
-            };
+            showToast("Order Cancelled & Refunded!", "success"); 
+            closeModal('cancelModal'); 
+            loadOrders(); 
         }
 
         function printReceiptEngine(targetId = null) {
