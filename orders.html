@@ -1847,15 +1847,13 @@
             
             const oldStatus = o.status; 
 
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'merchants', 'purchases', 'cashflow', 'inventory', 'old_gold'], 'readwrite');
             
             o.status = 'cancelled'; 
             o.refundedAmount = totalRefundAmt;
-            tx.objectStore('orders').put(o);
+            await updateitem('orders',o);
             
             if(refundCash > 0) {
-                tx.objectStore('cashflow').add({ 
+                await additem('cashflow',{ 
                     date: new Date().toISOString(), 
                     type: 'OUT', 
                     mode: 'Cash', 
