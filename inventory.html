@@ -819,8 +819,8 @@
                 appAlert("Please select at least one item to print.");
                 return;
             }
-            const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
-            const itemsToPrint = allInventory.filter(i => selectedIds.includes(i.id));
+            const selectedIds = Array.from(checkboxes).map(cb => String(cb.value));
+            const itemsToPrint = allInventory.filter(i => selectedIds.includes(String(i.id)));
             
             closeModal('selectPrintModal');
             autoPrint(itemsToPrint);
@@ -1186,7 +1186,7 @@
                     actionBtn = `<button class="btn-sm btn-view" style="background:var(--info-blue); color:white;" onclick="openBulkFolderDetails('${group.key}')"><i class="fas fa-folder-open"></i> View Folders</button>`;
                 } else if(group.items.length === 1) {
                     let singleItem = group.items[0];
-                    actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails(${singleItem.id})"><i class="fas fa-eye"></i> View</button>`;
+                    actionBtn = `<button class="btn-sm btn-view" onclick="openItemDetails('${singleItem.id}')"><i class="fas fa-eye"></i> View</button>`;
                 } else {
                     actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}')"><i class="fas fa-list"></i> List</button>`;
                 }
@@ -1265,7 +1265,7 @@
                 const tr = document.createElement('tr');
                 let targetId = folder.items[0].id;
                 
-                let actionButtons = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal(${targetId})"><i class="fas fa-tags"></i> Tag / Extract</button>`;
+                let actionButtons = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${targetId}')"><i class="fas fa-tags"></i> Tag / Extract</button>`;
                 
                 tr.innerHTML = `
                     <td><span style="font-weight:600; color:#222;"><i class="fas fa-folder" style="color:#eab308; margin-right:6px;"></i> ${folder.name}</span></td>
@@ -1459,7 +1459,7 @@
         }
 
         function openItemDetails(id) {
-            const item = allInventory.find(i => i.id === id); if(!item) return;
+            const item = allInventory.find(i => String(i.id) === String(id)); if(!item) return;
             
             let isLoose = item.barcode && item.barcode.startsWith('LOOSE');
             document.getElementById('idmBarcode').innerHTML = isLoose ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
@@ -1520,7 +1520,7 @@
 
                 let actionBtnHTML = '';
                 if(item.barcode && item.barcode.startsWith('LOOSE') || item.category === 'MIX') {
-                     actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal(${item.id})"><i class="fas fa-tags"></i> Tag</button>`;
+                     actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${item.id}')"><i class="fas fa-tags"></i> Tag</button>`;
                 } else {
                      actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
                 }
@@ -1531,13 +1531,13 @@
                 }
                 let subHtml = rawSub ? `<span class="badge badge-silver">${rawSub}</span>` : '-';
                 
-                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})"><div>${displayBc}</div></td><td>${subHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td></tr>`;
+                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails('${item.id}')"><div>${displayBc}</div></td><td>${subHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td></tr>`;
             });
             openModal('detailsModal');
         }
 
         function openTagModal(id) {
-            const item = allInventory.find(i => i.id === id); if(!item) return;
+            const item = allInventory.find(i => String(i.id) === String(id)); if(!item) return;
             document.getElementById('tagSourceId').value = item.id;
             document.getElementById('tagSourceMaxWt').value = item.grossWt||item.weight;
             document.getElementById('tagPurity').value = item.purity; 
@@ -1631,8 +1631,8 @@
         async function confirmTagging() {
             const sum = parseFloat(document.getElementById('tagTotalWt').innerText);
             if(sum<=0) return appAlert("Enter Valid Weights");
-            const sourceId = parseInt(document.getElementById('tagSourceId').value);
-            const item = allInventory.find(i => i.id === sourceId);
+            const sourceId = document.getElementById('tagSourceId').value;
+            const item = allInventory.find(i => String(i.id) === String(sourceId));
             const available = parseFloat(item.grossWt||item.weight);
             if(sum > available+0.01) return appAlert("Weight Exceeds Source");
             
@@ -1723,11 +1723,12 @@
 
             displayItems.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
                 const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
-                const isChecked = removeBatchList.includes(item.id) ? 'checked' : '';
+                const strId = String(item.id);
+                const isChecked = removeBatchList.includes(strId) ? 'checked' : '';
                 
                 listContainer.innerHTML += `
                     <label class="print-item-row" style="cursor:pointer; display:flex;">
-                        <input type="checkbox" class="remove-checkbox" value="${item.id}" ${isChecked} onchange="updateRemoveBatchList(this, ${item.id})">
+                        <input type="checkbox" class="remove-checkbox" value="${strId}" ${isChecked} onchange="updateRemoveBatchList(this, '${strId}')">
                         <div style="flex:1;">
                             <div style="font-weight:700; color:var(--active-red);">${item.barcode}</div>
                             <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${item.purity} | ${gross}g</div>
@@ -1744,10 +1745,11 @@
         }
 
         function updateRemoveBatchList(cb, id) {
+            const strId = String(id);
             if(cb.checked) {
-                if(!removeBatchList.includes(id)) removeBatchList.push(id);
+                if(!removeBatchList.includes(strId)) removeBatchList.push(strId);
             } else {
-                removeBatchList = removeBatchList.filter(i => i !== id);
+                removeBatchList = removeBatchList.filter(i => i !== strId);
             }
             updateSelectedRemoveCount();
         }
@@ -1757,7 +1759,7 @@
             const checkboxes = document.querySelectorAll('.remove-checkbox');
             checkboxes.forEach(cb => {
                 cb.checked = isChecked;
-                updateRemoveBatchList(cb, parseInt(cb.value));
+                updateRemoveBatchList(cb, String(cb.value));
             });
         }
 
@@ -1772,13 +1774,13 @@
                 if(checkedCount < count) {
                     if(!cb.checked) {
                         cb.checked = true;
-                        updateRemoveBatchList(cb, parseInt(cb.value));
+                        updateRemoveBatchList(cb, String(cb.value));
                     }
                     checkedCount++;
                 } else {
                     if(cb.checked) {
                         cb.checked = false;
-                        updateRemoveBatchList(cb, parseInt(cb.value));
+                        updateRemoveBatchList(cb, String(cb.value));
                     }
                 }
             });
@@ -1791,7 +1793,10 @@
         async function confirmBatchRemove() {
             if (removeBatchList.length === 0) return appAlert("Select at least one item to remove.");
             
-            const itemsToRemove = allInventory.filter(i => removeBatchList.includes(i.id));
+            const itemsToRemove = allInventory.filter(i => removeBatchList.includes(String(i.id)));
+            
+            if (itemsToRemove.length === 0) return appAlert("Error: Items could not be identified.");
+
             const remDocNo = 'REM-' + Date.now();
             const dateStr = new Date().toISOString();
             
@@ -1912,7 +1917,7 @@
         // ---------- BASIC DB FUNCTIONS & MISSING BUTTON HANDLERS ----------
 
         async function editItem(id) { 
-            const item = allInventory.find(i=>i.id===id); 
+            const item = allInventory.find(i=>String(i.id)===String(id)); 
             document.getElementById('editId').value = id; 
             document.getElementById('editCategory').value = item.category; 
             document.getElementById('editGross').value = item.grossWt || item.weight || 0; 
