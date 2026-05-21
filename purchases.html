@@ -370,7 +370,7 @@
                         </div>
                         <div class="form-group">
                             <label>Stock Generation Mode</label>
-                            <select id="stockMode">
+                            <select id="stockMode" onchange="generatePieceInputs()">
                                 <option value="individual">Individual Tags (Unique Barcode per Piece)</option>
                                 <option value="bulk">Bulk Stock / Loose (Background Tag)</option>
                             </select>
@@ -380,7 +380,7 @@
                     <div class="grid-3">
                         <div class="form-group">
                             <label>Total Pieces / Qty</label>
-                            <input type="number" id="itemPieces" value="1" min="1" onchange="generatePieceInputs()">
+                            <input type="number" id="itemPieces" value="1" min="1" oninput="generatePieceInputs()">
                         </div>
                         <div class="form-group">
                             <label>Purity</label>
@@ -480,20 +480,19 @@
                     <input type="hidden" id="finalFineWeight">
                 </div>
 
-                <button class="btn-main" onclick="savePurchase()"><i class="fas fa-save"></i> Save Purchase</button>
+                <button id="btnSavePurchase" class="btn-main" onclick="savePurchase()"><i class="fas fa-save"></i> Save Purchase</button>
             </div>
         </div>
     </div>
 
     <div id="barcodeModal" class="modal">
         <div class="modal-content" style="text-align:center; max-width:400px; padding: 40px 30px;">
-            <button class="close-btn" onclick="closeModal('barcodeModal')" style="top: 15px; right: 15px;">&times;</button>
+            <button class="close-btn" onclick="closeModal('barcodeModal')" style="top: 15px; right: 15px; position:absolute;">&times;</button>
             <h3 style="margin-top:0; margin-bottom: 25px; color:#111;"><i class="fas fa-print"></i> Print Tag</h3>
             
-            <div class="barcode-box">
+            <div class="barcode-box" style="border:1px solid #ccc; padding:20px; border-radius:10px; margin-bottom:20px;">
                 <div style="font-weight:800; font-size:1.1rem; color:#222; margin-bottom:15px;">BHARTI JEWELLERS</div>
-                <div class="barcode-bars"></div>
-                <div class="barcode-text" id="printCode" style="margin-bottom:15px;">RNG001</div>
+                <div class="barcode-text" id="printCode" style="margin-bottom:15px; font-size:1.5rem; letter-spacing:2px; font-weight:bold;">RNG001</div>
                 <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:1rem; font-weight:700; color:#444; border-top: 2px dashed #eee; padding-top:15px;">
                     <span id="printWt">0.000g</span>
                     <span id="printPurity">22K</span>
@@ -507,7 +506,7 @@
     <div id="toast">Message Saved!</div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
     <script src="db.js?v=35"></script>
@@ -515,6 +514,7 @@
         // --- HELPERS ---
         function formatInv(id) { return `INV-${String(id).padStart(4, '0')}`; }
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
+        
         function openModal() { 
             document.getElementById('entryModal').classList.add('open'); 
             document.getElementById('entryModal').style.display = 'flex';
@@ -545,6 +545,7 @@
             handlePurchaseCategoryChange(); 
             calcTotals();
         }
+        
         function closeModal(modalId = 'entryModal') { 
             document.getElementById(modalId).classList.remove('open'); 
             document.getElementById(modalId).style.display = 'none'; 
@@ -651,7 +652,7 @@
             const modeEl = document.getElementById('stockMode');
             if (modeEl) {
                 modeEl.value = getCategoryMode(cat);
-                modeEl.disabled = true;
+                modeEl.disabled = true; // Automatically lock Stock Mode based on Category Settings
                 generatePieceInputs();
             }
             
@@ -918,255 +919,270 @@
         }
 
         async function savePurchase() {
-            const mId = document.getElementById('merchantSelect').value;
-            const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
-            
-            const totalGross = parseFloat(document.getElementById('totalGrossWt').value) || 0;
-            const totalStone = parseFloat(document.getElementById('totalStoneWt').value) || 0;
-            const totalMaking = parseFloat(document.getElementById('totalMakingChg').value) || 0;
-            const totalOther = parseFloat(document.getElementById('totalOtherChg').value) || 0;
-            
-            if (!mId) return showToast("Select Merchant", "error");
-            if (!totalGross || totalGross <= 0) return showToast("Enter Valid Weight", "error");
+            try {
+                // Prevent Double Clicks
+                document.getElementById('btnSavePurchase').disabled = true;
 
-            const type = document.getElementById('purchaseType').value;
-            const isUnfixed = (type === 'Unfixed');
-            const date = document.getElementById('purchaseDate').value;
-            const cat = document.getElementById('itemCategory').value;
-            let subCat = document.getElementById('itemSubCat').value.trim();
-            const purity = document.getElementById('itemPurity').value;
-            const mark = document.getElementById('itemMark').value;
-            const rateVal = parseFloat(document.getElementById('metalRate').value) || 0;
-            
-            let finalName = subCat ? subCat : cat;
-            
-            if (!isUnfixed && rateVal <= 0) {
-                return showToast("Please enter a valid Rate for a Fixed Purchase", "error");
-            }
+                const mId = document.getElementById('merchantSelect').value;
+                const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
+                
+                const totalGross = parseFloat(document.getElementById('totalGrossWt').value) || 0;
+                const totalStone = parseFloat(document.getElementById('totalStoneWt').value) || 0;
+                const totalMaking = parseFloat(document.getElementById('totalMakingChg').value) || 0;
+                const totalOther = parseFloat(document.getElementById('totalOtherChg').value) || 0;
+                
+                if (!mId) { document.getElementById('btnSavePurchase').disabled = false; return showToast("Select Merchant", "error"); }
+                if (!totalGross || totalGross <= 0) { document.getElementById('btnSavePurchase').disabled = false; return showToast("Enter Valid Weight", "error"); }
 
-            const totalBill = parseFloat(document.getElementById('finalBillAmount').value) || 0;
-            const paid = parseFloat(document.getElementById('billPaid').value) || 0;
-            const due = totalBill - paid;
-            const fineWt = parseFloat(document.getElementById('finalFineWeight').value) || 0;
-            const totalNet = parseFloat(document.getElementById('totalNet').value) || 0;
-            
-            const payMode = document.getElementById('billPayMode').value || 'Cash';
-            const editId = document.getElementById('editPurchaseId').value;
-
-            let catPrefix = 'ITM';
-            if (cat === 'MIX') catPrefix = 'MIX';
-            else if (cat && cat.length >= 3) catPrefix = cat.substring(0, 3).toUpperCase();
-            else if (cat) catPrefix = cat.toUpperCase();
-
-            // Get Stock Generation Mode directly since it's locked properly
-            const finalMode = document.getElementById('stockMode').value;
-
-            // --- VALIDATION: Prevent Bulk Entry if Item is already tracking as Individual ---
-            if (finalMode === 'bulk' || cat === 'MIX') {
-                const currentInv = await getAllItems('inventory');
-                const hasIndividual = currentInv.some(inv => 
-                    inv.category === cat && 
-                    inv.status === 'stock' && 
-                    (inv.barcode && inv.barcode.trim() !== '' && !inv.barcode.toUpperCase().startsWith('LOOSE') && !inv.barcode.toUpperCase().startsWith('BL'))
-                );
-                if (hasIndividual && cat !== 'MIX') {
-                    return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
+                const type = document.getElementById('purchaseType').value;
+                const isUnfixed = (type === 'Unfixed');
+                const date = document.getElementById('purchaseDate').value;
+                const cat = document.getElementById('itemCategory').value;
+                let subCat = document.getElementById('itemSubCat').value.trim();
+                const purity = document.getElementById('itemPurity').value;
+                const mark = document.getElementById('itemMark').value;
+                const rateVal = parseFloat(document.getElementById('metalRate').value) || 0;
+                
+                let finalName = subCat ? subCat : cat;
+                
+                if (!isUnfixed && rateVal <= 0) {
+                    document.getElementById('btnSavePurchase').disabled = false; 
+                    return showToast("Please enter a valid Rate for a Fixed Purchase", "error");
                 }
-            }
 
-            // 1. Clean up old records for Edit Mode
-            if(editId) {
-                const safeToEdit = await checkInventoryStatus(document.getElementById('oldInvId').value);
-                if(!safeToEdit) return showToast("Cannot Edit: Item has already been Sold or is locked in a Custom Order.", "error");
-                await deletePurchaseInternal(editId, true); 
+                const totalBill = parseFloat(document.getElementById('finalBillAmount').value) || 0;
+                const paid = parseFloat(document.getElementById('billPaid').value) || 0;
+                const due = totalBill - paid;
+                const fineWt = parseFloat(document.getElementById('finalFineWeight').value) || 0;
+                const totalNet = parseFloat(document.getElementById('totalNet').value) || 0;
                 
-                // Cleanup old cashflow entries for this purchase
-                const allCfs = await getAllItems('cashflow');
-                const cfsToDelete = allCfs.filter(f => f.note && (f.note.includes(`PUR-${editId}`) || f.note.includes(`Purchase #${editId}`)));
-                for(let f of cfsToDelete) {
-                    await deleteItem('cashflow', f.id);
+                const payMode = document.getElementById('billPayMode').value || 'Cash';
+                const editId = document.getElementById('editPurchaseId').value;
+
+                let catPrefix = 'ITM';
+                if (cat === 'MIX') catPrefix = 'MIX';
+                else if (cat && cat.length >= 3) catPrefix = cat.substring(0, 3).toUpperCase();
+                else if (cat) catPrefix = cat.toUpperCase();
+
+                const finalMode = document.getElementById('stockMode').value;
+
+                // --- VALIDATION: Prevent Bulk Entry if Item is already tracking as Individual ---
+                if (finalMode === 'bulk' || cat === 'MIX') {
+                    const currentInv = await getAllItems('inventory');
+                    const hasIndividual = currentInv.some(inv => 
+                        inv.category === cat && 
+                        inv.status === 'stock' && 
+                        (inv.barcode && inv.barcode.trim() !== '' && !inv.barcode.toUpperCase().startsWith('LOOSE') && !inv.barcode.toUpperCase().startsWith('BL'))
+                    );
+                    if (hasIndividual && cat !== 'MIX') {
+                        document.getElementById('btnSavePurchase').disabled = false;
+                        return showToast("This item already exists as Unique stock. Cannot mix Bulk and Individual items of same category!", "error");
+                    }
                 }
-            }
-            
-            let itemDetailsArray = [];
-            const isSilv = checkIsSilver(purity);
-            
-            // BULK GENERATION (Loose Items - Handled correctly with LOOSE- tag to match inventory page)
-            if (finalMode === 'bulk') {
-                const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                const looseBarcode = `LOOSE-${catPrefix}-${cleanPurity}`;
+
+                // 1. Clean up old records for Edit Mode
+                if(editId) {
+                    const safeToEdit = await checkInventoryStatus(document.getElementById('oldInvId').value);
+                    if(!safeToEdit) {
+                        document.getElementById('btnSavePurchase').disabled = false;
+                        return showToast("Cannot Edit: Item has already been Sold or is locked in a Custom Order.", "error");
+                    }
+                    await deletePurchaseInternal(editId, true); 
+                    
+                    // Cleanup old cashflow entries for this purchase
+                    const allCfs = await getAllItems('cashflow');
+                    const cfsToDelete = allCfs.filter(f => f.note && (f.note.includes(`PUR-${editId}`) || f.note.includes(`Purchase #${editId}`)));
+                    for(let f of cfsToDelete) {
+                        await deleteItem('cashflow', f.id);
+                    }
+                }
                 
-                let existingItem = null;
-                const invList = await getAllItems('inventory');
-                existingItem = invList.find(i => i.barcode === looseBarcode && i.purity === purity && i.status === 'stock');
+                let itemDetailsArray = [];
+                const isSilv = checkIsSilver(purity);
                 
-                let invId = null;
-                if(existingItem) {
-                    existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + totalGross).toFixed(3));
-                    existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) + totalStone).toFixed(3));
-                    existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + totalNet).toFixed(3));
-                    existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + fineWt).toFixed(3));
-                    existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
-                    await updateItem('inventory', existingItem);
-                    invId = existingItem.id;
-                    itemDetailsArray.push(existingItem);
+                // BULK GENERATION (Loose Items)
+                if (finalMode === 'bulk') {
+                    const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                    const looseBarcode = `LOOSE-${catPrefix}-${cleanPurity}`;
+                    
+                    let existingItem = null;
+                    const invList = await getAllItems('inventory');
+                    existingItem = invList.find(i => i.barcode === looseBarcode && i.purity === purity && i.status === 'stock');
+                    
+                    let invId = null;
+                    if(existingItem) {
+                        existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + totalGross).toFixed(3));
+                        existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) + totalStone).toFixed(3));
+                        existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + totalNet).toFixed(3));
+                        existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + fineWt).toFixed(3));
+                        existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
+                        await updateItem('inventory', existingItem);
+                        invId = existingItem.id;
+                        itemDetailsArray.push(existingItem);
+                    } else {
+                        const itemData = {
+                            barcode: looseBarcode,
+                            merchantId: mId,
+                            purchaseDate: date,
+                            category: cat === 'MIX' ? 'MIX' : cat,
+                            name: pieces > 1 ? `Loose / Bulk ${finalName} (${purity})` : `Loose ${finalName} (${purity})`,
+                            purity: purity,
+                            mark: mark,
+                            pieces: pieces, 
+                            grossWt: totalGross, 
+                            stoneWt: totalStone,
+                            netWt: totalNet,
+                            fineWt: fineWt, 
+                            wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
+                            wastageMode: document.getElementById('wastageMode').value,
+                            rate: isUnfixed ? 0 : rateVal,
+                            making: totalMaking,
+                            other: totalOther,
+                            status: 'stock',
+                            source: 'purchase',
+                            addedDate: new Date().toISOString()
+                        };
+                        invId = await addItem('inventory', itemData);
+                        itemData.id = invId; 
+                        itemDetailsArray.push(itemData);
+                    }
+                } 
+                // INDIVIDUAL PIECE GENERATION (Unique Tags)
+                else {
+                    const makingPP = totalMaking / pieces;
+                    const otherPP = totalOther / pieces;
+                    
+                    const wastMode = document.getElementById('wastageMode').value;
+                    const wastValInput = parseFloat(document.getElementById('wastageVal').value) || 0;
+                    const wastValPP = wastMode === 'pct' ? wastValInput : (wastValInput / pieces);
+
+                    const grossInputs = document.querySelectorAll('.piece-gross');
+                    const stoneInputs = document.querySelectorAll('.piece-stone');
+
+                    for(let i=0; i<pieces; i++) {
+                        let grossPP = 0;
+                        let stonePP = 0;
+                        
+                        if (pieces === 1) {
+                            grossPP = totalGross;
+                            stonePP = totalStone;
+                        } else {
+                            grossPP = parseFloat(grossInputs[i]?.value) || 0;
+                            stonePP = parseFloat(stoneInputs[i]?.value) || 0;
+                        }
+                        
+                        if (grossPP <= 0) continue;
+
+                        let barcode = '';
+                        if (isSilv) {
+                             // Silver Individual Tags - e.g. SPAY0001
+                             barcode = await generateCustomBarcode('S' + catPrefix);
+                        } else {
+                             // Gold Individual Tags
+                             barcode = await getNewBarcode(catPrefix);
+                        }
+
+                        const npp = Math.max(0, grossPP - stonePP);
+                        
+                        const singleWastage = wastMode === 'pct' ? (npp * wastValInput / 100) : wastValPP;
+                        const singleFine = (npp * getPurityFactor(purity)) + singleWastage;
+
+                        const itemData = {
+                            barcode: barcode,
+                            merchantId: mId,
+                            purchaseDate: date,
+                            category: cat === 'MIX' ? 'MIX' : cat,
+                            name: pieces > 1 ? `${finalName} ${i+1}` : finalName,
+                            purity: purity,
+                            mark: mark,
+                            pieces: 1, 
+                            grossWt: grossPP,
+                            stoneWt: stonePP,
+                            netWt: npp,
+                            fineWt: singleFine, 
+                            wastageVal: wastValInput, 
+                            wastageMode: wastMode,
+                            rate: isUnfixed ? 0 : rateVal,
+                            making: makingPP,
+                            other: otherPP,
+                            status: 'stock',
+                            source: 'purchase',
+                            addedDate: new Date().toISOString()
+                        };
+                        const invId = await addItem('inventory', itemData);
+                        itemData.id = invId; 
+                        itemDetailsArray.push(itemData);
+                    }
+                }
+
+                const purchaseData = {
+                    merchantId: mId,
+                    date: date,
+                    type: type,
+                    category: cat,
+                    totalPieces: pieces,
+                    totalWeight: totalGross,
+                    totalStoneWeight: totalStone,
+                    totalFineWeight: fineWt,
+                    totalAmount: totalBill,
+                    paidAmount: paid,
+                    paymentMode: payMode, 
+                    dueAmount: due,
+                    totalMaking: totalMaking,
+                    totalOther: totalOther,
+                    wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
+                    wastageMode: document.getElementById('wastageMode').value,
+                    itemDetails: itemDetailsArray 
+                };
+
+                // 2. Save Purchase
+                let actualId = editId ? parseInt(editId) : null;
+                if (actualId) {
+                    purchaseData.id = actualId;
+                    await addItem('purchases', purchaseData);
                 } else {
-                    const itemData = {
-                        barcode: looseBarcode,
-                        merchantId: mId,
-                        purchaseDate: date,
-                        category: cat === 'MIX' ? 'MIX' : cat,
-                        name: pieces > 1 ? `Loose / Bulk ${finalName} (${purity})` : `Loose ${finalName} (${purity})`,
-                        purity: purity,
-                        mark: mark,
-                        pieces: pieces, 
-                        grossWt: totalGross, 
-                        stoneWt: totalStone,
-                        netWt: totalNet,
-                        fineWt: fineWt, 
-                        wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
-                        wastageMode: document.getElementById('wastageMode').value,
-                        rate: isUnfixed ? 0 : rateVal,
-                        making: totalMaking,
-                        other: totalOther,
-                        status: 'stock',
-                        source: 'purchase',
-                        addedDate: new Date().toISOString()
-                    };
-                    invId = await addItem('inventory', itemData);
-                    itemData.id = invId; 
-                    itemDetailsArray.push(itemData);
+                    actualId = await addItem('purchases', purchaseData);
                 }
-            } 
-            // INDIVIDUAL PIECE GENERATION (Unique Tags)
-            else {
-                const makingPP = totalMaking / pieces;
-                const otherPP = totalOther / pieces;
+
+                // 3. Update Merchant Balances
+                const db = await dbPromise;
+                const tx = db.transaction('merchants', 'readwrite');
+                const store = tx.objectStore('merchants');
+                store.get(parseInt(mId)).onsuccess = (e) => {
+                    const m = e.target.result;
+                    if(m) {
+                        if (isUnfixed) {
+                            m.goldBalance = (m.goldBalance || 0) + fineWt;
+                            m.balance = (m.balance || 0) - paid;
+                        } else {
+                            m.balance = (m.balance || 0) + due;
+                        }
+                        store.put(m);
+                    }
+                };
+
+                // 4. Cashbook Integration
+                if(paid > 0) {
+                     const mName = document.getElementById('merchantSelect').options[document.getElementById('merchantSelect').selectedIndex].text;
+                     await addItem('cashflow', {
+                         date: date, type: 'OUT', mode: payMode, 
+                         category: isUnfixed ? 'Merchant Advance' : 'Purchase Payment', amount: paid, 
+                         note: `Payment for PUR-${actualId} to ${mName}` 
+                     });
+                }
+
+                allInventoryData = await getAllItems('inventory'); // Reload inventory cache after save
                 
-                const wastMode = document.getElementById('wastageMode').value;
-                const wastValInput = parseFloat(document.getElementById('wastageVal').value) || 0;
-                const wastValPP = wastMode === 'pct' ? wastValInput : (wastValInput / pieces);
-
-                const grossInputs = document.querySelectorAll('.piece-gross');
-                const stoneInputs = document.querySelectorAll('.piece-stone');
-
-                for(let i=0; i<pieces; i++) {
-                    let grossPP = 0;
-                    let stonePP = 0;
-                    
-                    if (pieces === 1) {
-                        grossPP = totalGross;
-                        stonePP = totalStone;
-                    } else {
-                        grossPP = parseFloat(grossInputs[i]?.value) || 0;
-                        stonePP = parseFloat(stoneInputs[i]?.value) || 0;
-                    }
-                    
-                    if (grossPP <= 0) continue;
-
-                    let barcode = '';
-                    if (isSilv) {
-                         // Silver Individual Tags - e.g. SPAY0001
-                         barcode = await generateCustomBarcode('S' + catPrefix);
-                    } else {
-                         // Gold Individual Tags
-                         barcode = await getNewBarcode(catPrefix);
-                    }
-
-                    const npp = Math.max(0, grossPP - stonePP);
-                    
-                    const singleWastage = wastMode === 'pct' ? (npp * wastValInput / 100) : wastValPP;
-                    const singleFine = (npp * getPurityFactor(purity)) + singleWastage;
-
-                    const itemData = {
-                        barcode: barcode,
-                        merchantId: mId,
-                        purchaseDate: date,
-                        category: cat === 'MIX' ? 'MIX' : cat,
-                        name: pieces > 1 ? `${finalName} ${i+1}` : finalName,
-                        purity: purity,
-                        mark: mark,
-                        pieces: 1, 
-                        grossWt: grossPP,
-                        stoneWt: stonePP,
-                        netWt: npp,
-                        fineWt: singleFine, 
-                        wastageVal: wastValInput, 
-                        wastageMode: wastMode,
-                        rate: isUnfixed ? 0 : rateVal,
-                        making: makingPP,
-                        other: otherPP,
-                        status: 'stock',
-                        source: 'purchase',
-                        addedDate: new Date().toISOString()
-                    };
-                    const invId = await addItem('inventory', itemData);
-                    itemData.id = invId; 
-                    itemDetailsArray.push(itemData);
-                }
+                showToast(editId ? "Purchase Updated Successfully!" : "Purchase Saved & Stock Updated!", "success");
+                closeModal('entryModal');
+                loadHistory();
+                
+            } catch (error) {
+                console.error("Save Purchase Error: ", error);
+                showToast("Error saving purchase. Check console.", "error");
+            } finally {
+                document.getElementById('btnSavePurchase').disabled = false;
             }
-
-            const purchaseData = {
-                merchantId: mId,
-                date: date,
-                type: type,
-                category: cat,
-                totalPieces: pieces,
-                totalWeight: totalGross,
-                totalStoneWeight: totalStone,
-                totalFineWeight: fineWt,
-                totalAmount: totalBill,
-                paidAmount: paid,
-                paymentMode: payMode, 
-                dueAmount: due,
-                totalMaking: totalMaking,
-                totalOther: totalOther,
-                wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
-                wastageMode: document.getElementById('wastageMode').value,
-                itemDetails: itemDetailsArray 
-            };
-
-            // 2. Save Purchase
-            let actualId = editId ? parseInt(editId) : null;
-            if (actualId) {
-                purchaseData.id = actualId;
-                await addItem('purchases', purchaseData);
-            } else {
-                actualId = await addItem('purchases', purchaseData);
-            }
-
-            // 3. Update Merchant Balances
-            const db = await dbPromise;
-            const tx = db.transaction('merchants', 'readwrite');
-            const store = tx.objectStore('merchants');
-            store.get(parseInt(mId)).onsuccess = (e) => {
-                const m = e.target.result;
-                if(m) {
-                    if (isUnfixed) {
-                        m.goldBalance = (m.goldBalance || 0) + fineWt;
-                        m.balance = (m.balance || 0) - paid;
-                    } else {
-                        m.balance = (m.balance || 0) + due;
-                    }
-                    store.put(m);
-                }
-            };
-
-            // 4. Cashbook Integration - Flawless Routing
-            if(paid > 0) {
-                 const mName = document.getElementById('merchantSelect').options[document.getElementById('merchantSelect').selectedIndex].text;
-                 await addItem('cashflow', {
-                     date: date, type: 'OUT', mode: payMode, 
-                     category: isUnfixed ? 'Merchant Advance' : 'Purchase Payment', amount: paid, 
-                     note: `Payment for PUR-${actualId} to ${mName}` 
-                 });
-            }
-
-            allInventoryData = await getAllItems('inventory'); // Reload inventory cache after save
-            
-            showToast(editId ? "Purchase Updated Successfully!" : "Purchase Saved & Stock Updated!", "success");
-            closeModal('entryModal');
-            loadHistory();
         }
 
         // --- DASHBOARD & HISTORY RENDERING ---
@@ -1362,112 +1378,6 @@
             return true;
         }
 
-        async function editPurchase(id) {
-            const p = await getItem('purchases', id);
-            if(!p) return;
-            
-            // For individual tags, we must check if ALL pieces are still in stock before edit is allowed
-            let isSafe = true;
-            if (p.itemDetails && Array.isArray(p.itemDetails)) {
-                for (let dt of p.itemDetails) {
-                    const safe = await checkInventoryStatus(dt.id);
-                    if (!safe) { isSafe = false; break; }
-                }
-            }
-            
-            if(!isSafe) return showToast("Cannot Edit: One or more items have already been Sold or are locked in a Custom Order.", "error");
-
-            document.getElementById('entryModal').classList.add('open'); 
-            document.getElementById('entryModal').style.display = 'flex';
-            document.getElementById('modalTitle').innerHTML = `<i class="fas fa-edit"></i> Edit Purchase #${id}`;
-            document.getElementById('editPurchaseId').value = id;
-            
-            document.getElementById('oldDueAmount').value = p.dueAmount || 0;
-            document.getElementById('oldFineWeight').value = p.totalFineWeight || 0;
-            document.getElementById('oldType').value = p.type;
-            document.getElementById('oldPaid').value = p.paidAmount || 0;
-            // Note: oldInvId is just kept for backwards compatibility of single piece edits
-            document.getElementById('oldInvId').value = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0].id : '';
-
-            document.getElementById('merchantSelect').value = p.merchantId;
-            document.getElementById('purchaseDate').value = p.date.split('T')[0];
-            document.getElementById('purchaseType').value = p.type;
-            toggleTypeUI();
-
-            if(p.itemDetails && p.itemDetails[0]) {
-                const item = p.itemDetails[0];
-                
-                const isSilv = checkIsSilver(item.purity);
-                document.getElementById('itemMetal').value = isSilv ? 'Silver' : 'Gold';
-                
-                populateCategoryDropdown();
-                populatePurityDropdowns();
-
-                document.getElementById('itemCategory').value = item.category;
-                document.getElementById('itemPurity').value = item.purity;
-                document.getElementById('itemPieces').value = p.totalPieces || 1;
-                
-                // Extract Sub-category if any
-                let rawSub = "";
-                if (item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) {
-                    rawSub = item.name.replace(/\s+\d+$/, '').trim();
-                }
-                document.getElementById('itemSubCat').value = rawSub;
-                
-                // Detect Stock Mode
-                const isBulkMode = !item.barcode || item.barcode === '' || (item.barcode && (item.barcode.toUpperCase().startsWith('BL') || item.barcode.toUpperCase().startsWith('LOOSE') || item.barcode.toUpperCase().includes('MIX') || item.barcode.toUpperCase().includes('BULK'))) || item.category === 'MIX' || (item.name && item.name.includes('Loose'));
-                
-                if (isBulkMode) {
-                    document.getElementById('stockMode').value = 'bulk';
-                    document.getElementById('totalGrossWt').value = p.totalWeight !== undefined ? p.totalWeight : 0;
-                    document.getElementById('totalStoneWt').value = p.totalStoneWeight !== undefined ? p.totalStoneWeight : 0;
-                    generatePieceInputs();
-                } else {
-                    document.getElementById('stockMode').value = 'individual';
-                    generatePieceInputs(); 
-                    
-                    // Now pre-fill the individual weights from p.itemDetails array
-                    if ((p.totalPieces || 1) > 1) {
-                        const grossInputs = document.querySelectorAll('.piece-gross');
-                        const stoneInputs = document.querySelectorAll('.piece-stone');
-                        p.itemDetails.forEach((dt, idx) => {
-                            if (grossInputs[idx]) grossInputs[idx].value = dt.grossWt || dt.weight || 0;
-                            if (stoneInputs[idx]) stoneInputs[idx].value = dt.stoneWt || 0;
-                        });
-                        sumPieceWeights();
-                    } else {
-                        // If only 1 piece, set master weights
-                        document.getElementById('totalGrossWt').value = p.itemDetails[0].grossWt || p.itemDetails[0].weight || 0;
-                        document.getElementById('totalStoneWt').value = p.itemDetails[0].stoneWt || 0;
-                        calcTotals();
-                    }
-                }
-                
-                document.getElementById('stockMode').disabled = true; // Lock on edit view
-
-                document.getElementById('wastageVal').value = p.wastageVal !== undefined ? p.wastageVal : 0;
-                document.getElementById('wastageMode').value = p.wastageMode || 'pct';
-                document.getElementById('itemMark').value = item.mark || '';
-                
-                if(p.type === 'Fixed') {
-                    document.getElementById('metalRate').value = item.rate;
-                    const tMaking = p.totalMaking !== undefined ? p.totalMaking : (p.makingPerPiece ? p.makingPerPiece * (p.totalPieces||1) : 0);
-                    const tOther = p.totalOther !== undefined ? p.totalOther : (p.otherPerPiece ? p.otherPerPiece * (p.totalPieces||1) : 0);
-                    document.getElementById('totalMakingChg').value = tMaking;
-                    document.getElementById('totalOtherChg').value = tOther;
-                }
-            }
-            document.getElementById('billPaid').value = p.paidAmount;
-            
-            if (p.paymentMode) {
-                document.getElementById('billPayMode').value = p.paymentMode; 
-            } else {
-                document.getElementById('billPayMode').value = 'Cash';
-            }
-            
-            calcTotals();
-        }
-
         async function deletePurchaseInternal(id, isSilent) {
              const p = await getItem('purchases', parseInt(id));
              if(!p) return;
@@ -1579,15 +1489,6 @@
             document.getElementById('oldPaid').value = p.paidAmount;
 
             await deletePurchaseInternal(id, false);
-        }
-
-        // --- BARCODE PRINT MODAL ---
-        function viewBarcode(code, wt, purity) {
-            document.getElementById('printCode').innerText = code;
-            document.getElementById('printWt').innerText = parseFloat(wt).toFixed(3) + "g";
-            document.getElementById('printPurity').innerText = purity;
-            
-            document.getElementById('barcodeModal').style.display = 'flex';
         }
     </script>
 </body>
