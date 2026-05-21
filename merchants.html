@@ -251,7 +251,6 @@
         <div class="fab" onclick="openAddModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- ADD / EDIT MODAL -->
     <div id="saveModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('saveModal')">&times;</button>
@@ -303,7 +302,6 @@
         </div>
     </div>
 
-    <!-- PAYMENT / SETTLEMENT MODAL -->
     <div id="payModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('payModal')">&times;</button>
@@ -391,7 +389,6 @@
         </div>
     </div>
 
-    <!-- REPORT / LEDGER MODAL -->
     <div id="reportModal" class="modal" style="display:none;">
         <button class="close-btn" onclick="closeModal('reportModal')" style="position:fixed; top:25px; right:30px; z-index:3000;"><i class="fas fa-times"></i></button>
         <div class="modal-content large">
@@ -662,31 +659,15 @@
             if (!name) return showToast("Name is required", "error");
 
             if (id) {
-                // FIX: Wrap in a Promise so we await the full transaction including nested get+put
-                await new Promise((resolve, reject) => {
-                    dbPromise.then(db => {
-                        const tx = db.transaction('merchants', 'readwrite');
-                        const store = tx.objectStore('merchants');
-
-                        const getReq = store.get(parseInt(id));
-
-                        getReq.onsuccess = (e) => {
-                            const data = e.target.result;
-                            if (data) {
-                                data.name = name;
-                                data.mobile = mobile;
-                                data.category = category;
-                                data.balance = balance;
-                                data.goldBalance = goldBalance;
-                                data.silverBalance = silverBalance;
-                                store.put(data);
-                            }
-                        };
-
-                        getReq.onerror = (e) => reject(e.target.error);
-                        tx.oncomplete = () => resolve();
-                        tx.onerror = (e) => reject(e.target.error);
-                    }).catch(reject);
+                // FIXED: Used Firebase updateItem instead of db.transaction
+                await updateItem('merchants', { 
+                    id: id, 
+                    name: name, 
+                    mobile: mobile, 
+                    category: category, 
+                    balance: balance, 
+                    goldBalance: goldBalance, 
+                    silverBalance: silverBalance 
                 });
 
                 closeModal('saveModal');
@@ -701,23 +682,16 @@
             }
         }
 
-        // ─── DELETE MERCHANT ───────────────────────────────────────────────────
+        // ─── DELETE MERCHANT (BUG FIXED) ───────────────────────────────────────
         async function deleteMerchant(id) {
-            const numId = parseInt(id);
+            const numId = parseInt(id) || id;
             const orders = await getAllItems('orders');
             const activeOrder = orders.find(o => o.merchantId == numId && o.status === 'in_progress');
             if (activeOrder) return alert("Cannot delete! This merchant has active Custom Orders (Jobwork) pending.");
 
             if (confirm("DANGER: Are you sure you want to permanently delete this party?")) {
-                await new Promise((resolve, reject) => {
-                    dbPromise.then(db => {
-                        const tx = db.transaction('merchants', 'readwrite');
-                        tx.objectStore('merchants').delete(numId);
-                        tx.oncomplete = () => resolve();
-                        tx.onerror = (e) => reject(e.target.error);
-                    }).catch(reject);
-                });
-
+                // FIXED: Used Firebase deleteItem instead of db.transaction
+                await deleteItem('merchants', numId);
                 showToast("Merchant Deleted", "success");
                 loadMerchants();
             }
@@ -766,7 +740,8 @@
                 let fineWt = item.fineWt;
                 if (!fineWt) {
                     const n = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
-                    const factor = getPurityFactor(item.purity);
+                    // Assuming getPurityFactor is globally available or in db.js
+                    const factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
                     fineWt = n * factor;
                 }
                 let origin = "Shop Stock";
@@ -910,7 +885,7 @@
 
         // ─── PAY MERCHANT (BUG FIXED) ──────────────────────────────────────────
         async function payMerchant() {
-            const id = parseInt(document.getElementById('payId').value);
+            const id = document.getElementById('payId').value;
             const amt = parseFloat(document.getElementById('payAmount').value) || 0;
             const payMode = document.getElementById('payModeSelect').value || 'Cash';
             const gold = parseFloat(document.getElementById('payGold').value) || 0;
@@ -928,7 +903,7 @@
 
             let inventoryId = null, inventoryBarcode = null;
             if (direction === 'OUT' && inventorySelect.value) {
-                inventoryId = parseInt(inventorySelect.value);
+                inventoryId = inventorySelect.value;
                 inventoryBarcode = inventorySelect.options[inventorySelect.selectedIndex].dataset.barcode;
             }
 
@@ -954,71 +929,69 @@
                 });
             }
 
-            // FIX: Wrap in Promise for proper async transaction handling
-            await new Promise((resolve, reject) => {
-                dbPromise.then(db => {
-                    const tx = db.transaction(['merchants', 'inventory', 'purchases'], 'readwrite');
-                    const merchantStore = tx.objectStore('merchants');
-                    const invStore = tx.objectStore('inventory');
-                    const pStore = tx.objectStore('purchases');
-
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = (e) => reject(e.target.error);
-
-                    if (inventoryId && direction === 'OUT') {
-                        invStore.get(inventoryId).onsuccess = (e) => {
-                            const item = e.target.result;
-                            if (item) {
-                                let itemFine = parseFloat(item.fineWt);
-                                if (isNaN(itemFine)) itemFine = (parseFloat(item.netWt || item.weight) || 0) * getPurityFactor(item.purity);
-                                const transferWt = parseFloat(gold);
-                                if (transferWt >= itemFine - 0.005) {
-                                    item.status = 'sold';
-                                    item.soldDate = new Date().toISOString();
-                                    item.note = `Transferred to Merchant (ID #${id})`;
-                                } else {
-                                    const ratio = (itemFine - transferWt) / itemFine;
-                                    item.fineWt = itemFine - transferWt;
-                                    item.netWt = parseFloat((parseFloat(item.netWt || 0) * ratio).toFixed(3));
-                                    item.grossWt = parseFloat((parseFloat(item.grossWt || 0) * ratio).toFixed(3));
-                                    item.note = item.note ? item.note + ' | Partial Transfer' : 'Partial Transfer';
-                                }
-                                invStore.put(item);
-                            }
-                        };
-                    }
-
-                    if (selectedPurchaseId && actualCashImpact > 0) {
-                        pStore.get(parseInt(selectedPurchaseId)).onsuccess = (e) => {
-                            const pRec = e.target.result;
-                            if (pRec && pRec.type === 'Fixed') {
-                                if (direction === 'OUT') {
-                                    pRec.paidAmount = (parseFloat(pRec.paidAmount) || 0) + actualCashImpact;
-                                    pRec.dueAmount = Math.max(0, parseFloat(pRec.totalAmount) - pRec.paidAmount);
-                                } else if (direction === 'IN') {
-                                    pRec.paidAmount = Math.max(0, (parseFloat(pRec.paidAmount) || 0) - actualCashImpact);
-                                    pRec.dueAmount = parseFloat(pRec.totalAmount) - pRec.paidAmount;
-                                }
-                                pStore.put(pRec);
-                            }
-                        };
-                    }
-
-                    merchantStore.get(id).onsuccess = (e) => {
-                        const data = e.target.result;
-                        if (data) {
-                            data.balance = (parseFloat(data.balance) || 0) + (actualCashImpact * mult);
-                            if (metal === 'Silver') data.silverBalance = (parseFloat(data.silverBalance) || 0) + (actualGoldImpact * mult);
-                            else data.goldBalance = (parseFloat(data.goldBalance) || 0) + (actualGoldImpact * mult);
-                            merchantStore.put(data);
+            // FIXED: Replaced complex IndexedDB transaction with sequential Firebase updates
+            try {
+                // 1. Update Inventory if applicable
+                if (inventoryId && direction === 'OUT') {
+                    const item = await getItem('inventory', inventoryId);
+                    if (item) {
+                        let itemFine = parseFloat(item.fineWt);
+                        if (isNaN(itemFine)) {
+                            const factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
+                            itemFine = (parseFloat(item.netWt || item.weight) || 0) * factor;
                         }
-                    };
-                }).catch(reject);
-            });
+                        const transferWt = parseFloat(gold);
+                        
+                        if (transferWt >= itemFine - 0.005) {
+                            item.status = 'sold';
+                            item.soldDate = new Date().toISOString();
+                            item.note = `Transferred to Merchant (ID #${id})`;
+                        } else {
+                            const ratio = (itemFine - transferWt) / itemFine;
+                            item.fineWt = itemFine - transferWt;
+                            item.netWt = parseFloat((parseFloat(item.netWt || 0) * ratio).toFixed(3));
+                            item.grossWt = parseFloat((parseFloat(item.grossWt || 0) * ratio).toFixed(3));
+                            item.note = item.note ? item.note + ' | Partial Transfer' : 'Partial Transfer';
+                        }
+                        await updateItem('inventory', item);
+                    }
+                }
 
-            showToast("Settlement Recorded successfully!", "success");
-            closeModal('payModal');
-            loadMerchants();
+                // 2. Update Purchase if linked
+                if (selectedPurchaseId && actualCashImpact > 0) {
+                    const pRec = await getItem('purchases', selectedPurchaseId);
+                    if (pRec && pRec.type === 'Fixed') {
+                        if (direction === 'OUT') {
+                            pRec.paidAmount = (parseFloat(pRec.paidAmount) || 0) + actualCashImpact;
+                            pRec.dueAmount = Math.max(0, parseFloat(pRec.totalAmount) - pRec.paidAmount);
+                        } else if (direction === 'IN') {
+                            pRec.paidAmount = Math.max(0, (parseFloat(pRec.paidAmount) || 0) - actualCashImpact);
+                            pRec.dueAmount = parseFloat(pRec.totalAmount) - pRec.paidAmount;
+                        }
+                        await updateItem('purchases', pRec);
+                    }
+                }
+
+                // 3. Update Merchant Balances
+                const merchantData = await getItem('merchants', id);
+                if (merchantData) {
+                    merchantData.balance = (parseFloat(merchantData.balance) || 0) + (actualCashImpact * mult);
+                    if (metal === 'Silver') {
+                        merchantData.silverBalance = (parseFloat(merchantData.silverBalance) || 0) + (actualGoldImpact * mult);
+                    } else {
+                        merchantData.goldBalance = (parseFloat(merchantData.goldBalance) || 0) + (actualGoldImpact * mult);
+                    }
+                    await updateItem('merchants', merchantData);
+                }
+
+                showToast("Settlement Recorded successfully!", "success");
+                closeModal('payModal');
+                loadMerchants();
+
+            } catch (error) {
+                console.error("Error updating settlement records:", error);
+                showToast("Error updating records. Please try again.", "error");
+            }
         }
 
         // ─── GENERATE LEDGER REPORT ────────────────────────────────────────────
