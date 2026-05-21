@@ -28,10 +28,12 @@
         .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
         .sidebar-drawer.open { left: 0; }
         .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
-        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 12px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; transition: 0.2s; }
         .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
         .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
         .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-footer { padding: 15px; text-align: center; border-top: 1px solid var(--border-color); color: #666; font-size: 0.85rem; background: #0a0a0a; }
+        
         .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
         .sidebar-overlay.show { display: block; }
 
@@ -53,7 +55,7 @@
         .section-box { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); display: flex; flex-direction: column; margin-bottom: 20px;}
         .section-title { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;}
         
-        /* --- MINI DAYBOOK (आज का हिसाब - छोटी चिट्ठी) --- */
+        /* --- MINI DAYBOOK (आज का हिसाब) --- */
         .mini-daybook { display: flex; gap: 15px; }
         @media (max-width: 600px) { .mini-daybook { flex-direction: column; } }
         
@@ -127,15 +129,30 @@
         </div>
     </header>
 
+    <!-- FULL SIDEBAR RESTORED -->
     <aside id="app-sidebar" class="sidebar-drawer">
         <ul class="sidebar-menu">
             <li><a href="index.html" class="active"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
             <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
             <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
-            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="repairs.html" ><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
             <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
+        <div class="sidebar-footer">
+            App Version 2.1 <br> <span style="color:#C5A059">● Online Secure</span>
+        </div>
     </aside>
 
     <div class="dashboard-container">
@@ -158,7 +175,6 @@
                 <div class="db-col">
                     <div class="db-header db-in-header">आया (CREDIT)</div>
                     <ul class="db-list" id="daybook-in">
-                        <!-- JS Will Populate This -->
                         <li style="justify-content:center; color:#999;">डेटा लोड हो रहा है...</li>
                     </ul>
                     <div class="db-total">
@@ -171,7 +187,6 @@
                 <div class="db-col">
                     <div class="db-header db-out-header">गया (DEBIT)</div>
                     <ul class="db-list" id="daybook-out">
-                        <!-- JS Will Populate This -->
                         <li style="justify-content:center; color:#999;">डेटा लोड हो रहा है...</li>
                     </ul>
                     <div class="db-total">
@@ -265,7 +280,7 @@
                 sales = await getAllItems('sales');
                 customers = await getAllItems('customers');
                 orders = await getAllItems('orders');
-                try { cashflow = await getAllItems('cashflow'); } catch(e){} // If cashflow table exists
+                try { cashflow = await getAllItems('cashflow'); } catch(e){} 
             } catch(error) { console.error("Error fetching data:", error); }
 
             // ==========================================
@@ -281,7 +296,6 @@
             todaySales.forEach(s => {
                 let paid = (s.grandTotal || 0) - (s.pendingAmount || 0);
                 if (paid > 0) {
-                    // Minify item name (eg: "RING (5g)")
                     let itemName = "Sale";
                     if(s.items && s.items.length > 0) {
                         itemName = s.items[0].name;
