@@ -36,10 +36,11 @@
         /* --- ORIGINAL STYLES --- */
         .master-container { padding: 15px; max-width: 1100px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px;}
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
         .dashboard-title { margin: 0; color: #111; font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;}
         
-        .header-actions { display: flex; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
+        .date-input { border: 2px solid #C5A059; padding: 8px 12px; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.95rem; outline: none; background: #fdfdfd;}
         .refresh-btn { background: #111; color: #C5A059; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .refresh-btn:hover { background: #000; transform: scale(1.02); }
         .print-btn { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
@@ -172,10 +173,12 @@
 <div class="master-container">
     
     <div class="dashboard-header">
-        <h2 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel (Cash)</h2>
+        <h2 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel</h2>
         <div class="header-actions">
+            <input type="date" id="selectedDate" class="date-input" onchange="updateDashboardAndLogs()" title="Select Date for Rojmel">
+            
             <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
-            <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button class="refresh-btn" onclick="updateDashboardAndLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
         </div>
     </div>
 
@@ -447,6 +450,11 @@
     }
 
     window.onload = async function() {
+        // SET DEFAULT DATE TO TODAY ON LOAD
+        let dateEl = document.getElementById('selectedDate');
+        if(!dateEl.value) {
+            dateEl.valueAsDate = new Date();
+        }
         try {
             allCustomers = await safeGetAll('customers');
             allMerchants = await safeGetAll('merchants');
@@ -457,7 +465,8 @@
     // --- 🔥 MASTER ROJMEL & METAL ENGINE ---
     async function updateDashboardAndLogs() {
         try {
-            let today = new Date().toISOString().split('T')[0];
+            let dateEl = document.getElementById('selectedDate');
+            let today = dateEl.value || new Date().toISOString().split('T')[0];
 
             // Cash Variables
             let openCash = 0, openBank = 0;
@@ -726,6 +735,14 @@
             let closingOld = openOld + todayOldIn - todayOldOut;
             let closingMix = openMix + todayMixIn - todayMixOut;
 
+            // --- INVENTORY ACTUAL STOCK CALCULATION FOR DISCREPANCY CHECK ---
+            let liveInventoryStockNet = 0;
+            inventory.forEach(inv => {
+                if (inv.status === 'stock') {
+                    liveInventoryStockNet += getSafeNet(inv);
+                }
+            });
+
             // Grand Tally Metal Calculations
             let jamaNet = openNet + todayNetIn;
             let jamaOld = openOld + todayOldIn;
@@ -757,7 +774,14 @@
             document.getElementById('uiOpenOld').innerText = openOld.toFixed(3) + "g";
             document.getElementById('uiOpenMix').innerText = openMix.toFixed(3) + "g";
             
-            document.getElementById('uiCloseNet').innerText = closingNet.toFixed(3) + "g";
+            // DIRECT INVENTORY MAPPING WITH DISCREPANCY CHECK
+            let netDiff = liveInventoryStockNet - closingNet;
+            if(Math.abs(netDiff) > 0.001) {
+                document.getElementById('uiCloseNet').innerHTML = `${liveInventoryStockNet.toFixed(3)}g <br><span style="font-size:0.75rem; color:#d32f2f;">(Sys Calc: ${closingNet.toFixed(3)}g | Diff: ${netDiff > 0 ? '+' : ''}${netDiff.toFixed(3)}g)</span>`;
+            } else {
+                document.getElementById('uiCloseNet').innerText = liveInventoryStockNet.toFixed(3) + "g";
+            }
+
             document.getElementById('uiCloseOld').innerText = closingOld.toFixed(3) + "g";
             document.getElementById('uiCloseMix').innerText = closingMix.toFixed(3) + "g";
 
