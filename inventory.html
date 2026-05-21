@@ -243,6 +243,7 @@
                     <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-history" style="background: var(--active-red);" onclick="openRemoveStockModal()"><i class="fas fa-minus-circle"></i> Batch Remove</button>
                     <button class="btn-history" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
                     <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
                     <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
@@ -323,13 +324,13 @@
         <div class="modal-content" style="max-width: 850px;">
             <button class="close-btn" onclick="closeModal('docHistoryModal')">&times;</button>
             <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-history"></i> Document / Import History</h3>
-            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">View and manage previously added bulk documents or extraction batches.</p>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">View and manage added batches and removed document batches.</p>
             
             <div class="table-container" style="max-height: 50vh; box-shadow: none; border: 1px solid #e2e8f0;">
                 <table class="inv-table">
                     <thead>
                         <tr>
-                            <th>Doc No</th>
+                            <th>Doc No / Type</th>
                             <th>Date / Time</th>
                             <th style="text-align:center;">Total Items</th>
                             <th>Total Gross Wt</th>
@@ -340,6 +341,36 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Batch Remove Stock Modal -->
+    <div id="removeStockModal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <button class="close-btn" onclick="closeModal('removeStockModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-minus-circle"></i> Batch Remove Stock</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Scan items to remove them from stock. A removal document will be generated.</p>
+            
+            <div class="search-box-container">
+                <i class="fas fa-barcode search-icon"></i>
+                <input type="text" id="removeScanner" class="search-box" placeholder="Scan Barcode to Remove..." onkeypress="handleRemoveScan(event)">
+            </div>
+            
+            <div class="table-container" style="max-height: 350px; box-shadow: none; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                <table class="inv-table">
+                    <thead>
+                        <tr>
+                            <th>Barcode</th>
+                            <th>Category</th>
+                            <th>Net Wt (g)</th>
+                            <th style="text-align:center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="removeScanList"></tbody>
+                </table>
+            </div>
+            
+            <button class="btn-block btn-primary" onclick="confirmBatchRemove()"><i class="fas fa-trash"></i> Confirm Removal Batch</button>
         </div>
     </div>
 
@@ -682,7 +713,7 @@
             const container = document.getElementById('printContainer');
             container.innerHTML = '';
             
-            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && !(i.barcode && i.barcode.startsWith('LOOSE')));
+            let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && !(i.barcode && i.barcode.startsWith('LOOSE')));
             if(printItems.length === 0) return;
 
             printItems.forEach((item, index) => {
@@ -721,16 +752,6 @@
                 
                 setTimeout(() => { triggerPrint(); }, 400);
             }, 100);
-        }
-
-        function viewBarcode(code, wt, purity) {
-            if(code.startsWith('LOOSE')) return;
-            let item = allInventory.find(i => i.barcode === code);
-            if(item) {
-                autoPrint([item]);
-            } else {
-                autoPrint([{ barcode: code, grossWt: parseFloat(wt), netWt: parseFloat(wt), purity: purity, category: 'ITEM' }]);
-            }
         }
 
         let printSelectionList = [];
@@ -814,15 +835,6 @@
         function resolveCustomConfirm(result) {
             closeModal('customConfirmModal');
             if (confirmResolver) { confirmResolver(result); confirmResolver = null; }
-        }
-
-        function getSafeNet(i) {
-            let n = parseFloat(i.netWt);
-            if(!isNaN(n) && n > 0) return n;
-            let g = parseFloat(i.grossWt) || 0;
-            let s = parseFloat(i.stoneWt) || 0;
-            if (g > 0) return g - s;
-            return parseFloat(i.weight) || 0;
         }
 
         let allInventory = []; let allSalesData = []; let allCustomersData = [];
@@ -1021,7 +1033,7 @@
         function setupBarcodeScanner() {
             document.getElementById('searchInput').addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
-                    const exactMatch = allInventory.find(i => i.barcode && i.barcode.toUpperCase() === this.value.toUpperCase().trim());
+                    const exactMatch = allInventory.find(i => i.barcode && i.barcode.toUpperCase() === this.value.toUpperCase().trim() && i.status === 'stock');
                     if (exactMatch) { openItemDetails(exactMatch.id); this.value = ''; applyFilters(); }
                 }
             });
@@ -1075,7 +1087,7 @@
             const subCatSelect = document.getElementById('filterSubCategory');
             const subCatType = subCatSelect ? subCatSelect.value : 'ALL';
             
-            let filtered = allInventory.filter(i => i.status !== 'sold' && parseFloat(i.netWt || i.grossWt || i.weight) > 0);
+            let filtered = allInventory.filter(i => i.status === 'stock' && parseFloat(i.netWt || i.grossWt || i.weight) > 0);
             filtered = filtered.filter(i => {
                 const isSilv = checkIsSilver(i.purity);
                 if (currentMetalFilter === 'ALL') return true;
@@ -1252,8 +1264,7 @@
                 const tr = document.createElement('tr');
                 let targetId = folder.items[0].id;
                 
-                let actionButtons = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal(${targetId})"><i class="fas fa-tags"></i> Tag / Extract</button>
-                                     <button class="btn-sm btn-del" onclick="closeModal('detailsModal'); removeInvItem(${targetId})"><i class="fas fa-trash"></i></button>`;
+                let actionButtons = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal(${targetId})"><i class="fas fa-tags"></i> Tag / Extract</button>`;
                 
                 tr.innerHTML = `
                     <td><span style="font-weight:600; color:#222;"><i class="fas fa-folder" style="color:#eab308; margin-right:6px;"></i> ${folder.name}</span></td>
@@ -1519,7 +1530,7 @@
                 }
                 let subHtml = rawSub ? `<span class="badge badge-silver">${rawSub}</span>` : '-';
                 
-                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})"><div>${displayBc}</div></td><td>${subHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML} <button class="btn-sm btn-del" onclick="removeInvItem(${item.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+                tbody.innerHTML += `<tr><td style="cursor:pointer;" onclick="openItemDetails(${item.id})"><div>${displayBc}</div></td><td>${subHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td></tr>`;
             });
             openModal('detailsModal');
         }
@@ -1653,7 +1664,11 @@
             }
 
             if (available - sum <= 0.01) {
-                await deleteItemReal(item.id);
+                // If fully extracted, just mark the source as removed/consumed
+                item.status = 'removed';
+                item.removeDocNo = extractDocNo;
+                item.removeDate = new Date().toISOString();
+                await updateItem('inventory', item); 
             } else { 
                 item.grossWt = parseFloat((available - sum).toFixed(3)); 
                 item.netWt = parseFloat((parseFloat(item.netWt) - sum).toFixed(3)); 
@@ -1667,18 +1682,105 @@
             setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
         }
 
+        // --- BATCH REMOVE STOCK FUNCTIONS ---
+        
+        let removeBatchList = [];
+
+        function openRemoveStockModal() {
+            removeBatchList = [];
+            renderRemoveScanList();
+            document.getElementById('removeScanner').value = '';
+            openModal('removeStockModal');
+        }
+
+        function handleRemoveScan(e) {
+            if (e.key === 'Enter') {
+                const code = document.getElementById('removeScanner').value.toUpperCase().trim();
+                document.getElementById('removeScanner').value = '';
+                if (!code) return;
+
+                const item = allInventory.find(i => i.barcode === code && i.status === 'stock');
+                if (!item) {
+                    appAlert("Item not found or already sold/removed!");
+                    return;
+                }
+                
+                if (removeBatchList.find(i => i.id === item.id)) {
+                    appAlert("Item already in removal list!");
+                    return;
+                }
+                
+                removeBatchList.push(item);
+                renderRemoveScanList();
+            }
+        }
+
+        function removeFromBatch(id) {
+            removeBatchList = removeBatchList.filter(i => i.id !== id);
+            renderRemoveScanList();
+        }
+
+        function renderRemoveScanList() {
+            const tbody = document.getElementById('removeScanList');
+            tbody.innerHTML = '';
+            if (removeBatchList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #888;">Scan items to remove...</td></tr>';
+                return;
+            }
+            removeBatchList.forEach(item => {
+                const wt = parseFloat(item.netWt || item.grossWt || item.weight).toFixed(3);
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--info-blue);">${item.barcode}</td>
+                        <td>${item.category}</td>
+                        <td>${wt}</td>
+                        <td style="text-align:center;"><button class="btn-sm btn-del" onclick="removeFromBatch(${item.id})"><i class="fas fa-times"></i></button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function confirmBatchRemove() {
+            if (removeBatchList.length === 0) return appAlert("Scan at least one item to remove.");
+            
+            const remDocNo = 'REM-' + Date.now();
+            const dateStr = new Date().toISOString();
+            
+            for (let item of removeBatchList) {
+                item.status = 'removed';
+                item.removeDocNo = remDocNo;
+                item.removeDate = dateStr;
+                await updateItem('inventory', item);
+            }
+            
+            showToast("Stock Removed Successfully!", "success");
+            closeModal('removeStockModal');
+            loadInventory();
+        }
+
+
         // --- DOCUMENT HISTORY FUNCTIONS ---
 
         function openDocHistoryModal() {
             const docs = {};
+            
             allInventory.forEach(item => {
                 if(item.docNo) {
                     if(!docs[item.docNo]) {
-                        docs[item.docNo] = { docNo: item.docNo, date: item.addedDate, count: 0, gross: 0, items: [] };
+                        docs[item.docNo] = { docNo: item.docNo, type: 'IN', date: item.addedDate, count: 0, gross: 0, items: [] };
                     }
                     docs[item.docNo].count += parseInt(item.pieces || 1);
                     docs[item.docNo].gross += parseFloat(item.grossWt || item.weight || 0);
                     docs[item.docNo].items.push(item);
+                }
+                
+                if(item.removeDocNo) {
+                    if(!docs[item.removeDocNo]) {
+                        docs[item.removeDocNo] = { docNo: item.removeDocNo, type: 'OUT', date: item.removeDate, count: 0, gross: 0, items: [] };
+                    }
+                    docs[item.removeDocNo].count += parseInt(item.pieces || 1);
+                    docs[item.removeDocNo].gross += parseFloat(item.grossWt || item.weight || 0);
+                    docs[item.removeDocNo].items.push(item);
                 }
             });
             
@@ -1692,14 +1794,16 @@
             } else {
                 sortedDocs.forEach(doc => {
                     const d = doc.date ? new Date(doc.date).toLocaleString('en-GB') : '-';
+                    const typeBadge = doc.type === 'IN' ? `<span class="badge badge-22k">STOCK IN</span>` : `<span class="badge badge-pending">STOCK REMOVED</span>`;
+                    
                     tbody.innerHTML += `
                         <tr>
-                            <td><span class="badge badge-order">${doc.docNo}</span></td>
+                            <td><span class="badge badge-order">${doc.docNo}</span><br>${typeBadge}</td>
                             <td>${d}</td>
                             <td style="text-align:center; font-weight:bold;">${doc.count}</td>
                             <td>${doc.gross.toFixed(3)} g</td>
                             <td style="text-align:center;">
-                                <button class="btn-sm btn-del" onclick="cancelDocument('${doc.docNo}')"><i class="fas fa-trash"></i> Delete Doc</button>
+                                <button class="btn-sm btn-del" onclick="cancelDocument('${doc.docNo}', '${doc.type}')"><i class="fas fa-undo"></i> Cancel Doc</button>
                             </td>
                         </tr>
                     `;
@@ -1708,36 +1812,43 @@
             openModal('docHistoryModal');
         }
 
-        async function cancelDocument(docNo) {
-            const items = allInventory.filter(i => i.docNo === docNo);
-            const isUsed = items.some(i => i.status !== 'stock'); 
-            
-            if(isUsed) {
-                appAlert("Cannot cancel this document! Some items inside this document have already been sold, modified, or extracted.");
-                return;
-            }
-            
-            const proceed = await appConfirm(`Are you sure you want to completely cancel document [${docNo}] and delete all its items?\n\nTotal Items: ${items.length}`);
-            if(proceed) {
-                for(let item of items) {
-                    await deleteItem('inventory', item.id);
+        async function cancelDocument(docNo, type) {
+            if(type === 'IN') {
+                const items = allInventory.filter(i => i.docNo === docNo);
+                
+                if(items.some(i => i.status === 'sold' || i.status === 'removed')) {
+                    appAlert("Cannot cancel this document! Some items have been sold, extracted, or removed. Cancel those operations first.");
+                    return;
                 }
-                showToast("Document Cancelled and Items Deleted!", "success");
-                await loadInventory();
-                openDocHistoryModal(); 
+                
+                const proceed = await appConfirm(`Are you sure you want to completely cancel IN document [${docNo}] and delete all its items?\n\nTotal Items: ${items.length}`);
+                if(proceed) {
+                    for(let item of items) {
+                        await deleteItem('inventory', item.id);
+                    }
+                    showToast("Document Cancelled and Items Deleted!", "success");
+                    await loadInventory();
+                    openDocHistoryModal(); 
+                }
+            } else if(type === 'OUT') {
+                const items = allInventory.filter(i => i.removeDocNo === docNo);
+                
+                const proceed = await appConfirm(`Are you sure you want to cancel REMOVE document [${docNo}] and RESTORE these items to stock?\n\nTotal Items: ${items.length}`);
+                if(proceed) {
+                    for(let item of items) {
+                        item.status = 'stock';
+                        delete item.removeDocNo;
+                        delete item.removeDate;
+                        await updateItem('inventory', item);
+                    }
+                    showToast("Items Restored to Stock!", "success");
+                    await loadInventory();
+                    openDocHistoryModal(); 
+                }
             }
         }
 
         // ---------- BASIC DB FUNCTIONS & MISSING BUTTON HANDLERS ----------
-        
-        async function removeInvItem(id) { 
-            if(await appConfirm("Delete Item?")) { 
-                await deleteItem('inventory', id); 
-                closeModal('detailsModal'); 
-                loadInventory(); 
-                showToast("Item Deleted!", "success");
-            } 
-        }
 
         async function editItem(id) { 
             const item = allInventory.find(i=>i.id===id); 
@@ -1768,11 +1879,11 @@
             if (allInventory.length === 0) return showToast("No data to export", "error");
             
             let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "Barcode,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No\n";
+            csvContent += "Barcode,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
             
             allInventory.forEach(row => {
                 let rDate = row.addedDate ? new Date(row.addedDate).toLocaleDateString() : '';
-                let rowStr = `${row.barcode||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''}`;
+                let rowStr = `${row.barcode||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
                 csvContent += rowStr + "\n";
             });
             
