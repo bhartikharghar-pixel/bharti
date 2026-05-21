@@ -596,11 +596,12 @@
 
                 const div = document.createElement('div');
                 div.className = 'merchant-card';
+                // BUG FIX: Removed inline string passing for names in onclick events
                 div.innerHTML = `
                     <div class="m-header">
                         <div style="display:flex; justify-content:space-between;">
                             <h4 class="m-name">${m.name} ${cat !== 'Both' ? `<span style="font-size:0.7rem; background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#64748b; margin-left:5px;">${cat}</span>` : ''}</h4>
-                            <button class="btn-pay" onclick="openPay(${m.id}, '${m.name}')"><i class="fas fa-exchange-alt"></i></button>
+                            <button class="btn-pay" onclick="openPay(${m.id})"><i class="fas fa-exchange-alt"></i></button>
                         </div>
                         <div class="m-contact"><i class="fas fa-phone-alt"></i> ${m.mobile || 'No Contact'}</div>
                         
@@ -619,7 +620,7 @@
                     <div class="m-actions">
                         <div style="font-size:0.75rem; color:#94a3b8;">ID: #${m.id}</div>
                         <div style="display:flex; gap:8px;">
-                            <button class="btn-icon c-history" onclick="generateReport(${m.id}, '${m.name}')" title="Full Ledger Report"><i class="fas fa-file-invoice"></i></button>
+                            <button class="btn-icon c-history" onclick="generateReport(${m.id})" title="Full Ledger Report"><i class="fas fa-file-invoice"></i></button>
                             <button class="btn-icon c-edit" onclick="editMerchant(${m.id})" title="Edit Details"><i class="fas fa-pen"></i></button>
                             <button class="btn-icon c-delete" onclick="deleteMerchant(${m.id})" title="Delete Merchant"><i class="fas fa-trash"></i></button>
                         </div>
@@ -646,7 +647,6 @@
         }
 
         function editMerchant(id) {
-            // Find the merchant data from the already loaded array in memory
             const m = allMerchants.find(x => x.id == parseInt(id));
             if (!m) {
                 showToast("Merchant data not found!", "error");
@@ -658,7 +658,6 @@
             document.getElementById('mMobile').value = m.mobile || '';
             setMCat(m.category || 'Both'); 
             
-            // Populating Existing Balances
             document.getElementById('mBalance').value = m.balance || 0;
             document.getElementById('mGoldBalance').value = m.goldBalance || 0;
             document.getElementById('mSilverBalance').value = m.silverBalance || 0;
@@ -668,6 +667,7 @@
             document.getElementById('saveModal').style.display = 'flex';
         }
 
+        // BUG FIX: Properly attached oncomplete for IndexedDB transaction
         async function saveMerchant() {
             const id = document.getElementById('mId').value;
             const name = document.getElementById('mName').value.trim();
@@ -683,21 +683,26 @@
             if(id) {
                 const db = await dbPromise;
                 const tx = db.transaction('merchants', 'readwrite');
-                const store = tx.objectStore('merchants');
-                store.get(parseInt(id)).onsuccess = (e) => {
-                    const data = e.target.result;
-                    data.name = name;
-                    data.mobile = mobile;
-                    data.category = category;
-                    
-                    data.balance = balance;
-                    data.goldBalance = goldBalance;
-                    data.silverBalance = silverBalance;
-                    
-                    store.put(data);
+                
+                // Attach oncomplete before doing operations
+                tx.oncomplete = () => {
                     closeModal('saveModal');
                     loadMerchants();
                     showToast("Details Updated", "success");
+                };
+
+                const store = tx.objectStore('merchants');
+                store.get(parseInt(id)).onsuccess = (e) => {
+                    const data = e.target.result;
+                    if(data) {
+                        data.name = name;
+                        data.mobile = mobile;
+                        data.category = category;
+                        data.balance = balance;
+                        data.goldBalance = goldBalance;
+                        data.silverBalance = silverBalance;
+                        store.put(data);
+                    }
                 };
             } else {
                 await addItem('merchants', { name, mobile, balance, goldBalance, silverBalance, category });
@@ -707,18 +712,22 @@
             }
         }
 
+        // BUG FIX: Standardized Delete Transaction
         async function deleteMerchant(id) {
+            const numId = parseInt(id);
             const orders = await getAllItems('orders');
-            const activeOrder = orders.find(o => o.merchantId == id && o.status === 'in_progress');
+            const activeOrder = orders.find(o => o.merchantId == numId && o.status === 'in_progress');
             if(activeOrder) return alert("Cannot delete! This merchant has active Custom Orders (Jobwork) pending.");
             if(confirm("DANGER: Are you sure you want to permanently delete this party?")) {
                 const db = await dbPromise;
                 const tx = db.transaction('merchants', 'readwrite');
-                tx.objectStore('merchants').delete(id);
+                
                 tx.oncomplete = () => {
                     showToast("Merchant Deleted", "success");
                     loadMerchants();
                 };
+                
+                tx.objectStore('merchants').delete(numId);
             }
         }
 
@@ -798,12 +807,15 @@
             }
         }
 
-        async function openPay(id, name) {
-            document.getElementById('payId').value = id;
-            document.getElementById('payName').innerText = name;
-            
+        // BUG FIX: Fetch name dynamically so quotes don't break HTML
+        async function openPay(id) {
             const merchant = allMerchants.find(m => m.id == id);
-            const cat = merchant ? (merchant.category || 'Both') : 'Both';
+            if (!merchant) return;
+
+            document.getElementById('payId').value = id;
+            document.getElementById('payName').innerText = merchant.name;
+            
+            const cat = merchant.category || 'Both';
             
             const allPurchases = await getAllItems('purchases');
             const merchPurchases = allPurchases.filter(p => p.merchantId == id && p.status !== 'cancelled');
@@ -830,7 +842,6 @@
             
             setPayType('OUT'); 
             
-            // Lock Metal Toggles based on Category
             const mtogGold = document.getElementById('mtog-gold');
             const mtogSilver = document.getElementById('mtog-silver');
             if(cat === 'Gold') {
@@ -905,6 +916,7 @@
             document.getElementById('payFixedTotal').innerText = "₹" + Math.round(gold * rate).toLocaleString();
         }
 
+        // BUG FIX: Attached oncomplete at the top for proper async closure
         async function payMerchant() {
             const id = parseInt(document.getElementById('payId').value);
             const amt = parseFloat(document.getElementById('payAmount').value) || 0;
@@ -952,6 +964,14 @@
 
             const db = await dbPromise;
             const tx = db.transaction(['merchants', 'inventory', 'purchases'], 'readwrite');
+            
+            // Critical Fix: Attach oncomplete immediately
+            tx.oncomplete = () => {
+                showToast("Settlement Recorded successfully!", "success");
+                closeModal('payModal');
+                loadMerchants();
+            };
+
             const merchantStore = tx.objectStore('merchants');
             const invStore = tx.objectStore('inventory');
             const pStore = tx.objectStore('purchases');
@@ -997,30 +1017,30 @@
             
             merchantStore.get(id).onsuccess = (e) => {
                 const data = e.target.result;
-                data.balance = (parseFloat(data.balance) || 0) + (actualCashImpact * mult);
-                if (metal === 'Silver') data.silverBalance = (parseFloat(data.silverBalance) || 0) + (actualGoldImpact * mult);
-                else data.goldBalance = (parseFloat(data.goldBalance) || 0) + (actualGoldImpact * mult);
-                
-                merchantStore.put(data);
-                tx.oncomplete = () => {
-                    showToast("Settlement Recorded successfully!", "success");
-                    closeModal('payModal');
-                    loadMerchants();
-                };
+                if(data) {
+                    data.balance = (parseFloat(data.balance) || 0) + (actualCashImpact * mult);
+                    if (metal === 'Silver') data.silverBalance = (parseFloat(data.silverBalance) || 0) + (actualGoldImpact * mult);
+                    else data.goldBalance = (parseFloat(data.goldBalance) || 0) + (actualGoldImpact * mult);
+                    merchantStore.put(data);
+                }
             };
         }
 
-        // --- REPORT / JAMA NAMA GENERATION ---
-        async function generateReport(mId, name) {
-            document.getElementById('reportMerchantName').innerText = name;
+        // BUG FIX: Fetch Name internally 
+        async function generateReport(mId) {
             const tbody = document.getElementById('reportBody');
             tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger...</td></tr>';
             document.getElementById('reportModal').style.display = 'block';
 
-            const merchant = await getItem('merchants', mId);
+            const merchant = allMerchants.find(m => m.id == mId) || await getItem('merchants', mId);
+            if(!merchant) return;
+
+            const name = merchant.name;
             const cat = merchant.category || 'Both';
             const showGold = cat !== 'Silver';
             const showSilver = cat !== 'Gold';
+            
+            document.getElementById('reportMerchantName').innerText = name;
 
             // Set Dynamic Table Header
             document.getElementById('reportTable').innerHTML = `
