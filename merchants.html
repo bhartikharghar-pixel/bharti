@@ -654,7 +654,13 @@
                 document.getElementById('mName').value = m.name;
                 document.getElementById('mMobile').value = m.mobile;
                 setMCat(m.category || 'Both'); // Category Load Karega
-                document.getElementById('balanceField').style.display = 'none'; 
+                
+                // POPULATING EXISTING BALANCES IN EDIT MODE
+                document.getElementById('mBalance').value = m.balance || 0;
+                document.getElementById('mGoldBalance').value = m.goldBalance || 0;
+                document.getElementById('mSilverBalance').value = m.silverBalance || 0;
+                
+                document.getElementById('balanceField').style.display = 'block'; 
                 document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit"></i> Edit Party Info';
                 document.getElementById('saveModal').style.display = 'flex';
             };
@@ -666,6 +672,11 @@
             const mobile = document.getElementById('mMobile').value;
             const category = document.getElementById('mCategoryVal').value; // Category Save
             
+            // Fetch the inputs correctly regardless of add/edit mode
+            const balance = parseFloat(document.getElementById('mBalance').value) || 0;
+            const goldBalance = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
+            const silverBalance = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
+
             if(!name) return showToast("Name is required", "error");
 
             if(id) {
@@ -677,15 +688,18 @@
                     data.name = name;
                     data.mobile = mobile;
                     data.category = category;
+                    
+                    // SAVING UPDATED BALANCES IN EDIT MODE
+                    data.balance = balance;
+                    data.goldBalance = goldBalance;
+                    data.silverBalance = silverBalance;
+                    
                     store.put(data);
                     closeModal('saveModal');
                     loadMerchants();
                     showToast("Details Updated", "success");
                 };
             } else {
-                const balance = parseFloat(document.getElementById('mBalance').value) || 0;
-                const goldBalance = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
-                const silverBalance = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
                 await addItem('merchants', { name, mobile, balance, goldBalance, silverBalance, category });
                 closeModal('saveModal');
                 loadMerchants();
