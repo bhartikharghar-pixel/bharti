@@ -913,11 +913,6 @@
             return prefix + String(maxCount).padStart(4, '0');
         }
 
-        // Helper to cleanly generate individual barcodes (Uses db.js standard generator)
-        async function getNewBarcode(catPrefix) {
-            return await generateBarcode(catPrefix);
-        }
-
         async function savePurchase() {
             try {
                 // Prevent Double Clicks
@@ -1075,11 +1070,10 @@
 
                         let barcode = '';
                         if (isSilv) {
-                             // Silver Individual Tags - e.g. SPAY0001
                              barcode = await generateCustomBarcode('S' + catPrefix);
                         } else {
-                             // Gold Individual Tags
-                             barcode = await getNewBarcode(catPrefix);
+                             // Safest approach using custom generation logic so it never fails
+                             barcode = await generateCustomBarcode(catPrefix);
                         }
 
                         const npp = Math.max(0, grossPP - stonePP);
@@ -1144,22 +1138,17 @@
                     actualId = await addItem('purchases', purchaseData);
                 }
 
-                // 3. Update Merchant Balances
-                const db = await dbPromise;
-                const tx = db.transaction('merchants', 'readwrite');
-                const store = tx.objectStore('merchants');
-                store.get(parseInt(mId)).onsuccess = (e) => {
-                    const m = e.target.result;
-                    if(m) {
-                        if (isUnfixed) {
-                            m.goldBalance = (m.goldBalance || 0) + fineWt;
-                            m.balance = (m.balance || 0) - paid;
-                        } else {
-                            m.balance = (m.balance || 0) + due;
-                        }
-                        store.put(m);
+                // 3. Update Merchant Balances using Helper Wrapper
+                let mData = await getItem('merchants', mId);
+                if(mData) {
+                    if (isUnfixed) {
+                        mData.goldBalance = (mData.goldBalance || 0) + fineWt;
+                        mData.balance = (mData.balance || 0) - paid;
+                    } else {
+                        mData.balance = (mData.balance || 0) + due;
                     }
-                };
+                    await updateItem('merchants', mData);
+                }
 
                 // 4. Cashbook Integration
                 if(paid > 0) {
@@ -1406,10 +1395,7 @@
              }
 
              // 2. Main Transaction
-             const db = await dbPromise;
-             const tx = db.transaction(['purchases', 'merchants', 'inventory'], 'readwrite');
-             
-             tx.objectStore('purchases').delete(parseInt(id));
+             await deleteItem('purchases', parseInt(id));
              
              // Safely delete all inventory items associated with this purchase
              if (p.itemDetails && Array.isArray(p.itemDetails)) {
@@ -1418,49 +1404,40 @@
                      
                      if (isBulkMode) {
                          // Find the existing bulk item and subtract
-                         const invStore = tx.objectStore('inventory');
-                         const getRequest = invStore.get(parseInt(i.id));
-                         getRequest.onsuccess = (e) => {
-                             const existingItem = e.target.result;
-                             if (existingItem) {
-                                 existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) - (i.grossWt || i.weight || 0)).toFixed(3));
-                                 existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) - (i.stoneWt || 0)).toFixed(3));
-                                 existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) - (i.netWt || i.weight || 0)).toFixed(3));
-                                 existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) - (i.fineWt || 0)).toFixed(3));
-                                 existingItem.pieces = parseInt(existingItem.pieces || 0) - (i.pieces || 1);
-                                 
-                                 if (existingItem.grossWt <= 0 || existingItem.pieces <= 0) {
-                                     invStore.delete(existingItem.id);
-                                 } else {
-                                     invStore.put(existingItem);
-                                 }
+                         const existingItem = await getItem('inventory', parseInt(i.id));
+                         if (existingItem) {
+                             existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) - (i.grossWt || i.weight || 0)).toFixed(3));
+                             existingItem.stoneWt = parseFloat((parseFloat(existingItem.stoneWt || 0) - (i.stoneWt || 0)).toFixed(3));
+                             existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) - (i.netWt || i.weight || 0)).toFixed(3));
+                             existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) - (i.fineWt || 0)).toFixed(3));
+                             existingItem.pieces = parseInt(existingItem.pieces || 0) - (i.pieces || 1);
+                             
+                             if (existingItem.grossWt <= 0 || existingItem.pieces <= 0) {
+                                 await deleteItem('inventory', existingItem.id);
+                             } else {
+                                 await updateItem('inventory', existingItem);
                              }
-                         };
+                         }
                      } else {
-                         tx.objectStore('inventory').delete(parseInt(i.id));
+                         await deleteItem('inventory', parseInt(i.id));
                      }
                  }
              }
 
-             const mStore = tx.objectStore('merchants');
-             mStore.get(parseInt(p.merchantId)).onsuccess = (e) => {
-                 const m = e.target.result;
-                 if(m) {
-                     if (oldType === 'Fixed') m.balance = (m.balance || 0) - oldDue;
-                     else {
-                         m.goldBalance = (m.goldBalance || 0) - oldFine;
-                         m.balance = (m.balance || 0) + oldPaid; 
-                     }
-                     mStore.put(m);
+             let m = await getItem('merchants', parseInt(p.merchantId));
+             if(m) {
+                 if (oldType === 'Fixed') m.balance = (m.balance || 0) - oldDue;
+                 else {
+                     m.goldBalance = (m.goldBalance || 0) - oldFine;
+                     m.balance = (m.balance || 0) + oldPaid; 
                  }
-             };
+                 await updateItem('merchants', m);
+             }
 
              if(!isSilent) {
-                 tx.oncomplete = async () => { 
-                     allInventoryData = await getAllItems('inventory'); // update cache 
-                     showToast("Purchase Deleted & Ledger Reversed.", "success"); 
-                     loadHistory(); 
-                 };
+                 allInventoryData = await getAllItems('inventory'); // update cache 
+                 showToast("Purchase Deleted & Ledger Reversed.", "success"); 
+                 loadHistory(); 
              }
         }
 
@@ -1489,6 +1466,15 @@
             document.getElementById('oldPaid').value = p.paidAmount;
 
             await deletePurchaseInternal(id, false);
+        }
+
+        // --- BARCODE PRINT MODAL ---
+        function viewBarcode(code, wt, purity) {
+            document.getElementById('printCode').innerText = code;
+            document.getElementById('printWt').innerText = parseFloat(wt).toFixed(3) + "g";
+            document.getElementById('printPurity').innerText = purity;
+            
+            document.getElementById('barcodeModal').style.display = 'flex';
         }
     </script>
 </body>
