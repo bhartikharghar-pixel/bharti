@@ -15,12 +15,12 @@
             --pending: #f57f17; --processing: #1976d2; --ready: #2e7d32;
         }
 
-        /* --- 1. GLOBAL STYLES --- */
+        /* --- GLOBAL STYLES --- */
         body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; color: #333; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent;}
         a { text-decoration: none; color: inherit; }
 
-        /* --- 2. HEADER & SIDEBAR --- */
+        /* --- HEADER & SIDEBAR --- */
         .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
         .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
         .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
@@ -35,7 +35,7 @@
         .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
         .sidebar-overlay.show { display: block; }
 
-        /* --- 3. DASHBOARD CONTENT --- */
+        /* --- DASHBOARD CONTENT --- */
         .dashboard-container { padding: 20px; max-width: 1400px; margin: 0 auto; }
 
         /* Rate Ticker */
@@ -125,7 +125,7 @@
 
     <div class="dashboard-container">
         
-        <!-- Rate Ticker (Kept as it is useful for Jewellers) -->
+        <!-- Rate Ticker -->
         <div class="rate-ticker">
             <div class="rate-item"><span>Live 24K Rate</span><strong id="r24k">₹0</strong></div>
             <div class="rate-item"><span>Standard 22K</span><strong id="r22k">₹0</strong></div>
@@ -142,7 +142,7 @@
                     <span id="total-udhari" style="font-size: 0.9rem; color: #666; background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">Total: ₹0</span>
                 </div>
                 <div id="pending-dues-list">
-                    <div style="text-align:center; padding:10px; color:#888;">Checking records...</div>
+                    <div style="text-align:center; padding:10px; color:#888;">डेटा लोड हो रहा है...</div>
                 </div>
             </div>
 
@@ -174,7 +174,9 @@
                     <div class="order-col-header header-pending">
                         कारीगर को देना बाकी <span id="count-pending">(0)</span>
                     </div>
-                    <div class="order-list" id="orders-pending"></div>
+                    <div class="order-list" id="orders-pending">
+                        <p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">डेटा लोड हो रहा है...</p>
+                    </div>
                 </div>
 
                 <!-- Column 2: With Karighar -->
@@ -182,7 +184,9 @@
                     <div class="order-col-header header-processing">
                         कारीगर के पास <span id="count-processing">(0)</span>
                     </div>
-                    <div class="order-list" id="orders-processing"></div>
+                    <div class="order-list" id="orders-processing">
+                        <p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">डेटा लोड हो रहा है...</p>
+                    </div>
                 </div>
 
                 <!-- Column 3: Ready -->
@@ -190,14 +194,21 @@
                     <div class="order-col-header header-ready">
                         ऑर्डर रेडी हैं <span id="count-ready">(0)</span>
                     </div>
-                    <div class="order-list" id="orders-ready"></div>
+                    <div class="order-list" id="orders-ready">
+                        <p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">डेटा लोड हो रहा है...</p>
+                    </div>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Dummy DB Script Integration Check (Fallback applied if db.js missing) -->
+    <!-- Firebase and Database Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="db.js?v=35"></script>
+    
     <script>
         function toggleSidebar() { 
             document.getElementById('app-sidebar').classList.toggle('open'); 
@@ -205,35 +216,35 @@
         }
 
         window.onload = async function() {
+            // 1. Load Gold Rates
+            try {
+                const rates = await getSetting('gold_rates');
+                if (rates) {
+                    document.getElementById('r24k').innerText = "₹" + (rates.rate24k||0).toLocaleString('en-IN');
+                    document.getElementById('r22k').innerText = "₹" + (rates.rate22k||0).toLocaleString('en-IN');
+                    document.getElementById('r18k').innerText = "₹" + (rates.rate18k||0).toLocaleString('en-IN');
+                    document.getElementById('rSil').innerText = "₹" + (rates.rateSilver||0).toLocaleString('en-IN');
+                }
+            } catch(e) { console.log("Rates not found", e); }
+
             // ==========================================
-            // 1. PENDING DUES LOGIC (Customer Udhari)
+            // 2. FETCH REAL DATA FROM DB.JS
             // ==========================================
             let sales = [];
             let customers = [];
-            try {
-                // Trying to fetch from your db.js if it exists
-                if(typeof getAllItems === 'function') {
-                    sales = await getAllItems('sales');
-                    customers = await getAllItems('customers');
-                }
-            } catch(e) {}
+            let orders = [];
 
-            // Dummy Data Fallback for Demo Purposes (Remove this if db.js is fully working)
-            if(sales.length === 0) {
-                sales = [
-                    { id: 101, customerId: 1, pendingAmount: 45000, status: 'completed' },
-                    { id: 102, customerId: 2, pendingAmount: 120000, status: 'completed' },
-                    { id: 103, customerId: 3, pendingAmount: 5000, status: 'completed' },
-                    { id: 104, customerId: 4, pendingAmount: 85000, status: 'completed' }
-                ];
-                customers = [
-                    { id: 1, name: 'Ramesh Bhai', mobile: '9876543210' },
-                    { id: 2, name: 'Suresh Kumar', mobile: '9988776655' },
-                    { id: 3, name: 'Anita Ben', mobile: '8899001122' },
-                    { id: 4, name: 'Vikram Singh', mobile: '7766554433' }
-                ];
+            try {
+                sales = await getAllItems('sales');
+                customers = await getAllItems('customers');
+                orders = await getAllItems('orders');
+            } catch(error) {
+                console.error("Error fetching data from database:", error);
             }
 
+            // ==========================================
+            // 3. PENDING DUES LOGIC (Customer Udhari)
+            // ==========================================
             // Filter dues and SORT BY highest amount first (घटते क्रम में)
             const pendingSales = sales.filter(s => s.pendingAmount > 0 && s.status !== 'cancelled')
                                       .sort((a,b) => b.pendingAmount - a.pendingAmount);
@@ -258,7 +269,7 @@
                                 <p>₹${s.pendingAmount.toLocaleString('en-IN')} <span style="color:#888; font-weight:normal; font-size:0.75rem;">(Bill #${s.id})</span></p>
                             </div>
                             <div style="display:flex; gap:10px;">
-                                <button class="btn-wa-small" onclick="waRemind('${cPhone}', '${cName}', ${s.pendingAmount}, ${s.id})" title="Send Reminder"><i class="fab fa-whatsapp"></i></button>
+                                <button class="btn-wa-small" onclick="waRemind('${cPhone}', '${cName}', ${s.pendingAmount}, '${s.id}')" title="Send Reminder"><i class="fab fa-whatsapp"></i></button>
                                 <a href="sales.html?edit=${s.id}" class="btn-view" title="Open Bill"><i class="fas fa-arrow-right"></i></a>
                             </div>
                         </div>
@@ -267,57 +278,57 @@
             }
             document.getElementById('total-udhari').innerText = `Total: ₹${totalUdhari.toLocaleString('en-IN')}`;
 
-
             // ==========================================
-            // 2. ORDER MANAGEMENT LOGIC
+            // 4. ORDER MANAGEMENT LOGIC
             // ==========================================
-            let orders = [];
-            try { if(typeof getAllItems === 'function') orders = await getAllItems('orders'); } catch(e) {}
-            
-            // Dummy Orders Fallback
-            if(orders.length === 0) {
-                orders = [
-                    { id: 'ORD-01', item: 'Gold Chain (Mens)', status: 'pending_assignment', dueDate: '2026-05-25' },
-                    { id: 'ORD-02', item: 'Diamond Ring', status: 'pending_assignment', dueDate: '2026-05-28' },
-                    { id: 'ORD-03', item: 'Mangalsutra', status: 'in_progress', karighar: 'Raju Karighar', dueDate: '2026-05-22' },
-                    { id: 'ORD-04', item: 'Earrings (Jhumka)', status: 'ready', dueDate: '2026-05-21' }
-                ];
-            }
-
             const listPending = document.getElementById('orders-pending');
             const listProcessing = document.getElementById('orders-processing');
             const listReady = document.getElementById('orders-ready');
 
+            listPending.innerHTML = '';
+            listProcessing.innerHTML = '';
+            listReady.innerHTML = '';
+
             let cPend = 0, cProc = 0, cRead = 0;
 
-            orders.forEach(o => {
-                let cardHTML = `
-                    <div class="order-card ${o.status === 'ready' ? 'ready' : (o.status === 'in_progress' ? 'processing' : 'pending')}">
-                        <h6>${o.item} <span style="float:right; font-size:0.7rem; color:#888;">${o.id}</span></h6>
-                        ${o.karighar ? `<p><i class="fas fa-user-cog"></i> ${o.karighar}</p>` : ''}
-                        <div class="order-meta">
-                            <span><i class="far fa-calendar-alt"></i> Due: ${o.dueDate || 'N/A'}</span>
-                            <a href="orders.html?edit=${o.id}" style="color:#1976d2;"><i class="fas fa-edit"></i> Edit</a>
-                        </div>
-                    </div>
-                `;
+            if(orders.length === 0) {
+                 listPending.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
+                 listProcessing.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
+                 listReady.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
+            } else {
+                orders.forEach(o => {
+                    // Check order status (adjust 'ready', 'in_progress', 'pending' based on what you save in DB)
+                    let statusClass = 'pending';
+                    if(o.status === 'ready' || o.status === 'completed') statusClass = 'ready';
+                    else if(o.status === 'in_progress' || o.status === 'processing') statusClass = 'processing';
 
-                if(o.status === 'ready') { cRead++; listReady.innerHTML += cardHTML; }
-                else if(o.status === 'in_progress') { cProc++; listProcessing.innerHTML += cardHTML; }
-                else { cPend++; listPending.innerHTML += cardHTML; }
-            });
+                    let cardHTML = `
+                        <div class="order-card ${statusClass}">
+                            <h6>${o.item || 'Order'} <span style="float:right; font-size:0.7rem; color:#888;">${o.id || ''}</span></h6>
+                            ${o.karighar ? `<p><i class="fas fa-user-cog"></i> ${o.karighar}</p>` : ''}
+                            <div class="order-meta">
+                                <span><i class="far fa-calendar-alt"></i> Due: ${o.dueDate || 'N/A'}</span>
+                                <a href="orders.html?edit=${o.id}" style="color:#1976d2;"><i class="fas fa-edit"></i> Edit</a>
+                            </div>
+                        </div>
+                    `;
+
+                    if(statusClass === 'ready') { cRead++; listReady.innerHTML += cardHTML; }
+                    else if(statusClass === 'processing') { cProc++; listProcessing.innerHTML += cardHTML; }
+                    else { cPend++; listPending.innerHTML += cardHTML; }
+                });
+
+                if(cPend === 0) listPending.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
+                if(cProc === 0) listProcessing.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
+                if(cRead === 0) listReady.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
+            }
 
             document.getElementById('count-pending').innerText = `(${cPend})`;
             document.getElementById('count-processing').innerText = `(${cProc})`;
             document.getElementById('count-ready').innerText = `(${cRead})`;
 
-            if(cPend === 0) listPending.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
-            if(cProc === 0) listProcessing.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
-            if(cRead === 0) listReady.innerHTML = '<p style="text-align:center; color:#888; font-size:0.85rem; margin-top:20px;">कोई ऑर्डर नहीं</p>';
-
-            
             // ==========================================
-            // 3. TO-DO LIST (Local Storage Based)
+            // 5. TO-DO LIST (Local Storage Based)
             // ==========================================
             loadTodos();
         };
@@ -355,7 +366,7 @@
             const text = input.value.trim();
             if(text) {
                 const todos = JSON.parse(localStorage.getItem('bj_todos') || '[]');
-                todos.unshift({ text: text, done: false }); // Add at the top
+                todos.unshift({ text: text, done: false });
                 localStorage.setItem('bj_todos', JSON.stringify(todos));
                 input.value = '';
                 loadTodos();
