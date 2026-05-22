@@ -55,6 +55,10 @@
         .section-box { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); display: flex; flex-direction: column; margin-bottom: 20px;}
         .section-title { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;}
         
+        /* Opening & Closing balance text */
+        .balance-info { font-size: 0.75rem; text-align: center; color: #555; margin: 4px 0; }
+        .balance-info strong { color: #000; }
+
         /* --- MINI DAYBOOK (आज का हिसाब) --- */
         .mini-daybook { display: flex; gap: 15px; }
         @media (max-width: 600px) { .mini-daybook { flex-direction: column; } }
@@ -170,6 +174,9 @@
             <div class="section-title">
                 <span><i class="fas fa-book-open" style="color:var(--accent-gold);"></i> आज का हिसाब (Today's Mini Daybook)</span>
             </div>
+            <!-- Opening Balance (small font) -->
+            <div id="opening-balance" class="balance-info" style="margin-bottom:8px;">Opening: C=₹0, B=₹0</div>
+            
             <div class="mini-daybook">
                 <!-- CREDIT (IN) -->
                 <div class="db-col">
@@ -195,6 +202,8 @@
                     </div>
                 </div>
             </div>
+            <!-- Closing Balance (small font) -->
+            <div id="closing-balance" class="balance-info" style="margin-top:8px;">Closing: C=₹0, B=₹0</div>
         </div>
 
         <!-- Udhari & To-Do List Section -->
@@ -282,6 +291,37 @@
                 orders = await getAllItems('orders');
                 try { cashflow = await getAllItems('cashflow'); } catch(e){} 
             } catch(error) { console.error("Error fetching data:", error); }
+
+            // ==========================================
+            // COMPUTE OPENING & CLOSING BALANCES (Cash & Bank)
+            // ==========================================
+            function getBalanceUpTo(dateStr, mode) {
+                // mode: 'cash' or 'bank'. Adjust field name if needed (e.g., 'mode', 'paymentMode')
+                return cashflow
+                    .filter(c => c.date <= dateStr && c.mode === mode)  // <-- change c.mode to match your Firestore field
+                    .reduce((sum, c) => {
+                        let amt = parseFloat(c.amount) || 0;
+                        return c.type === 'IN' ? sum + amt : sum - amt;
+                    }, 0);
+            }
+
+            // Yesterday's date
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+            // Opening = yesterday's closing
+            const openCash = getBalanceUpTo(yesterdayStr, 'cash');
+            const openBank = getBalanceUpTo(yesterdayStr, 'bank');
+
+            // Closing = today's closing (up to today)
+            const closeCash = getBalanceUpTo(todayStr, 'cash');
+            const closeBank = getBalanceUpTo(todayStr, 'bank');
+
+            document.getElementById('opening-balance').innerHTML = 
+                `Opening: <strong>C=₹${openCash.toLocaleString()}</strong>, <strong>B=₹${openBank.toLocaleString()}</strong>`;
+            document.getElementById('closing-balance').innerHTML = 
+                `Closing: <strong>C=₹${closeCash.toLocaleString()}</strong>, <strong>B=₹${closeBank.toLocaleString()}</strong>`;
 
             // ==========================================
             // 3. MINI DAYBOOK LOGIC (आज का हिसाब)
