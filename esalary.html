@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Employees & Salary - Bharti Jewellers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --white: #ffffff;
+            --border-color: #2a2a2a; --whatsapp: #25D366; 
+            --pending: #f57f17; --processing: #1976d2; --ready: #2e7d32;
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 60px; color: #333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.4); border-bottom: 2px solid var(--accent-gold); justify-content: space-between; }
+        .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 12px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-footer { padding: 15px; text-align: center; border-top: 1px solid var(--border-color); color: #666; font-size: 0.85rem; background: #0a0a0a; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+
+        .page-container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+
+        .cards-row { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .info-card { background: white; border-radius: 12px; padding: 15px 20px; flex: 1; min-width: 180px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
+        .info-card h3 { margin: 0 0 8px 0; font-size: 0.85rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .info-card .value { font-size: 1.8rem; font-weight: 700; color: #111; }
+
+        .section-box { background: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 20px; }
+        .section-title { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+        .btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s; }
+        .btn-gold { background: var(--accent-gold); color: #000; }
+        .btn-dark { background: #111; color: var(--accent-gold); }
+        .btn-red { background: var(--active-red); color: white; }
+        .btn-outline { background: white; border: 1px solid #ccc; color: #333; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: #f9f9f9; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; color: #444; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-inactive { background: #ffebee; color: #c62828; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 5000; display: none; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 20px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal h3 { margin: 0 0 15px 0; color: #111; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: #555; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 0.85rem; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+
+        .history-list { max-height: 200px; overflow-y: auto; margin-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 0.8rem; }
+
+        @media (max-width: 600px) {
+            .cards-row { flex-direction: column; }
+            table { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <header class="app-header">
+        <div class="header-title">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <span style="margin-left:10px;">BHARTI JEWELLERS</span>
+        </div>
+    </header>
+
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html" ><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="employees.html" class="active"><i class="fas fa-user-tie"></i> Employees</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            App Version 2.1 <br> <span style="color:#C5A059">● Online Secure</span>
+        </div>
+    </aside>
+
+    <div class="page-container">
+        <!-- Summary Cards -->
+        <div class="cards-row">
+            <div class="info-card">
+                <h3>Total Employees</h3>
+                <div class="value" id="total-employees">0</div>
+            </div>
+            <div class="info-card">
+                <h3>This Month Salary Paid</h3>
+                <div class="value" id="monthly-paid">₹0</div>
+            </div>
+        </div>
+
+        <!-- Employee List -->
+        <div class="section-box">
+            <div class="section-title">
+                <span><i class="fas fa-user-tie" style="color:var(--accent-gold);"></i> Employee List</span>
+                <button class="btn btn-gold" onclick="openAddEmployeeModal()"><i class="fas fa-plus"></i> Add Employee</button>
+            </div>
+            <div style="overflow-x:auto;">
+                <table id="employee-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Salary (₹)</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employee-tbody">
+                        <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Employee Modal -->
+    <div id="employee-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="modal-title">Add Employee</h3>
+            <input type="hidden" id="emp-id">
+            <div class="form-group">
+                <label>Name *</label>
+                <input type="text" id="emp-name" required>
+            </div>
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="text" id="emp-phone">
+            </div>
+            <div class="form-group">
+                <label>Role</label>
+                <input type="text" id="emp-role">
+            </div>
+            <div class="form-group">
+                <label>Monthly Salary (₹)</label>
+                <input type="number" id="emp-salary" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="emp-status">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('employee-modal')">Cancel</button>
+                <button class="btn btn-dark" id="save-employee-btn" onclick="saveEmployee()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay Salary Modal -->
+    <div id="pay-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>Pay Salary</h3>
+            <input type="hidden" id="pay-emp-id">
+            <div class="form-group">
+                <label>Employee</label>
+                <input type="text" id="pay-emp-name" disabled>
+            </div>
+            <div class="form-group">
+                <label>Amount (₹) *</label>
+                <input type="number" id="pay-amount" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+                <label>Payment Mode</label>
+                <select id="pay-mode">
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="pay-date">
+            </div>
+            <div class="form-group">
+                <label>Note (optional)</label>
+                <input type="text" id="pay-note" placeholder="e.g., April salary">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('pay-modal')">Cancel</button>
+                <button class="btn btn-dark" onclick="processSalaryPayment()">Pay Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Salary History Modal -->
+    <div id="history-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 id="history-title">Salary History</h3>
+            <div class="history-list" id="history-list"></div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('history-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="db.js?v=35"></script>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('app-sidebar').classList.toggle('open');
+            document.getElementById('sidebar-overlay').classList.toggle('show');
+        }
+
+        // Modal helpers
+        function openModal(id) { document.getElementById(id).classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        let employees = [];
+        let cashflow = [];
+
+        window.onload = async function() {
+            await loadData();
+        };
+
+        async function loadData() {
+            try {
+                employees = await getAllItems('employees');
+                cashflow = await getAllItems('cashflow');
+                renderEmployees();
+                updateSummaryCards();
+            } catch (e) {
+                console.error("Error loading data:", e);
+                document.getElementById('employee-tbody').innerHTML = '<tr><td colspan="5">Failed to load data.</td></tr>';
+            }
+        }
+
+        function renderEmployees() {
+            const tbody = document.getElementById('employee-tbody');
+            if (employees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No employees found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = employees.map(emp => `
+                <tr>
+                    <td>${emp.name || ''}</td>
+                    <td>${emp.role || '-'}</td>
+                    <td>₹${(emp.salary || 0).toLocaleString()}</td>
+                    <td><span class="badge ${emp.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">${emp.status || 'active'}</span></td>
+                    <td style="display:flex; gap:5px; flex-wrap:wrap;">
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp.id}')"><i class="fas fa-money-bill-wave"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp.id}')"><i class="fas fa-history"></i></button>
+                        <button class="btn btn-red" style="padding:4px 8px;" onclick="deleteEmployee('${emp.id}')"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateSummaryCards() {
+            document.getElementById('total-employees').innerText = employees.filter(e => e.status !== 'inactive').length;
+
+            // Calculate total salary paid this month from cashflow
+            const now = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const monthPaid = cashflow
+                .filter(c => c.category === 'Salary' && c.date >= monthStart && c.type === 'OUT')
+                .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+            document.getElementById('monthly-paid').innerText = '₹' + monthPaid.toLocaleString();
+        }
+
+        // ----- Employee CRUD -----
+        function openAddEmployeeModal() {
+            document.getElementById('modal-title').innerText = 'Add Employee';
+            document.getElementById('emp-id').value = '';
+            document.getElementById('emp-name').value = '';
+            document.getElementById('emp-phone').value = '';
+            document.getElementById('emp-role').value = '';
+            document.getElementById('emp-salary').value = '';
+            document.getElementById('emp-status').value = 'active';
+            openModal('employee-modal');
+        }
+
+        function openEditEmployeeModal(id) {
+            const emp = employees.find(e => e.id == id);
+            if (!emp) return;
+            document.getElementById('modal-title').innerText = 'Edit Employee';
+            document.getElementById('emp-id').value = emp.id;
+            document.getElementById('emp-name').value = emp.name || '';
+            document.getElementById('emp-phone').value = emp.phone || '';
+            document.getElementById('emp-role').value = emp.role || '';
+            document.getElementById('emp-salary').value = emp.salary || '';
+            document.getElementById('emp-status').value = emp.status || 'active';
+            openModal('employee-modal');
+        }
+
+        async function saveEmployee() {
+            const id = document.getElementById('emp-id').value;
+            const data = {
+                name: document.getElementById('emp-name').value.trim(),
+                phone: document.getElementById('emp-phone').value.trim(),
+                role: document.getElementById('emp-role').value.trim(),
+                salary: parseFloat(document.getElementById('emp-salary').value) || 0,
+                status: document.getElementById('emp-status').value
+            };
+            if (!data.name) return alert('Name is required');
+
+            try {
+                if (id) {
+                    await updateItem('employees', id, data);
+                } else {
+                    await addItem('employees', data);
+                }
+                closeModal('employee-modal');
+                await loadData();
+            } catch (e) {
+                alert('Error saving employee: ' + e.message);
+            }
+        }
+
+        async function deleteEmployee(id) {
+            if (!confirm('Delete this employee?')) return;
+            try {
+                await deleteItem('employees', id);
+                await loadData();
+            } catch (e) {
+                alert('Error deleting: ' + e.message);
+            }
+        }
+
+        // ----- Salary Payment -----
+        function openPayModal(empId) {
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return;
+            document.getElementById('pay-emp-id').value = emp.id;
+            document.getElementById('pay-emp-name').value = emp.name;
+            document.getElementById('pay-amount').value = emp.salary || '';
+            document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('pay-note').value = '';
+            openModal('pay-modal');
+        }
+
+        async function processSalaryPayment() {
+            const empId = document.getElementById('pay-emp-id').value;
+            const amount = parseFloat(document.getElementById('pay-amount').value);
+            const mode = document.getElementById('pay-mode').value;
+            const date = document.getElementById('pay-date').value;
+            const note = document.getElementById('pay-note').value.trim();
+
+            if (!amount || amount <= 0) return alert('Enter valid amount');
+            if (!date) return alert('Select date');
+
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return alert('Employee not found');
+
+            // Create cashflow OUT entry
+            const cashData = {
+                type: 'OUT',
+                amount: amount,
+                mode: mode,
+                date: date,
+                category: 'Salary',
+                remark: note || `Salary - ${emp.name}`,
+                employeeId: empId,
+                employeeName: emp.name
+            };
+
+            try {
+                await addItem('cashflow', cashData);
+                closeModal('pay-modal');
+                await loadData(); // refresh cashflow and update cards
+                alert('Salary paid successfully!');
+            } catch (e) {
+                alert('Payment failed: ' + e.message);
+            }
+        }
+
+        // ----- History -----
+        function viewHistory(empId) {
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return;
+            document.getElementById('history-title').innerText = `Salary History - ${emp.name}`;
+            const entries = cashflow.filter(c => c.employeeId == empId && c.type === 'OUT' && c.category === 'Salary')
+                                   .sort((a,b) => b.date.localeCompare(a.date));
+            const list = document.getElementById('history-list');
+            if (entries.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#888;">No salary payments yet.</p>';
+            } else {
+                list.innerHTML = entries.map(e => `
+                    <div class="history-item">
+                        <span>${e.date} - ${e.remark || 'Salary'}</span>
+                        <strong style="color:#c62828;">₹${parseFloat(e.amount).toLocaleString()}</strong>
+                    </div>
+                `).join('');
+            }
+            openModal('history-modal');
+        }
+    </script>
+</body>
+</html>
