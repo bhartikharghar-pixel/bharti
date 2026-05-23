@@ -448,65 +448,64 @@
             document.getElementById('count-processing').innerText = `(${cpr})`;
             document.getElementById('count-ready').innerText = `(${cr})`;
 
-           // ==========================================
-// 6. MONTHLY EXPENSES LOGIC (इस महीने का खर्च)
 // ==========================================
-const currentMonthPrefix = todayStr.substring(0, 7); 
-const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const currentMonthIndex = new Date().getMonth();
-document.getElementById('current-month-name').innerText = monthNames[currentMonthIndex] + " " + todayStr.substring(0, 4);
+            // 6. MONTHLY EXPENSES LOGIC (इस महीने का खर्च)
+            // ==========================================
+            const currentMonthPrefix = todayStr.substring(0, 7); 
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            const currentMonthIndex = new Date().getMonth();
+            document.getElementById('current-month-name').innerText = monthNames[currentMonthIndex] + " " + todayStr.substring(0, 4);
 
-let expenseCategories = {};
-let totalMonthlyExp = 0;
+            let expenseCategories = {};
+            let totalMonthlyExp = 0;
 
-// 🔴 इन शब्दों वाली एंट्रीज़ को खर्चे (Expense) में नहीं गिना जाएगा
-// आप अपनी जरूरत के हिसाब से इसमें और भी नाम जोड़ सकते हैं
-// 🔴 इन शब्दों वाली एंट्रीज़ को खर्चे (Expense) में नहीं गिना जाएगा
-
+            // 🔴 इन शब्दों वाली एंट्रीज़ को खर्चे (Expense) में नहीं गिना जाएगा
             const ignoreKeywords = [
-    'purchase', 'stock', 'merchant', 'wholesaler', 
-    'gold buying', 'silver buying', 'mamta gold', 'bhawani gold' 'purchase', 'stock', 'merchant', 'wholesaler', 'gold buying', 'silver buying', 'mamta gold', 'bhawani gold',
-     'loan', 'gold loan', 'old gold', 'ur', 'girvi', 'vyaj''karighar', 'making charge', 'majoori''// 🔴 इन शब्दों वाली एंट्रीज़ को खर्चे (Expense) में नहीं गिना जाएगा
-                ];
+                'purchase', 'stock', 'merchant', 'wholesaler', 'gold buying', 'silver buying', 'mamta gold', 'bhawani gold',
+                'loan', 'gold loan', 'old gold', 'ur', 'girvi', 'vyaj',
+                'deposit', 'refund', 'bc scheme', 'scheme', 'return', 'advance',
+                'karighar', 'making charge', 'majoori'
+            ];
 
-const currentMonthOuts = cashflow.filter(c => c.date && c.date.startsWith(currentMonthPrefix) && c.type === 'OUT');
+            const currentMonthOuts = cashflow.filter(c => c.date && c.date.startsWith(currentMonthPrefix) && c.type === 'OUT');
 
-currentMonthOuts.forEach(c => {
-    let amt = parseFloat(c.amount) || 0;
-    let categoryName = c.category || c.remark || "Extra (अन्य)"; 
-    
-    let lowerCatName = categoryName.toLowerCase();
-    
-    // चेक करें कि क्या categoryName में कोई इग्नोर करने वाला शब्द है
-    let isIgnored = ignoreKeywords.some(keyword => lowerCatName.includes(keyword));
-    
-    // अगर यह इग्नोर लिस्ट में है, तो इसे यहीं रोक दो और खर्चे में मत जोड़ो
-    if (isIgnored) return;
+            currentMonthOuts.forEach(c => {
+                let amt = parseFloat(c.amount) || 0;
+                let categoryName = c.category || c.remark || "Extra (अन्य)"; 
+                
+                let lowerCatName = categoryName.toLowerCase();
+                
+                // चेक करें कि क्या categoryName में कोई इग्नोर करने वाला शब्द है
+                let isIgnored = ignoreKeywords.some(keyword => lowerCatName.includes(keyword));
+                
+                // अगर यह इग्नोर लिस्ट में है, तो इसे यहीं रोक दो और खर्चे में मत जोड़ो
+                if (isIgnored) return;
 
-    if(expenseCategories[categoryName]) {
-        expenseCategories[categoryName] += amt;
-    } else {
-        expenseCategories[categoryName] = amt; 
-    }
-    totalMonthlyExp += amt;
-});
+                if(expenseCategories[categoryName]) {
+                    expenseCategories[categoryName] += amt;
+                } else {
+                    expenseCategories[categoryName] = amt; 
+                }
+                totalMonthlyExp += amt;
+            });
 
-const expList = document.getElementById('monthly-expense-list');
-expList.innerHTML = '';
+            const expList = document.getElementById('monthly-expense-list');
+            expList.innerHTML = '';
 
-if(Object.keys(expenseCategories).length === 0) {
-    expList.innerHTML = '<li style="justify-content:center; color:#aaa; font-size:0.85rem;">इस महीने कोई खर्च दर्ज नहीं है</li>';
-} else {
-    for (const [cat, amt] of Object.entries(expenseCategories)) {
-        expList.innerHTML += `
-            <li style="padding: 8px 10px; border-bottom: 1px dashed #eee;">
-                <span class="db-desc" style="max-width: 65%; font-weight: 500;">${cat}</span>
-                <span class="db-amt" style="color: #c62828;">₹${amt.toLocaleString()}</span>
-            </li>`;
-    }
-}
+            if(Object.keys(expenseCategories).length === 0) {
+                expList.innerHTML = '<li style="justify-content:center; color:#aaa; font-size:0.85rem;">इस महीने कोई खर्च दर्ज नहीं है</li>';
+            } else {
+                for (const [cat, amt] of Object.entries(expenseCategories)) {
+                    expList.innerHTML += `
+                        <li style="padding: 8px 10px; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between;">
+                            <span class="db-desc" style="max-width: 65%; font-weight: 500;">${cat}</span>
+                            <span class="db-amt" style="color: #c62828;">₹${amt.toLocaleString()}</span>
+                        </li>`;
+                }
+            }
 
-document.getElementById('monthly-expense-total').innerText = "₹" + totalMonthlyExp.toLocaleString();
+            document.getElementById('monthly-expense-total').innerText = "₹" + totalMonthlyExp.toLocaleString();
+
             
             loadTodos();
         };
