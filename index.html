@@ -200,6 +200,26 @@
         </div>
 
         <div class="dashboard-split">
+
+<!-- मासिक खर्च (Monthly Expenses) Box -->
+<div class="section-box">
+    <div class="section-title">
+        <span><i class="fas fa-wallet" style="color:#c62828;"></i> इस महीने का खर्च (Monthly Expenses)</span>
+        <span id="current-month-name" style="font-size: 0.8rem; color: #666; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">महीना</span>
+    </div>
+    
+    <ul class="db-list" id="monthly-expense-list" style="max-height: 200px; overflow-y: auto;">
+        <li style="justify-content:center; color:#999;">डेटा लोड हो रहा है...</li>
+    </ul>
+    
+    <div class="db-total" style="margin-top: 10px; background: #ffebee; border-radius: 6px; border: none; padding: 10px;">
+        <span>कुल खर्च:</span>
+        <span class="total-out" id="monthly-expense-total" style="font-size: 1.1rem;">₹0</span>
+    </div>
+</div>
+
+            
+            
             <div class="section-box" style="margin-bottom: 0;">
                 <div class="section-title">
                     <span><i class="fas fa-hand-holding-usd" style="color:#d32f2f;"></i> उधारी (Pending Dues)</span>
@@ -428,6 +448,54 @@
             document.getElementById('count-processing').innerText = `(${cpr})`;
             document.getElementById('count-ready').innerText = `(${cr})`;
 
+            // ==========================================
+// 6. MONTHLY EXPENSES LOGIC (इस महीने का खर्च)
+// ==========================================
+const currentMonthPrefix = todayStr.substring(0, 7); // जैसे: "2026-05"
+const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const currentMonthIndex = new Date().getMonth();
+document.getElementById('current-month-name').innerText = monthNames[currentMonthIndex] + " " + todayStr.substring(0, 4);
+
+let expenseCategories = {};
+let totalMonthlyExp = 0;
+
+// सिर्फ इस महीने की और 'OUT' (खर्च) वाली एंट्री निकालें
+const currentMonthOuts = cashflow.filter(c => c.date && c.date.startsWith(currentMonthPrefix) && c.type === 'OUT');
+
+currentMonthOuts.forEach(c => {
+    let amt = parseFloat(c.amount) || 0;
+    // अगर category खाली है तो remark लें, वरना 'Extra' में डालें
+    let categoryName = c.category || c.remark || "Extra (अन्य)"; 
+    
+    // अगर ये खर्च ज्वेलरी या कस्टमर से जुड़ा है तो उसे इग्नोर करने के लिए आप कंडीशन लगा सकते हैं
+    // if (categoryName.toLowerCase().includes('purchase')) return;
+
+    if(expenseCategories[categoryName]) {
+        expenseCategories[categoryName] += amt; // अगर पहले से है तो जोड़ दो
+    } else {
+        expenseCategories[categoryName] = amt;  // पहली बार आया है तो नया बनाओ
+    }
+    totalMonthlyExp += amt;
+});
+
+const expList = document.getElementById('monthly-expense-list');
+expList.innerHTML = '';
+
+if(Object.keys(expenseCategories).length === 0) {
+    expList.innerHTML = '<li style="justify-content:center; color:#aaa; font-size:0.85rem;">इस महीने कोई खर्च दर्ज नहीं है</li>';
+} else {
+    // हर कैटेगरी का नाम और उसका कुल अमाउंट लिस्ट में दिखाएँ
+    for (const [cat, amt] of Object.entries(expenseCategories)) {
+        expList.innerHTML += `
+            <li style="padding: 8px 10px; border-bottom: 1px dashed #eee;">
+                <span class="db-desc" style="max-width: 65%; font-weight: 500;">${cat}</span>
+                <span class="db-amt" style="color: #c62828;">₹${amt.toLocaleString()}</span>
+            </li>`;
+    }
+}
+
+document.getElementById('monthly-expense-total').innerText = "₹" + totalMonthlyExp.toLocaleString();
+            
             loadTodos();
         };
 
