@@ -547,7 +547,17 @@
                 (s.items || []).forEach(i => {
                     let net = getSafeNet(i);
                     let isItemOld = i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
-                    if (isItemOld) metalIn += net; else metalOut += net;
+                    
+                    // ✅ CHECK: Does this item actually belong to the Inventory database?
+                    // We look for common inventory identifiers like stockId, inventoryId, or barcode.
+                    let isFromInventory = i.stockId || i.inventoryId || i.barcode || i.fromInventory || i.itemId;
+
+                    if (isItemOld) {
+                        metalIn += net; 
+                    } else if (isFromInventory) {
+                        // ✅ ACTION: Only deduct metal if it was a verified stock item
+                        metalOut += net;
+                    }
                 });
                 
                 if (metalIn === 0) metalIn = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
