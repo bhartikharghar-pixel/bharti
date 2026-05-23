@@ -263,19 +263,19 @@
                 const empData = await getAllItems('employees');
                 const cashData = await getAllItems('cashflow');
                 
-                // Safety Check: अगर डेटा नहीं मिला तो उसे खाली ऐरे मान लेगा ताकि क्रैश न हो
-                employees = Array.isArray(empData) ? empData : [];
-                cashflow = Array.isArray(cashData) ? cashData : [];
+                // 🔴 Safety Check: खाली (null/undefined) डेटा को ऐरे से बाहर निकाल देंगे
+                employees = (Array.isArray(empData) ? empData : []).filter(e => e != null);
+                cashflow = (Array.isArray(cashData) ? cashData : []).filter(c => c != null);
 
                 renderEmployees();
                 updateSummaryCards();
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('employee-tbody').innerHTML = '<tr><td colspan="6">Failed to load data.</td></tr>';
+                document.getElementById('employee-tbody').innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`;
             }
         }
 
-        // Helper to format date nicely (YYYY-MM-DD to DD-MM-YYYY) - With Safety Checks
+        // Helper to format date nicely
         function formatDate(dateString) {
             if (!dateString || typeof dateString !== 'string') return '-';
             const parts = dateString.split('-');
@@ -289,18 +289,20 @@
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No employees found.</td></tr>';
                 return;
             }
+            
+            // 🔴 Safety Check: emp?.name का मतलब है कि अगर emp मौजूद है तभी name पढ़ेगा
             tbody.innerHTML = employees.map(emp => `
                 <tr>
-                    <td>${emp.name || ''}</td>
-                    <td>${emp.role || '-'}</td>
-                    <td>${formatDate(emp.joinDate)}</td>
-                    <td>₹${(emp.salary || 0).toLocaleString()}</td>
-                    <td><span class="badge ${emp.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">${emp.status || 'active'}</span></td>
+                    <td>${emp?.name || ''}</td>
+                    <td>${emp?.role || '-'}</td>
+                    <td>${formatDate(emp?.joinDate)}</td>
+                    <td>₹${(parseFloat(emp?.salary) || 0).toLocaleString()}</td>
+                    <td><span class="badge ${emp?.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">${emp?.status || 'active'}</span></td>
                     <td style="display:flex; gap:5px; flex-wrap:wrap;">
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp.id}')" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp.id}')" title="Pay Salary"><i class="fas fa-money-bill-wave"></i></button>
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp.id}')" title="Salary History"><i class="fas fa-history"></i></button>
-                        <button class="btn btn-red" style="padding:4px 8px;" onclick="deleteEmployee('${emp.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp?.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp?.id}')" title="Pay Salary"><i class="fas fa-money-bill-wave"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp?.id}')" title="Salary History"><i class="fas fa-history"></i></button>
+                        <button class="btn btn-red" style="padding:4px 8px;" onclick="deleteEmployee('${emp?.id}')" title="Delete"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -308,14 +310,13 @@
 
         function updateSummaryCards() {
             if (!employees) return;
-            document.getElementById('total-employees').innerText = employees.filter(e => e.status !== 'inactive').length;
+            document.getElementById('total-employees').innerText = employees.filter(e => e?.status !== 'inactive').length;
 
-            // Calculate total salary paid this month from cashflow
             const now = new Date();
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
             const monthPaid = (cashflow || [])
-                .filter(c => c.category === 'Salary' && c.date >= monthStart && c.type === 'OUT')
-                .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+                .filter(c => c?.category === 'Salary' && c?.date >= monthStart && c?.type === 'OUT')
+                .reduce((sum, c) => sum + (parseFloat(c?.amount) || 0), 0);
             document.getElementById('monthly-paid').innerText = '₹' + monthPaid.toLocaleString();
         }
 
@@ -326,23 +327,23 @@
             document.getElementById('emp-name').value = '';
             document.getElementById('emp-phone').value = '';
             document.getElementById('emp-role').value = '';
-            document.getElementById('emp-join-date').value = new Date().toISOString().split('T')[0]; // Default today
+            document.getElementById('emp-join-date').value = new Date().toISOString().split('T')[0]; 
             document.getElementById('emp-salary').value = '';
             document.getElementById('emp-status').value = 'active';
             openModal('employee-modal');
         }
 
         function openEditEmployeeModal(id) {
-            const emp = employees.find(e => e.id == id);
-            if (!emp) return;
+            const emp = employees.find(e => e?.id == id);
+            if (!emp) return alert('Employee data not found!');
             document.getElementById('modal-title').innerText = 'Edit Employee';
-            document.getElementById('emp-id').value = emp.id;
-            document.getElementById('emp-name').value = emp.name || '';
-            document.getElementById('emp-phone').value = emp.phone || '';
-            document.getElementById('emp-role').value = emp.role || '';
-            document.getElementById('emp-join-date').value = emp.joinDate || '';
-            document.getElementById('emp-salary').value = emp.salary || '';
-            document.getElementById('emp-status').value = emp.status || 'active';
+            document.getElementById('emp-id').value = emp?.id || '';
+            document.getElementById('emp-name').value = emp?.name || '';
+            document.getElementById('emp-phone').value = emp?.phone || '';
+            document.getElementById('emp-role').value = emp?.role || '';
+            document.getElementById('emp-join-date').value = emp?.joinDate || '';
+            document.getElementById('emp-salary').value = emp?.salary || '';
+            document.getElementById('emp-status').value = emp?.status || 'active';
             openModal('employee-modal');
         }
 
@@ -383,11 +384,11 @@
 
         // ----- Salary Payment -----
         function openPayModal(empId) {
-            const emp = employees.find(e => e.id == empId);
-            if (!emp) return;
-            document.getElementById('pay-emp-id').value = emp.id;
-            document.getElementById('pay-emp-name').value = emp.name;
-            document.getElementById('pay-amount').value = emp.salary || '';
+            const emp = employees.find(e => e?.id == empId);
+            if (!emp) return alert('Employee data not found!');
+            document.getElementById('pay-emp-id').value = emp?.id || '';
+            document.getElementById('pay-emp-name').value = emp?.name || '';
+            document.getElementById('pay-amount').value = emp?.salary || '';
             document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('pay-note').value = '';
             openModal('pay-modal');
@@ -403,25 +404,24 @@
             if (!amount || amount <= 0) return alert('Enter valid amount');
             if (!date) return alert('Select date');
 
-            const emp = employees.find(e => e.id == empId);
+            const emp = employees.find(e => e?.id == empId);
             if (!emp) return alert('Employee not found');
 
-            // Create cashflow OUT entry
             const cashData = {
                 type: 'OUT',
                 amount: amount,
                 mode: mode,
                 date: date,
                 category: 'Salary',
-                remark: note || `Salary - ${emp.name}`,
+                remark: note || `Salary - ${emp?.name}`,
                 employeeId: empId,
-                employeeName: emp.name
+                employeeName: emp?.name || 'Unknown'
             };
 
             try {
                 await addItem('cashflow', cashData);
                 closeModal('pay-modal');
-                await loadData(); // refresh cashflow and update cards
+                await loadData(); 
                 alert('Salary paid successfully!');
             } catch (e) {
                 alert('Payment failed: ' + e.message);
@@ -430,13 +430,12 @@
 
         // ----- History -----
         function viewHistory(empId) {
-            const emp = employees.find(e => e.id == empId);
+            const emp = employees.find(e => e?.id == empId);
             if (!emp) return;
-            document.getElementById('history-title').innerText = `Salary History - ${emp.name}`;
+            document.getElementById('history-title').innerText = `Salary History - ${emp?.name || 'Employee'}`;
             
-            // Safety Check on sorting and filtering
-            const entries = (cashflow || []).filter(c => c.employeeId == empId && c.type === 'OUT' && c.category === 'Salary')
-                                   .sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+            const entries = (cashflow || []).filter(c => c?.employeeId == empId && c?.type === 'OUT' && c?.category === 'Salary')
+                                   .sort((a,b) => (b?.date || '').localeCompare(a?.date || ''));
             
             const list = document.getElementById('history-list');
             if (entries.length === 0) {
@@ -444,8 +443,8 @@
             } else {
                 list.innerHTML = entries.map(e => `
                     <div class="history-item">
-                        <span>${formatDate(e.date)} - ${e.remark || 'Salary'}</span>
-                        <strong style="color:#c62828;">₹${parseFloat(e.amount).toLocaleString()}</strong>
+                        <span>${formatDate(e?.date)} - ${e?.remark || 'Salary'}</span>
+                        <strong style="color:#c62828;">₹${parseFloat(e?.amount || 0).toLocaleString()}</strong>
                     </div>
                 `).join('');
             }
