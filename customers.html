@@ -160,7 +160,6 @@
         </div>
     </header>
     
-    <!-- ✅ FULL SIDEBAR MENU RESTORED -->
     <aside id="app-sidebar" class="sidebar-drawer">
         <ul class="sidebar-menu">
             <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
@@ -183,20 +182,824 @@
         </ul>
     </aside>
 
-    <!-- Rest of the HTML (app-container, modals, scripts) exactly as in the previous fixed version, 
-         with all onClick quotes and string IDs preserved. 
-         (Due to length, I'm not repeating the entire body; it's identical to the last fixed customers.html code but with the sidebar menu included above.) 
-    -->
+    <div class="app-container">
+        <h2 style="margin-top:0; color:#333; margin-bottom: 15px;"><i class="fas fa-users" style="color:var(--active-red);"></i> Customers & Lead Management</h2>
 
-    <div class="app-container"> ... </div>
-    <!-- Modals and scripts same as previous answer -->
+        <div class="main-tabs">
+            <button class="main-tab active" id="tabBtn-directory" onclick="switchMainTab('directory')"><i class="fas fa-address-book"></i> Customer Directory (Khata)</button>
+            <button class="main-tab" id="tabBtn-crm" onclick="switchMainTab('crm')"><i class="fas fa-bullseye"></i> Follow-up Pipeline (Leads)</button>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchMain" placeholder="Search by Name, Mobile, or City..." onkeyup="filterData()">
+            <i class="fas fa-search"></i>
+        </div>
+
+        <div id="view-directory" class="cust-grid"></div>
+
+        <div id="view-crm" style="display:none;">
+            <div style="display:flex; justify-content:flex-end; margin-bottom:15px;">
+                <button class="btn-primary" style="padding:12px 20px; border-radius:8px; cursor:pointer;" onclick="openLeadModal()"><i class="fas fa-user-plus"></i> Log New Walk-in Lead</button>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Customer Info</th>
+                            <th>Interest & Pending Task</th>
+                            <th>Occasion</th>
+                            <th style="min-width:250px;">Follow-up / Task History</th>
+                            <th style="text-align:center; min-width:160px;">Action Tools</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crmBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="fab" id="mainFab" onclick="openCustomerModal()">
+            <i class="fas fa-user-plus"></i>
+        </div>
+    </div>
+
+    <!-- NEW CUSTOMER MODAL -->
+    <div id="custModal" class="modal">
+        <div class="modal-content" style="max-width:450px;">
+            <div class="modal-header">
+                <h3 id="custModalTitle" class="modal-title">New Customer</h3>
+                <button class="close-btn" onclick="closeModal('custModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <input type="hidden" id="cId">
+                <div class="form-group" style="text-align:center;">
+                    <label style="text-align:left;">Customer Photo</label>
+                    <input type="file" id="cPhoto" accept="image/*" capture="environment" onchange="previewPhoto(event)">
+                    <img id="photoPreview" src="" style="display:none; width: 120px; height: 120px; border-radius: 50%; margin: 15px auto 0 auto; object-fit: cover; border: 3px solid #eee;">
+                    <input type="hidden" id="cPhotoBase64">
+                </div>
+                <div class="form-group">
+                    <label>Full Name <span class="text-red">*</span></label>
+                    <input type="text" id="cName" placeholder="e.g. Rahul Sharma">
+                </div>
+                <div class="form-group">
+                    <label>Mobile Number <span class="text-red">*</span></label>
+                    <input type="tel" id="cMobile" placeholder="e.g. 9876543210">
+                </div>
+                <div class="form-group">
+                    <label>Aadhar Number (Optional)</label>
+                    <input type="text" id="cAadhar" placeholder="12-digit Aadhar Number" maxlength="12">
+                </div>
+                <div class="form-group">
+                    <label>PAN Card (Optional KYC)</label>
+                    <input type="text" id="cPan" placeholder="e.g. ABCDE1234F" maxlength="10" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label>City / Address</label>
+                    <input type="text" id="cCity" placeholder="e.g. Mumbai">
+                </div>
+                <button class="btn-save" onclick="saveCustomer()"><i class="fas fa-save"></i> Save Details</button>
+                <button id="btnDeleteCust" class="btn-danger" style="display:none;" onclick="deleteCustomer()"><i class="fas fa-trash"></i> Permanently Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEAD MODAL -->
+    <div id="leadModal" class="modal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Log Store Walk-in & Tasks</h3>
+                <button class="close-btn" onclick="closeModal('leadModal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" id="lName" placeholder="Customer Name">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number (Creates Profile automatically)</label>
+                    <input type="tel" id="lPhone" placeholder="Mobile Number">
+                </div>
+                <div class="form-group">
+                    <label>Viewed Jewellery / Product</label>
+                    <input type="text" id="lItem" placeholder="e.g., 12 Inch Payal">
+                </div>
+                <div class="form-group">
+                    <label>Pending Task / To-Do (Optional)</label>
+                    <input type="text" id="lTask" placeholder="e.g., Market se photo lakar bhejna hai">
+                </div>
+                <div class="form-group">
+                    <label>Reason for Not Buying Yet</label>
+                    <select id="lReason">
+                        <option value="Item Not in Stock">Item Not in Stock (Need to Arrange)</option>
+                        <option value="Waiting for Rate Drop">Waiting for Rate Drop</option>
+                        <option value="Out of Budget">Out of Budget</option>
+                        <option value="Didn't Like Design">Didn't Like Design</option>
+                        <option value="Just Browsing">Just Browsing</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Target Budget (₹)</label>
+                        <input type="number" id="lPrice" placeholder="Optional">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Upcoming Occasion</label>
+                        <select id="lOccasion">
+                            <option value="None">None</option>
+                            <option value="Marriage">Marriage</option>
+                            <option value="Anniversary">Anniversary</option>
+                            <option value="Engagement">Engagement</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Occasion Date</label>
+                    <input type="date" id="lDate">
+                </div>
+                <button class="btn-save" onclick="saveLead()"><i class="fas fa-bullseye"></i> Save to Pipeline</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 360 MODAL -->
+    <div id="c360Modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" style="border:none; padding-bottom:0; margin-bottom:0;">
+                <h3 class="modal-title">Customer Profile</h3>
+                <button class="close-btn" onclick="closeModal('c360Modal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="c360-header">
+                    <div style="display:flex; justify-content:center; margin-bottom:15px;">
+                        <div class="avatar" id="v360Avatar" style="width:90px; height:90px; font-size:2.5rem;"></div>
+                    </div>
+                    <h2 class="c360-name" id="v360Name">Customer Name</h2>
+                    <div class="c360-phone">
+                        <i class="fas fa-phone"></i> <span id="v360Phone">9876543210</span> &nbsp;|&nbsp; 
+                        <i class="fas fa-map-marker-alt"></i> <span id="v360City">City</span>
+                    </div>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="switch360Tab('khata', this)"><i class="fas fa-book"></i> Khata (Dues)</button>
+                    <button class="tab" onclick="switch360Tab('inquiries', this)"><i class="fas fa-tasks"></i> CRM & Tasks</button>
+                    <button class="tab" onclick="switch360Tab('orders', this)"><i class="fas fa-hammer"></i> Orders</button>
+                    <button class="tab" onclick="switch360Tab('loans', this)"><i class="fas fa-coins"></i> Loans</button>
+                    <button class="tab" onclick="switch360Tab('schemes', this)"><i class="fas fa-heart"></i> Schemes</button>
+                    <button class="tab" onclick="switch360Tab('deposits', this)"><i class="fas fa-piggy-bank"></i> Deposits</button>
+                </div>
+
+                <div id="tab-khata" class="tab-content active">
+                    <div class="khata-summary">
+                        <div class="khata-summary-text">Total Outstanding Udhari:</div>
+                        <div class="khata-summary-val" id="v360TotalUdhari">₹0</div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Bill #</th>
+                                    <th>Total Bill</th>
+                                    <th>Amount Paid</th>
+                                    <th>Pending Due</th>
+                                    <th>Status</th>
+                                    <th style="text-align:center;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="b360Khata"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-inquiries" class="tab-content">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Item/Task</th><th>Reason & Budget</th><th>History</th></tr></thead>
+                            <tbody id="b360Inquiries"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-orders" class="tab-content">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Date</th><th>Item</th><th>Total Estimate</th><th>Advance Paid</th><th>Status</th><th style="text-align:center;">Manage</th></tr></thead>
+                            <tbody id="b360Orders"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-loans" class="tab-content">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Date</th><th>Item</th><th>Principal</th><th>Rate</th><th>Status</th><th style="text-align:center;">Manage</th></tr></thead>
+                            <tbody id="b360Loans"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-schemes" class="tab-content">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Start Date</th><th>Monthly EMI</th><th>Months Paid</th><th>Status</th><th style="text-align:center;">Manage</th></tr></thead>
+                            <tbody id="b360Schemes"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="tab-deposits" class="tab-content">
+                    <div style="background:#e3f2fd; padding:15px; border-radius:10px; margin-bottom:20px; font-weight:bold; color:#1565c0; display:flex; justify-content:space-between; align-items:center; border: 1px solid #bbdefb;">
+                        <span>Current Deposit Balance Held: <span id="v360DepBal" style="font-size:1.3rem; margin-left:8px;">₹0</span></span>
+                        <a href="deposits.html" class="btn-small pay" style="color:#000;"><i class="fas fa-external-link-alt"></i> Manage Deposits</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Note</th></tr></thead>
+                            <tbody id="b360Deposits"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div> 
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="db.js?v=35"></script>
     <script>
-        // ... all JavaScript from the previous corrected version (no parseInt, quotes in onClick) ...
+        // --- UI CONTROLS ---
+        function toggleSidebar() { 
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (!sidebar.classList.contains('open')) {
+                sidebar.classList.add('open'); overlay.classList.add('show');
+                history.pushState({ view: 'sidebar' }, '', '#menu');
+            } else {
+                sidebar.classList.remove('open'); overlay.classList.remove('show');
+                if (window.location.hash === '#menu') history.back();
+            }
+        }
+
+        function openModal(id) { 
+            const targetId = id || 'custModal'; 
+            const modal = document.getElementById(targetId);
+            if (modal) {
+                modal.style.display = 'flex';
+                history.pushState({ view: 'modal', id: targetId }, '', '#' + targetId);
+            }
+        }
+
+        function closeModal(id) { 
+            const targetId = id || 'custModal';
+            const modal = document.getElementById(targetId);
+            if (modal) {
+                modal.style.display = 'none';
+                if (window.location.hash === '#' + targetId) history.back();
+            }
+        }
+
+        window.addEventListener('popstate', function(event) {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open'); overlay.classList.remove('show');
+            }
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        });
+
+        let currentMainTab = 'directory';
+        function switchMainTab(tab) {
+            currentMainTab = tab;
+            document.getElementById('tabBtn-directory').classList.toggle('active', tab === 'directory');
+            document.getElementById('tabBtn-crm').classList.toggle('active', tab === 'crm');
+            document.getElementById('view-directory').style.display = tab === 'directory' ? 'grid' : 'none';
+            document.getElementById('view-crm').style.display = tab === 'crm' ? 'block' : 'none';
+            document.getElementById('mainFab').style.display = tab === 'directory' ? 'flex' : 'none';
+            filterData();
+        }
+
+        function previewPhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('photoPreview').src = e.target.result;
+                    document.getElementById('photoPreview').style.display = 'block';
+                    document.getElementById('cPhotoBase64').value = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        let dbCustomers = [], dbSales = [], dbOrders = [], dbLoans = [], dbSchemes = [], dbDeposits = [];
+        let aggregatedCustomers = [];
+
+        window.onload = async function() {
+            await loadAllData();
+        };
+
+        async function loadAllData() {
+            dbCustomers = await getAllItems('customers');
+            dbSales = await getAllItems('sales');
+            dbOrders = await getAllItems('orders');
+            dbLoans = await getAllItems('loans');
+            try { dbSchemes = await getAllItems('schemes'); } catch(e){}
+            try { dbDeposits = await getAllItems('deposits'); } catch(e){}
+            aggregateData();
+        }
+
+        function aggregateData() {
+            aggregatedCustomers = dbCustomers.map(c => {
+                const mySales = dbSales.filter(s => s.customerId == c.id && s.status !== 'cancelled');
+                const totalSales = mySales.reduce((sum, s) => sum + (parseFloat(s.grandTotal) || 0), 0);
+                let pendingSales = 0;
+                mySales.forEach(s => {
+                    let due = parseFloat(s.pendingAmount) || 0;
+                    if(due > 0) pendingSales += due;
+                });
+                const myLoans = dbLoans.filter(l => l.customerId == c.id && l.status === 'active');
+                let activeLoanPrin = 0;
+                myLoans.forEach(l => {
+                    if(l.ledger && l.ledger.length > 0) activeLoanPrin += l.ledger[l.ledger.length-1].closingPrincipal;
+                    else activeLoanPrin += parseFloat(l.amount);
+                });
+                const myDeps = dbDeposits.filter(d => d.customerId == c.id);
+                let depBalance = 0;
+                myDeps.forEach(d => {
+                    if(d.type === 'IN') depBalance += parseFloat(d.amount);
+                    if(d.type === 'OUT') depBalance -= parseFloat(d.amount);
+                });
+                return { ...c, totalSales, pendingSales, activeLoanPrin, depBalance, inquiries: c.inquiries || [] };
+            });
+            aggregatedCustomers.sort((a,b) => b.id - a.id);
+            filterData();
+        }
+
+        function filterData() {
+            const term = document.getElementById('searchMain').value.toLowerCase();
+            const filtered = aggregatedCustomers.filter(c => 
+                c.name.toLowerCase().includes(term) || 
+                String(c.mobile).includes(term) ||
+                (c.city && c.city.toLowerCase().includes(term))
+            );
+            if (currentMainTab === 'directory') renderCustomers(filtered);
+            if (currentMainTab === 'crm') renderCrmTable(filtered);
+        }
+
+        // --- DIRECTORY RENDER (onClick fixed with quotes) ---
+        function renderCustomers(list) {
+            const container = document.getElementById('view-directory');
+            container.innerHTML = '';
+            if (list.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:40px; color:#999; grid-column: 1/-1;">No customers found.</div>`;
+                return;
+            }
+            list.forEach(c => {
+                const hasDue = c.pendingSales > 0 || c.activeLoanPrin > 0;
+                const initial = c.name ? c.name.charAt(0).toUpperCase() : 'U';
+                const avatarContent = c.photo ? `<img src="${c.photo}" style="width:100%; height:100%; object-fit:cover;">` : initial;
+                
+                container.innerHTML += `
+                    <div class="card ${hasDue ? 'has-due' : ''}">
+                        <div class="cust-header">
+                            <div class="cust-header-left">
+                                <div class="avatar" style="${c.photo ? 'background:transparent;' : ''}">${avatarContent}</div>
+                                <div class="cust-info">
+                                    <h4>${c.name}</h4>
+                                    <p><i class="fas fa-phone"></i> ${c.mobile} | <i class="fas fa-map-marker-alt"></i> ${c.city || 'N/A'}</p>
+                                </div>
+                            </div>
+                            <button class="btn-icon" style="background:var(--whatsapp); color:white; border:none;" onclick="waMessage('${c.mobile}', '${c.name}')" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                        </div>
+                        <div class="cust-stats">
+                            <div class="stat-item">Udhari (Dues)<span class="stat-val ${c.pendingSales > 0 ? 'text-red' : 'text-green'}">₹${c.pendingSales.toLocaleString()}</span></div>
+                            <div class="stat-item">Active Loans<span class="stat-val text-blue">₹${c.activeLoanPrin.toLocaleString()}</span></div>
+                            <div class="stat-item">Jama (Deposits)<span class="stat-val text-green">₹${c.depBalance.toLocaleString()}</span></div>
+                            <div class="stat-item">Total Bought<span class="stat-val" style="color:#555;">₹${c.totalSales.toLocaleString()}</span></div>
+                        </div>
+                        <div class="cust-actions">
+                            <button class="btn-action btn-primary" onclick="open360Modal('${c.id}')"><i class="fas fa-book-open"></i> Open Khata & Profile</button>
+                            <button class="btn-action" onclick="openCustomerModal('${c.id}')" style="flex: 0.4;" title="Edit Customer Details"><i class="fas fa-edit"></i> Edit</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- CRM PIPELINE RENDER (onClick fixed) ---
+        function getTagClass(reason) {
+            if(!reason) return 'tag-design';
+            if(reason.includes('Rate')) return 'tag-rate';
+            if(reason.includes('Budget')) return 'tag-budget';
+            if(reason.includes('Stock')) return 'tag-rate';
+            return 'tag-design';
+        }
+
+        function renderCrmTable(list) {
+            const tbody = document.getElementById('crmBody');
+            tbody.innerHTML = '';
+            let hasLeads = false;
+            list.forEach(c => {
+                if(c.inquiries && c.inquiries.length > 0) {
+                    c.inquiries.forEach((inq, idx) => {
+                        hasLeads = true;
+                        const historyHTML = inq.history.map(note => {
+                            const parts = note.split('] ');
+                            if(parts.length > 1) return `<div><span class="history-date">${parts[0].replace('[', '')}</span>${parts[1]}</div>`;
+                            return `<div>${note}</div>`;
+                        }).join('');
+                        
+                        let actionLogic = '';
+                        if(inq.reason === "Waiting for Rate Drop") {
+                            actionLogic = `<button class="btn-small pay" style="width:100%; margin-bottom:8px; justify-content:center;" onclick="sendOffer('${c.id}', ${idx}, 'Rate Dropped! Come to store.')"><i class="fas fa-chart-line"></i> Send Rate Alert</button>`;
+                        } else if(inq.reason === "Item Not in Stock") {
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#f57c00; color:#f57c00;" onclick="sendOffer('${c.id}', ${idx}, 'Aapke pasand ka item market se aa gaya hai, Photos check karein.')"><i class="fas fa-images"></i> Send Item Photos</button>`;
+                        } else if(inq.occasion && inq.occasion !== "None") {
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#e53e3e; color:#e53e3e;" onclick="sendOffer('${c.id}', ${idx}, 'Special ${inq.occasion} Discount inside!')"><i class="fas fa-gift"></i> Send Event Offer</button>`;
+                        } else {
+                            actionLogic = `<button class="btn-small" style="width:100%; margin-bottom:8px; justify-content:center; border-color:#3182ce; color:#3182ce;" onclick="sendOffer('${c.id}', ${idx}, 'Special Discount on ${inq.item}')"><i class="fas fa-tag"></i> Send General Offer</button>`;
+                        }
+
+                        let taskHtml = '';
+                        if(inq.task) {
+                            taskHtml = `<div class="task-box"><strong><i class="fas fa-tasks"></i> Pending Task:</strong>${inq.task}</div>`;
+                        }
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><strong style="font-size:1.05rem;">${c.name}</strong><br><span style="color:#666; font-size:0.85rem;"><i class="fas fa-phone"></i> ${c.mobile}</span></td>
+                                <td>
+                                    <span style="font-weight:600; font-size:1rem;">${inq.item}</span><br>
+                                    <span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span>
+                                    ${inq.price ? `<br><small style="color:#888; display:block; margin-top:4px;">Budget: ₹${inq.price}</small>` : ''}
+                                    ${taskHtml}
+                                </td>
+                                <td>${(inq.occasion && inq.occasion !== 'None') ? `<b>${inq.occasion}</b><br><small>${inq.date}</small>` : '-'}</td>
+                                <td><div class="history-log">${historyHTML}</div></td>
+                                <td>
+                                    ${actionLogic}
+                                    <button class="btn-small" style="width:100%; justify-content:center; background:#1e293b; color:white; border:none;" onclick="logFollowUp('${c.id}', ${idx})"><i class="fas fa-plus-circle"></i> Log Update / Task Entry</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+            if(!hasLeads) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#888;">No active follow-ups or tasks. Log a new walk-in!</td></tr>';
+            }
+        }
+
+        function openLeadModal() {
+            document.getElementById('lName').value = '';
+            document.getElementById('lPhone').value = '';
+            document.getElementById('lItem').value = '';
+            document.getElementById('lTask').value = '';
+            document.getElementById('lPrice').value = '';
+            document.getElementById('lDate').value = '';
+            openModal('leadModal');
+        }
+
+        async function saveLead() {
+            const name = document.getElementById('lName').value;
+            const mobile = document.getElementById('lPhone').value;
+            const item = document.getElementById('lItem').value;
+            const task = document.getElementById('lTask').value;
+            const reason = document.getElementById('lReason').value;
+            const price = document.getElementById('lPrice').value;
+            const occasion = document.getElementById('lOccasion').value;
+            const date = document.getElementById('lDate').value;
+            if(!name || !mobile || !item) return alert("Name, Phone, and Viewed Item are required.");
+            let cust = dbCustomers.find(c => c.mobile == mobile);
+            if(!cust) {
+                const newId = await addItem('customers', { name, mobile, joined: new Date().toISOString(), inquiries: [] });
+                cust = await getItem('customers', newId);
+            }
+            if(!cust.inquiries) cust.inquiries = [];
+            const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+            cust.inquiries.push({
+                id: Date.now(),
+                item, task, reason, price, occasion, date,
+                status: 'Active',
+                history: [`[${timestamp}] Store visit recorded. Added to CRM.`]
+            });
+            await updateItem('customers', cust);
+            closeModal('leadModal');
+            await loadAllData(); 
+        }
+
+        async function logFollowUp(custId, inqIndex) {
+            const feedback = prompt(`Enter progress update or customer response:`);
+            if(feedback) {
+                const c = dbCustomers.find(x => x.id == custId);
+                const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+                c.inquiries[inqIndex].history.unshift(`[${timestamp}] ${feedback}`);
+                await updateItem('customers', c);
+                await loadAllData();
+            }
+        }
+
+        async function sendOffer(custId, inqIndex, message) {
+            const c = dbCustomers.find(x => x.id == custId);
+            const timestamp = new Date().toLocaleString('en-IN', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+            c.inquiries[inqIndex].history.unshift(`[${timestamp}] WhatsApp Sent: ${message}`);
+            await updateItem('customers', c);
+            await loadAllData();
+            waMessage(c.mobile, c.name, message);
+        }
+
+        // --- CUSTOMER CRUD (no parseInt) ---
+        function openCustomerModal(id = null) {
+            const delBtn = document.getElementById('btnDeleteCust');
+            document.getElementById('cPhoto').value = ''; 
+            document.getElementById('photoPreview').style.display = 'none';
+            document.getElementById('photoPreview').src = '';
+            document.getElementById('cPhotoBase64').value = '';
+
+            if(id) {
+                const c = dbCustomers.find(x => x.id == id);
+                document.getElementById('custModalTitle').innerText = "Edit Customer";
+                document.getElementById('cId').value = c.id;
+                document.getElementById('cName').value = c.name;
+                document.getElementById('cMobile').value = c.mobile;
+                document.getElementById('cAadhar').value = c.aadhar || '';
+                document.getElementById('cPan').value = c.pan || '';
+                document.getElementById('cCity').value = c.city || '';
+                if(c.photo) {
+                    document.getElementById('photoPreview').src = c.photo;
+                    document.getElementById('photoPreview').style.display = 'block';
+                    document.getElementById('cPhotoBase64').value = c.photo;
+                }
+                delBtn.style.display = 'block';
+            } else {
+                document.getElementById('custModalTitle').innerText = "New Customer";
+                document.getElementById('cId').value = '';
+                document.getElementById('cName').value = '';
+                document.getElementById('cMobile').value = '';
+                document.getElementById('cAadhar').value = '';
+                document.getElementById('cPan').value = '';
+                document.getElementById('cCity').value = '';
+                delBtn.style.display = 'none';
+            }
+            openModal('custModal');
+        }
+
+        async function saveCustomer() {
+            const rawId = document.getElementById('cId').value;
+            const id = rawId || null;
+            const name = document.getElementById('cName').value.trim();
+            const mobile = document.getElementById('cMobile').value.trim();
+            const aadhar = document.getElementById('cAadhar').value.trim();
+            const pan = document.getElementById('cPan').value.trim().toUpperCase();
+            const city = document.getElementById('cCity').value;
+            const photo = document.getElementById('cPhotoBase64').value;
+
+            if(!name || !mobile) return alert("Name and Mobile are mandatory.");
+            if(aadhar && (aadhar.length !== 12 || isNaN(aadhar))) return alert("Please enter a valid 12-digit Aadhar Number or leave it blank.");
+
+            let duplicateReason = "";
+            const isDuplicate = dbCustomers.some(c => {
+                if (id && c.id == id) return false;
+                if (c.name.toLowerCase() === name.toLowerCase() && c.mobile === mobile) {
+                    duplicateReason = "This Name and Mobile Number combination already exists!";
+                    return true;
+                }
+                if (aadhar && c.aadhar === aadhar) {
+                    duplicateReason = "This Aadhar Number already exists in the system!";
+                    return true;
+                }
+                if (pan && c.pan === pan) {
+                    duplicateReason = "This PAN Card already exists in the system!";
+                    return true;
+                }
+                return false;
+            });
+            if (isDuplicate) return alert("⚠️ Duplicate Entry Detected:\n\n" + duplicateReason);
+
+            if(id) {
+                const c = await getItem('customers', id);
+                c.name = name; c.mobile = mobile; c.aadhar = aadhar; c.pan = pan; c.city = city; c.photo = photo;
+                await updateItem('customers', c);
+            } else {
+                await addItem('customers', { name, mobile, aadhar, pan, city, photo, joined: new Date().toISOString(), inquiries: [] });
+            }
+            closeModal('custModal');
+            loadAllData(); 
+        }
+
+        async function deleteCustomer() {
+            const id = document.getElementById('cId').value;
+            const c = aggregatedCustomers.find(x => x.id == id);
+            const hasOrders = dbOrders.filter(o => o.customerId == id).length > 0;
+            const hasSchemes = dbSchemes.filter(s => s.customerId == id).length > 0;
+            if(c.totalSales > 0 || c.activeLoanPrin > 0 || c.depBalance !== 0 || hasOrders || hasSchemes) {
+                return alert("⚠️ Cannot delete customer.\n\nThey have existing transactions (Sales, Loans, Orders, or Deposits) linked to their account.");
+            }
+            if(!confirm("Are you sure you want to permanently delete this customer profile?")) return;
+            await deleteItem('customers', id);
+            alert("Customer deleted successfully.");
+            closeModal('custModal');
+            loadAllData();
+        }
+
+        function waMessage(mobile, name, customMsg = null) {
+            let phone = mobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            const msg = customMsg 
+                ? `Hello ${name},\n${customMsg}\n\nGreetings from *Bharti Jewellers*!`
+                : `Hello ${name},\n\nGreetings from *Bharti Jewellers*!`;
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        // --- 360 MODAL ---
+        function switch360Tab(tab, btn) {
+            document.querySelectorAll('#c360Modal .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#c360Modal .tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function open360Modal(id) {
+            const c = aggregatedCustomers.find(x => x.id == id);
+            if(!c) return;
+
+            const v360Avatar = document.getElementById('v360Avatar');
+            if(c.photo) {
+                v360Avatar.innerHTML = `<img src="${c.photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                v360Avatar.style.background = 'transparent';
+            } else {
+                v360Avatar.innerHTML = c.name.charAt(0).toUpperCase();
+                v360Avatar.style.background = 'var(--accent-gold)';
+            }
+
+            document.getElementById('v360Name').innerHTML = `${c.name} <button class="btn-small" style="font-size:0.85rem; margin-left:10px; background:#f1f5f9; color:#333; border: 1px solid #ddd;" onclick="closeModal('c360Modal'); openCustomerModal('${c.id}');"><i class="fas fa-edit"></i> Edit</button>`;
+            
+            document.getElementById('v360Phone').innerText = c.mobile;
+            document.getElementById('v360City').innerHTML = `
+                ${c.city || 'N/A'}<br>
+                <span style="display:inline-block; margin-top:8px; padding:4px 8px; background:#e2e8f0; border-radius:6px; font-size:0.85rem; color:#333;">
+                    <i class="fas fa-id-card"></i> Aadhar: <b>${c.aadhar || '<span style="color:#c62828;">Pending</span>'}</b> &nbsp;|&nbsp; PAN: <b>${c.pan || 'N/A'}</b>
+                </span>
+            `;
+
+            // Khata
+            const bKhata = document.getElementById('b360Khata');
+            bKhata.innerHTML = '';
+            const mySales = dbSales.filter(s => s.customerId == id && s.status !== 'cancelled').sort((a,b) => new Date(b.date) - new Date(a.date));
+            let totalUdhari = 0;
+            if(mySales.length === 0) {
+                bKhata.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 25px; color:#888;">No Sales or Khata history found.</td></tr>';
+            } else {
+                mySales.forEach(s => {
+                    const total = parseFloat(s.grandTotal || 0);
+                    const paid = parseFloat(s.paidAmount || 0);
+                    const due = parseFloat(s.pendingAmount || 0);
+                    if (due > 0) totalUdhari += due;
+                    const isPaid = due <= 0;
+                    const badge = isPaid ? `<span class="badge bg-green">Cleared</span>` : `<span class="badge bg-red">Due</span>`;
+                    let actionHtml = due > 0 
+                        ? `<button class="btn-small pay" onclick="window.location.href='sales.html?edit=${s.id}'"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>`
+                        : `<button class="btn-small" onclick="window.location.href='sales.html?edit=${s.id}'"><i class="fas fa-eye"></i> View Bill</button>`;
+                    bKhata.innerHTML += `
+                        <tr>
+                            <td>${new Date(s.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'})}</td>
+                            <td style="font-weight:bold; color:#555;">#${s.id}</td>
+                            <td style="font-weight:600; font-size:1rem;">₹${total.toLocaleString()}</td>
+                            <td style="color:var(--in-green); font-weight:600;">₹${paid.toLocaleString()}</td>
+                            <td style="color:var(--out-red); font-weight:bold; font-size:1rem;">₹${due > 0 ? due.toLocaleString() : '0'}</td>
+                            <td>${badge}</td>
+                            <td style="text-align:center;">${actionHtml}</td>
+                        </tr>
+                    `;
+                });
+            }
+            document.getElementById('v360TotalUdhari').innerText = "₹" + totalUdhari.toLocaleString();
+
+            // CRM Inquiries
+            const bInquiries = document.getElementById('b360Inquiries');
+            bInquiries.innerHTML = '';
+            if(!c.inquiries || c.inquiries.length === 0) {
+                bInquiries.innerHTML = '<tr><td colspan="3" style="text-align:center;">No CRM leads or tasks found.</td></tr>';
+            } else {
+                c.inquiries.forEach(inq => {
+                    const historyHTML = inq.history.map(note => {
+                        const parts = note.split('] ');
+                        if(parts.length > 1) return `<div><span class="history-date">${parts[0].replace('[', '')}</span>${parts[1]}</div>`;
+                        return `<div>${note}</div>`;
+                    }).join('');
+                    let taskHtml = inq.task ? `<div class="task-box" style="margin-top:6px;"><strong>Pending Task:</strong>${inq.task}</div>` : '';
+                    bInquiries.innerHTML += `
+                        <tr>
+                            <td style="vertical-align:top;"><strong style="font-size:1rem;">${inq.item}</strong>${taskHtml}</td>
+                            <td style="vertical-align:top;"><span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span><br><small style="color:#666;">Budget: ₹${inq.price || 'N/A'}</small></td>
+                            <td><div class="history-log">${historyHTML}</div></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Orders
+            const bOrders = document.getElementById('b360Orders');
+            bOrders.innerHTML = '';
+            const myOrders = dbOrders.filter(o => o.customerId == id).sort((a,b) => new Date(b.orderDate) - new Date(a.orderDate));
+            if(myOrders.length === 0) bOrders.innerHTML = '<tr><td colspan="6" style="text-align:center;">No Custom Orders found.</td></tr>';
+            else {
+                myOrders.forEach(o => {
+                    let badge = `<span class="badge bg-blue">${o.status}</span>`;
+                    if(o.status === 'completed') badge = `<span class="badge bg-green">Ready</span>`;
+                    if(o.status === 'delivered') badge = `<span class="badge bg-gold">Delivered</span>`;
+                    bOrders.innerHTML += `
+                        <tr>
+                            <td>${new Date(o.orderDate).toLocaleDateString()}</td>
+                            <td>${o.category}</td>
+                            <td>₹${(o.estAmount||0).toLocaleString()}</td>
+                            <td class="text-green">₹${(o.advancePaid||0).toLocaleString()}</td>
+                            <td>${badge}</td>
+                            <td style="text-align:center;"><a href="orders.html" class="btn-small"><i class="fas fa-arrow-right"></i> Manage</a></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Loans
+            const bLoans = document.getElementById('b360Loans');
+            bLoans.innerHTML = '';
+            const myLoans = dbLoans.filter(l => l.customerId == id).sort((a,b) => new Date(b.date) - new Date(a.date));
+            if(myLoans.length === 0) bLoans.innerHTML = '<tr><td colspan="6" style="text-align:center;">No Gold Loans found.</td></tr>';
+            else {
+                myLoans.forEach(l => {
+                    const badge = l.status === 'active' ? `<span class="badge bg-red">Active</span>` : `<span class="badge bg-green">Closed</span>`;
+                    let prin = l.amount;
+                    if(l.ledger && l.ledger.length > 0) prin = l.ledger[l.ledger.length-1].closingPrincipal;
+                    bLoans.innerHTML += `
+                        <tr>
+                            <td>${new Date(l.date).toLocaleDateString()}</td>
+                            <td>${l.description}</td>
+                            <td style="font-weight:bold;">₹${parseFloat(prin).toLocaleString()}</td>
+                            <td>${l.ratePercent}%</td>
+                            <td>${badge}</td>
+                            <td style="text-align:center;"><a href="loans.html" class="btn-small"><i class="fas fa-arrow-right"></i> Manage</a></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Schemes
+            const bSchemes = document.getElementById('b360Schemes');
+            bSchemes.innerHTML = '';
+            const mySchemes = dbSchemes.filter(s => s.customerId == id).sort((a,b) => new Date(b.startDate) - new Date(a.startDate));
+            if(mySchemes.length === 0) bSchemes.innerHTML = '<tr><td colspan="5" style="text-align:center;">No BC Schemes found.</td></tr>';
+            else {
+                mySchemes.forEach(s => {
+                    let badge = `<span class="badge bg-blue">Active</span>`;
+                    if(s.status === 'completed') badge = `<span class="badge bg-gold">Matured</span>`;
+                    if(s.status === 'redeemed') badge = `<span class="badge bg-green">Redeemed</span>`;
+                    const paidM = s.ledger.filter(m => m.status === 'paid' || m.status === 'bonus_applied').length;
+                    bSchemes.innerHTML += `
+                        <tr>
+                            <td>${new Date(s.startDate).toLocaleDateString()}</td>
+                            <td style="font-weight:bold;">₹${parseFloat(s.amount).toLocaleString()}</td>
+                            <td>${paidM} / 12</td>
+                            <td>${badge}</td>
+                            <td style="text-align:center;"><a href="schemes.html" class="btn-small"><i class="fas fa-arrow-right"></i> Manage</a></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Deposits
+            const bDeps = document.getElementById('b360Deposits');
+            document.getElementById('v360DepBal').innerText = "₹" + c.depBalance.toLocaleString();
+            bDeps.innerHTML = '';
+            const myDeps = dbDeposits.filter(d => d.customerId == id).sort((a,b) => new Date(b.date) - new Date(a.date));
+            if(myDeps.length === 0) bDeps.innerHTML = '<tr><td colspan="4" style="text-align:center;">No Deposit records found.</td></tr>';
+            else {
+                myDeps.forEach(d => {
+                    const isIN = d.type === 'IN';
+                    const color = isIN ? 'var(--in-green)' : 'var(--out-red)';
+                    bDeps.innerHTML += `
+                        <tr>
+                            <td>${new Date(d.date).toLocaleDateString()}</td>
+                            <td style="font-weight:bold; color:${color};">${isIN ? 'Received' : 'Returned'}</td>
+                            <td style="font-weight:bold; color:${color};">₹${parseFloat(d.amount).toLocaleString()}</td>
+                            <td>${d.note || '-'}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            document.querySelectorAll('#c360Modal .tab')[0].click();
+            openModal('c360Modal');
+        }
     </script> 
 </body>
 </html>
