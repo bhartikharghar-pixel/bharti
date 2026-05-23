@@ -133,7 +133,6 @@
         </div>
     </header>
 
-    <!-- FULL SIDEBAR RESTORED -->
     <aside id="app-sidebar" class="sidebar-drawer">
         <ul class="sidebar-menu">
             <li><a href="index.html" class="active"><i class="fas fa-home"></i> Dashboard</a></li>
@@ -161,7 +160,6 @@
 
     <div class="dashboard-container">
         
-        <!-- Rate Ticker -->
         <div class="rate-ticker">
             <div class="rate-item"><span>Live 24K Rate</span><strong id="r24k">₹0</strong></div>
             <div class="rate-item"><span>Standard 22K</span><strong id="r22k">₹0</strong></div>
@@ -169,16 +167,13 @@
             <div class="rate-item"><span>Silver (1kg)</span><strong id="rSil">₹0</strong></div>
         </div>
 
-        <!-- NEW: MINI DAYBOOK (आज का हिसाब - छोटी चिट्ठी) -->
         <div class="section-box">
             <div class="section-title">
                 <span><i class="fas fa-book-open" style="color:var(--accent-gold);"></i> आज का हिसाब (Today's Mini Daybook)</span>
             </div>
-            <!-- Opening Balance (small font) -->
             <div id="opening-balance" class="balance-info" style="margin-bottom:8px;">Opening: C=₹0, B=₹0</div>
             
             <div class="mini-daybook">
-                <!-- CREDIT (IN) -->
                 <div class="db-col">
                     <div class="db-header db-in-header">आया (CREDIT)</div>
                     <ul class="db-list" id="daybook-in">
@@ -190,7 +185,6 @@
                     </div>
                 </div>
                 
-                <!-- DEBIT (OUT) -->
                 <div class="db-col">
                     <div class="db-header db-out-header">गया (DEBIT)</div>
                     <ul class="db-list" id="daybook-out">
@@ -202,13 +196,10 @@
                     </div>
                 </div>
             </div>
-            <!-- Closing Balance (small font) -->
             <div id="closing-balance" class="balance-info" style="margin-top:8px;">Closing: C=₹0, B=₹0</div>
         </div>
 
-        <!-- Udhari & To-Do List Section -->
         <div class="dashboard-split">
-            <!-- 1. Top Pending Udhari -->
             <div class="section-box" style="margin-bottom: 0;">
                 <div class="section-title">
                     <span><i class="fas fa-hand-holding-usd" style="color:#d32f2f;"></i> उधारी (Pending Dues)</span>
@@ -219,7 +210,6 @@
                 </div>
             </div>
 
-            <!-- 2. To-Do List -->
             <div class="section-box" style="margin-bottom: 0;">
                 <div class="section-title">
                     <span><i class="fas fa-check-square" style="color:var(--accent-gold);"></i> मेरा काम (To-Do)</span>
@@ -229,12 +219,10 @@
                     <button type="submit" class="btn-add">Add</button>
                 </form>
                 <ul class="todo-list" id="todo-list">
-                    <!-- Todos -->
                 </ul>
             </div>
         </div>
 
-        <!-- Orders Section (Karighar Management) -->
         <div class="section-box">
             <div class="section-title">
                 <span><i class="fas fa-hammer" style="color:#1976d2;"></i> ऑर्डर स्टेटस (Order Management)</span>
@@ -257,7 +245,6 @@
 
     </div>
 
-    <!-- Firebase and Database Scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -296,25 +283,21 @@
             // COMPUTE OPENING & CLOSING BALANCES (Cash & Bank)
             // ==========================================
             function getBalanceUpTo(dateStr, mode) {
-                // mode: 'cash' or 'bank'. Adjust field name if needed (e.g., 'mode', 'paymentMode')
                 return cashflow
-                    .filter(c => c.date <= dateStr && c.mode === mode)  // <-- change c.mode to match your Firestore field
+                    .filter(c => c.date <= dateStr && c.mode === mode)
                     .reduce((sum, c) => {
                         let amt = parseFloat(c.amount) || 0;
                         return c.type === 'IN' ? sum + amt : sum - amt;
                     }, 0);
             }
 
-            // Yesterday's date
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-            // Opening = yesterday's closing
             const openCash = getBalanceUpTo(yesterdayStr, 'cash');
             const openBank = getBalanceUpTo(yesterdayStr, 'bank');
 
-            // Closing = today's closing (up to today)
             const closeCash = getBalanceUpTo(todayStr, 'cash');
             const closeBank = getBalanceUpTo(todayStr, 'bank');
 
@@ -324,14 +307,14 @@
                 `Closing: <strong>C=₹${closeCash.toLocaleString()}</strong>, <strong>B=₹${closeBank.toLocaleString()}</strong>`;
 
             // ==========================================
-            // 3. MINI DAYBOOK LOGIC (आज का हिसाब)
+            // 3. MINI DAYBOOK LOGIC (आज का हिसाब) - FIXED DOUBLE COUNTING
             // ==========================================
             const listIn = document.getElementById('daybook-in');
             const listOut = document.getElementById('daybook-out');
             let totalIn = 0, totalOut = 0;
             listIn.innerHTML = ''; listOut.innerHTML = '';
 
-            // Get Today's Sales (Credit / IN)
+            // Get Today's Sales (Credit / IN) - Keep this for detailed item descriptions
             const todaySales = sales.filter(s => s.date && s.date.startsWith(todayStr) && s.status !== 'cancelled');
             todaySales.forEach(s => {
                 let paid = (s.grandTotal || 0) - (s.pendingAmount || 0);
@@ -351,6 +334,12 @@
             todayCash.forEach(c => {
                 let amt = parseFloat(c.amount) || 0;
                 let desc = c.category || c.remark || "Cash";
+                
+                // --- THE FIX ---
+                // Skip cashflow IN entries related to Sales to prevent double counting
+                // Assuming POS sales are categorized or remarked with the word 'sale'
+                if (desc.toLowerCase().includes('sale')) return; 
+
                 if (c.type === 'IN') {
                     totalIn += amt;
                     listIn.innerHTML += `<li><span class="db-desc">${desc}</span><span class="db-amt">₹${amt.toLocaleString()}</span></li>`;
@@ -400,9 +389,8 @@
             document.getElementById('total-udhari').innerText = `Total: ₹${totalUdhari.toLocaleString()}`;
 
             // ==========================================
-            // 5. ORDER MANAGEMENT (fixed: exclude cancelled)
+            // 5. ORDER MANAGEMENT
             // ==========================================
-            // Exclude cancelled orders before processing
             orders = orders.filter(o => o.status !== 'cancelled');
 
             const oPend = document.getElementById('orders-pending');
@@ -432,11 +420,9 @@
             document.getElementById('count-processing').innerText = `(${cpr})`;
             document.getElementById('count-ready').innerText = `(${cr})`;
 
-            // To-Do Load
             loadTodos();
         };
 
-        // --- To-Do & WA Functions ---
         function waRemind(mobile, name, due, billId) {
             if(!mobile || mobile.length < 10) return alert("नंबर सेव नहीं है।");
             let phone = mobile.replace(/\D/g, ''); if(phone.length === 10) phone = '+91' + phone;
