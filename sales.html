@@ -825,6 +825,11 @@
             else r = pureRatePerGram * getPurityFactor(i.purity);
             
             document.getElementById('itemRate').value = parseFloat(r.toFixed(2));
+            
+            // DEFAULT MAKING CHARGE = 12% 
+            document.getElementById('mkVal').value = 12;
+            document.getElementById('mkType').value = 'pct';
+            
             calcItemLive();
         }
 
@@ -938,6 +943,9 @@
             if(manualBox.style.display === 'none') {
                 manualBox.style.display = 'block'; invBox.style.display = 'none';
                 document.getElementById('mItemGst').value = globalGstDefault;
+                // DEFAULT MAKING 12%
+                document.getElementById('mMkVal').value = 12;
+                document.getElementById('mMkType').value = 'pct';
                 document.getElementById('mItemName').focus();
             } else {
                 manualBox.style.display = 'none';
@@ -1129,7 +1137,8 @@
             document.getElementById('mItemName').value = '';
             document.getElementById('mGrossWt').value = '';
             document.getElementById('mStoneWt').value = '';
-            document.getElementById('mMkVal').value = '';
+            document.getElementById('mMkVal').value = 12; // reset default
+            document.getElementById('mMkType').value = 'pct';
             document.getElementById('mIsExchange').checked = false;
             document.getElementById('manualItemEntry').style.display = 'none';
         }
@@ -1419,6 +1428,10 @@
                 addPayment(); 
             }
             
+            // Fetch customer object for WhatsApp
+            const cust = await getItem('customers', cid);
+            if(!cust) return alert("Customer not found");
+            
             const applyGst = document.getElementById('applyGstToggle').checked;
 
             let baseSubtotal = 0; let totalGst = 0; let totalOldGold = 0; let totalExchWt = 0;
@@ -1491,16 +1504,16 @@
                         });
                     }
 
-                    let cust = await getItem('customers', cid);
-                    if(cust) {
+                    let custObj = await getItem('customers', cid);
+                    if(custObj) {
                         let oldBcDeduction = 0;
                         if (editId) {
                             const oldSale = allSalesData.find(os => String(os.id) === String(editId));
                             if (oldSale) oldBcDeduction = oldSale.bcWalletDeduction || 0;
                         }
                         
-                        cust.bcBalance = (getSafeNum(cust.bcBalance)) + maturedSchemesTotal + oldBcDeduction - appliedBcAmount;
-                        await updateItem('customers', cust);
+                        custObj.bcBalance = (getSafeNum(custObj.bcBalance)) + maturedSchemesTotal + oldBcDeduction - appliedBcAmount;
+                        await updateItem('customers', custObj);
                     }
                 }
 
@@ -1575,6 +1588,10 @@
                     });
                 }
 
+                // Automatically send WhatsApp message
+                waInvoice(invNo, cust.mobile, cust.name, grand, pendingDue);
+
+                // Then print the invoice
                 printInvoice(saleData);
                 
                 cart = []; payments = []; deletedPayments = []; 
