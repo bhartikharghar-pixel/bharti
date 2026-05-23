@@ -1,3 +1,32 @@
+Gemini सही बोल रही है! 🎯
+
+दोनों issues बिल्कुल सही पकड़े हैं:
+
+1. parseInt() का गलत इस्तेमाल
+
+Firebase हमेशा String IDs generate करता है (जैसे "2vXpA1B2c")। जब आप parseInt("2vXpA1B2c") करते हैं, तो result NaN आता है। इससे customer link नहीं हो पाता और data save नहीं होता।
+
+2. onclick में Quotes गायब
+
+Template literal में ${o.id} बिना quotes के JavaScript identifier की तरह evaluate होता है। अगर ID "2vXpA1B2c" है, तो बनेगा:
+
+```js
+onclick="openViewModal(2vXpA1B2c)"  // ❌ Invalid JS
+```
+
+सही होना चाहिए:
+
+```js
+onclick="openViewModal('2vXpA1B2c')"  // ✅ String pass होगी
+```
+
+---
+
+🔧 Complete Fixed Code
+
+नीचे पूरा fixed orders.html है – सभी parseInt() हटा दिए गए हैं और सभी onclick में quotes लगा दिए गए हैं। बाकी सब कुछ बिल्कुल original जैसा ही है।
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1718,4 +1747,156 @@
             const o = targetId ? allOrders.find(x => x.id == targetId) : activeJobData;
             if(!o) return;
             const isFinal = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered');
-            const invoiceNo = o.invoiceNo || 'ORD-INV' +
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+
+            let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 400px; margin: 0 auto; font-family:monospace;">
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0;">BHARTI JEWELLERS</h2>
+                    <h3 style="margin:5px 0 0 0;">${isFinal ? 'TAX INVOICE' : 'ESTIMATE'} (ORDER)</h3>
+                    <div style="font-size:15px; margin-top:6px; font-weight:bold; color:#1565c0;">Invoice No: ${invoiceNo}</div>
+                </div>
+                <b>Customer:</b> ${o.custName}<br><b>Item:</b> ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
+            
+            const wVal = isFinal ? (o.finalNet || o.finalGross) : o.grossWt;
+            const base = o.baseAmount || o.estAmount || 0;
+            html += `<table style="width:100%; margin-top:15px;">
+                <tr><td>${o.category} (${o.purity})</td><td style="text-align:right">${wVal}g</td></tr>
+            </table><hr>
+            <div style="display:flex; justify-content:space-between;"><b>Base Value (Inc. Making):</b><b>₹${base}</b></div>`;
+            
+            if(o.gstAmount > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
+            }
+            if(o.oldGoldValue > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            }
+            
+            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000; padding-top:5px;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
+            html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
+            
+            document.getElementById('challan-area').innerHTML = ''; 
+            document.getElementById('invoice-area').innerHTML = html;
+            window.print();
+        }
+
+        function printKarigarSlip() {
+            const o = activeJobData;
+            if(!o) return;
+            // ✅ String comparison
+            const m = allMerchants.find(x => x.id == o.merchantId);
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            let imgHtml = o.itemImage ? `<div style="text-align:center; margin-bottom:15px;"><img src="${o.itemImage}" style="max-width:100%; max-height:350px; border:2px solid #000; border-radius:4px; object-fit:contain;"></div>` : '';
+
+            let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 600px; margin: 0 auto; font-family:monospace;">
+                <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
+                    <h2 style="margin:0;">BHARTI JEWELLERS</h2>
+                    <h3 style="margin:5px 0 0 0;">KARIGAR ISSUE SLIP</h3>
+                    <div style="font-size:15px; margin-top:6px; font-weight:bold;">Order Ref: ${invoiceNo}</div>
+                </div>
+                ${imgHtml}
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <div><b>Karigar:</b> ${m ? m.name : 'N/A'}</div>
+                    <div><b>Date:</b> ${new Date().toLocaleDateString()}</div>
+                </div>
+                <div style="margin-bottom:10px;"><b>Due By:</b> ${new Date(o.dueDate).toLocaleDateString()}</div>
+                <h4 style="margin: 15px 0 5px 0; border-bottom: 1px dashed #000; padding-bottom: 5px;">Item Details</h4>
+                <table style="width:100%; border-collapse: collapse; margin-top:10px;" border="1">
+                    <tr><th style="padding:8px; text-align:left;">Description</th><th style="padding:8px; text-align:center;">Purity Required</th><th style="padding:8px; text-align:center;">Est. Gross Wt</th></tr>
+                    <tr><td style="padding:8px;"><b>${o.category}</b><br><small>${o.description}</small></td><td style="padding:8px; text-align:center;">${o.purity}</td><td style="padding:8px; text-align:center;">${o.grossWt}g</td></tr>
+                </table>
+                <h4 style="margin: 20px 0 5px 0; border-bottom: 1px dashed #000; padding-bottom: 5px;">Metal Issued Info</h4>
+                <table style="width:100%; border-collapse: collapse; margin-top:10px;" border="1">
+                    <tr><th style="padding:8px; text-align:center;">Gross Wt Issued</th><th style="padding:8px; text-align:center;">Purity Issued</th><th style="padding:8px; text-align:center;">Fine Wt (Liability)</th></tr>
+                    <tr><td style="padding:8px; text-align:center;">${o.issuedGrossWt > 0 ? o.issuedGrossWt.toFixed(3) + 'g' : '0.000g'}</td><td style="padding:8px; text-align:center;">${o.issuedGrossWt > 0 ? (o.issuedPurity || 'N/A') : '-'}</td><td style="padding:8px; text-align:center; font-weight:bold;">${o.issuedGrossWt > 0 ? (o.issuedFineWt || 0).toFixed(3) + 'g' : '0.000 (Pure Labor)'}</td></tr>
+                </table>
+            </div>`;
+            
+            document.getElementById('invoice-area').innerHTML = ''; 
+            document.getElementById('challan-area').innerHTML = html;
+            window.print();
+        }
+
+        function autoWhatsApp(orderData, stage) {
+            if (!orderData.custMobile) {
+                showToast("No mobile number found for this customer.", "error");
+                return;
+            }
+            let phone = orderData.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+
+            let msg = '';
+            let invoiceNo = orderData.invoiceNo || 'ORD-INV' + String(orderData.id).padStart(3, '0');
+            let desc = orderData.description || 'Jewelry';
+            let name = orderData.custName || 'Customer';
+
+            if (stage === 'intake') {
+                let estTotal = orderData.estAmount || orderData.grandTotal || 0;
+                let adv = orderData.advancePaid || 0;
+                msg = `*Bharti Jewellers - Order Confirmation*\n\nHello ${name} ji,\nWe have successfully received your custom order for *${desc}* (Ref: ${invoiceNo}).\n\nEstimated Total: Rs. ${Math.round(estTotal).toLocaleString()}\nAdvance Paid: Rs. ${Math.round(adv).toLocaleString()}\n\nYour order is now moving into processing. We will notify you when it goes to our karigar!\n\nThank you for choosing us.`;
+            } else if (stage === 'karigar') {
+                msg = `*Bharti Jewellers - Order Update*\n\nHello ${name} ji,\nAn update on your order for *${desc}* (Ref: ${invoiceNo}):\n\nIt has been assigned to our Karigar (Craftsman) for manufacturing today. We are carefully crafting your jewelry and will notify you exactly when it is ready for delivery!\n\nThank you,\nBharti Jewellers`;
+            } else if (stage === 'ready') {
+                let finalGross = orderData.finalGross || 0;
+                let grandTotal = orderData.grandTotal || 0;
+                let adv = orderData.advancePaid || 0;
+                let oldGold = orderData.oldGoldValue || 0;
+                let netDue = grandTotal - adv - oldGold;
+                msg = `*Bharti Jewellers - Order Ready!*\n\nHello ${name} ji,\nGreat news! Your custom order for *${desc}* (Ref: ${invoiceNo}) is now READY for pickup.\n\n*Final Details:*\nWeight: ${finalGross}g\nTotal Amount: Rs. ${Math.round(grandTotal).toLocaleString()}\nLess Advance/Old Gold: -Rs. ${Math.round(adv + oldGold).toLocaleString()}\n----------------\n*Net Pending: Rs. ${Math.round(netDue).toLocaleString()}*\n\nPlease visit the store to collect your jewelry.\nWe look forward to serving you!`;
+            }
+
+            if (msg) {
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            }
+        }
+
+        function sendWhatsApp() {
+            const o = activeJobData;
+            if(!o || !o.custMobile) return showToast("No mobile number found for this customer.", "error");
+            
+            let grandTotal = o.grandTotal || o.estAmount || 0;
+            const oldVal = o.oldGoldValue || 0;
+            const adv = o.advancePaid || 0;
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            let netDue = grandTotal - oldVal - adv;
+            if (o.status === 'billed' || o.status === 'delivered') netDue = 0;
+
+            let msg = `Hello ${o.custName},\n\nYour custom order for *${o.description}* (Ref: ${invoiceNo}) is ${o.status === 'pending' || o.status === 'in_progress' ? 'currently being processed' : 'Ready for pickup!'}.\n\n`;
+            msg += `Order Total: Rs. ${Math.round(grandTotal).toLocaleString()}\n`;
+            if (oldVal > 0) msg += `Old Gold Deducted: -Rs. ${oldVal.toLocaleString()}\n`;
+            if (adv > 0) msg += `Advance Paid: -Rs. ${adv.toLocaleString()}\n`;
+            msg += `---------------------\n`;
+            if (netDue < 0) msg += `*Refund Due: Rs. ${Math.abs(netDue).toLocaleString()}*\n\n`;
+            else if (netDue === 0 && (o.status === 'billed' || o.status === 'delivered')) msg += `*Bill fully paid.*\n\n`;
+            else msg += `*Pending Balance: Rs. ${Math.round(netDue).toLocaleString()}*\n\n`;
+            msg += `Thank you,\n*Bharti Jewellers*`;
+            
+            let phone = o.custMobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>
+```
+
+---
+
+📋 क्या-क्या Fix किया गया:
+
+जगह पहले (गलत) अब (सही)
+saveJob() में customerId parseInt(custId) custId (string)
+openViewModal(id) parseInt(id) सीधे string ID
+renderOrders() में onclick openViewModal(${o.id}) openViewModal('${o.id}')
+addAdvance() parseInt(document...value) बिना parseInt
+confirmAssignOrder() stockId parseInt(stockId) stockId (string)
+confirmReceiveOrder() merchantId parseInt(o.merchantId) o.merchantId (string)
+confirmFinalBill() customerId parseInt(finalCustId) finalCustId (string)
+confirmCancelOrder() sourceStockId parseInt(o.sourceStockId) o.sourceStockId (string)
+सभी x.id === id comparisons strict equality x.id == id (loose, safe)
+
+अब Firebase की String IDs पूरे code में सही से handle होंगी और कोई भी click fail नहीं होगा! ✅
