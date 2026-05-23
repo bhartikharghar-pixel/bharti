@@ -49,29 +49,36 @@
         .btn-dark { background: #111; color: var(--accent-gold); }
         .btn-red { background: var(--active-red); color: white; }
         .btn-outline { background: white; border: 1px solid #ccc; color: #333; }
+        .btn-blue { background: #1976d2; color: white; }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th { background: #f9f9f9; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; color: #444; }
-        td { padding: 10px; border-bottom: 1px solid #eee; }
+        td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
         .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
         .badge-active { background: #e8f5e9; color: #2e7d32; }
         .badge-inactive { background: #ffebee; color: #c62828; }
+        .text-green { color: #2e7d32; font-weight: bold; }
+        .text-red { color: #c62828; font-weight: bold; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 5000; display: none; align-items: center; justify-content: center; }
         .modal-overlay.show { display: flex; }
-        .modal { background: white; border-radius: 12px; padding: 20px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal { background: white; border-radius: 12px; padding: 20px; width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
         .modal h3 { margin: 0 0 15px 0; color: #111; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: #555; }
         .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-family: 'Poppins', sans-serif; font-size: 0.85rem; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
 
+        .data-summary { background: #f9f9f9; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 15px; border-left: 4px solid var(--accent-gold); }
+        .data-summary p { margin: 5px 0; display: flex; justify-content: space-between; }
+        
         .history-list { max-height: 200px; overflow-y: auto; margin-top: 10px; }
         .history-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 0.8rem; }
 
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             .cards-row { flex-direction: column; }
             table { font-size: 0.75rem; }
+            th, td { padding: 6px; }
         }
     </style>
 </head>
@@ -113,45 +120,43 @@
     </aside>
 
     <div class="page-container">
-        <!-- Summary Cards -->
         <div class="cards-row">
             <div class="info-card">
                 <h3>Total Employees</h3>
                 <div class="value" id="total-employees">0</div>
             </div>
             <div class="info-card">
-                <h3>This Month Salary Paid</h3>
-                <div class="value" id="monthly-paid">₹0</div>
+                <h3>Total Pending Salary</h3>
+                <div class="value text-red" id="total-pending">₹0</div>
             </div>
         </div>
 
-        <!-- Employee List -->
         <div class="section-box">
             <div class="section-title">
-                <span><i class="fas fa-user-tie" style="color:var(--accent-gold);"></i> Employee List</span>
+                <span><i class="fas fa-user-tie" style="color:var(--accent-gold);"></i> Staff Ledger (Live from Join Date)</span>
                 <button class="btn btn-gold" onclick="openAddEmployeeModal()"><i class="fas fa-plus"></i> Add Employee</button>
             </div>
             <div style="overflow-x:auto;">
                 <table id="employee-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Role</th>
-                            <th>Joined</th>
-                            <th>Salary (₹)</th>
-                            <th>Status</th>
+                            <th>Employee</th>
+                            <th>Monthly Salary</th>
+                            <th>Total Earned (₹)</th>
+                            <th>Total Paid (₹)</th>
+                            <th>Leaves Taken</th>
+                            <th>Balance (₹)</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="employee-tbody">
-                        <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
+                        <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Add/Edit Employee Modal -->
     <div id="employee-modal" class="modal-overlay">
         <div class="modal">
             <h3 id="modal-title">Add Employee</h3>
@@ -177,6 +182,10 @@
                 <input type="number" id="emp-salary" step="0.01" min="0">
             </div>
             <div class="form-group">
+                <label>Allowed Paid Leaves (Per Month)</label>
+                <input type="number" id="emp-allowed-leaves" value="2" min="0" title="Isse jyada chhutti lene par salary cut hogi">
+            </div>
+            <div class="form-group">
                 <label>Status</label>
                 <select id="emp-status">
                     <option value="active">Active</option>
@@ -190,17 +199,39 @@
         </div>
     </div>
 
-    <!-- Pay Salary Modal -->
+    <div id="leave-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>Mark Leave</h3>
+            <input type="hidden" id="leave-emp-id">
+            <div class="form-group">
+                <label>Employee</label>
+                <input type="text" id="leave-emp-name" disabled>
+            </div>
+            <div class="form-group">
+                <label>Leave Date *</label>
+                <input type="date" id="leave-date" required>
+            </div>
+            <div class="form-group">
+                <label>Reason (Optional)</label>
+                <input type="text" id="leave-reason" placeholder="e.g., Sick, Family function">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeModal('leave-modal')">Cancel</button>
+                <button class="btn btn-red" onclick="saveLeave()">Mark Leave</button>
+            </div>
+        </div>
+    </div>
+
     <div id="pay-modal" class="modal-overlay">
         <div class="modal">
             <h3>Pay Salary</h3>
             <input type="hidden" id="pay-emp-id">
+            
+            <div class="data-summary" id="pay-summary">
+                </div>
+
             <div class="form-group">
-                <label>Employee</label>
-                <input type="text" id="pay-emp-name" disabled>
-            </div>
-            <div class="form-group">
-                <label>Amount (₹) *</label>
+                <label>Amount to Pay (₹) *</label>
                 <input type="number" id="pay-amount" step="0.01" min="0" required>
             </div>
             <div class="form-group">
@@ -216,7 +247,7 @@
             </div>
             <div class="form-group">
                 <label>Note (optional)</label>
-                <input type="text" id="pay-note" placeholder="e.g., April salary">
+                <input type="text" id="pay-note" placeholder="e.g., Advance or April salary">
             </div>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="closeModal('pay-modal')">Cancel</button>
@@ -225,10 +256,9 @@
         </div>
     </div>
 
-    <!-- Salary History Modal -->
     <div id="history-modal" class="modal-overlay">
         <div class="modal">
-            <h3 id="history-title">Salary History</h3>
+            <h3 id="history-title">Salary & Leave History</h3>
             <div class="history-list" id="history-list"></div>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="closeModal('history-modal')">Close</button>
@@ -239,7 +269,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="db.js?v=35"></script>
+    <script src="db.js?v=37"></script>
 
     <script>
         function toggleSidebar() {
@@ -247,12 +277,12 @@
             document.getElementById('sidebar-overlay').classList.toggle('show');
         }
 
-        // Modal helpers
         function openModal(id) { document.getElementById(id).classList.add('show'); }
         function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
         let employees = [];
         let cashflow = [];
+        let leaves = []; // Naya array chhuttiyo ke liye
 
         window.onload = async function() {
             await loadData();
@@ -263,19 +293,21 @@
                 const empData = await getAllItems('employees');
                 const cashData = await getAllItems('cashflow');
                 
-                // 🔴 Safety Check: खाली (null/undefined) डेटा को ऐरे से बाहर निकाल देंगे
+                // Try catch block for leaves because the collection might not exist yet
+                let leafData = [];
+                try { leafData = await getAllItems('leaves'); } catch(e) { console.log("No leaves collection yet"); }
+                
                 employees = (Array.isArray(empData) ? empData : []).filter(e => e != null);
                 cashflow = (Array.isArray(cashData) ? cashData : []).filter(c => c != null);
+                leaves = (Array.isArray(leafData) ? leafData : []).filter(l => l != null);
 
                 renderEmployees();
-                updateSummaryCards();
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('employee-tbody').innerHTML = `<tr><td colspan="6">Error: ${e.message}</td></tr>`;
+                document.getElementById('employee-tbody').innerHTML = `<tr><td colspan="7">Error loading data. Check console.</td></tr>`;
             }
         }
 
-        // Helper to format date nicely
         function formatDate(dateString) {
             if (!dateString || typeof dateString !== 'string') return '-';
             const parts = dateString.split('-');
@@ -283,41 +315,115 @@
             return dateString;
         }
 
+        // 🧠 MAIN LOGIC: Date ke hisab se pura hisab (Earned, Paid, Deduction, Balance)
+        function calculateLedger(emp) {
+            if (!emp.joinDate) return { totalEarned: 0, totalPaid: 0, balance: 0, unpaidLeaves: 0, daysWorked: 0, totalLeaves: 0 };
+
+            const joinD = new Date(emp.joinDate);
+            const today = new Date();
+            
+            // Agar future date me join karne wala hai
+            if (today < joinD) return { totalEarned: 0, totalPaid: 0, balance: 0, unpaidLeaves: 0, daysWorked: 0, totalLeaves: 0 };
+
+            // 1. Total Din Kitne Hue Aaj Tak?
+            const diffTime = Math.abs(today - joinD);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include today
+            
+            // 2. Per Day Salary Kitni Hai?
+            const salaryPerMonth = parseFloat(emp.salary) || 0;
+            const perDaySalary = salaryPerMonth / 30; // Standard industry formula
+            
+            // 3. Kitne mahine ho gaye? (Taki allowed leaves ka hisab nikale)
+            const monthsWorked = diffDays / 30;
+            const allowedLeavesPerMonth = parseFloat(emp.allowedLeaves) || 0;
+            const totalAllowedLeaves = Math.floor(monthsWorked * allowedLeavesPerMonth);
+
+            // 4. Employee ne total kitni chhutti li hai aaj tak?
+            const empLeaves = leaves.filter(l => l.employeeId === emp.id);
+            const totalLeavesTaken = empLeaves.length;
+
+            // 5. Kitni chhutti ka paisa katega? (Extra Leaves)
+            const unpaidLeaves = Math.max(0, totalLeavesTaken - totalAllowedLeaves);
+            const deductionAmount = unpaidLeaves * perDaySalary;
+
+            // 6. Aaj tak ka Total Paisa kitna BANA? (Gross - Deduction)
+            const baseEarned = diffDays * perDaySalary;
+            const totalEarned = Math.max(0, baseEarned - deductionAmount);
+
+            // 7. Aaj tak kitna Paisa LE LIYA? (Advance / Paid)
+            const empPayments = cashflow.filter(c => c.employeeId === emp.id && c.category === 'Salary' && c.type === 'OUT');
+            const totalPaid = empPayments.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+
+            // 8. Kitna PAISA BAKAYA HAI? (Balance)
+            const balance = totalEarned - totalPaid;
+
+            return {
+                daysWorked: diffDays,
+                totalLeaves: totalLeavesTaken,
+                totalAllowedLeaves: totalAllowedLeaves,
+                unpaidLeaves: unpaidLeaves,
+                deductionAmount: deductionAmount,
+                totalEarned: totalEarned,
+                totalPaid: totalPaid,
+                balance: balance
+            };
+        }
+
         function renderEmployees() {
             const tbody = document.getElementById('employee-tbody');
+            let overallPending = 0;
+
             if (!employees || employees.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No employees found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No employees found.</td></tr>';
+                document.getElementById('total-employees').innerText = 0;
+                document.getElementById('total-pending').innerText = '₹0';
                 return;
             }
             
-            // 🔴 Safety Check: emp?.name का मतलब है कि अगर emp मौजूद है तभी name पढ़ेगा
-            tbody.innerHTML = employees.map(emp => `
-                <tr>
-                    <td>${emp?.name || ''}</td>
-                    <td>${emp?.role || '-'}</td>
-                    <td>${formatDate(emp?.joinDate)}</td>
-                    <td>₹${(parseFloat(emp?.salary) || 0).toLocaleString()}</td>
-                    <td><span class="badge ${emp?.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">${emp?.status || 'active'}</span></td>
-                    <td style="display:flex; gap:5px; flex-wrap:wrap;">
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp?.id}')" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp?.id}')" title="Pay Salary"><i class="fas fa-money-bill-wave"></i></button>
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp?.id}')" title="Salary History"><i class="fas fa-history"></i></button>
-                        <button class="btn btn-red" style="padding:4px 8px;" onclick="deleteEmployee('${emp?.id}')" title="Delete"><i class="fas fa-trash"></i></button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+            let html = '';
+            let activeCount = 0;
 
-        function updateSummaryCards() {
-            if (!employees) return;
-            document.getElementById('total-employees').innerText = employees.filter(e => e?.status !== 'inactive').length;
+            employees.forEach(emp => {
+                if (emp.status !== 'inactive') activeCount++;
+                
+                const ledger = calculateLedger(emp);
+                
+                // Update total pending calculation
+                if (ledger.balance > 0 && emp.status !== 'inactive') {
+                    overallPending += ledger.balance;
+                }
 
-            const now = new Date();
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-            const monthPaid = (cashflow || [])
-                .filter(c => c?.category === 'Salary' && c?.date >= monthStart && c?.type === 'OUT')
-                .reduce((sum, c) => sum + (parseFloat(c?.amount) || 0), 0);
-            document.getElementById('monthly-paid').innerText = '₹' + monthPaid.toLocaleString();
+                const balanceColor = ledger.balance >= 0 ? 'text-red' : 'text-green';
+                const balanceText = ledger.balance >= 0 ? `₹${ledger.balance.toFixed(0)} Pending` : `₹${Math.abs(ledger.balance).toFixed(0)} Advance`;
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${emp.name || ''}</strong><br>
+                            <span style="font-size:0.7rem; color:#888;">${emp.role || 'Staff'} | Join: ${formatDate(emp.joinDate)}</span>
+                        </td>
+                        <td>₹${(parseFloat(emp.salary) || 0).toLocaleString()} <br><small style="color:#666;">Allow: ${emp.allowedLeaves || 2}L/mo</small></td>
+                        <td style="color:#111; font-weight:600;">₹${ledger.totalEarned.toFixed(0)}</td>
+                        <td style="color:#1976d2; font-weight:600;">₹${ledger.totalPaid.toFixed(0)}</td>
+                        <td>
+                            <span class="badge ${ledger.unpaidLeaves > 0 ? 'badge-inactive' : 'badge-active'}">
+                                ${ledger.totalLeaves} Taken (${ledger.unpaidLeaves} Extra)
+                            </span>
+                        </td>
+                        <td class="${balanceColor}">${balanceText}</td>
+                        <td style="display:flex; gap:5px; flex-wrap:wrap;">
+                            <button class="btn btn-blue" style="padding:4px 8px;" onclick="openLeaveModal('${emp.id}')" title="Mark Leave"><i class="fas fa-calendar-times"></i></button>
+                            <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp.id}')" title="Pay Salary"><i class="fas fa-money-bill-wave"></i></button>
+                            <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp.id}')" title="History"><i class="fas fa-history"></i></button>
+                            <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            document.getElementById('total-employees').innerText = activeCount;
+            document.getElementById('total-pending').innerText = '₹' + overallPending.toFixed(0);
         }
 
         // ----- Employee CRUD -----
@@ -329,21 +435,23 @@
             document.getElementById('emp-role').value = '';
             document.getElementById('emp-join-date').value = new Date().toISOString().split('T')[0]; 
             document.getElementById('emp-salary').value = '';
+            document.getElementById('emp-allowed-leaves').value = '2'; // Default
             document.getElementById('emp-status').value = 'active';
             openModal('employee-modal');
         }
 
         function openEditEmployeeModal(id) {
-            const emp = employees.find(e => e?.id == id);
+            const emp = employees.find(e => e.id == id);
             if (!emp) return alert('Employee data not found!');
             document.getElementById('modal-title').innerText = 'Edit Employee';
-            document.getElementById('emp-id').value = emp?.id || '';
-            document.getElementById('emp-name').value = emp?.name || '';
-            document.getElementById('emp-phone').value = emp?.phone || '';
-            document.getElementById('emp-role').value = emp?.role || '';
-            document.getElementById('emp-join-date').value = emp?.joinDate || '';
-            document.getElementById('emp-salary').value = emp?.salary || '';
-            document.getElementById('emp-status').value = emp?.status || 'active';
+            document.getElementById('emp-id').value = emp.id;
+            document.getElementById('emp-name').value = emp.name;
+            document.getElementById('emp-phone').value = emp.phone || '';
+            document.getElementById('emp-role').value = emp.role || '';
+            document.getElementById('emp-join-date').value = emp.joinDate;
+            document.getElementById('emp-salary').value = emp.salary;
+            document.getElementById('emp-allowed-leaves').value = emp.allowedLeaves !== undefined ? emp.allowedLeaves : '2';
+            document.getElementById('emp-status').value = emp.status || 'active';
             openModal('employee-modal');
         }
 
@@ -355,9 +463,10 @@
                 role: document.getElementById('emp-role').value.trim(),
                 joinDate: document.getElementById('emp-join-date').value,
                 salary: parseFloat(document.getElementById('emp-salary').value) || 0,
+                allowedLeaves: parseFloat(document.getElementById('emp-allowed-leaves').value) || 0,
                 status: document.getElementById('emp-status').value
             };
-            if (!data.name) return alert('Name is required');
+            if (!data.name || !data.joinDate) return alert('Name and Join Date are required');
 
             try {
                 if (id) {
@@ -368,27 +477,74 @@
                 closeModal('employee-modal');
                 await loadData();
             } catch (e) {
-                alert('Error saving employee: ' + e.message);
+                alert('Error saving: ' + e.message);
             }
         }
 
-        async function deleteEmployee(id) {
-            if (!confirm('Delete this employee?')) return;
+        // ----- LEAVES MANAGEMENT -----
+        function openLeaveModal(empId) {
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return;
+            document.getElementById('leave-emp-id').value = emp.id;
+            document.getElementById('leave-emp-name').value = emp.name;
+            document.getElementById('leave-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('leave-reason').value = '';
+            openModal('leave-modal');
+        }
+
+        async function saveLeave() {
+            const empId = document.getElementById('leave-emp-id').value;
+            const empName = document.getElementById('leave-emp-name').value;
+            const date = document.getElementById('leave-date').value;
+            const reason = document.getElementById('leave-reason').value.trim();
+
+            if (!date) return alert('Please select a date');
+
+            const leaveData = {
+                employeeId: empId,
+                employeeName: empName,
+                date: date,
+                reason: reason || 'Leave',
+                timestamp: Date.now()
+            };
+
             try {
-                await deleteItem('employees', id);
-                await loadData();
+                await addItem('leaves', leaveData);
+                closeModal('leave-modal');
+                await loadData(); // Refresh UI to update balances
+                alert('Leave marked successfully!');
             } catch (e) {
-                alert('Error deleting: ' + e.message);
+                alert('Failed to mark leave: ' + e.message);
             }
         }
 
-        // ----- Salary Payment -----
+        // ----- SALARY PAYMENT -----
         function openPayModal(empId) {
-            const emp = employees.find(e => e?.id == empId);
-            if (!emp) return alert('Employee data not found!');
-            document.getElementById('pay-emp-id').value = emp?.id || '';
-            document.getElementById('pay-emp-name').value = emp?.name || '';
-            document.getElementById('pay-amount').value = emp?.salary || '';
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return;
+            
+            const ledger = calculateLedger(emp);
+            
+            document.getElementById('pay-emp-id').value = emp.id;
+            
+            // Show clear summary to the owner
+            const summaryDiv = document.getElementById('pay-summary');
+            const isAdvance = ledger.balance < 0;
+            const balanceText = isAdvance 
+                ? `<strong class="text-green">₹${Math.abs(ledger.balance).toFixed(0)} (In Advance)</strong>` 
+                : `<strong class="text-red">₹${ledger.balance.toFixed(0)} (Pending)</strong>`;
+
+            summaryDiv.innerHTML = `
+                <p><span>Paying to:</span> <strong>${emp.name}</strong></p>
+                <p><span>Total Earned (Till Date):</span> <strong>₹${ledger.totalEarned.toFixed(0)}</strong></p>
+                <p><span>Already Paid:</span> <strong>₹${ledger.totalPaid.toFixed(0)}</strong></p>
+                <p><span>Leaves (Extra):</span> <strong class="text-red">${ledger.unpaidLeaves} Days cut</strong></p>
+                <hr style="border-top:1px solid #ddd; margin:8px 0;">
+                <p><span>Current Balance:</span> ${balanceText}</p>
+            `;
+
+            // Auto-fill amount if pending
+            document.getElementById('pay-amount').value = ledger.balance > 0 ? ledger.balance.toFixed(0) : '';
             document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
             document.getElementById('pay-note').value = '';
             openModal('pay-modal');
@@ -402,10 +558,9 @@
             const note = document.getElementById('pay-note').value.trim();
 
             if (!amount || amount <= 0) return alert('Enter valid amount');
-            if (!date) return alert('Select date');
-
-            const emp = employees.find(e => e?.id == empId);
-            if (!emp) return alert('Employee not found');
+            
+            const emp = employees.find(e => e.id == empId);
+            if (!emp) return;
 
             const cashData = {
                 type: 'OUT',
@@ -413,9 +568,9 @@
                 mode: mode,
                 date: date,
                 category: 'Salary',
-                remark: note || `Salary - ${emp?.name}`,
+                remark: note || `Salary Payout - ${emp.name}`,
                 employeeId: empId,
-                employeeName: emp?.name || 'Unknown'
+                employeeName: emp.name
             };
 
             try {
@@ -428,23 +583,37 @@
             }
         }
 
-        // ----- History -----
+        // ----- COMBINED HISTORY (Payments & Leaves) -----
         function viewHistory(empId) {
-            const emp = employees.find(e => e?.id == empId);
+            const emp = employees.find(e => e.id == empId);
             if (!emp) return;
-            document.getElementById('history-title').innerText = `Salary History - ${emp?.name || 'Employee'}`;
+            document.getElementById('history-title').innerText = `History - ${emp.name}`;
             
-            const entries = (cashflow || []).filter(c => c?.employeeId == empId && c?.type === 'OUT' && c?.category === 'Salary')
-                                   .sort((a,b) => (b?.date || '').localeCompare(a?.date || ''));
+            // Get Payments
+            const empPayments = (cashflow || []).filter(c => c.employeeId == empId && c.type === 'OUT' && c.category === 'Salary')
+                .map(c => ({ type: 'payment', date: c.date, text: `Paid (${c.mode}): ${c.remark}`, amount: c.amount }));
+            
+            // Get Leaves
+            const empLeaves = (leaves || []).filter(l => l.employeeId == empId)
+                .map(l => ({ type: 'leave', date: l.date, text: `Leave taken: ${l.reason || 'No reason'}`, amount: 0 }));
+
+            // Combine and sort by date descending
+            const history = [...empPayments, ...empLeaves].sort((a,b) => b.date.localeCompare(a.date));
             
             const list = document.getElementById('history-list');
-            if (entries.length === 0) {
-                list.innerHTML = '<p style="text-align:center; color:#888;">No salary payments yet.</p>';
+            if (history.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#888;">No history found.</p>';
             } else {
-                list.innerHTML = entries.map(e => `
+                list.innerHTML = history.map(item => `
                     <div class="history-item">
-                        <span>${formatDate(e?.date)} - ${e?.remark || 'Salary'}</span>
-                        <strong style="color:#c62828;">₹${parseFloat(e?.amount || 0).toLocaleString()}</strong>
+                        <div>
+                            <span style="display:inline-block; width:80px; color:#666;">${formatDate(item.date)}</span>
+                            <span>
+                                ${item.type === 'leave' ? '<i class="fas fa-calendar-times text-red"></i> ' : '<i class="fas fa-rupee-sign text-green"></i> '}
+                                ${item.text}
+                            </span>
+                        </div>
+                        ${item.amount > 0 ? `<strong class="text-green">₹${item.amount.toLocaleString()}</strong>` : '<strong class="text-red">Off</strong>'}
                     </div>
                 `).join('');
             }
