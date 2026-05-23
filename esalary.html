@@ -137,13 +137,14 @@
                         <tr>
                             <th>Name</th>
                             <th>Role</th>
+                            <th>Joined</th>
                             <th>Salary (₹)</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="employee-tbody">
-                        <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+                        <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -166,6 +167,10 @@
             <div class="form-group">
                 <label>Role</label>
                 <input type="text" id="emp-role">
+            </div>
+            <div class="form-group">
+                <label>Joining Date</label>
+                <input type="date" id="emp-join-date">
             </div>
             <div class="form-group">
                 <label>Monthly Salary (₹)</label>
@@ -261,27 +266,36 @@
                 updateSummaryCards();
             } catch (e) {
                 console.error("Error loading data:", e);
-                document.getElementById('employee-tbody').innerHTML = '<tr><td colspan="5">Failed to load data.</td></tr>';
+                document.getElementById('employee-tbody').innerHTML = '<tr><td colspan="6">Failed to load data.</td></tr>';
             }
+        }
+
+        // Helper to format date nicely (YYYY-MM-DD to DD-MM-YYYY)
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const parts = dateString.split('-');
+            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            return dateString;
         }
 
         function renderEmployees() {
             const tbody = document.getElementById('employee-tbody');
             if (employees.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No employees found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No employees found.</td></tr>';
                 return;
             }
             tbody.innerHTML = employees.map(emp => `
                 <tr>
                     <td>${emp.name || ''}</td>
                     <td>${emp.role || '-'}</td>
+                    <td>${formatDate(emp.joinDate)}</td>
                     <td>₹${(emp.salary || 0).toLocaleString()}</td>
                     <td><span class="badge ${emp.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">${emp.status || 'active'}</span></td>
                     <td style="display:flex; gap:5px; flex-wrap:wrap;">
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp.id}')"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp.id}')"><i class="fas fa-money-bill-wave"></i></button>
-                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp.id}')"><i class="fas fa-history"></i></button>
-                        <button class="btn btn-red" style="padding:4px 8px;" onclick="deleteEmployee('${emp.id}')"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openEditEmployeeModal('${emp.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="openPayModal('${emp.id}')" title="Pay Salary"><i class="fas fa-money-bill-wave"></i></button>
+                        <button class="btn btn-outline" style="padding:4px 8px;" onclick="viewHistory('${emp.id}')" title="Salary History"><i class="fas fa-history"></i></button>
+                        <button class="btn btn-red" style="padding:4px 8px;" onclick="deleteEmployee('${emp.id}')" title="Delete"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -306,6 +320,7 @@
             document.getElementById('emp-name').value = '';
             document.getElementById('emp-phone').value = '';
             document.getElementById('emp-role').value = '';
+            document.getElementById('emp-join-date').value = new Date().toISOString().split('T')[0]; // Default today
             document.getElementById('emp-salary').value = '';
             document.getElementById('emp-status').value = 'active';
             openModal('employee-modal');
@@ -319,6 +334,7 @@
             document.getElementById('emp-name').value = emp.name || '';
             document.getElementById('emp-phone').value = emp.phone || '';
             document.getElementById('emp-role').value = emp.role || '';
+            document.getElementById('emp-join-date').value = emp.joinDate || '';
             document.getElementById('emp-salary').value = emp.salary || '';
             document.getElementById('emp-status').value = emp.status || 'active';
             openModal('employee-modal');
@@ -330,6 +346,7 @@
                 name: document.getElementById('emp-name').value.trim(),
                 phone: document.getElementById('emp-phone').value.trim(),
                 role: document.getElementById('emp-role').value.trim(),
+                joinDate: document.getElementById('emp-join-date').value,
                 salary: parseFloat(document.getElementById('emp-salary').value) || 0,
                 status: document.getElementById('emp-status').value
             };
@@ -418,7 +435,7 @@
             } else {
                 list.innerHTML = entries.map(e => `
                     <div class="history-item">
-                        <span>${e.date} - ${e.remark || 'Salary'}</span>
+                        <span>${formatDate(e.date)} - ${e.remark || 'Salary'}</span>
                         <strong style="color:#c62828;">₹${parseFloat(e.amount).toLocaleString()}</strong>
                     </div>
                 `).join('');
