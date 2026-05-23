@@ -448,10 +448,10 @@
             document.getElementById('count-processing').innerText = `(${cpr})`;
             document.getElementById('count-ready').innerText = `(${cr})`;
 
-            // ==========================================
+           // ==========================================
 // 6. MONTHLY EXPENSES LOGIC (इस महीने का खर्च)
 // ==========================================
-const currentMonthPrefix = todayStr.substring(0, 7); // जैसे: "2026-05"
+const currentMonthPrefix = todayStr.substring(0, 7); 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const currentMonthIndex = new Date().getMonth();
 document.getElementById('current-month-name').innerText = monthNames[currentMonthIndex] + " " + todayStr.substring(0, 4);
@@ -459,21 +459,31 @@ document.getElementById('current-month-name').innerText = monthNames[currentMont
 let expenseCategories = {};
 let totalMonthlyExp = 0;
 
-// सिर्फ इस महीने की और 'OUT' (खर्च) वाली एंट्री निकालें
+// 🔴 इन शब्दों वाली एंट्रीज़ को खर्चे (Expense) में नहीं गिना जाएगा
+// आप अपनी जरूरत के हिसाब से इसमें और भी नाम जोड़ सकते हैं
+const ignoreKeywords = [
+    'purchase', 'stock', 'merchant', 'wholesaler', 
+    'gold buying', 'silver buying', 'mamta gold', 'bhawani gold'
+];
+
 const currentMonthOuts = cashflow.filter(c => c.date && c.date.startsWith(currentMonthPrefix) && c.type === 'OUT');
 
 currentMonthOuts.forEach(c => {
     let amt = parseFloat(c.amount) || 0;
-    // अगर category खाली है तो remark लें, वरना 'Extra' में डालें
     let categoryName = c.category || c.remark || "Extra (अन्य)"; 
     
-    // अगर ये खर्च ज्वेलरी या कस्टमर से जुड़ा है तो उसे इग्नोर करने के लिए आप कंडीशन लगा सकते हैं
-    // if (categoryName.toLowerCase().includes('purchase')) return;
+    let lowerCatName = categoryName.toLowerCase();
+    
+    // चेक करें कि क्या categoryName में कोई इग्नोर करने वाला शब्द है
+    let isIgnored = ignoreKeywords.some(keyword => lowerCatName.includes(keyword));
+    
+    // अगर यह इग्नोर लिस्ट में है, तो इसे यहीं रोक दो और खर्चे में मत जोड़ो
+    if (isIgnored) return;
 
     if(expenseCategories[categoryName]) {
-        expenseCategories[categoryName] += amt; // अगर पहले से है तो जोड़ दो
+        expenseCategories[categoryName] += amt;
     } else {
-        expenseCategories[categoryName] = amt;  // पहली बार आया है तो नया बनाओ
+        expenseCategories[categoryName] = amt; 
     }
     totalMonthlyExp += amt;
 });
@@ -484,7 +494,6 @@ expList.innerHTML = '';
 if(Object.keys(expenseCategories).length === 0) {
     expList.innerHTML = '<li style="justify-content:center; color:#aaa; font-size:0.85rem;">इस महीने कोई खर्च दर्ज नहीं है</li>';
 } else {
-    // हर कैटेगरी का नाम और उसका कुल अमाउंट लिस्ट में दिखाएँ
     for (const [cat, amt] of Object.entries(expenseCategories)) {
         expList.innerHTML += `
             <li style="padding: 8px 10px; border-bottom: 1px dashed #eee;">
