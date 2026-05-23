@@ -280,11 +280,25 @@
             } catch(error) { console.error("Error fetching data:", error); }
 
             // ==========================================
-            // COMPUTE OPENING & CLOSING BALANCES (Cash & Bank)
+            // COMPUTE OPENING & CLOSING BALANCES (Cash & Bank) - FIXED FOR UPI
             // ==========================================
-            function getBalanceUpTo(dateStr, mode) {
+            function getBalanceUpTo(dateStr, targetMode) {
                 return cashflow
-                    .filter(c => c.date <= dateStr && c.mode === mode)
+                    .filter(c => {
+                        // तारीख चेक करें
+                        if (c.date > dateStr) return false;
+                        
+                        // पेमेंट मोड को सुरक्षित तरीके से लोअरकेस में बदलें
+                        let currentMode = (c.mode || '').toLowerCase();
+                        
+                        if (targetMode === 'cash') {
+                            return currentMode === 'cash';
+                        } else if (targetMode === 'bank') {
+                            // बैंक, UPI, कार्ड, ऑनलाइन सबको 'Bank' बैलेंस में जोड़ें
+                            return ['bank', 'upi', 'card', 'online', 'neft', 'rtgs'].includes(currentMode);
+                        }
+                        return false;
+                    })
                     .reduce((sum, c) => {
                         let amt = parseFloat(c.amount) || 0;
                         return c.type === 'IN' ? sum + amt : sum - amt;
@@ -307,14 +321,13 @@
                 `Closing: <strong>C=₹${closeCash.toLocaleString()}</strong>, <strong>B=₹${closeBank.toLocaleString()}</strong>`;
 
             // ==========================================
-            // 3. MINI DAYBOOK LOGIC (आज का हिसाब) - FIXED DOUBLE COUNTING
+            // 3. MINI DAYBOOK LOGIC (आज का हिसाब)
             // ==========================================
             const listIn = document.getElementById('daybook-in');
             const listOut = document.getElementById('daybook-out');
             let totalIn = 0, totalOut = 0;
             listIn.innerHTML = ''; listOut.innerHTML = '';
 
-            // Get Today's Sales (Credit / IN) - Keep this for detailed item descriptions
             const todaySales = sales.filter(s => s.date && s.date.startsWith(todayStr) && s.status !== 'cancelled');
             todaySales.forEach(s => {
                 let paid = (s.grandTotal || 0) - (s.pendingAmount || 0);
@@ -329,15 +342,11 @@
                 }
             });
 
-            // Get Today's Cashflow (Both IN & OUT)
             const todayCash = cashflow.filter(c => c.date && c.date.startsWith(todayStr));
             todayCash.forEach(c => {
                 let amt = parseFloat(c.amount) || 0;
                 let desc = c.category || c.remark || "Cash";
                 
-                // --- THE FIX ---
-                // Skip cashflow IN entries related to Sales to prevent double counting
-                // Assuming POS sales are categorized or remarked with the word 'sale'
                 if (desc.toLowerCase().includes('sale')) return; 
 
                 if (c.type === 'IN') {
@@ -349,7 +358,6 @@
                 }
             });
 
-            // Empty States
             if(listIn.innerHTML === '') listIn.innerHTML = '<li style="justify-content:center; color:#aaa; font-size:0.75rem;">कोई एंट्री नहीं</li>';
             if(listOut.innerHTML === '') listOut.innerHTML = '<li style="justify-content:center; color:#aaa; font-size:0.75rem;">कोई एंट्री नहीं</li>';
 
