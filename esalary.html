@@ -260,8 +260,13 @@
 
         async function loadData() {
             try {
-                employees = await getAllItems('employees');
-                cashflow = await getAllItems('cashflow');
+                const empData = await getAllItems('employees');
+                const cashData = await getAllItems('cashflow');
+                
+                // Safety Check: अगर डेटा नहीं मिला तो उसे खाली ऐरे मान लेगा ताकि क्रैश न हो
+                employees = Array.isArray(empData) ? empData : [];
+                cashflow = Array.isArray(cashData) ? cashData : [];
+
                 renderEmployees();
                 updateSummaryCards();
             } catch (e) {
@@ -270,9 +275,9 @@
             }
         }
 
-        // Helper to format date nicely (YYYY-MM-DD to DD-MM-YYYY)
+        // Helper to format date nicely (YYYY-MM-DD to DD-MM-YYYY) - With Safety Checks
         function formatDate(dateString) {
-            if (!dateString) return '-';
+            if (!dateString || typeof dateString !== 'string') return '-';
             const parts = dateString.split('-');
             if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
             return dateString;
@@ -280,7 +285,7 @@
 
         function renderEmployees() {
             const tbody = document.getElementById('employee-tbody');
-            if (employees.length === 0) {
+            if (!employees || employees.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No employees found.</td></tr>';
                 return;
             }
@@ -302,12 +307,13 @@
         }
 
         function updateSummaryCards() {
+            if (!employees) return;
             document.getElementById('total-employees').innerText = employees.filter(e => e.status !== 'inactive').length;
 
             // Calculate total salary paid this month from cashflow
             const now = new Date();
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-            const monthPaid = cashflow
+            const monthPaid = (cashflow || [])
                 .filter(c => c.category === 'Salary' && c.date >= monthStart && c.type === 'OUT')
                 .reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
             document.getElementById('monthly-paid').innerText = '₹' + monthPaid.toLocaleString();
@@ -427,8 +433,11 @@
             const emp = employees.find(e => e.id == empId);
             if (!emp) return;
             document.getElementById('history-title').innerText = `Salary History - ${emp.name}`;
-            const entries = cashflow.filter(c => c.employeeId == empId && c.type === 'OUT' && c.category === 'Salary')
-                                   .sort((a,b) => b.date.localeCompare(a.date));
+            
+            // Safety Check on sorting and filtering
+            const entries = (cashflow || []).filter(c => c.employeeId == empId && c.type === 'OUT' && c.category === 'Salary')
+                                   .sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+            
             const list = document.getElementById('history-list');
             if (entries.length === 0) {
                 list.innerHTML = '<p style="text-align:center; color:#888;">No salary payments yet.</p>';
