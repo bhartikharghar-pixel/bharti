@@ -329,7 +329,13 @@
                     <div class="grid-2">
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label>Merchant <span style="float:right; color:var(--info-blue); font-weight:bold; cursor:pointer;" onclick="promptNewMerchant()">+ Add New</span></label>
-                            <select id="merchantSelect"><option value="">Select Merchant</option></select>
+                            <!-- UPDATED: Added onchange to trigger the balance display logic -->
+                            <select id="merchantSelect" onchange="displayMerchantBalance()"><option value="">Select Merchant</option></select>
+                            
+                            <!-- NEW: This div will show the old due/metal balance when a merchant is selected -->
+                            <div id="merchantBalanceDisplay" style="margin-top: 8px; font-size: 0.85rem; display: none; padding: 8px 12px; border-radius: 8px; background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; font-weight: 600;">
+                                <!-- Balance will be injected here -->
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Date</label>
@@ -504,7 +510,6 @@
     </div>
 
     <div id="toast">Message Saved!</div>
-
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -528,6 +533,7 @@
             populatePurityDropdowns();
 
             document.getElementById('merchantSelect').value = "";
+            document.getElementById('merchantBalanceDisplay').style.display = "none"; // Hide balance display initially
             document.getElementById('itemPieces').value = 1;
             document.getElementById('itemSubCat').value = '';
             document.getElementById('itemMark').value = '';
@@ -549,6 +555,54 @@
         function closeModal(modalId = 'entryModal') { 
             document.getElementById(modalId).classList.remove('open'); 
             document.getElementById(modalId).style.display = 'none'; 
+        }
+
+        // NEW FEATURE: Display Merchant Balance dynamically
+        async function displayMerchantBalance() {
+            const mId = document.getElementById('merchantSelect').value;
+            const displayDiv = document.getElementById('merchantBalanceDisplay');
+            
+            if (!mId) {
+                displayDiv.style.display = 'none';
+                return;
+            }
+
+            try {
+                const mData = await getItem('merchants', parseInt(mId));
+                if (mData) {
+                    const rsBalance = mData.balance || 0;
+                    const goldBalance = mData.goldBalance || 0;
+                    
+                    let balanceHtml = `<b>Previous Balance:</b><br>`;
+                    
+                    // Fixed/Cash Balance
+                    if (rsBalance > 0) {
+                        balanceHtml += `<span style="color:#d32f2f;">₹${rsBalance.toLocaleString()} (Due to pay)</span>`;
+                    } else if (rsBalance < 0) {
+                        balanceHtml += `<span style="color:#2e7d32;">₹${Math.abs(rsBalance).toLocaleString()} (Advance paid)</span>`;
+                    } else {
+                        balanceHtml += `<span style="color:#555;">₹0 (No cash due)</span>`;
+                    }
+                    
+                    // Unfixed/Metal Balance
+                    balanceHtml += ` | `;
+                    if (goldBalance > 0) {
+                        balanceHtml += `<span style="color:#c5a059;">${goldBalance.toFixed(3)}g (Metal Due)</span>`;
+                    } else if (goldBalance < 0) {
+                        balanceHtml += `<span style="color:#2e7d32;">${Math.abs(goldBalance).toFixed(3)}g (Advance Metal)</span>`;
+                    } else {
+                        balanceHtml += `<span style="color:#555;">0.000g (No metal due)</span>`;
+                    }
+
+                    displayDiv.innerHTML = balanceHtml;
+                    displayDiv.style.display = 'block';
+                } else {
+                    displayDiv.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Error fetching merchant balance:", err);
+                displayDiv.style.display = 'none';
+            }
         }
         
         let allPurchasesData = [];
@@ -720,7 +774,6 @@
             
             autoFillRate();
         }
-
         function generatePieceInputs() {
             const mode = document.getElementById('stockMode').value;
             const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
