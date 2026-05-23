@@ -694,12 +694,56 @@
         }
         
         async function selectCust(c) {
-            document.getElementById('custSearch').value = '';
-            document.getElementById('custSuggestions').style.display = 'none';
-            document.getElementById('custId').value = c.id;
-            document.getElementById('custDisplay').style.display = 'flex';
-            document.getElementById('custNameDisplay').innerHTML = `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
-            
+    document.getElementById('custSearch').value = '';
+    document.getElementById('custSuggestions').style.display = 'none';
+    document.getElementById('custId').value = c.id;
+    document.getElementById('custDisplay').style.display = 'flex';
+    document.getElementById('custNameDisplay').innerHTML = `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
+    
+    // --- UDHARI NIKALNE KA NAYA LOGIC ---
+    const custSales = allSalesData.filter(s => String(s.customerId) === String(c.id) && s.status !== 'cancelled');
+    const totalPendingDue = custSales.reduce((sum, sale) => sum + (getSafeNum(sale.pendingAmount) || 0), 0);
+
+    const dueDisplay = document.getElementById('custDueDisplay');
+    const prevDueRow = document.getElementById('sumPrevDueRow');
+
+    if (totalPendingDue > 0) {
+        if(dueDisplay) {
+            dueDisplay.style.display = 'block';
+            dueDisplay.innerHTML = `<i class="fas fa-exclamation-circle"></i> Purani Udhari: ₹${totalPendingDue.toLocaleString()}`;
+        }
+        if(prevDueRow) {
+            prevDueRow.style.display = 'flex';
+            document.getElementById('sumPrevDue').innerText = "₹" + totalPendingDue.toLocaleString();
+        }
+    } else {
+        if(dueDisplay) dueDisplay.style.display = 'none';
+        if(prevDueRow) prevDueRow.style.display = 'none';
+    }
+    // -------------------------------------
+
+    const allSchemes = await getAllItems('schemes');
+    pendingMaturedSchemes = allSchemes.filter(s => String(s.customerId) === String(c.id) && s.status === 'completed');
+    maturedSchemesTotal = pendingMaturedSchemes.reduce((sum, s) => sum + (s.amount * 12), 0);
+
+    availableBcBalance = getSafeNum(c.bcBalance) + maturedSchemesTotal;
+    useBcWallet = false;
+    appliedBcAmount = 0;
+    
+    const bcPanel = document.getElementById('bcWalletPanel');
+    if (availableBcBalance > 0) {
+        bcPanel.style.display = 'flex';
+        let maturedText = maturedSchemesTotal > 0 ? `<br><small style="color:#ba68c8; font-weight:normal;">(Includes ₹${maturedSchemesTotal.toLocaleString()} from unredeemed matured scheme)</small>` : '';
+        document.getElementById('bcBalanceDisplay').innerHTML = availableBcBalance.toLocaleString() + maturedText;
+        
+        const btn = document.getElementById('btnApplyBc');
+        btn.innerHTML = '<i class="fas fa-check"></i> Apply Balance';
+        btn.style.background = "var(--bc-wallet)";
+    } else {
+        bcPanel.style.display = 'none';
+    }
+    calcBillSummary();
+}
             const allSchemes = await getAllItems('schemes');
             pendingMaturedSchemes = allSchemes.filter(s => String(s.customerId) === String(c.id) && s.status === 'completed');
             maturedSchemesTotal = pendingMaturedSchemes.reduce((sum, s) => sum + (s.amount * 12), 0);
