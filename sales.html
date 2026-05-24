@@ -6,468 +6,143 @@
     <title>POS - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root {
-            --header-bg: #000000;
-            --sidebar-bg: #111111;
-            --accent-gold: #C5A059;
-            --active-red: #D32F2F;
-            --bg-light: #f4f6f9;
-            --white: #ffffff;
-            --border-color: #2a2a2a;
-            --whatsapp: #25D366;
-            --exchange-purple: #8e24aa;
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --white: #ffffff;
+            --border-color: #2a2a2a; --whatsapp: #25D366; --exchange-purple: #8e24aa;
             --bc-wallet: #7b1fa2;
         }
-        * {
-            box-sizing: border-box;
-            outline: none;
-            -webkit-tap-highlight-color: transparent;
+
+        body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); color: #333; padding-top: 60px; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        .app-header { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px; 
+            background: var(--header-bg); display: flex; align-items: center; 
+            padding: 0 15px; z-index: 1000; border-bottom: 2px solid var(--accent-gold); 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5); justify-content: space-between;
         }
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Poppins', sans-serif;
-            background: var(--bg-light);
-            color: #333;
-            padding-top: 60px;
+        .header-title { color: var(--accent-gold); font-size: 1.3rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center;}
+        .menu-btn { background: transparent; border: 1px solid #333; width: 40px; height: 40px; border-radius: 4px; color: white; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2999; backdrop-filter: blur(2px); }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 3000; transition: left 0.3s ease-in-out; display: flex; flex-direction: column; border-right: 1px solid #333; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a i { width: 35px; font-size: 1.1rem; color: #fff; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 4px solid #fff; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+
+        .app-container { max-width: 1400px; margin: 0 auto; padding: 15px; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; height: calc(100vh - 80px); }
+        @media (max-width: 968px) { .app-container { display: block; height: auto; padding-bottom: 80px; } .col-right { margin-top: 20px; } }
+
+        .tabs { display: flex; background: #e0e0e0; padding: 5px; border-radius: 10px; margin-bottom: 15px; }
+        .tab { flex: 1; text-align: center; padding: 10px; font-weight: 600; color: #555; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab.active { background: white; color: #000; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .card-title { font-weight: 700; font-size: 1.1rem; color: #333; display: flex; align-items: center; gap: 8px; }
+
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; background: #f9f9f9; transition: 0.2s;}
+        input:focus, select:focus { border-color: var(--accent-gold); background: #fff;}
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 5px; }
+
+        .input-group { display: flex; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .input-group input { border: none; flex: 1; border-radius: 0; }
+        .input-group select { width: 80px; background: #eee; border: none; border-left: 1px solid #ddd; font-weight: 600; color: #333; text-align: center; }
+
+        .suggestions { position: absolute; background: white; width: 100%; border: 1px solid #ddd; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .suggestion-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+        .suggestion-item:hover { background: #f0f0f0; color: var(--active-red); font-weight: 500;}
+
+        .cart-box { height: 350px; overflow-y: auto; background: #fff; border: 1px solid #eee; border-radius: 8px; }
+        .cart-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .cart-table th { position: sticky; top: 0; background: #333; color: white; padding: 10px; text-align: left; }
+        .cart-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; }
+
+        .summary-panel { background: #1a1a1a; color: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);}
+        .sum-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; color: #ccc; align-items: center;}
+        .sum-row.total { border-top: 1px dashed #555; padding-top: 10px; margin-top: 10px; font-size: 1.3rem; font-weight: 700; color: var(--accent-gold); }
+        
+        .dark-input { background: rgba(255,255,255,0.1); border: 1px solid #444; color: white; padding: 6px; width: 80px; text-align: right; border-radius: 4px; }
+        .dark-select { background: rgba(0,0,0,0.5); color: #fff; border: 1px solid #444; padding: 6px; border-radius: 4px; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
+        .btn-primary { background: #333; color: white; }
+        .btn-success { background: var(--accent-gold); color: #000; }
+        .btn-success:hover { background: #b08d4a; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #aaa; color: #555; padding: 5px 10px; width: auto; font-size: 0.8rem; }
+        .btn-outline-gold { background: transparent; border: 1px solid #C5A059; color: #C5A059; padding: 6px 12px; width: auto; font-size: 0.85rem; font-weight: bold; border-radius: 6px; cursor: pointer;}
+        .btn-outline-gold:hover { background: #C5A059; color: #000; }
+
+        .pay-chips { display: flex; gap: 8px; margin: 15px 0; }
+        .pay-chip { background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; border: 1px solid transparent; color: white; }
+        .pay-chip.active { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(197, 160, 89, 0.1);}
+
+        /* ------------------ PRINT SPECIFIC CSS FOR NEW INVOICE ------------------ */
+        @media print { 
+            @page { size: A4; margin: 0; }
+            body { background: white; padding: 0; margin: 0; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .tabs { display: none !important; } 
+            #invoice-area { display: block !important; width: 100%; }
         }
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-        .app-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 60px;
-            background: var(--header-bg);
-            display: flex;
-            align-items: center;
-            padding: 0 15px;
-            z-index: 1000;
-            border-bottom: 2px solid var(--accent-gold);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-            justify-content: space-between;
-        }
-        .header-title {
-            color: var(--accent-gold);
-            font-size: 1.3rem;
-            font-weight: 700;
-            margin-left: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-        }
-        .menu-btn {
-            background: transparent;
-            border: 1px solid #333;
-            width: 40px;
-            height: 40px;
-            border-radius: 4px;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 2999;
-            backdrop-filter: blur(2px);
-        }
-        .sidebar-overlay.show {
-            display: block;
-        }
-        .sidebar-drawer {
-            position: fixed;
-            top: 60px;
-            left: -280px;
-            width: 280px;
-            height: calc(100vh - 60px);
-            background: var(--sidebar-bg);
-            z-index: 3000;
-            transition: left 0.3s ease-in-out;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #333;
-        }
-        .sidebar-drawer.open {
-            left: 0;
-        }
-        .sidebar-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            overflow-y: auto;
-            flex: 1;
-        }
-        .sidebar-menu li a {
-            display: flex;
-            align-items: center;
-            padding: 16px 20px;
-            color: #ccc;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 1rem;
-            transition: 0.2s;
-        }
-        .sidebar-menu li a i {
-            width: 35px;
-            font-size: 1.1rem;
-            color: #fff;
-        }
-        .sidebar-menu li a.active {
-            background: linear-gradient(90deg, var(--active-red), transparent);
-            color: white;
-            border-left: 4px solid #fff;
-        }
-        .sidebar-menu li a:hover {
-            background: #222;
-            color: #fff;
-            padding-left: 25px;
-        }
-        .app-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 15px;
-            display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
-            gap: 20px;
-            height: calc(100vh - 80px);
-        }
-        @media (max-width: 968px) {
-            .app-container {
-                display: block;
-                height: auto;
-                padding-bottom: 80px;
-            }
-            .col-right {
-                margin-top: 20px;
-            }
-        }
-        .tabs {
-            display: flex;
-            background: #e0e0e0;
-            padding: 5px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-        }
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 10px;
-            font-weight: 600;
-            color: #555;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .tab.active {
-            background: white;
-            color: #000;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            margin-bottom: 15px;
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        .card-title {
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        input,
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            background: #f9f9f9;
-            transition: 0.2s;
-        }
-        input:focus,
-        select:focus {
-            border-color: var(--accent-gold);
-            background: #fff;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .form-group {
-            margin-bottom: 12px;
-            position: relative;
-        }
-        label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        .input-group {
-            display: flex;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .input-group input {
-            border: none;
-            flex: 1;
-            border-radius: 0;
-        }
-        .input-group select {
-            width: 80px;
-            background: #eee;
-            border: none;
-            border-left: 1px solid #ddd;
-            font-weight: 600;
-            color: #333;
-            text-align: center;
-        }
-        .suggestions {
-            position: absolute;
-            background: white;
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 10;
-            display: none;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            left: 0;
-            top: 100%;
-        }
-        .suggestion-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-        .suggestion-item:hover {
-            background: #f0f0f0;
-            color: var(--active-red);
-            font-weight: 500;
-        }
-        .cart-box {
-            height: 350px;
-            overflow-y: auto;
-            background: #fff;
-            border: 1px solid #eee;
-            border-radius: 8px;
-        }
-        .cart-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        .cart-table th {
-            position: sticky;
-            top: 0;
-            background: #333;
-            color: white;
-            padding: 10px;
-            text-align: left;
-        }
-        .cart-table td {
-            padding: 10px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .summary-panel {
-            background: #1a1a1a;
-            color: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        .sum-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 0.95rem;
-            color: #ccc;
-            align-items: center;
-        }
-        .sum-row.total {
-            border-top: 1px dashed #555;
-            padding-top: 10px;
-            margin-top: 10px;
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--accent-gold);
-        }
-        .dark-input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid #444;
-            color: white;
-            padding: 6px;
-            width: 80px;
-            text-align: right;
-            border-radius: 4px;
-        }
-        .dark-select {
-            background: rgba(0, 0, 0, 0.5);
-            color: #fff;
-            border: 1px solid #444;
-            padding: 6px;
-            border-radius: 4px;
-        }
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: 0.2s;
-        }
-        .btn-primary {
-            background: #333;
-            color: white;
-        }
-        .btn-success {
-            background: var(--accent-gold);
-            color: #000;
-        }
-        .btn-success:hover {
-            background: #b08d4a;
-        }
-        .btn-danger {
-            background: #d32f2f;
-            color: white;
-        }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #aaa;
-            color: #555;
-            padding: 5px 10px;
-            width: auto;
-            font-size: 0.8rem;
-        }
-        .btn-outline-gold {
-            background: transparent;
-            border: 1px solid #C5A059;
-            color: #C5A059;
-            padding: 6px 12px;
-            width: auto;
-            font-size: 0.85rem;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .btn-outline-gold:hover {
-            background: #C5A059;
-            color: #000;
-        }
-        .pay-chips {
-            display: flex;
-            gap: 8px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        .pay-chip {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            border: 1px solid transparent;
-            color: white;
-        }
-        .pay-chip.active {
-            border-color: var(--accent-gold);
-            color: var(--accent-gold);
-            background: rgba(197, 160, 89, 0.1);
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(3px);
-        }
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 450px;
-            position: relative;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .close-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 1.5rem;
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #888;
-        }
-        #invoice-area {
-            display: none;
-        }
-        @media print {
-            @page {
-                size: A4;
-                margin: 0;
-            }
-            body {
-                background: white;
-                padding: 0;
-                margin: 0;
-            }
-            .app-header,
-            .sidebar-drawer,
-            .sidebar-overlay,
-            .app-container,
-            .modal,
-            .tabs {
-                display: none !important;
-            }
-            #invoice-area {
-                display: block !important;
-                width: 100%;
-            }
-        }
+
+        #invoice-area { display: none; background: white; padding: 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #000; }
+        
+        .print-page { width: 210mm; min-height: 297mm; padding: 15mm; margin: 0 auto; box-sizing: border-box; background: white; position: relative; }
+        .print-border-maroon { border: 1px solid #6c1122; }
+        .text-maroon { color: #6c1122; }
+        .bg-maroon { background-color: #6c1122; color: white; }
+        
+        /* Front Page CSS */
+        .inv-header-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 5px; }
+        .inv-address-box { font-size: 12px; font-weight: bold; padding-top: 10px; }
+        .inv-logo-box { text-align: right; }
+        .inv-logo-text { font-size: 32px; font-weight: 900; color: #6c1122; margin:0; line-height:1; }
+        .inv-logo-sub { font-size: 16px; font-weight: bold; color: #6c1122; margin:0; letter-spacing: 2px;}
+        .inv-gst-text { font-size: 10px; font-weight: bold; margin-top: 5px; }
+
+        .inv-middle-bar { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #6c1122; border-bottom: 1px solid #6c1122; padding: 5px; font-size: 11px; font-weight: bold; }
+        .inv-middle-title { font-size: 12px; font-weight: 800; text-align: center; flex: 1; }
+
+        .inv-cust-grid { display: grid; grid-template-columns: 80px 10px 1fr; row-gap: 4px; font-size: 11px; font-weight: 600; padding: 8px; border-bottom: 1px solid #6c1122; }
+        
+        .inv-main-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 10px; font-weight: 600; }
+        .inv-main-table th { border: 1px solid #6c1122; padding: 6px 2px; }
+        .inv-main-table td { border-left: 1px solid #6c1122; border-right: 1px solid #6c1122; padding: 6px 2px; vertical-align: top; }
+        .inv-items-container { min-height: 120mm; border-bottom: 1px solid #6c1122; }
+
+        .inv-footer-grid { display: grid; grid-template-columns: 1.8fr 1fr; font-size: 11px; font-weight: 600; }
+        .inv-footer-left { border-right: 1px solid #6c1122; display: flex; flex-direction: column; justify-content: space-between; }
+        .inv-footer-right { padding: 0; }
+        
+        .inv-summary-row { display: flex; justify-content: space-between; padding: 3px 8px; border-bottom: 1px solid #eee; }
+        .inv-summary-row.bold { font-weight: 800; border-bottom: none; border-top: 1px solid #6c1122; padding-top: 5px; margin-top: auto;}
+        
+        .inv-urd-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; margin-top: auto; }
+        .inv-urd-table th, .inv-urd-table td { border: 1px solid #6c1122; padding: 4px; }
+        
+        /* Back Page CSS */
+        .page-break { page-break-before: always; }
+        .tc-container { display: flex; height: 100%; border: 1px solid #6c1122; }
+        .tc-sidebar { background-color: #6c1122; width: 60px; color: white; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 24px; font-weight: bold; letter-spacing: 5px; }
+        .tc-content { padding: 30px; flex: 1; }
+        .tc-title { color: #6c1122; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-decoration: underline; }
+        .tc-list { font-size: 12px; line-height: 1.6; color: #333; padding-left: 20px; font-weight: 600;}
+        .tc-list li { margin-bottom: 12px; text-align: justify; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(3px);}
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative;}
+        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 1.5rem; background: none; border: none; cursor: pointer; color:#888;}
     </style>
 </head>
 <body>
@@ -502,18 +177,20 @@
     </aside>
 
     <div class="app-container">
+        
         <div class="col-left">
             <div class="tabs">
                 <div class="tab active" id="tab-pos" onclick="switchView('pos')"><i class="fas fa-desktop"></i> POS Billing</div>
                 <div class="tab" id="tab-hist" onclick="switchView('hist')"><i class="fas fa-history"></i> Sales History & Dues</div>
             </div>
+
             <div id="view-pos">
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title"><i class="fas fa-user-circle"></i> Customer Details</div>
                         <button class="btn-outline" onclick="openModal('custModal')"><i class="fas fa-plus"></i> New</button>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="position:relative;">
                         <input type="text" id="custSearch" placeholder="Search Customer by Name or Phone..." onkeyup="searchCustomer()" autocomplete="off">
                         <div id="custSuggestions" class="suggestions"></div>
                         <input type="hidden" id="custId">
@@ -522,7 +199,7 @@
                         <span id="custNameDisplay"></span>
                         <button onclick="resetCust()" style="background:white; border:1px solid #0d47a1; border-radius:4px; color:#0d47a1; padding:4px 8px; font-weight:bold; cursor:pointer;">Change</button>
                     </div>
-                    <div id="custPreviousDueBox" style="display:none; background:#ffebee; padding:10px; border-radius:8px; margin-top:10px; color:#c62828; border: 1px solid #ffcdd2; font-size: 0.95rem; justify-content: space-between; align-items: center;"></div>
+
                     <div id="bcWalletPanel" style="display:none; background:linear-gradient(135deg, #f3e5f5, #e1bee7); border:1px solid #ce93d8; padding:15px; border-radius:8px; margin-top:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; box-shadow: 0 4px 10px rgba(123, 31, 162, 0.1);">
                         <div style="color:var(--bc-wallet); font-weight:bold; font-size:1.1rem; display:flex; flex-direction:column;">
                             <span><i class="fas fa-gift"></i> BC Scheme Balance: ₹<span id="bcBalanceDisplay">0</span></span>
@@ -537,75 +214,165 @@
                         <div class="card-title"><i class="fas fa-gem"></i> Add Item</div>
                         <button class="btn-outline-gold" onclick="toggleManualItem()"><i class="fas fa-edit"></i> Custom / Exchange</button>
                     </div>
-                    <div class="form-group" id="barcodeSearchBox">
+                    
+                    <div class="form-group" style="position:relative;" id="barcodeSearchBox">
                         <input type="text" id="itemSearch" placeholder="Scan Barcode or Search Category..." onkeyup="searchItem()" style="font-weight:bold; border: 2px solid #C5A059;" autocomplete="off">
                         <div id="itemSuggestions" class="suggestions"></div>
                     </div>
+
                     <div id="itemEntry" style="display:none; border-top:1px solid #eee; padding-top:15px;">
                         <h4 style="margin:0 0 10px 0; color:#333;" id="itemNameDisplay">Item Name</h4>
+                        
                         <div id="stockRemainderBox" style="display:none; background:#e3f2fd; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.9rem; color:#1565c0; border: 1px solid #90caf9; align-items:center; justify-content:space-between;">
                             <span><i class="fas fa-box-open"></i> Remaining in Stock:</span>
                             <strong id="remStockText" style="font-size:1.05rem;">0 Pcs | 0.000 g</strong>
                         </div>
+
                         <div class="form-grid">
-                            <div class="form-group"><label>Sell Qty (Pcs) <small id="lblMaxQty" style="color:#1976d2;"></small></label><input type="number" id="itemSellQty" value="1" min="1" oninput="calcItemLive()"></div>
-                            <div class="form-group"><label>Gross Wt (g) <small id="lblMaxWt" style="color:#1976d2;"></small></label><input type="number" id="itemWt" step="0.001" oninput="calcItemLive()"></div>
+                            <div class="form-group">
+                                <label>Sell Qty (Pcs) <small id="lblMaxQty" style="color:#1976d2;"></small></label>
+                                <input type="number" id="itemSellQty" value="1" min="1" oninput="calcItemLive()">
+                            </div>
+                            <div class="form-group">
+                                <label>Gross Wt (g) <small id="lblMaxWt" style="color:#1976d2;"></small></label>
+                                <input type="number" id="itemWt" step="0.001" oninput="calcItemLive()">
+                            </div>
                         </div>
+
                         <div class="form-grid">
-                            <div class="form-group"><label>Stone Wt (g)</label><input type="number" id="itemStoneWt" step="0.001" value="0" oninput="calcItemLive()"></div>
-                            <div class="form-group"><label>HUID / Mark</label><input type="text" id="itemHuid" placeholder="Optional"></div>
+                            <div class="form-group">
+                                <label>Stone Wt (g)</label>
+                                <input type="number" id="itemStoneWt" step="0.001" value="0" oninput="calcItemLive()">
+                            </div>
+                            <div class="form-group">
+                                <label>HUID / Mark</label>
+                                <input type="text" id="itemHuid" placeholder="Optional">
+                            </div>
                         </div>
-                        <div style="background:#e8f5e9; padding:10px 12px; border-radius:6px; margin-bottom:15px; font-size:1rem; color:#2e7d32; border:1px solid #c8e6c9;"><span>Net Weight: <b id="liveNetWt">0.000 g</b></span></div>
+
+                        <div style="background:#e8f5e9; padding:10px 12px; border-radius:6px; margin-bottom:15px; font-size:1rem; color:#2e7d32; border:1px solid #c8e6c9;">
+                            <span>Net Weight: <b id="liveNetWt">0.000 g</b></span>
+                        </div>
+
                         <div class="form-grid">
                             <div class="form-group"><label>Rate (₹/g)</label><input type="number" id="itemRate" oninput="calcItemLive()"></div>
-                            <div class="form-group"><label>GST (%)</label><input type="number" id="itemGst" value="3" oninput="calcItemLive()"></div>
+                            <div class="form-group">
+                                <label>GST (%)</label>
+                                <input type="number" id="itemGst" value="3" oninput="calcItemLive()">
+                            </div>
                         </div>
-                        <div class="form-group"><label>Making Charges</label>
-                            <div class="input-group"><input type="number" id="mkVal" placeholder="0" oninput="calcItemLive()"><select id="mkType" onchange="calcItemLive()"><option value="pct">%</option><option value="gm">₹/g</option><option value="flat">₹</option></select></div>
+
+                        <div class="form-group">
+                            <label>Making Charges</label>
+                            <div class="input-group">
+                                <input type="number" id="mkVal" placeholder="0" oninput="calcItemLive()">
+                                <select id="mkType" onchange="calcItemLive()">
+                                    <option value="pct">%</option>
+                                    <option value="gm">₹/g</option>
+                                    <option value="flat">₹</option>
+                                </select>
+                            </div>
                         </div>
+
                         <div style="background:#fff8e1; padding:12px; border-radius:8px; font-size:0.9rem; margin-bottom:15px; color:#5d4037; border: 1px solid #ffe082;">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Metal Value: <b id="liveGold">₹0</b></span><span>Making: <b id="liveMaking">₹0</b></span></div>
-                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-size:0.8rem;">Item GST:</span> <b id="liveGst">₹0</b></div>
-                            <div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:8px; font-weight:700; color:#333; display:flex; justify-content:space-between; font-size: 1.1rem;"><span>Final Total:</span> <span id="liveTotal" style="color:var(--active-red);">₹0</span></div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span>Metal Value: <b id="liveGold">₹0</b></span>
+                                <span>Making: <b id="liveMaking">₹0</b></span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span style="font-size:0.8rem;">Item GST:</span> <b id="liveGst">₹0</b>
+                            </div>
+                            <div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:8px; font-weight:700; color:#333; display:flex; justify-content:space-between; font-size: 1.1rem;">
+                                <span>Final Total:</span> <span id="liveTotal" style="color:var(--active-red);">₹0</span>
+                            </div>
                         </div>
+
                         <input type="hidden" id="itemId"><input type="hidden" id="itemCode"><input type="hidden" id="itemCat"><input type="hidden" id="itemPurity">
                         <button class="btn btn-primary" onclick="addToCart()"><i class="fas fa-cart-plus"></i> Add to Cart</button>
                     </div>
 
                     <div id="manualItemEntry" style="display:none; border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
                         <h4 style="margin:0 0 10px 0; color:var(--exchange-purple);"><i class="fas fa-pen"></i> Custom Entry / Exchange</h4>
+                        
                         <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#f3e5f5; padding:10px; border-radius:8px; border:1px solid #ce93d8;">
                             <input type="checkbox" id="mIsExchange" style="width:20px; height:20px; accent-color:var(--exchange-purple);" onchange="autoFillManualRate()">
                             <label for="mIsExchange" style="margin:0; color:var(--exchange-purple); font-weight:bold; cursor:pointer;">Is this an Exchange (Old Metal)?</label>
                         </div>
+
                         <div class="form-grid">
-                            <div class="form-group"><label>Metal Type</label><select id="mMetalType" onchange="handleManualMetalChange()"><option value="Gold">Gold</option><option value="Silver">Silver</option></select></div>
-                            <div class="form-group"><label>Purity</label><select id="mItemPurity" onchange="autoFillManualRate()"></select></div>
+                            <div class="form-group">
+                                <label>Metal Type</label>
+                                <select id="mMetalType" onchange="handleManualMetalChange()">
+                                    <option value="Gold">Gold</option>
+                                    <option value="Silver">Silver</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Purity</label>
+                                <select id="mItemPurity" onchange="autoFillManualRate()">
+                                    </select>
+                            </div>
                         </div>
-                        <div class="form-group"><label>Description / Details</label><input type="text" id="mItemName" placeholder="e.g. Old Chain or Nose Pin"></div>
+                        
+                        <div class="form-group">
+                            <label>Description / Details</label>
+                            <input type="text" id="mItemName" placeholder="e.g. Old Chain or Nose Pin">
+                        </div>
+
                         <div class="form-grid">
                             <div class="form-group"><label>Gross Wt (g)</label><input type="number" id="mGrossWt" step="0.001" placeholder="0" oninput="calcManualItem()"></div>
                             <div class="form-group"><label>Stone/Dust (g)</label><input type="number" id="mStoneWt" step="0.001" placeholder="0" oninput="calcManualItem()"></div>
                         </div>
+
                         <div class="form-grid">
                             <div class="form-group"><label>Net Wt (g)</label><input type="number" id="mNetWt" readonly style="background:#e8f5e9; color:#2e7d32; font-weight:bold;"></div>
                             <div class="form-group"><label>Fine Wt (g) <small style="color:#1976d2;">(Calc)</small></label><input type="number" id="mFineWt" readonly style="background:#e3f2fd; color:#1976d2; font-weight:bold;"></div>
                         </div>
+
                         <div class="form-grid">
-                            <div class="form-group"><label id="mRateLabel">Rate (₹/g)</label><input type="number" id="mItemRate" oninput="calcManualItem()" step="0.01"></div>
-                            <div class="form-group" id="exchangePctDiv" style="display:none;"><label style="color:#d84315;">Exchange %</label><input type="number" id="mExchangePct" value="100" oninput="calcManualItem()"></div>
+                            <div class="form-group">
+                                <label id="mRateLabel">Rate (₹/g)</label>
+                                <input type="number" id="mItemRate" oninput="calcManualItem()" step="0.01">
+                            </div>
+                            <div class="form-group" id="exchangePctDiv" style="display:none;">
+                                <label style="color:#d84315;">Exchange %</label>
+                                <input type="number" id="mExchangePct" value="100" oninput="calcManualItem()">
+                            </div>
                         </div>
+
                         <div class="form-grid" id="manualSaleDiv">
-                            <div class="form-group"><label>Making Charges</label><div class="input-group"><input type="number" id="mMkVal" placeholder="0" oninput="calcManualItem()"><select id="mMkType" onchange="calcManualItem()"><option value="pct">%</option><option value="gm">₹/g</option><option value="flat">₹</option></select></div></div>
-                            <div class="form-group"><label>GST (%)</label><input type="number" id="mItemGst" value="3" oninput="calcManualItem()"></div>
+                            <div class="form-group">
+                                <label>Making Charges</label>
+                                <div class="input-group">
+                                    <input type="number" id="mMkVal" placeholder="0" oninput="calcManualItem()">
+                                    <select id="mMkType" onchange="calcManualItem()">
+                                        <option value="pct">%</option>
+                                        <option value="gm">₹/g</option>
+                                        <option value="flat">₹</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>GST (%)</label>
+                                <input type="number" id="mItemGst" value="3" oninput="calcManualItem()">
+                            </div>
                         </div>
+
                         <div style="background:#fff8e1; padding:12px; border-radius:8px; font-size:0.9rem; margin-bottom:15px; border: 1px solid #ffe082;">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="color:#555;"><span id="mLiveGoldLabel">Metal Value:</span> <b id="mLiveGold">₹0</b></span><span style="color:#555;" id="mLiveMakingBox">Making: <b id="mLiveMaking">₹0</b></span></div>
-                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;" id="mLiveGstBox"><span style="font-size:0.8rem; color:#555;">Item GST:</span> <b id="mLiveGst">₹0</b></div>
-                            <div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:8px; font-weight:700; display:flex; justify-content:space-between; font-size:1.1rem;"><span>Calculated Total:</span> <span id="mLiveTotal" style="color:var(--active-red);">₹0</span></div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                <span style="color:#555;"><span id="mLiveGoldLabel">Metal Value:</span> <b id="mLiveGold">₹0</b></span>
+                                <span style="color:#555;" id="mLiveMakingBox">Making: <b id="mLiveMaking">₹0</b></span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:5px;" id="mLiveGstBox">
+                                <span style="font-size:0.8rem; color:#555;">Item GST:</span> <b id="mLiveGst">₹0</b>
+                            </div>
+                            <div style="border-top:1px dashed #ccc; margin-top:5px; padding-top:8px; font-weight:700; display:flex; justify-content:space-between; font-size:1.1rem;">
+                                <span>Calculated Total:</span> <span id="mLiveTotal" style="color:var(--active-red);">₹0</span>
+                            </div>
                         </div>
                         <button class="btn btn-primary" onclick="addManualToCart()"><i class="fas fa-cart-plus"></i> Add Item</button>
                     </div>
+
                 </div>
             </div>
 
@@ -613,7 +380,12 @@
                 <div class="card" style="margin-bottom: 10px; padding: 15px;">
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <input type="text" id="histSearch" placeholder="Search Customer Name or Bill #..." onkeyup="filterHistory()" style="flex:1; min-width:200px;">
-                        <select id="histStatusFilter" onchange="filterHistory()" style="width:150px; background:#eee;"><option value="all">All Bills</option><option value="paid">Fully Paid</option><option value="due">Pending Dues</option><option value="cancelled">Cancelled</option></select>
+                        <select id="histStatusFilter" onchange="filterHistory()" style="width:150px; background:#eee;">
+                            <option value="all">All Bills</option>
+                            <option value="paid">Fully Paid</option>
+                            <option value="due">Pending Dues</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
                     </div>
                 </div>
                 <div id="histList" style="max-height:650px; overflow-y:auto; padding-right:5px;"></div>
@@ -626,19 +398,52 @@
                     <span><i class="fas fa-shopping-cart"></i> Cart Items (<span id="cartCount">0</span>)</span>
                     <span style="color:#ff8a65; cursor:pointer; font-size:0.85rem;" onclick="clearCart()"><i class="fas fa-trash"></i> Clear</span>
                 </div>
-                <div class="cart-box" style="border:none;"><table class="cart-table"><tbody id="cartBody"></tbody></table></div>
+                <div class="cart-box" style="border:none;">
+                    <table class="cart-table">
+                        <thead style="display:none;"><tr><th>Item</th><th>Wt</th><th>Total</th><th></th></tr></thead>
+                        <tbody id="cartBody"></tbody>
+                    </table>
+                </div>
             </div>
+
             <div class="summary-panel">
                 <div class="sum-row"><span>Items Value (Inc. Making)</span> <span id="sumSub">₹0</span></div>
-                <div class="sum-row"><span style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="applyGstToggle" checked style="width:16px; height:16px; accent-color:var(--accent-gold); cursor:pointer;" onchange="calcBillSummary()"><label for="applyGstToggle" style="margin:0; color:#ccc; font-size:0.95rem; cursor:pointer;">Apply GST</label></span><span id="sumGst">₹0</span></div>
+                
+                <div class="sum-row">
+                    <span style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="applyGstToggle" checked style="width:16px; height:16px; accent-color:var(--accent-gold); cursor:pointer;" onchange="calcBillSummary()">
+                        <label for="applyGstToggle" style="margin:0; color:#ccc; font-size:0.95rem; cursor:pointer;">Apply GST</label>
+                    </span>
+                    <span id="sumGst">₹0</span>
+                </div>
+
                 <div class="sum-row" id="sumOldGoldRow" style="color: #ce93d8;"><span>Less: Exchanged Metal</span> <span id="sumOldGold">-₹0</span></div>
-                <div class="sum-row" id="sumBcWalletRow" style="display:none; color: #e1bee7; font-weight:bold;"><span><i class="fas fa-wallet"></i> Less: BC Wallet Applied</span><span id="sumBcWallet">-₹0</span></div>
-                <div class="sum-row" style="margin-top:10px;"><span>Bill Discount</span><div style="display:flex; gap:5px;"><input type="number" id="sumDiscVal" class="dark-input" value="0" oninput="calcBillSummary()"><select id="sumDiscMode" class="dark-select" onchange="calcBillSummary()"><option value="flat">₹</option></select></div></div>
+                
+                <div class="sum-row" id="sumBcWalletRow" style="display:none; color: #e1bee7; font-weight:bold;">
+                    <span><i class="fas fa-wallet"></i> Less: BC Wallet Applied</span> 
+                    <span id="sumBcWallet">-₹0</span>
+                </div>
+                
+                <div class="sum-row" style="margin-top:10px;">
+                    <span>Bill Discount</span>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="sumDiscVal" class="dark-input" value="0" oninput="calcBillSummary()">
+                        <select id="sumDiscMode" class="dark-select" onchange="calcBillSummary()">
+                            <option value="flat">₹</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="sum-row" style="margin-top:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; border:1px solid #444;">
                     <span style="color:#C5A059; font-weight:bold; font-size: 0.9rem;">Final Round-Off (Auto Adjust Making)</span>
-                    <div style="display:flex; gap:5px;"><input type="number" id="targetGrand" class="dark-input" placeholder="e.g. 51000" style="width:100px;"><button class="btn-outline-gold" style="padding:4px 8px; font-size:0.8rem;" onclick="applyAutoRoundOff()">Apply</button></div>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="targetGrand" class="dark-input" placeholder="e.g. 51000" style="width:100px;">
+                        <button class="btn-outline-gold" style="padding:4px 8px; font-size:0.8rem;" onclick="applyAutoRoundOff()">Apply</button>
+                    </div>
                 </div>
+
                 <div class="sum-row total"><span>Grand Total</span> <span id="sumGrand">₹0</span></div>
+
                 <div style="margin-top:20px; border-top:1px solid #444; padding-top:15px;">
                     <div style="font-size:0.8rem; color:#888; margin-bottom:5px; font-weight:bold;" id="payBoxLabel">RECEIVED PAYMENT</div>
                     <div class="pay-chips">
@@ -647,10 +452,18 @@
                         <div class="pay-chip" onclick="setPayMode(this, 'Bank Transfer')">Bank Transfer</div>
                         <div class="pay-chip" onclick="setPayMode(this, 'Card')">Card</div>
                     </div>
-                    <div style="display:flex; gap:10px;"><input type="number" id="payAmt" class="dark-input" style="width:100%; text-align:left;" placeholder="Enter Amount Received"><button style="background:var(--accent-gold); color:#000; border:none; width:50px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1.2rem;" onclick="addPayment()">+</button></div>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="payAmt" class="dark-input" style="width:100%; text-align:left;" placeholder="Enter Amount Received">
+                        <button style="background:var(--accent-gold); color:#000; border:none; width:50px; border-radius:6px; font-weight:bold; cursor:pointer; font-size:1.2rem;" onclick="addPayment()">+</button>
+                    </div>
                     <div id="payList" style="margin-top:10px; display:flex; flex-direction:column; gap:5px;"></div>
                 </div>
-                <div class="sum-row" style="margin-top:20px; background:rgba(0,0,0,0.3); padding:15px; border-radius:8px;"><span style="color:#ffcc80; font-size:1.1rem;" id="sumBalLabel">Remaining Due</span><span id="sumBal" style="font-weight:700; color:#ffcc80; font-size:1.2rem;">₹0</span></div>
+
+                <div class="sum-row" style="margin-top:20px; background:rgba(0,0,0,0.3); padding:15px; border-radius:8px;">
+                    <span style="color:#ffcc80; font-size:1.1rem;" id="sumBalLabel">Remaining Due</span> 
+                    <span id="sumBal" style="font-weight:700; color:#ffcc80; font-size:1.2rem;">₹0</span>
+                </div>
+
                 <input type="hidden" id="editingSaleId">
                 <button id="btnSave" class="btn btn-success" style="margin-top:20px;" onclick="saveSale()"><i class="fas fa-check-circle"></i> Save & Print Bill</button>
                 <button id="btnCancelEdit" class="btn btn-outline" style="display:none; color:white; border-color:white; width:100%; margin-top:10px;" onclick="cancelEdit()">Cancel Edit</button>
@@ -660,7 +473,7 @@
 
     <div id="custModal" class="modal">
         <div class="modal-content">
-            <button class="close-btn" onclick="closeModal('custModal')">&times;</button>
+            <button class="close-btn" onclick="document.getElementById('custModal').style.display='none'">&times;</button>
             <h3 style="margin-top:0; color:var(--active-red);">New Customer</h3>
             <div class="form-group"><label>Full Name</label><input id="ncName" placeholder="Customer Name"></div>
             <div class="form-group"><label>Mobile Number</label><input type="tel" id="ncMobile" placeholder="10-digit number"></div>
@@ -674,75 +487,74 @@
             <button class="close-btn" onclick="closeModal('cancelModal')">&times;</button>
             <h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Bill & Refund</h3>
             <input type="hidden" id="cancelSaleId">
+            
             <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Bill Total:</span><strong id="cBillTotal">₹0</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#2e7d32;"><span>Amount Paid by Customer:</span><strong id="cBillPaid">₹0</strong></div>
-                <div id="cBillOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--exchange-purple); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;"><span>Metal Exchanged:</span><strong id="cBillOldGold">₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Bill Total:</span> <strong id="cBillTotal">₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#2e7d32;"><span>Amount Paid by Customer:</span> <strong id="cBillPaid">₹0</strong></div>
+                <div id="cBillOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--exchange-purple); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;">
+                    <span>Metal Exchanged:</span> <strong id="cBillOldGold">₹0</strong>
+                </div>
             </div>
+
             <div class="form-grid">
-                <div class="form-group"><label>Refund Amount (₹)</label><input type="number" id="cRefundAmt"></div>
-                <div class="form-group"><label>Refund Mode</label><select id="cRefundMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Bank Transfer">Bank Transfer</option></select></div>
+                <div class="form-group">
+                    <label>Refund Amount (₹)</label>
+                    <input type="number" id="cRefundAmt">
+                </div>
+                <div class="form-group">
+                    <label>Refund Mode</label>
+                    <select id="cRefundMode">
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
             </div>
             <small style="color:#666; display:block; margin-bottom:15px;">This will strictly deduct money from the selected Cashbook bucket.</small>
+            
             <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;">
-                <input type="checkbox" id="cRevertStock" checked disabled style="width:20px; height:20px; accent-color:#ef6c00;">
+                <input type="checkbox" id="cRevertStock" checked disabled style="width:20px; height:20px; accent-color:#ef6c00;"> 
                 <label for="cRevertStock" style="margin:0; color:#ef6c00;">Items will be forcefully restored to Inventory Stock.</label>
             </div>
+
             <button class="btn btn-danger" onclick="confirmCancelSale()"><i class="fas fa-trash"></i> Confirm Cancellation & Restore</button>
         </div>
     </div>
 
     <div id="invoice-area"></div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js">
-    </script>
-    <script src="db.js?v=35">
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script src="db.js?v=35"></script>
     <script>
-        // ──────────────────────────────────────────────
-        // GLOBAL STATE
-        // ──────────────────────────────────────────────
-        let cart = [],
-            payments = [],
-            deletedPayments = [];
-        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
-        let allSalesData = [];
-        let globalGstDefault = 3;
-        let selectedPayMode = 'Cash';
-        let availableBcBalance = 0;
-        let useBcWallet = false;
-        let appliedBcAmount = 0;
-        let lockedEditBcAmount = 0;
-        let pendingMaturedSchemes = [];
-        let maturedSchemesTotal = 0;
-        let currentSelectedItem = null;
-
-        // ──────────────────────────────────────────────
-        // UTILITY HELPERS
-        // ──────────────────────────────────────────────
-        const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
-
-        function formatInv(saleOrId) {
+        // --- HELPERS ---
+        function formatInv(saleOrId) { 
             if (typeof saleOrId === 'object' && saleOrId !== null) {
                 if (saleOrId.invoiceNo) return saleOrId.invoiceNo;
                 return `INV-${String(saleOrId.id).slice(-4).toUpperCase()}`;
             }
-            return `INV-${String(saleOrId).slice(-4).toUpperCase()}`;
+            return `INV-${String(saleOrId).slice(-4).toUpperCase()}`; 
         }
 
+        const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
+        
+        function triggerPrint() {
+            if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
+                AndroidInterface.printPage();
+            } else {
+                window.print();
+            }
+        }
+
+        // Convert number to words (Indian Format)
         function numberToWords(num) {
-            const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ',
-                'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '
-            ];
-            const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+            const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
             if ((num = num.toString()).length > 9) return 'overflow';
-            let n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-            if (!n) return '';
-            let str = '';
+            n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n) return; var str = '';
             str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
             str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
             str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
@@ -751,8 +563,62 @@
             return str.trim() + ' Only';
         }
 
+        // --- UI CONTROLS ---
+        function toggleSidebar() { 
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (!sidebar.classList.contains('open')) {
+                sidebar.classList.add('open'); overlay.classList.add('show');
+                history.pushState({ view: 'sidebar' }, '', '#menu');
+            } else {
+                sidebar.classList.remove('open'); overlay.classList.remove('show');
+                if (window.location.hash === '#menu') history.back();
+            }
+        }
+
+        function openModal(id) { 
+            const targetId = id || 'custModal'; 
+            const modal = document.getElementById(targetId);
+            if (modal) {
+                modal.style.display = 'flex';
+                history.pushState({ view: 'modal', id: targetId }, '', '#' + targetId);
+            }
+        }
+
+        function closeModal(id) { 
+            const targetId = id || 'custModal';
+            const modal = document.getElementById(targetId);
+            if (modal) {
+                modal.style.display = 'none';
+                if (window.location.hash === '#' + targetId) history.back();
+            }
+        }
+
+        window.addEventListener('popstate', function(event) {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open'); overlay.classList.remove('show');
+            }
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        });
+        
+        let cart = [], payments = [], deletedPayments = [];
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+        let allSalesData = []; 
+        let globalGstDefault = 3;
+        let selectedPayMode = 'Cash';
+
+        let availableBcBalance = 0;
+        let useBcWallet = false;
+        let appliedBcAmount = 0;
+        let lockedEditBcAmount = 0; 
+        let pendingMaturedSchemes = [];
+        let maturedSchemesTotal = 0;
+        let currentSelectedItem = null; 
+
         function checkIsSilver(purity) {
-            if (!purity) return false;
+            if(!purity) return false;
             const p = purity.toUpperCase();
             if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
             let customS = goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
@@ -760,7 +626,7 @@
             return false;
         }
 
-        function getPurityFactor(key) {
+        const getPurityFactor = (key) => {
             if (!key) return 1.000;
             if (key === '24K' || key === 'Silver') return 1.000;
             if (key === '22K') return 0.9166;
@@ -771,143 +637,80 @@
             let customS = goldRates.customSilverPurities?.find(cp => cp.name === key);
             if (customS) return customS.pct / 100;
             return 1.0;
-        }
+        };
 
-        function triggerPrint() {
-            if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
-                AndroidInterface.printPage();
-            } else {
-                window.print();
-            }
-        }
+        window.onload = async () => {
+            const defaults = await getSetting('billing_defaults');
+            if(defaults && defaults.gst) globalGstDefault = defaults.gst;
+            document.getElementById('itemGst').value = globalGstDefault;
+            document.getElementById('mItemGst').value = globalGstDefault;
 
-        // ──────────────────────────────────────────────
-        // UI CONTROLS
-        // ──────────────────────────────────────────────
-        function toggleSidebar() {
-            const sidebar = document.getElementById('app-sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            if (!sidebar.classList.contains('open')) {
-                sidebar.classList.add('open');
-                overlay.classList.add('show');
-                history.pushState({ view: 'sidebar' }, '', '#menu');
-            } else {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('show');
-                if (window.location.hash === '#menu') history.back();
-            }
-        }
+            const r = await getSetting('gold_rates'); 
+            if(r) goldRates = r;
 
-        function openModal(id) {
-            const modal = document.getElementById(id);
-            if (modal) {
-                modal.style.display = 'flex';
-                history.pushState({ view: 'modal', id: id }, '', '#' + id);
-            }
-        }
+            handleManualMetalChange(); 
+            autoFillManualRate(); 
+            loadHistory();
 
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-            if (modal) {
-                modal.style.display = 'none';
-                if (window.location.hash === '#' + id) history.back();
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewId = urlParams.get('view');
+            const editId = urlParams.get('edit');
+            const cid = urlParams.get('cid');
+            
+            if (viewId) { setTimeout(() => printHistory(viewId), 500); } 
+            else if (editId) { setTimeout(() => editSale(editId), 500); }
+            else if (cid) {
+                const c = await getItem('customers', cid);
+                if (c) selectCust(c);
             }
-        }
-
-        window.addEventListener('popstate', function() {
-            const sidebar = document.getElementById('app-sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            if (sidebar && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('show');
-            }
-            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-        });
+        };
 
         function switchView(v) {
-            document.getElementById('view-pos').style.display = v === 'pos' ? 'block' : 'none';
-            document.getElementById('view-hist').style.display = v === 'hist' ? 'block' : 'none';
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.getElementById(v === 'pos' ? 'tab-pos' : 'tab-hist').classList.add('active');
-            if (window.innerWidth < 968) document.getElementById('rightPanel').style.display = v === 'pos' ? 'block' :
-                'none';
-            if (v === 'hist') loadHistory();
+            document.getElementById('view-pos').style.display = v=='pos'?'block':'none';
+            document.getElementById('view-hist').style.display = v=='hist'?'block':'none';
+            document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+            document.getElementById(v=='pos'?'tab-pos':'tab-hist').classList.add('active');
+            if(window.innerWidth < 968) document.getElementById('rightPanel').style.display = v=='pos'?'block':'none';
         }
 
-        // ──────────────────────────────────────────────
-        // CUSTOMER SECTION
-        // ──────────────────────────────────────────────
         async function searchCustomer() {
             const term = document.getElementById('custSearch').value.toLowerCase();
             const box = document.getElementById('custSuggestions');
-            box.innerHTML = '';
-            box.style.display = 'none';
-            if (term.length < 1) return;
+            box.innerHTML = ''; box.style.display = 'none';
+            if(term.length < 1) return;
             const list = await getAllItems('customers');
-            const matches = list.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term))
-                .slice(0, 5);
-            if (matches.length > 0) {
+            const matches = list.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0,5);
+            if(matches.length > 0) {
                 box.style.display = 'block';
                 matches.forEach(c => {
-                    const d = document.createElement('div');
-                    d.className = 'suggestion-item';
+                    const d = document.createElement('div'); d.className = 'suggestion-item';
                     d.innerHTML = `<b>${c.name}</b> (${c.mobile})`;
-                    d.onclick = () => selectCust(c);
-                    box.appendChild(d);
+                    d.onclick = () => selectCust(c); box.appendChild(d);
                 });
             }
         }
-
+        
         async function selectCust(c) {
             document.getElementById('custSearch').value = '';
             document.getElementById('custSuggestions').style.display = 'none';
             document.getElementById('custId').value = c.id;
             document.getElementById('custDisplay').style.display = 'flex';
-            document.getElementById('custNameDisplay').innerHTML =
-                `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
-
-            try {
-                const allSales = await getAllItems('sales');
-                const custSales = allSales.filter(s => String(s.customerId) === String(c.id) && s.status !== 'cancelled');
-                let totalPendingDue = custSales.reduce((sum, s) => sum + (parseFloat(s.pendingAmount) || 0), 0);
-                const dueBox = document.getElementById('custPreviousDueBox');
-                if (totalPendingDue > 0) {
-                    dueBox.style.display = 'flex';
-                    dueBox.style.background = '#ffebee';
-                    dueBox.style.color = '#c62828';
-                    dueBox.style.borderColor = '#ffcdd2';
-                    dueBox.innerHTML =
-                        `<span><i class="fas fa-exclamation-circle"></i> Previous Pending Due:</span> <strong>₹${totalPendingDue.toLocaleString()}</strong>`;
-                } else if (totalPendingDue < 0) {
-                    dueBox.style.display = 'flex';
-                    dueBox.style.background = '#e8f5e9';
-                    dueBox.style.color = '#2e7d32';
-                    dueBox.style.borderColor = '#c8e6c9';
-                    dueBox.innerHTML =
-                        `<span><i class="fas fa-wallet"></i> Advance / Refund Due to Customer:</span> <strong>₹${Math.abs(totalPendingDue).toLocaleString()}</strong>`;
-                } else {
-                    dueBox.style.display = 'none';
-                }
-            } catch (err) {
-                console.error("Error calculating previous due:", err);
-            }
-
+            document.getElementById('custNameDisplay').innerHTML = `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
+            
             const allSchemes = await getAllItems('schemes');
-            pendingMaturedSchemes = allSchemes.filter(s => String(s.customerId) === String(c.id) && s.status ===
-                'completed');
+            pendingMaturedSchemes = allSchemes.filter(s => String(s.customerId) === String(c.id) && s.status === 'completed');
             maturedSchemesTotal = pendingMaturedSchemes.reduce((sum, s) => sum + (s.amount * 12), 0);
+
             availableBcBalance = getSafeNum(c.bcBalance) + maturedSchemesTotal;
             useBcWallet = false;
             appliedBcAmount = 0;
-            lockedEditBcAmount = 0;
-
+            
             const bcPanel = document.getElementById('bcWalletPanel');
             if (availableBcBalance > 0) {
                 bcPanel.style.display = 'flex';
-                let maturedText = maturedSchemesTotal > 0 ?
-                    `<br><small style="color:#ba68c8; font-weight:normal;">(Includes ₹${maturedSchemesTotal.toLocaleString()} from unredeemed matured scheme)</small>` :
-                    '';
+                let maturedText = maturedSchemesTotal > 0 ? `<br><small style="color:#ba68c8; font-weight:normal;">(Includes ₹${maturedSchemesTotal.toLocaleString()} from unredeemed matured scheme)</small>` : '';
                 document.getElementById('bcBalanceDisplay').innerHTML = availableBcBalance.toLocaleString() + maturedText;
+                
                 const btn = document.getElementById('btnApplyBc');
                 btn.innerHTML = '<i class="fas fa-check"></i> Apply Balance';
                 btn.style.background = "var(--bc-wallet)";
@@ -916,70 +719,45 @@
             }
             calcBillSummary();
         }
-
-        function resetCust() {
-            document.getElementById('custId').value = '';
-            document.getElementById('custDisplay').style.display = 'none';
-            document.getElementById('custPreviousDueBox').style.display = 'none';
+        
+        function resetCust() { 
+            document.getElementById('custId').value=''; 
+            document.getElementById('custDisplay').style.display='none'; 
+            
             availableBcBalance = 0;
             useBcWallet = false;
             appliedBcAmount = 0;
-            lockedEditBcAmount = 0;
+            lockedEditBcAmount = 0; 
             pendingMaturedSchemes = [];
             maturedSchemesTotal = 0;
             deletedPayments = [];
             document.getElementById('bcWalletPanel').style.display = 'none';
             calcBillSummary();
         }
-
+        
         async function saveNewCust() {
-            const name = document.getElementById('ncName').value.trim();
-            const mobile = document.getElementById('ncMobile').value.trim();
-            if (!name || !mobile) return alert("Name & Mobile required.");
-            const id = await addItem('customers', { name, mobile, city: document.getElementById('ncCity').value.trim(),
-                bcBalance: 0 });
+            const name = document.getElementById('ncName').value;
+            const mobile = document.getElementById('ncMobile').value;
+            if(!name || !mobile) return alert("Name & Mobile required.");
+            const id = await addItem('customers', { name, mobile, city: document.getElementById('ncCity').value, bcBalance: 0 });
             closeModal('custModal');
-            selectCust({ id, name, mobile, bcBalance: 0 });
+            selectCust({id, name, mobile, bcBalance: 0});
         }
 
-        function toggleBcWallet() {
-            if (availableBcBalance <= 0) return;
-            useBcWallet = !useBcWallet;
-            const btn = document.getElementById('btnApplyBc');
-            if (useBcWallet) {
-                appliedBcAmount = availableBcBalance;
-                btn.innerHTML = '<i class="fas fa-times"></i> Remove BC Balance';
-                btn.style.background = "#c62828";
-            } else {
-                appliedBcAmount = 0;
-                btn.innerHTML = '<i class="fas fa-check"></i> Apply Balance';
-                btn.style.background = "var(--bc-wallet)";
-            }
-            calcBillSummary();
-        }
-
-        // ──────────────────────────────────────────────
-        // INVENTORY ITEM SEARCH & LOAD
-        // ──────────────────────────────────────────────
         async function searchItem() {
             const term = document.getElementById('itemSearch').value.toUpperCase();
             const box = document.getElementById('itemSuggestions');
-            box.innerHTML = '';
-            box.style.display = 'none';
-            if (term.length < 1) { document.getElementById('itemEntry').style.display = 'none'; return; }
+            box.innerHTML = ''; box.style.display = 'none';
+            if(term.length < 1) { document.getElementById('itemEntry').style.display = 'none'; return; }
             const list = await getAllItems('inventory');
-            const matches = list.filter(i => i.status === 'stock' && (i.barcode.includes(term) || i.category.toUpperCase()
-                .includes(term))).slice(0, 5);
-            if (matches.length > 0) {
+            const matches = list.filter(i => i.status === 'stock' && (i.barcode.includes(term) || i.category.toUpperCase().includes(term))).slice(0,5);
+            if(matches.length > 0) {
                 box.style.display = 'block';
                 matches.forEach(i => {
-                    const d = document.createElement('div');
-                    d.className = 'suggestion-item';
+                    const d = document.createElement('div'); d.className = 'suggestion-item';
                     const pcsStr = i.pieces > 1 ? `[${i.pieces} Pcs] ` : '';
-                    d.innerHTML =
-                        `<b>${i.barcode}</b> - ${i.category} <small style="color:#C5A059;">${pcsStr}[${i.purity} | ${getSafeNum(i.grossWt || i.netWt || i.weight).toFixed(3)}g]</small>`;
-                    d.onclick = () => loadItem(i);
-                    box.appendChild(d);
+                    d.innerHTML = `<b>${i.barcode}</b> - ${i.category} <small style="color:#C5A059;">${pcsStr}[${i.purity} | ${getSafeNum(i.grossWt || i.netWt || i.weight).toFixed(3)}g]</small>`;
+                    d.onclick = () => loadItem(i); box.appendChild(d);
                 });
             }
         }
@@ -987,25 +765,33 @@
         function loadItem(i) {
             document.getElementById('itemSearch').value = '';
             document.getElementById('itemSuggestions').style.display = 'none';
+            
             document.getElementById('manualItemEntry').style.display = 'none';
             document.getElementById('itemEntry').style.display = 'block';
+            
             currentSelectedItem = i;
+            
             document.getElementById('itemId').value = i.id;
             document.getElementById('itemCode').value = i.barcode;
             document.getElementById('itemCat').value = i.category;
             document.getElementById('itemPurity').value = i.purity;
-            document.getElementById('itemNameDisplay').innerHTML =
-                `<b>${i.barcode}</b> | ${i.category} <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${i.purity}</span>`;
+            document.getElementById('itemNameDisplay').innerHTML = `<b>${i.barcode}</b> | ${i.category} <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${i.purity}</span>`;
+            
             document.getElementById('itemStoneWt').value = getSafeNum(i.stoneWt);
             document.getElementById('itemHuid').value = i.huid || i.mark || '';
+
             const isSilv = checkIsSilver(i.purity);
             const availPcs = parseInt(i.pieces) || 1;
             const availWt = getSafeNum(i.grossWt || i.netWt || i.weight);
+            
             document.getElementById('lblMaxQty').innerText = `(Max: ${availPcs})`;
             document.getElementById('lblMaxWt').innerText = `(Max: ${availWt.toFixed(3)}g)`;
+            
             const qtyInput = document.getElementById('itemSellQty');
             const wtInput = document.getElementById('itemWt');
+
             qtyInput.max = availPcs;
+
             if (availPcs > 1 || isSilv || i.category === 'MIX') {
                 document.getElementById('stockRemainderBox').style.display = 'flex';
                 qtyInput.value = 1;
@@ -1013,7 +799,12 @@
                 wtInput.removeAttribute('readonly');
                 qtyInput.style.background = '#fff';
                 wtInput.style.background = '#fff';
-                wtInput.value = (availPcs === 1) ? availWt : '';
+
+                if (availPcs === 1) {
+                    wtInput.value = availWt;
+                } else {
+                    wtInput.value = ''; 
+                }
             } else {
                 document.getElementById('stockRemainderBox').style.display = 'none';
                 qtyInput.value = availPcs;
@@ -1023,12 +814,17 @@
                 qtyInput.style.background = '#e8e8e8';
                 wtInput.style.background = '#e8e8e8';
             }
+            
             document.getElementById('itemGst').value = globalGstDefault;
+            
             let pureRatePerGram = isSilv ? (goldRates.rateSilver / 1000) : (goldRates.rate24k / 10);
-            let r = pureRatePerGram * getPurityFactor(i.purity);
+            let r = 0;
+            
+            if(i.purity === '22K') r = goldRates.rate22k / 10;
+            else if(i.purity === '18K') r = (goldRates.rate18k || (goldRates.rate22k * 0.82)) / 10;
+            else r = pureRatePerGram * getPurityFactor(i.purity);
+            
             document.getElementById('itemRate').value = parseFloat(r.toFixed(2));
-            document.getElementById('mkVal').value = 12;
-            document.getElementById('mkType').value = 'pct';
             calcItemLive();
         }
 
@@ -1036,33 +832,45 @@
             const grossWt = getSafeNum(document.getElementById('itemWt').value);
             const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
             const netWt = Math.max(0, grossWt - stoneWt);
+
             document.getElementById('liveNetWt').innerText = netWt.toFixed(3) + " g";
+
             const rate = getSafeNum(document.getElementById('itemRate').value);
             const mkVal = getSafeNum(document.getElementById('mkVal').value);
             const mkType = document.getElementById('mkType').value;
             const gstPct = getSafeNum(document.getElementById('itemGst').value);
+
             const goldVal = netWt * rate;
-            let mkAmt = (mkType === 'pct') ? (goldVal * mkVal) / 100 : (mkType === 'gm') ? (netWt * mkVal) : mkVal;
+            let mkAmt = 0;
+            
+            if (mkType === 'pct') mkAmt = (goldVal * mkVal) / 100;
+            else if (mkType === 'gm') mkAmt = netWt * mkVal;
+            else mkAmt = mkVal; 
+
             const baseTotal = goldVal + mkAmt;
             const gstAmt = baseTotal * (gstPct / 100);
+
             document.getElementById('liveGold').innerText = "₹" + Math.round(goldVal).toLocaleString();
             document.getElementById('liveMaking').innerText = "₹" + Math.round(mkAmt).toLocaleString();
             document.getElementById('liveGst').innerText = "₹" + Math.round(gstAmt).toLocaleString();
             document.getElementById('liveTotal').innerText = "₹" + Math.round(baseTotal + gstAmt).toLocaleString();
-            if (currentSelectedItem) {
+
+            if(currentSelectedItem) {
                 const availPcs = parseInt(currentSelectedItem.pieces) || 1;
-                if (availPcs > 1 || checkIsSilver(currentSelectedItem.purity) || currentSelectedItem.category === 'MIX') {
-                    const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.netWt || currentSelectedItem
-                        .weight);
+                
+                if(availPcs > 1 || checkIsSilver(currentSelectedItem.purity) || currentSelectedItem.category === 'MIX') {
+                    const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.netWt || currentSelectedItem.weight);
                     const sellQty = parseInt(document.getElementById('itemSellQty').value) || 0;
+
                     let remPcs = availPcs - sellQty;
                     let remWt = availWt - grossWt;
+
                     const remStockEl = document.getElementById('remStockText');
                     if (remPcs < 0 || remWt < 0) {
-                        remStockEl.style.color = '#d32f2f';
+                        remStockEl.style.color = '#d32f2f'; 
                         remStockEl.innerText = `OVER-SELL WARNING! (${remPcs} Pcs | ${remWt.toFixed(3)} g)`;
                     } else {
-                        remStockEl.style.color = '#1565c0';
+                        remStockEl.style.color = '#1565c0'; 
                         remStockEl.innerText = `${remPcs} Pcs | ${remWt.toFixed(3)} g remaining`;
                     }
                 }
@@ -1071,698 +879,1195 @@
 
         function addToCart() {
             const id = document.getElementById('itemId').value;
-            if (!id) return alert('Please select an item first.');
+            
             const sellQty = parseInt(document.getElementById('itemSellQty').value) || 1;
             const grossWt = getSafeNum(document.getElementById('itemWt').value);
+
+            if (currentSelectedItem) {
+                const availPcs = parseInt(currentSelectedItem.pieces) || 1;
+                const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.weight || currentSelectedItem.netWt);
+                
+                if (sellQty > availPcs) return alert(`Cannot sell more pieces than available in stock (${availPcs}).`);
+                if (grossWt > availWt) return alert(`Gross Weight exceeds available stock (${availWt}g).`);
+            }
+
             const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
             const netWt = Math.max(0, grossWt - stoneWt);
+
             const rate = getSafeNum(document.getElementById('itemRate').value);
             const mkVal = getSafeNum(document.getElementById('mkVal').value);
             const mkType = document.getElementById('mkType').value;
             const gstPct = getSafeNum(document.getElementById('itemGst').value);
+
             const goldVal = netWt * rate;
-            let mkAmt = (mkType === 'pct') ? (goldVal * mkVal) / 100 : (mkType === 'gm') ? (netWt * mkVal) : mkVal;
+            let mkAmt = 0;
+            if (mkType === 'pct') mkAmt = (goldVal * mkVal) / 100;
+            else if (mkType === 'gm') mkAmt = netWt * mkVal;
+            else mkAmt = mkVal;
+
             const baseAmt = Math.round(goldVal + mkAmt);
             const gstAmt = Math.round(baseAmt * (gstPct / 100));
+            const finalTotal = baseAmt + gstAmt;
+            
+            const huidVal = document.getElementById('itemHuid').value || '';
+            
             cart.push({
-                id,
-                isOldGold: false,
+                id: id, isOldGold: false,
                 barcode: document.getElementById('itemCode').value,
                 category: document.getElementById('itemCat').value,
                 purity: document.getElementById('itemPurity').value,
-                huid: document.getElementById('itemHuid').value || '',
-                weight: grossWt,
-                grossWt,
-                stoneWt,
-                netWt,
-                sellQty,
-                rate,
-                makingType: mkType,
-                makingRate: mkVal,
-                makingAmount: Math.round(mkAmt),
-                baseAmount: baseAmt,
-                gstPct,
-                gstAmount: gstAmt,
-                total: baseAmt + gstAmt
+                huid: huidVal,
+                weight: grossWt, 
+                grossWt: grossWt,
+                stoneWt: stoneWt,
+                netWt: netWt,
+                sellQty: sellQty,
+                rate: rate, makingType: mkType, makingRate: mkVal,
+                makingAmount: Math.round(mkAmt), baseAmount: baseAmt,
+                gstPct: gstPct, gstAmount: gstAmt, total: finalTotal
             });
-            currentSelectedItem = null;
+            
+            currentSelectedItem = null; 
             renderCart();
             document.getElementById('itemEntry').style.display = 'none';
-            document.getElementById('itemSearch').value = '';
         }
 
-        // ──────────────────────────────────────────────
-        // MANUAL / CUSTOM / EXCHANGE ITEM
-        // ──────────────────────────────────────────────
         function toggleManualItem() {
-            const manualDiv = document.getElementById('manualItemEntry');
-            const itemEntry = document.getElementById('itemEntry');
-            if (manualDiv.style.display === 'none' || !manualDiv.style.display) {
-                manualDiv.style.display = 'block';
-                itemEntry.style.display = 'none';
-                document.getElementById('itemSearch').value = '';
-                document.getElementById('itemSuggestions').style.display = 'none';
-                currentSelectedItem = null;
-                handleManualMetalChange();
-                autoFillManualRate();
+            const manualBox = document.getElementById('manualItemEntry');
+            const invBox = document.getElementById('itemEntry');
+            if(manualBox.style.display === 'none') {
+                manualBox.style.display = 'block'; invBox.style.display = 'none';
+                document.getElementById('mItemGst').value = globalGstDefault;
+                document.getElementById('mItemName').focus();
             } else {
-                manualDiv.style.display = 'none';
+                manualBox.style.display = 'none';
             }
         }
 
         function handleManualMetalChange() {
-            const metalType = document.getElementById('mMetalType').value;
+            const metal = document.getElementById('mMetalType').value;
             const puritySelect = document.getElementById('mItemPurity');
             puritySelect.innerHTML = '';
-            if (metalType === 'Gold') {
-                puritySelect.innerHTML = '<option value="24K">24K (999)</option><option value="22K" selected>22K (916)</option><option value="18K">18K (750)</option>';
-                if (goldRates.customPurities && goldRates.customPurities.length > 0) {
+            
+            if (metal === 'Gold') {
+                puritySelect.innerHTML = `
+                    <option value="22K">22K</option>
+                    <option value="18K">18K</option>
+                    <option value="24K">24K</option>
+                `;
+                if(goldRates.customPurities) {
                     goldRates.customPurities.forEach(cp => {
-                        const opt = document.createElement('option');
-                        opt.value = cp.name;
-                        opt.textContent = `${cp.name} (${cp.pct}%)`;
-                        puritySelect.appendChild(opt);
+                        puritySelect.innerHTML += `<option value="${cp.name}">${cp.name}</option>`;
                     });
                 }
             } else {
-                puritySelect.innerHTML = '<option value="Silver" selected>Fine Silver (999)</option><option value="Silver 92.5%">Sterling Silver (925)</option>';
-                if (goldRates.customSilverPurities && goldRates.customSilverPurities.length > 0) {
+                puritySelect.innerHTML = `
+                    <option value="Silver">Silver</option>
+                    <option value="Silver 92.5%">Silver 92.5%</option>
+                `;
+                if(goldRates.customSilverPurities) {
                     goldRates.customSilverPurities.forEach(cp => {
-                        const opt = document.createElement('option');
-                        opt.value = cp.name;
-                        opt.textContent = `${cp.name} (${cp.pct}%)`;
-                        puritySelect.appendChild(opt);
+                        puritySelect.innerHTML += `<option value="${cp.name}">${cp.name}</option>`;
                     });
                 }
             }
             autoFillManualRate();
-            calcManualItem();
         }
 
         function autoFillManualRate() {
-            const isExchange = document.getElementById('mIsExchange').checked;
-            const metalType = document.getElementById('mMetalType').value;
-            const purity = document.getElementById('mItemPurity').value;
-            const exchangePctDiv = document.getElementById('exchangePctDiv');
-            const manualSaleDiv = document.getElementById('manualSaleDiv');
-
-            if (isExchange) {
-                exchangePctDiv.style.display = 'block';
-                manualSaleDiv.style.display = 'none';
-                document.getElementById('mRateLabel').innerText = 'Buyback Rate (₹/g)';
-                document.getElementById('mLiveGoldLabel').innerText = 'Exchange Credit:';
-                document.getElementById('mLiveMakingBox').style.display = 'none';
-                document.getElementById('mLiveGstBox').style.display = 'none';
+            const metal = document.getElementById('mMetalType').value;
+            const selectEl = document.getElementById('mItemPurity');
+            const purity = selectEl.value;
+            const isExch = document.getElementById('mIsExchange').checked;
+            
+            let r = 0;
+            const pureGoldRate = goldRates.rate24k / 10;
+            const pureSilverRate = goldRates.rateSilver / 1000;
+            
+            if (isExch) {
+                r = (metal === 'Silver') ? pureSilverRate : pureGoldRate;
             } else {
-                exchangePctDiv.style.display = 'none';
-                manualSaleDiv.style.display = 'grid';
-                document.getElementById('mRateLabel').innerText = 'Sale Rate (₹/g)';
-                document.getElementById('mLiveGoldLabel').innerText = 'Metal Value:';
-                document.getElementById('mLiveMakingBox').style.display = 'flex';
-                document.getElementById('mLiveGstBox').style.display = 'flex';
+                if(purity === '22K') r = goldRates.rate22k / 10;
+                else if(purity === '24K') r = pureGoldRate;
+                else if(purity === '18K') r = (goldRates.rate18k || (goldRates.rate22k * 0.82)) / 10;
+                else if(purity === 'Silver') r = pureSilverRate;
+                else {
+                    const cpList = (metal === 'Silver') ? goldRates.customSilverPurities : goldRates.customPurities;
+                    const cp = cpList?.find(x => x.name === purity);
+                    if(cp) {
+                        r = (metal === 'Silver') ? (pureSilverRate * (cp.pct / 100)) : (pureGoldRate * (cp.pct / 100));
+                    }
+                }
             }
 
-            let ratePerGram = 0;
-            if (metalType === 'Silver') {
-                ratePerGram = goldRates.rateSilver / 1000;
-            } else {
-                ratePerGram = goldRates.rate24k / 10;
-            }
-            ratePerGram = ratePerGram * getPurityFactor(purity);
-
-            if (isExchange && metalType === 'Gold') {
-                if (purity === '22K') ratePerGram = goldRates.rate22k / 10;
-                else if (purity === '18K') ratePerGram = (goldRates.rate18k || (goldRates.rate22k * 0.82)) / 10;
-            }
-
-            document.getElementById('mItemRate').value = parseFloat(ratePerGram.toFixed(2));
-            document.getElementById('mExchangePct').value = 100;
-            document.getElementById('mMkVal').value = isExchange ? 0 : 12;
-            document.getElementById('mMkType').value = 'pct';
-            document.getElementById('mItemGst').value = globalGstDefault;
+            document.getElementById('mRateLabel').innerText = isExch ? (metal === 'Silver' ? 'Pure Silver (₹/g)' : '24K Rate (₹/g)') : 'Rate (₹/g)';
+            document.getElementById('mItemRate').value = parseFloat(r.toFixed(2));
             calcManualItem();
         }
 
         function calcManualItem() {
+            const metal = document.getElementById('mMetalType').value;
             const grossWt = getSafeNum(document.getElementById('mGrossWt').value);
             const stoneWt = getSafeNum(document.getElementById('mStoneWt').value);
             const netWt = Math.max(0, grossWt - stoneWt);
-            const purity = document.getElementById('mItemPurity').value;
-            const fineWt = netWt * getPurityFactor(purity);
             document.getElementById('mNetWt').value = netWt.toFixed(3);
+
+            const selectEl = document.getElementById('mItemPurity');
+            const purityVal = selectEl.value;
+            
+            const fineWt = netWt * getPurityFactor(purityVal);
             document.getElementById('mFineWt').value = fineWt.toFixed(3);
 
-            const isExchange = document.getElementById('mIsExchange').checked;
+            const isExch = document.getElementById('mIsExchange').checked;
             const rate = getSafeNum(document.getElementById('mItemRate').value);
+            
+            if(isExch) {
+                document.getElementById('manualSaleDiv').style.display = 'none';
+                document.getElementById('mLiveMakingBox').style.display = 'none';
+                document.getElementById('mLiveGstBox').style.display = 'none';
+                document.getElementById('exchangePctDiv').style.display = 'block';
+                document.getElementById('mLiveGoldLabel').innerText = metal === 'Silver' ? 'Base Silver Value:' : 'Base Gold Value:';
+            } else {
+                document.getElementById('manualSaleDiv').style.display = 'flex';
+                document.getElementById('mLiveMakingBox').style.display = 'inline';
+                document.getElementById('mLiveGstBox').style.display = 'flex';
+                document.getElementById('exchangePctDiv').style.display = 'none';
+                document.getElementById('mLiveGoldLabel').innerText = 'Metal Value:';
+            }
 
-            let finalTotal = 0;
-            let goldVal = netWt * rate;
-            let mkAmt = 0;
-            let gstAmt = 0;
+            let metalVal = isExch ? (fineWt * rate) : (netWt * rate);
 
-            if (isExchange) {
-                const exchPct = getSafeNum(document.getElementById('mExchangePct').value);
-                goldVal = goldVal * (exchPct / 100);
-                finalTotal = -Math.round(goldVal);
-                document.getElementById('mLiveGold').innerText = "₹" + Math.round(goldVal).toLocaleString();
-                document.getElementById('mLiveMaking').innerText = "₹0";
-                document.getElementById('mLiveGst').innerText = "₹0";
+            if(isExch) {
+                const exchPct = getSafeNum(document.getElementById('mExchangePct').value) || 100;
+                const finalTotal = Math.round(metalVal * (exchPct / 100));
+                
+                document.getElementById('mLiveGold').innerText = "₹" + Math.round(metalVal).toLocaleString();
+                document.getElementById('mLiveTotal').innerText = "-₹" + finalTotal.toLocaleString();
             } else {
                 const mkVal = getSafeNum(document.getElementById('mMkVal').value);
                 const mkType = document.getElementById('mMkType').value;
-                mkAmt = (mkType === 'pct') ? (goldVal * mkVal) / 100 : (mkType === 'gm') ? (netWt * mkVal) : mkVal;
                 const gstPct = getSafeNum(document.getElementById('mItemGst').value);
-                const baseTotal = goldVal + mkAmt;
-                gstAmt = baseTotal * (gstPct / 100);
-                finalTotal = Math.round(baseTotal + gstAmt);
-                document.getElementById('mLiveGold').innerText = "₹" + Math.round(goldVal).toLocaleString();
+                
+                let mkAmt = 0;
+                if (mkType === 'pct') mkAmt = (metalVal * mkVal) / 100;
+                else if (mkType === 'gm') mkAmt = netWt * mkVal;
+                else mkAmt = mkVal;
+
+                const baseTotal = metalVal + mkAmt;
+                const gstAmt = baseTotal * (gstPct / 100);
+                const finalTotal = Math.round(baseTotal + gstAmt);
+
+                document.getElementById('mLiveGold').innerText = "₹" + Math.round(metalVal).toLocaleString();
                 document.getElementById('mLiveMaking').innerText = "₹" + Math.round(mkAmt).toLocaleString();
                 document.getElementById('mLiveGst').innerText = "₹" + Math.round(gstAmt).toLocaleString();
+                document.getElementById('mLiveTotal').innerText = "₹" + finalTotal.toLocaleString();
             }
-            document.getElementById('mLiveTotal').innerText = (finalTotal < 0 ? '-₹' : '₹') + Math.abs(finalTotal)
-            .toLocaleString();
         }
 
         function addManualToCart() {
-            const isExchange = document.getElementById('mIsExchange').checked;
-            const metalType = document.getElementById('mMetalType').value;
-            const purity = document.getElementById('mItemPurity').value;
-            const itemName = document.getElementById('mItemName').value.trim() || (isExchange ? 'Old Metal Exchange' :
-                'Custom Item');
+            const metal = document.getElementById('mMetalType').value;
+            const name = document.getElementById('mItemName').value;
             const grossWt = getSafeNum(document.getElementById('mGrossWt').value);
             const stoneWt = getSafeNum(document.getElementById('mStoneWt').value);
             const netWt = Math.max(0, grossWt - stoneWt);
+            const isExch = document.getElementById('mIsExchange').checked;
+            
+            if(!name) return alert("Enter an Item Name/Description");
+            if(netWt <= 0) return alert("Net Weight must be greater than 0");
+
+            const purity = document.getElementById('mItemPurity').value;
             const rate = getSafeNum(document.getElementById('mItemRate').value);
+            const fineWt = getSafeNum(document.getElementById('mFineWt').value);
+            
+            let metalVal = isExch ? (fineWt * rate) : (netWt * rate);
+            
+            let finalData = {};
 
-            if (grossWt <= 0) return alert('Please enter Gross Weight.');
-
-            let goldVal = netWt * rate;
-            let mkAmt = 0;
-            let gstAmt = 0;
-            let finalTotal = 0;
-
-            if (isExchange) {
-                const exchPct = getSafeNum(document.getElementById('mExchangePct').value);
-                goldVal = goldVal * (exchPct / 100);
-                finalTotal = -Math.round(goldVal);
+            if(isExch) {
+                const exchPct = getSafeNum(document.getElementById('mExchangePct').value) || 100;
+                const finalExchVal = Math.round(metalVal * (exchPct / 100));
+                
+                finalData = {
+                    id: 'manual_old_' + Date.now(), 
+                    isOldGold: true, 
+                    metal: metal,
+                    barcode: metal === 'Silver' ? 'OLD SILVER' : 'OLD GOLD',
+                    category: name + ` (Exch: ${purity})`, purity: purity, weight: netWt, 
+                    grossWt: grossWt, stoneWt: stoneWt, netWt: netWt, fineWt: fineWt,
+                    exchangePct: exchPct,
+                    rate: rate, baseAmount: 0, gstPct: 0, gstAmount: 0, 
+                    total: -finalExchVal, sellQty: 1 
+                };
             } else {
                 const mkVal = getSafeNum(document.getElementById('mMkVal').value);
                 const mkType = document.getElementById('mMkType').value;
-                mkAmt = (mkType === 'pct') ? (goldVal * mkVal) / 100 : (mkType === 'gm') ? (netWt * mkVal) : mkVal;
                 const gstPct = getSafeNum(document.getElementById('mItemGst').value);
-                const baseTotal = goldVal + mkAmt;
-                gstAmt = Math.round(baseTotal * (gstPct / 100));
-                finalTotal = Math.round(baseTotal + gstAmt);
+                
+                let mkAmt = 0;
+                if (mkType === 'pct') mkAmt = (metalVal * mkVal) / 100;
+                else if (mkType === 'gm') mkAmt = netWt * mkVal;
+                else mkAmt = mkVal;
+
+                const baseAmt = Math.round(metalVal + mkAmt);
+                const gstAmt = Math.round(baseAmt * (gstPct / 100));
+                const finalTotal = baseAmt + gstAmt;
+
+                finalData = {
+                    id: 'manual_' + Date.now(), 
+                    isOldGold: false, 
+                    metal: metal,
+                    barcode: 'CUSTOM',
+                    category: name, purity: purity, weight: netWt, netWt: netWt,
+                    rate: rate, makingType: mkType, makingRate: mkVal, makingAmount: Math.round(mkAmt), 
+                    baseAmount: baseAmt, gstPct: gstPct, gstAmount: gstAmt, total: finalTotal, sellQty: 1
+                };
             }
 
-            cart.push({
-                id: 'manual_' + Date.now(),
-                isOldGold: isExchange,
-                barcode: isExchange ? 'EXCHANGE' : 'CUSTOM',
-                category: itemName,
-                purity: purity,
-                huid: '',
-                weight: grossWt,
-                grossWt,
-                stoneWt,
-                netWt,
-                sellQty: 1,
-                rate,
-                makingType: isExchange ? 'flat' : document.getElementById('mMkType').value,
-                makingRate: isExchange ? 0 : getSafeNum(document.getElementById('mMkVal').value),
-                makingAmount: Math.round(mkAmt),
-                baseAmount: isExchange ? -Math.round(goldVal) : Math.round(goldVal + mkAmt),
-                gstPct: isExchange ? 0 : getSafeNum(document.getElementById('mItemGst').value),
-                gstAmount: gstAmt,
-                total: finalTotal,
-                metalType: metalType
-            });
-
+            cart.push(finalData);
             renderCart();
-            document.getElementById('manualItemEntry').style.display = 'none';
-            document.getElementById('mGrossWt').value = '';
-            document.getElementById('mStoneWt').value = '0';
+            
             document.getElementById('mItemName').value = '';
-            document.getElementById('mNetWt').value = '';
-            document.getElementById('mFineWt').value = '';
+            document.getElementById('mGrossWt').value = '';
+            document.getElementById('mStoneWt').value = '';
+            document.getElementById('mMkVal').value = '';
+            document.getElementById('mIsExchange').checked = false;
+            document.getElementById('manualItemEntry').style.display = 'none';
         }
 
-        // ──────────────────────────────────────────────
-        // CART & SUMMARY
-        // ──────────────────────────────────────────────
+        function applyAutoRoundOff() {
+            const target = getSafeNum(document.getElementById('targetGrand').value);
+            if (!target || target <= 0) return;
+            if (cart.length === 0) return alert("Cart is empty.");
+
+            let currentSub = 0;
+            let currentGst = 0;
+            let totalOldGold = 0;
+            const applyGst = document.getElementById('applyGstToggle').checked;
+
+            cart.forEach(i => {
+                if (i.isOldGold) totalOldGold += Math.abs(i.total);
+                else {
+                    currentSub += i.baseAmount;
+                    currentGst += applyGst ? i.gstAmount : 0;
+                }
+            });
+
+            const discAmt = getSafeNum(document.getElementById('sumDiscVal').value);
+            let tempTotal = (currentSub + currentGst) - totalOldGold - discAmt;
+            let appliedBc = 0;
+            
+            if (useBcWallet && availableBcBalance > 0 && lockedEditBcAmount === 0) {
+                appliedBc = Math.min(availableBcBalance, Math.max(0, tempTotal));
+            } else if (lockedEditBcAmount > 0) {
+                appliedBc = lockedEditBcAmount;
+            }
+
+            let currentGrand = tempTotal - appliedBc;
+            let diff = currentGrand - target; 
+
+            if (Math.abs(diff) < 1) { 
+                document.getElementById('targetGrand').value = ''; 
+                return; 
+            }
+
+            let totalVariable = 0;
+            let validItems = 0;
+            
+            cart.forEach(i => {
+                if (!i.isOldGold) {
+                    let factor = applyGst ? (1 + i.gstPct / 100) : 1;
+                    totalVariable += i.makingAmount * factor;
+                    validItems++;
+                }
+            });
+
+            if (validItems === 0) return alert("No standard jewelry items found to adjust making charge.");
+            
+            if (diff > totalVariable) {
+                return alert("Cannot reduce this much! Required discount exceeds the total Making Charge.");
+            }
+
+            cart.forEach(i => {
+                if (!i.isOldGold) {
+                    let factor = applyGst ? (1 + i.gstPct / 100) : 1;
+                    let newMkAmt = 0;
+                    
+                    if (totalVariable > 0) {
+                        let ratio = (totalVariable - diff) / totalVariable;
+                        newMkAmt = i.makingAmount * ratio;
+                    } else {
+                        let amountToAdd = (-diff / factor) / validItems;
+                        newMkAmt = i.makingAmount + amountToAdd;
+                    }
+
+                    if (newMkAmt < 0) newMkAmt = 0;
+
+                    i.makingType = 'flat';
+                    i.makingRate = parseFloat(newMkAmt.toFixed(2));
+                    i.makingAmount = newMkAmt;
+                    
+                    let goldVal = (i.netWt || i.weight) * i.rate; 
+                    let baseAmt = goldVal + i.makingAmount;
+                    let gstAmt = baseAmt * (i.gstPct / 100);
+                    
+                    i.baseAmount = Math.round(baseAmt); 
+                    i.gstAmount = applyGst ? Math.round(gstAmt) : 0; 
+                    i.total = i.baseAmount + i.gstAmount;
+                }
+            });
+
+            document.getElementById('targetGrand').value = '';
+            renderCart();
+        }
+
         function renderCart() {
-            const b = document.getElementById('cartBody');
-            b.innerHTML = '';
+            const b = document.getElementById('cartBody'); b.innerHTML = '';
             cart.forEach((i, idx) => {
-                const sign = i.isOldGold ? '-' : '';
-                const color = i.isOldGold ? 'color:#8e24aa;' : '';
-                b.innerHTML += `<tr>
-                    <td style="${color}"><b>${i.category}</b><br><small>${i.barcode} | ${i.purity || ''}</small></td>
-                    <td>${(i.netWt).toFixed(3)}g</td>
-                    <td style="${color}">${sign}₹${Math.abs(i.total).toLocaleString()}</td>
-                    <td><i class="fas fa-trash" onclick="cart.splice(${idx},1); renderCart();" style="color:red; cursor:pointer;"></i></td>
+                let descTxt = i.barcode;
+                if(i.huid) descTxt += ` | HUID: ${i.huid}`; 
+                
+                if(!i.isOldGold) {
+                    const mkTxt = i.makingType === 'pct' ? i.makingRate + '%' : (i.makingType === 'gm' ? '₹' + i.makingRate + '/g' : '₹' + i.makingRate);
+                    descTxt += ` | Mk: ${mkTxt} | GST: ${i.gstPct}%`;
+                } else {
+                    descTxt += ` | Fine: ${i.fineWt}g`;
+                }
+                const color = i.isOldGold ? '#8e24aa' : '#333';
+                const totalDisplay = i.isOldGold ? i.total.toLocaleString() : `+${i.total.toLocaleString()}`;
+                
+                const pcsText = i.sellQty && i.sellQty > 1 ? `${i.sellQty} Pcs @ ` : '';
+                const wtDisplay = (i.netWt || i.weight).toFixed(3);
+
+                b.innerHTML += `
+                <tr style="background: white; border-bottom: 5px solid #f5f5f5;">
+                    <td><b style="color:${color}">${i.category}</b><br><small style="color:#888;">${descTxt}</small></td>
+                    <td style="text-align:center; font-weight:600;">${pcsText}${wtDisplay}g</td>
+                    <td style="text-align:right; font-weight:bold; color:${color}">${totalDisplay}</td>
+                    <td style="text-align:center; width:30px;"><i class="fas fa-times-circle" style="color:#d32f2f; cursor:pointer; font-size:1.2rem;" onclick="cart.splice(${idx},1); renderCart();"></i></td>
                 </tr>`;
             });
             document.getElementById('cartCount').innerText = cart.length;
             calcBillSummary();
         }
+        function clearCart() { cart = []; renderCart(); }
 
-        function clearCart() {
-            if (cart.length === 0) return;
-            if (confirm('Clear all items from cart?')) {
-                cart = [];
-                renderCart();
+        function toggleBcWallet() {
+            useBcWallet = !useBcWallet;
+            if(!useBcWallet) {
+                lockedEditBcAmount = 0; 
             }
-        }
-
-        function calcBillSummary() {
-            let baseSubtotal = cart.reduce((sum, i) => sum + (i.isOldGold ? 0 : i.baseAmount), 0);
-            let totalGst = document.getElementById('applyGstToggle').checked ? cart.reduce((sum, i) => sum + (i.isOldGold ? 0 :
-                i.gstAmount), 0) : 0;
-            let totalOldGold = cart.reduce((sum, i) => sum + (i.isOldGold ? Math.abs(i.total) : 0), 0);
-            let disc = getSafeNum(document.getElementById('sumDiscVal').value);
-            let grandTotal = (baseSubtotal + totalGst) - totalOldGold - disc - appliedBcAmount;
-            let paid = payments.reduce((a, b) => a + b.amount, 0);
-
-            document.getElementById('sumSub').innerText = "₹" + baseSubtotal.toLocaleString();
-            document.getElementById('sumGst').innerText = "₹" + totalGst.toLocaleString();
-            document.getElementById('sumOldGold').innerText = "-₹" + totalOldGold.toLocaleString();
-            document.getElementById('sumOldGoldRow').style.display = totalOldGold > 0 ? 'flex' : 'none';
-
-            const bcRow = document.getElementById('sumBcWalletRow');
-            if (useBcWallet && appliedBcAmount > 0) {
-                bcRow.style.display = 'flex';
-                document.getElementById('sumBcWallet').innerText = "-₹" + appliedBcAmount.toLocaleString();
-            } else {
-                bcRow.style.display = 'none';
-            }
-
-            document.getElementById('sumGrand').innerText = "₹" + grandTotal.toLocaleString();
-            const bal = grandTotal - paid;
-            document.getElementById('sumBal').innerText = "₹" + bal.toLocaleString();
-            document.getElementById('sumBalLabel').innerText = bal >= 0 ? 'Remaining Due' : 'Refund Due to Customer';
-            document.getElementById('sumBal').style.color = bal > 0 ? '#ffcc80' : '#81c784';
-        }
-
-        function applyAutoRoundOff() {
-            const target = getSafeNum(document.getElementById('targetGrand').value);
-            if (target <= 0) return alert('Enter a valid target grand total.');
-            let baseSubtotal = cart.reduce((sum, i) => sum + (i.isOldGold ? 0 : i.baseAmount), 0);
-            let totalGst = document.getElementById('applyGstToggle').checked ? cart.reduce((sum, i) => sum + (i.isOldGold ? 0 :
-                i.gstAmount), 0) : 0;
-            let totalOldGold = cart.reduce((sum, i) => sum + (i.isOldGold ? Math.abs(i.total) : 0), 0);
-            let disc = getSafeNum(document.getElementById('sumDiscVal').value);
-            let currentGrand = (baseSubtotal + totalGst) - totalOldGold - disc - appliedBcAmount;
-            let diff = target - currentGrand;
-            document.getElementById('sumDiscVal').value = (disc + diff).toFixed(0);
             calcBillSummary();
-            document.getElementById('targetGrand').value = '';
         }
 
-        // ──────────────────────────────────────────────
-        // PAYMENTS
-        // ──────────────────────────────────────────────
         function setPayMode(el, mode) {
-            selectedPayMode = mode;
             document.querySelectorAll('.pay-chip').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
+            el.classList.add('active'); selectedPayMode = mode;
         }
 
         function addPayment() {
-            const amt = getSafeNum(document.getElementById('payAmt').value);
-            if (amt <= 0) return alert('Enter valid payment amount.');
-            payments.push({ mode: selectedPayMode, amount: amt });
-            document.getElementById('payAmt').value = '';
+            let a = getSafeNum(document.getElementById('payAmt').value);
+            if(!a || a === 0) return;
+
+            const grandTotalText = document.getElementById('sumGrand').innerText.replace(/₹|,/g,'');
+            const currentGrand = parseFloat(grandTotalText) || 0;
+            
+            if (currentGrand < 0) {
+                a = -Math.abs(a); 
+            } else {
+                a = Math.abs(a);
+            }
+
+            payments.push({
+                mode: selectedPayMode, 
+                amount: a, 
+                date: new Date().toISOString(), 
+                isNew: true 
+            });
             renderPayments();
-            calcBillSummary();
+            document.getElementById('payAmt').value = '';
+        }
+
+        function removePayment(idx) {
+            const p = payments[idx];
+            if (!p.isNew) deletedPayments.push(p);
+            payments.splice(idx, 1);
+            renderPayments();
         }
 
         function renderPayments() {
-            const list = document.getElementById('payList');
-            list.innerHTML = '';
+            const d = document.getElementById('payList'); d.innerHTML = '';
             payments.forEach((p, idx) => {
-                list.innerHTML +=
-                    `<div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.08); padding:6px 10px; border-radius:6px; font-size:0.9rem;">
-                    <span>${p.mode}</span><span>₹${p.amount.toLocaleString()}</span>
-                    <i class="fas fa-times" style="cursor:pointer; color:#ff8a65;" onclick="payments.splice(${idx},1); renderPayments(); calcBillSummary();"></i>
+                const displayAmt = p.amount < 0 ? Math.abs(p.amount) + ' (Refund)' : p.amount;
+                
+                const delBtn = `<i class="fas fa-trash" style="margin-left:10px; color:#ff8a65; cursor:pointer;" onclick="removePayment(${idx})" title="Delete Payment"></i>`;
+
+                d.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:6px; font-size:0.9rem; color:white; border: 1px solid #444;">
+                    <span><i class="fas fa-money-check-alt"></i> ${p.mode} <small style="color:#aaa; margin-left:5px;">${p.date ? new Date(p.date).toLocaleDateString('en-IN') : ''}</small></span>
+                    <span>₹${displayAmt.toLocaleString()} ${delBtn}</span>
+                </div>`;
+            });
+            calcBillSummary();
+        }
+
+        function calcBillSummary() {
+            let baseSubtotal = 0; 
+            let totalGst = 0; 
+            let totalOldGold = 0; 
+            
+            const applyGst = document.getElementById('applyGstToggle').checked;
+
+            cart.forEach(i => {
+                if (i.isOldGold) {
+                    totalOldGold += Math.abs(i.total);
+                } else {
+                    baseSubtotal += i.baseAmount;
+                    totalGst += applyGst ? i.gstAmount : 0;
+                }
+            });
+
+            const discVal = getSafeNum(document.getElementById('sumDiscVal').value);
+            const discAmt = discVal; 
+
+            let tempTotal = (baseSubtotal + totalGst) - totalOldGold - discAmt;
+            appliedBcAmount = 0;
+
+            if (useBcWallet && (availableBcBalance > 0 || lockedEditBcAmount > 0)) {
+                if (lockedEditBcAmount > 0) {
+                    appliedBcAmount = lockedEditBcAmount;
+                } else {
+                    appliedBcAmount = Math.min(availableBcBalance, Math.max(0, tempTotal));
+                }
+                
+                appliedBcAmount = Math.min(appliedBcAmount, Math.max(0, tempTotal));
+                tempTotal -= appliedBcAmount;
+                
+                document.getElementById('sumBcWalletRow').style.display = 'flex';
+                document.getElementById('sumBcWallet').innerText = "-₹" + appliedBcAmount.toLocaleString();
+                
+                const btn = document.getElementById('btnApplyBc');
+                btn.innerHTML = '<i class="fas fa-times"></i> Remove Wallet';
+                btn.style.background = "var(--active-red)";
+            } else {
+                document.getElementById('sumBcWalletRow').style.display = 'none';
+                
+                if(availableBcBalance > 0) {
+                    const btn = document.getElementById('btnApplyBc');
+                    btn.innerHTML = '<i class="fas fa-check"></i> Apply Balance';
+                    btn.style.background = "var(--bc-wallet)";
+                }
+            }
+
+            const grandTotal = tempTotal;
+            const paid = payments.reduce((a,b)=>a+b.amount,0);
+            
+            const balance = grandTotal - paid;
+            
+            document.getElementById('sumSub').innerText = "₹" + baseSubtotal.toLocaleString();
+            
+            document.getElementById('sumGst').innerText = "₹" + totalGst.toLocaleString();
+            if(!applyGst) {
+                document.getElementById('sumGst').style.textDecoration = "line-through";
+                document.getElementById('sumGst').style.color = "#888";
+            } else {
+                document.getElementById('sumGst').style.textDecoration = "none";
+                document.getElementById('sumGst').style.color = "#ccc";
+            }
+
+            document.getElementById('sumOldGold').innerText = "-₹" + totalOldGold.toLocaleString();
+            document.getElementById('sumGrand').innerText = "₹" + grandTotal.toLocaleString();
+            
+            const balEl = document.getElementById('sumBal');
+            const balLabel = document.getElementById('sumBalLabel');
+            
+            const payBoxLabel = document.getElementById('payBoxLabel');
+            const payAmtInput = document.getElementById('payAmt');
+
+            if (grandTotal < 0) {
+                payBoxLabel.innerText = "REFUND TO CUSTOMER (PAYOUT)";
+                payBoxLabel.style.color = "#ffcc80";
+                payAmtInput.placeholder = "Enter Refund Amount Given";
+            } else {
+                payBoxLabel.innerText = "RECEIVED PAYMENT";
+                payBoxLabel.style.color = "#888";
+                payAmtInput.placeholder = "Enter Amount Received";
+            }
+
+            if (balance < 0) {
+                balEl.innerText = "₹" + Math.abs(balance).toLocaleString() + " (Refund Due)";
+                balEl.style.color = "var(--exchange-purple)";
+                balLabel.innerText = "Refund Due";
+            } else if (balance === 0) {
+                balEl.innerText = "₹0";
+                balEl.style.color = "var(--in-green)";
+                balLabel.innerText = "Settled";
+            } else {
+                balEl.innerText = "₹" + balance.toLocaleString();
+                balEl.style.color = "#ffcc80";
+                balLabel.innerText = "Remaining Due";
+            }
+        }
+
+        // --- 🔥 FIREBASE ENGINE INTEGRATION START 🔥 ---
+
+        async function saveSale() {
+            const cid = document.getElementById('custId').value;
+            if(!cid) return alert("Select Customer");
+            if(cart.length === 0) return alert("Cart Empty");
+
+            let pendingPayInput = getSafeNum(document.getElementById('payAmt').value);
+            if (pendingPayInput !== 0) {
+                addPayment(); 
+            }
+            
+            const applyGst = document.getElementById('applyGstToggle').checked;
+
+            let baseSubtotal = 0; let totalGst = 0; let totalOldGold = 0; let totalExchWt = 0;
+            cart.forEach(i => {
+                if(i.isOldGold) {
+                    totalOldGold += Math.abs(i.total);
+                    totalExchWt += (i.grossWt || i.weight || 0);
+                }
+                else { baseSubtotal += i.baseAmount; totalGst += applyGst ? i.gstAmount : 0; }
+            });
+
+            const discVal = getSafeNum(document.getElementById('sumDiscVal').value);
+            
+            const grandTotalText = document.getElementById('sumGrand').innerText.replace(/₹|,/g,'');
+            const grand = parseFloat(grandTotalText);
+            const paid = payments.reduce((a,b)=>a+b.amount,0);
+            const pendingDue = grand - paid;
+
+            if (pendingDue > 0) {
+                if (!confirm(`Warning: The customer has a remaining due of ₹${pendingDue.toLocaleString()}.\n\nAre you sure you want to save this bill and add this to their due account?`)) {
+                    return; 
+                }
+            }
+
+            const editId = document.getElementById('editingSaleId').value;
+            
+            let originalDate = new Date().toISOString();
+            let invNo = '';
+            if (editId) {
+                const oldSale = allSalesData.find(os => String(os.id) === String(editId));
+                if (oldSale && oldSale.date) originalDate = oldSale.date;
+                if (oldSale && oldSale.invoiceNo) invNo = oldSale.invoiceNo;
+            }
+
+            if (!invNo) {
+                const dObj = new Date(originalDate);
+                const prefix = String(dObj.getMonth() + 1).padStart(2, '0') + String(dObj.getFullYear()).slice(-2);
+                const monthSales = (allSalesData || []).filter(s => s.invoiceNo && s.invoiceNo.startsWith(prefix));
+                invNo = `${prefix}${monthSales.length + 1}`;
+            }
+
+            const cleanPayments = payments.map(p => {
+                const { isNew, ...rest } = p;
+                return rest;
+            });
+
+            const saleData = {
+                invoiceNo: invNo,
+                date: originalDate, customerId: cid, items: cart,
+                subTotal: baseSubtotal, gst: totalGst, oldGoldDeduction: totalOldGold,
+                totalExchWt: totalExchWt, 
+                discountMode: 'flat', discount: discVal, 
+                bcWalletDeduction: appliedBcAmount, 
+                grandTotal: grand, paidAmount: paid, pendingAmount: pendingDue, payments: cleanPayments,
+                isGstBill: applyGst,
+                status: 'completed'
+            };
+            
+            try {
+                if (appliedBcAmount > 0 || maturedSchemesTotal > 0) {
+                    for(let s of pendingMaturedSchemes) {
+                        s.status = 'redeemed';
+                        s.redeemDate = new Date().toISOString();
+                        await updateItem('schemes', s);
+
+                        await addItem('cashflow', {
+                            date: new Date().toISOString(), type: 'OUT', mode: 'System',
+                            category: 'Scheme Bonus Expense', amount: s.amount,
+                            note: `1 Month Bonus for Matured Scheme #${s.id} (Auto-Redeemed at POS)`
+                        });
+                    }
+
+                    let cust = await getItem('customers', cid);
+                    if(cust) {
+                        let oldBcDeduction = 0;
+                        if (editId) {
+                            const oldSale = allSalesData.find(os => String(os.id) === String(editId));
+                            if (oldSale) oldBcDeduction = oldSale.bcWalletDeduction || 0;
+                        }
+                        
+                        cust.bcBalance = (getSafeNum(cust.bcBalance)) + maturedSchemesTotal + oldBcDeduction - appliedBcAmount;
+                        await updateItem('customers', cust);
+                    }
+                }
+
+                let sid;
+                if(editId) {
+                    sid = editId.toString();
+                    saleData.id = sid;
+                    
+                    const allOG = await getAllItems('old_gold');
+                    const linkedOG = allOG.filter(g => String(g.saleId) === String(sid));
+                    for(const og of linkedOG) {
+                        await deleteItem('old_gold', og.id);
+                    }
+
+                    await updateStockStatusInternal(cart, 'sold'); 
+                    await updateItem('sales', saleData);
+                } else {
+                    await updateStockStatusInternal(cart, 'sold');
+                    sid = await addItem('sales', saleData);
+                    saleData.id = sid; 
+                }
+
+                for(const i of cart) {
+                    if(i.isOldGold) {
+                        await addItem('old_gold', {
+                            saleId: sid,
+                            type: 'BUY',
+                            metal: i.metal || (checkIsSilver(i.purity) ? 'Silver' : 'Gold'),
+                            customerId: cid,
+                            date: originalDate,
+                            description: i.category,
+                            purity: i.purity,
+                            grossWt: i.grossWt || i.weight,
+                            stoneWt: i.stoneWt || 0,
+                            netWt: i.netWt || i.weight,
+                            fineWt: i.fineWt || ((i.netWt || i.weight) * getPurityFactor(i.purity)),
+                            rate: i.rate,
+                            exchPct: i.exchangePct || 100, 
+                            amount: Math.abs(i.total),
+                            mode: 'POS Exchange'
+                        });
+                    }
+                }
+                
+                for(const p of deletedPayments) {
+                    let flowType = p.amount < 0 ? 'IN' : 'OUT';
+                    let flowAmt = Math.abs(p.amount);
+                    
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(),
+                        type: flowType, mode: p.mode,
+                        category: 'POS Payment Reversal', amount: flowAmt, note: `Reversed payment for Bill #${invNo} (Edit)`
+                    });
+                }
+
+                let noteSuffix = editId ? ` (Edited)` : '';
+                for(const p of payments) {
+                    if (editId && !p.isNew) continue; 
+                    
+                    let flowType = p.amount < 0 ? 'OUT' : 'IN';
+                    let flowAmt = Math.abs(p.amount);
+                    
+                    let cat = '';
+                    if (p.amount < 0) cat = 'POS Refund (Payout)';
+                    else if (editId) cat = 'POS Due Payment';
+                    else cat = 'POS Sale';
+
+                    await addItem('cashflow', {
+                        date: p.date || new Date().toISOString(),
+                        type: flowType, mode: p.mode,
+                        category: cat, amount: flowAmt, note: `Payment for Bill #${invNo}${noteSuffix}`
+                    });
+                }
+
+                printInvoice(saleData);
+                
+                cart = []; payments = []; deletedPayments = []; 
+                renderCart(); renderPayments();
+                resetCust();
+                document.getElementById('sumDiscVal').value = 0;
+                document.getElementById('editingSaleId').value = '';
+                document.getElementById('btnSave').innerHTML = '<i class="fas fa-check-circle"></i> Save & Print Bill';
+                document.getElementById('btnCancelEdit').style.display = 'none';
+                
+                loadHistory();
+            } catch(e) {
+                console.error("Save Bill Error:", e);
+                alert("Database Error! Bill save nahi ho paya. Console check karein.");
+            }
+        }
+
+        async function updateStockStatusInternal(items, action) {
+            if(items.length === 0) return;
+
+            for(const i of items) {
+                if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
+                    continue;
+                }
+                
+                let item = await getItem('inventory', i.id);
+                if(item) { 
+                    const sellQty = i.sellQty || 1;
+                    const sellGross = i.grossWt !== undefined ? i.grossWt : (i.weight || 0);
+                    const sellStone = i.stoneWt || 0;
+                    const sellNet = i.netWt !== undefined ? i.netWt : sellGross;
+                    
+                    const isSilver = checkIsSilver(item.purity);
+
+                    if (action === 'sold') {
+                        if (isSilver || item.category === 'MIX' || item.pieces > 1) {
+                            item.pieces = (parseInt(item.pieces) || 1) - sellQty;
+                            item.grossWt = Math.max(0, (parseFloat(item.grossWt) || 0) - sellGross);
+                            item.stoneWt = Math.max(0, (parseFloat(item.stoneWt) || 0) - sellStone);
+                            item.netWt = Math.max(0, (parseFloat(item.netWt) || 0) - sellNet);
+                            item.weight = item.grossWt; 
+                            item.fineWt = item.netWt * getPurityFactor(item.purity);
+
+                            if (item.pieces <= 0 || item.netWt <= 0.05) {
+                                item.status = 'sold';
+                                item.pieces = 0;
+                                item.netWt = 0;
+                                item.grossWt = 0;
+                                item.stoneWt = 0;
+                                item.weight = 0;
+                                item.fineWt = 0;
+                            } else {
+                                item.status = 'stock';
+                            }
+                        } else {
+                            item.status = 'sold';
+                            item.pieces = 0;
+                            item.netWt = 0;
+                            item.grossWt = 0;
+                            item.stoneWt = 0;
+                            item.weight = 0;
+                            item.fineWt = 0;
+                        }
+                    } else if (action === 'stock') {
+                        item.status = 'stock';
+                        item.pieces = (parseInt(item.pieces) || 0) + sellQty;
+                        item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
+                        item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
+                        item.netWt = (parseFloat(item.netWt) || 0) + sellNet;
+                        item.weight = item.grossWt;
+                        item.fineWt = item.netWt * getPurityFactor(item.purity);
+                    }
+                    await updateItem('inventory', item);
+                }
+            }
+        }
+
+        async function editSale(id) {
+            if(!confirm("Edit this bill? This will load the items back into the cart. Add your new payment and click Update.")) return;
+            
+            const sale = await getItem('sales', id);
+            if(!sale) return;
+            
+            await updateStockStatusInternal(sale.items, 'stock');
+            
+            cart = sale.items; 
+            payments = sale.payments ? sale.payments.map(p => ({...p, isNew: false})) : [];
+
+            document.getElementById('sumDiscVal').value = sale.discount || 0;
+            document.getElementById('applyGstToggle').checked = sale.isGstBill !== false;
+            
+            const cust = await getItem('customers', sale.customerId);
+
+            if(cust) {
+                cust.bcBalance = (getSafeNum(cust.bcBalance)) + (sale.bcWalletDeduction || 0);
+                await selectCust(cust); 
+                if (sale.bcWalletDeduction > 0) {
+                    lockedEditBcAmount = sale.bcWalletDeduction; 
+                    useBcWallet = true;
+                    calcBillSummary();
+                }
+            }
+            
+            document.getElementById('editingSaleId').value = sale.id;
+            document.getElementById('btnSave').innerHTML = "<i class='fas fa-save'></i> UPDATE BILL";
+            document.getElementById('btnCancelEdit').style.display = 'block';
+            
+            renderCart(); renderPayments(); switchView('pos');
+        }
+
+        async function cancelEdit() {
+            location.reload();
+        }
+
+        async function openCancelModal(id) {
+            const sale = allSalesData.find(s => String(s.id) === String(id));
+            if(!sale) return;
+
+            document.getElementById('cancelSaleId').value = id;
+            document.getElementById('cBillTotal').innerText = "₹" + sale.grandTotal.toLocaleString();
+            document.getElementById('cBillPaid').innerText = "₹" + sale.paidAmount.toLocaleString();
+            
+            document.getElementById('cRefundAmt').value = sale.paidAmount > 0 ? sale.paidAmount : 0; 
+            
+            if(sale.oldGoldDeduction > 0) {
+                document.getElementById('cBillOldGoldDiv').style.display = 'flex';
+                document.getElementById('cBillOldGold').innerText = "₹" + sale.oldGoldDeduction.toLocaleString();
+            } else {
+                document.getElementById('cBillOldGoldDiv').style.display = 'none';
+            }
+            
+            openModal('cancelModal');
+        }
+
+        async function confirmCancelSale() {
+            const id = document.getElementById('cancelSaleId').value;
+            const refundAmt = getSafeNum(document.getElementById('cRefundAmt').value);
+            const revertStock = document.getElementById('cRevertStock').checked;
+            const refundMode = document.getElementById('cRefundMode').value || 'Cash';
+
+            try {
+                const sale = await getItem('sales', id);
+                if(!sale) return;
+
+                sale.status = 'cancelled';
+                sale.refundedAmount = refundAmt;
+                await updateItem('sales', sale);
+
+                if (sale.bcWalletDeduction > 0) {
+                    let c = await getItem('customers', sale.customerId);
+                    if(c) {
+                        c.bcBalance = (getSafeNum(c.bcBalance)) + sale.bcWalletDeduction;
+                        await updateItem('customers', c);
+                    }
+                }
+
+                if(revertStock) {
+                    await updateStockStatusInternal(sale.items, 'stock');
+                }
+
+                const allOG = await getAllItems('old_gold');
+                const linkedOG = allOG.filter(g => String(g.saleId) === String(id));
+                for(const og of linkedOG) {
+                    await deleteItem('old_gold', og.id);
+                }
+
+                if(refundAmt > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(), type: 'OUT', mode: refundMode,
+                        category: 'Bill Cancellation Refund', amount: refundAmt, note: `Refund for Cancelled Bill #${sale.invoiceNo || formatInv(id)}`
+                    });
+                }
+                
+                if(sale.oldGoldDeduction > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(), type: 'OUT', mode: 'Metal Exchange',
+                        category: 'Bill Cancellation Reversal', amount: sale.oldGoldDeduction, note: `Reversing Exchange for Cancelled Bill #${sale.invoiceNo || formatInv(id)}`
+                    });
+                }
+
+                alert("Bill Cancelled & Refund Processed!");
+                closeModal('cancelModal');
+                loadHistory();
+            } catch(e) {
+                console.error("Cancellation Error:", e);
+                alert("Error while cancelling the bill.");
+            }
+        }
+
+        async function loadHistory() {
+            const list = await getAllItems('sales');
+            allSalesData = list; 
+            renderHistory(list);
+        }
+
+        async function filterHistory() {
+            const term = document.getElementById('histSearch').value.toLowerCase();
+            const status = document.getElementById('histStatusFilter').value;
+            const custs = await getAllItems('customers');
+
+            let filtered = allSalesData.filter(s => {
+                const c = custs.find(x => String(x.id) === String(s.customerId));
+                const cName = c ? c.name.toLowerCase() : '';
+                const sId = (s.invoiceNo || formatInv(s.id)).toLowerCase();
+                const matchesSearch = cName.includes(term) || sId.includes(term);
+
+                let matchesStatus = true;
+                if(status === 'paid') matchesStatus = s.pendingAmount === 0 && s.status !== 'cancelled';
+                if(status === 'due') matchesStatus = s.pendingAmount !== 0 && s.status !== 'cancelled';
+                if(status === 'cancelled') matchesStatus = s.status === 'cancelled';
+                if(status === 'all' && s.status === 'cancelled') matchesStatus = false;
+
+                return matchesSearch && matchesStatus;
+            });
+            renderHistory(filtered);
+        }
+
+        async function renderHistory(list) {
+            const custs = await getAllItems('customers');
+            const div = document.getElementById('histList');
+            div.innerHTML = '';
+            
+            if(list.length === 0) {
+                div.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">No invoices found.</div>';
+                return;
+            }
+
+            list.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(s => {
+                const c = custs.find(x => String(x.id) === String(s.customerId)) || {name:'Unknown', mobile:''};
+                
+                let statusHtml = '';
+                if(s.status === 'cancelled') {
+                    statusHtml = `<span style="background:#eeeeee; color:#757575; padding:3px 8px; border-radius:4px; font-size:0.75rem;">CANCELLED</span>`;
+                } else if (s.pendingAmount === 0) {
+                    statusHtml = `<span style="background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:4px; font-size:0.75rem;">PAID</span>`;
+                } else if (s.pendingAmount > 0) {
+                    statusHtml = `<span style="background:#ffebee; color:#c62828; padding:3px 8px; border-radius:4px; font-size:0.75rem;">DUE: ₹${s.pendingAmount}</span>`;
+                } else {
+                    statusHtml = `<span style="background:#f3e5f5; color:#8e24aa; padding:3px 8px; border-radius:4px; font-size:0.75rem;">REFUND: ₹${Math.abs(s.pendingAmount)}</span>`;
+                }
+                
+                const isCancelled = s.status === 'cancelled';
+                const cardStyle = isCancelled ? 'opacity: 0.7;' : 'box-shadow:0 2px 8px rgba(0,0,0,0.05);';
+
+                const paidHtml = `<div style="font-size:0.85rem; color:#2e7d32;">Paid: ₹${s.paidAmount.toLocaleString()}</div>`;
+                const dueHtml = s.pendingAmount > 0 ? `<div style="font-size:0.85rem; color:#c62828; font-weight:bold;">Due: ₹${s.pendingAmount.toLocaleString()}</div>` : '';
+                
+                const payDueBtn = s.pendingAmount > 0 && !isCancelled ? `<button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--accent-gold); color:#000; font-weight:bold; cursor:pointer;" onclick="editSale('${s.id}')"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>` : '';
+
+                div.innerHTML += `<div style="background:#fff; padding:20px; border-radius:12px; margin-bottom:15px; border-left:4px solid #333; ${cardStyle}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:700; font-size:1.1rem; color:#222;">${c.name}</span>
+                        <span style="font-weight:bold; font-size:1.1rem; color:var(--active-red); ${isCancelled?'text-decoration:line-through;':''}">₹${s.grandTotal.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <div style="font-size:0.85rem; color:#666;">${s.invoiceNo || formatInv(s)} | ${new Date(s.date).toLocaleString('en-IN', {day:'numeric', month:'short', year:'numeric'})}</div>
+                        ${statusHtml}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px; background:#f9f9f9; padding:5px; border-radius:4px;">
+                        ${paidHtml}
+                        ${dueHtml}
+                    </div>
+                    ${!isCancelled ? `
+                    <div style="margin-top:15px; padding-top:10px; border-top:1px solid #f0f0f0; display:flex; gap:10px; font-size:0.85rem; font-weight:600; flex-wrap:wrap;">
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick="printHistory('${s.id}')"><i class="fas fa-print"></i> Print</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#eee; cursor:pointer;" onclick="editSale('${s.id}')"><i class="fas fa-edit"></i> Edit</button>
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--whatsapp); color:white; cursor:pointer;" onclick="waInvoice('${s.invoiceNo || s.id}', '${c.mobile}', '${c.name}', ${s.grandTotal}, ${s.pendingAmount})"><i class="fab fa-whatsapp"></i> Send</button>
+                        ${payDueBtn}
+                        <button style="flex:1; padding:8px; border-radius:6px; border:none; background:#ffebee; color:#c62828; cursor:pointer;" onclick="openCancelModal('${s.id}')"><i class="fas fa-undo"></i> Cancel</button>
+                    </div>` : ''}
                 </div>`;
             });
         }
 
-        // ──────────────────────────────────────────────
-        // SAVE / EDIT / CANCEL SALE
-        // ──────────────────────────────────────────────
-        async function saveSale() {
-            const custId = document.getElementById('custId').value;
-            if (!custId) return alert('Please select a customer.');
-            if (cart.length === 0) return alert('Cart is empty.');
-
-            const editingId = document.getElementById('editingSaleId').value;
-            let baseSubtotal = cart.reduce((sum, i) => sum + (i.isOldGold ? 0 : i.baseAmount), 0);
-            let totalGst = document.getElementById('applyGstToggle').checked ? cart.reduce((sum, i) => sum + (i.isOldGold ? 0 :
-                i.gstAmount), 0) : 0;
-            let totalOldGold = cart.reduce((sum, i) => sum + (i.isOldGold ? Math.abs(i.total) : 0), 0);
-            let disc = getSafeNum(document.getElementById('sumDiscVal').value);
-            let grandTotal = (baseSubtotal + totalGst) - totalOldGold - disc - appliedBcAmount;
-            let totalPaid = payments.reduce((a, b) => a + b.amount, 0);
-            let pendingAmount = grandTotal - totalPaid;
-
-            const saleData = {
-                customerId: custId,
-                items: JSON.parse(JSON.stringify(cart)),
-                payments: JSON.parse(JSON.stringify(payments)),
-                baseSubtotal,
-                totalGst,
-                totalOldGold,
-                discount: disc,
-                bcWalletUsed: appliedBcAmount,
-                grandTotal,
-                totalPaid,
-                pendingAmount,
-                status: pendingAmount <= 0 ? 'paid' : 'due',
-                date: new Date().toISOString(),
-                invoiceNo: '',
-                deletedPayments: JSON.parse(JSON.stringify(deletedPayments)),
-            };
-
-            try {
-                let saleId;
-                if (editingId) {
-                    saleData.id = editingId;
-                    saleData.invoiceNo = document.getElementById('editingSaleId').dataset.invno || '';
-                    await updateItem('sales', editingId, saleData);
-                    saleId = editingId;
-                    if (lockedEditBcAmount > 0 && appliedBcAmount !== lockedEditBcAmount) {
-                        const cust = await getItem('customers', custId);
-                        if (cust) {
-                            let newBcBal = getSafeNum(cust.bcBalance) + lockedEditBcAmount - appliedBcAmount;
-                            await updateItem('customers', custId, { bcBalance: Math.max(0, newBcBal) });
-                        }
-                    }
-                } else {
-                    const count = (await getAllItems('sales')).length + 1;
-                    saleData.invoiceNo = `INV-${String(count).padStart(4, '0')}`;
-                    saleId = await addItem('sales', saleData);
-                    if (useBcWallet && appliedBcAmount > 0) {
-                        const cust = await getItem('customers', custId);
-                        if (cust) {
-                            let newBcBal = getSafeNum(cust.bcBalance) - appliedBcAmount;
-                            await updateItem('customers', custId, { bcBalance: Math.max(0, newBcBal) });
-                            for (const sch of pendingMaturedSchemes) {
-                                await updateItem('schemes', sch.id, { status: 'redeemed' });
-                            }
-                        }
-                    }
-                }
-
-                for (const item of cart) {
-                    if (!item.isOldGold && item.id && !item.id.startsWith('manual_')) {
-                        const invItem = await getItem('inventory', item.id);
-                        if (invItem && invItem.status === 'stock') {
-                            const remPcs = (parseInt(invItem.pieces) || 1) - (item.sellQty || 1);
-                            const remWt = getSafeNum(invItem.grossWt || invItem.netWt || invItem.weight) - (item.grossWt || 0);
-                            if (remPcs <= 0 || remWt <= 0.001) {
-                                await updateItem('inventory', item.id, { status: 'sold', pieces: 0, weight: 0, grossWt: 0,
-                                    netWt: 0 });
-                            } else {
-                                await updateItem('inventory', item.id, { pieces: remPcs, grossWt: remWt, netWt: remWt - (
-                                        item.stoneWt || 0) });
-                            }
-                        }
-                    }
-                }
-
-                for (const p of payments) {
-                    await addItem('cashbook', { type: 'credit', mode: p.mode, amount: p.amount, description: `Sale ${saleData.invoiceNo}`, date: new Date().toISOString() });
-                }
-
-                alert('Sale saved successfully!');
-                printBill(saleData, saleId);
-                resetFullForm();
-                document.getElementById('editingSaleId').value = '';
-                document.getElementById('btnCancelEdit').style.display = 'none';
-                document.getElementById('btnSave').innerHTML = '<i class="fas fa-check-circle"></i> Save & Print Bill';
-            } catch (err) {
-                console.error(err);
-                alert('Error saving sale: ' + err.message);
-            }
+        async function printHistory(id) {
+            const sale = await getItem('sales', id);
+            if(sale) printInvoice(sale);
         }
 
-        function resetFullForm() {
-            cart = [];
-            payments = [];
-            deletedPayments = [];
-            appliedBcAmount = 0;
-            useBcWallet = false;
-            lockedEditBcAmount = 0;
-            renderCart();
-            renderPayments();
-            document.getElementById('sumDiscVal').value = 0;
-            document.getElementById('applyGstToggle').checked = true;
-            document.getElementById('bcWalletPanel').style.display = 'none';
-            document.getElementById('itemEntry').style.display = 'none';
-            document.getElementById('manualItemEntry').style.display = 'none';
-            document.getElementById('editingSaleId').value = '';
-            document.getElementById('btnCancelEdit').style.display = 'none';
-            document.getElementById('btnSave').innerHTML = '<i class="fas fa-check-circle"></i> Save & Print Bill';
-            resetCust();
-        }
-
-        async function editSale(saleId) {
-            const sale = await getItem('sales', saleId);
-            if (!sale) return alert('Sale not found.');
-            document.getElementById('editingSaleId').value = saleId;
-            document.getElementById('editingSaleId').dataset.invno = sale.invoiceNo || '';
-            document.getElementById('btnCancelEdit').style.display = 'block';
-            document.getElementById('btnSave').innerHTML = '<i class="fas fa-save"></i> Update Sale';
+        async function printInvoice(sale) {
             const cust = await getItem('customers', sale.customerId);
-            if (cust) await selectCust(cust);
-            cart = JSON.parse(JSON.stringify(sale.items || []));
-            payments = JSON.parse(JSON.stringify(sale.payments || []));
-            deletedPayments = JSON.parse(JSON.stringify(sale.deletedPayments || []));
-            appliedBcAmount = sale.bcWalletUsed || 0;
-            lockedEditBcAmount = appliedBcAmount;
-            useBcWallet = appliedBcAmount > 0;
-            document.getElementById('sumDiscVal').value = sale.discount || 0;
-            document.getElementById('applyGstToggle').checked = (sale.totalGst || 0) > 0;
-            if (useBcWallet && availableBcBalance >= appliedBcAmount) {
-                const btn = document.getElementById('btnApplyBc');
-                btn.innerHTML = '<i class="fas fa-times"></i> Remove BC Balance';
-                btn.style.background = "#c62828";
-                document.getElementById('bcWalletPanel').style.display = 'flex';
-            }
-            renderCart();
-            renderPayments();
-            calcBillSummary();
-            switchView('pos');
-            window.scrollTo(0, 0);
-        }
+            if(!cust) return;
+            
+            const isGst = sale.isGstBill !== false; 
+            const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
+            const cgstAmt = (sale.gst / 2).toFixed(2);
+            const sgstAmt = (sale.gst / 2).toFixed(2);
 
-        function cancelEdit() {
-            if (confirm('Discard all edits?')) resetFullForm();
-        }
-
-        async function confirmCancelSale() {
-            const saleId = document.getElementById('cancelSaleId').value;
-            const refundAmt = getSafeNum(document.getElementById('cRefundAmt').value);
-            const refundMode = document.getElementById('cRefundMode').value;
-            if (!saleId) return;
-            const sale = await getItem('sales', saleId);
-            if (!sale) return alert('Sale not found.');
-            if (refundAmt > 0) {
-                await addItem('cashbook', { type: 'debit', mode: refundMode, amount: refundAmt, description: `Refund - Cancel Sale ${sale.invoiceNo || formatInv(saleId)}`, date: new Date().toISOString() });
+            let subTotalDisplay = sale.subTotal;
+            if (isGst) {
+                subTotalDisplay = sale.subTotal + sale.gst;
             }
-            if (sale.bcWalletUsed > 0) {
-                const cust = await getItem('customers', sale.customerId);
-                if (cust) {
-                    await updateItem('customers', sale.customerId, { bcBalance: getSafeNum(cust.bcBalance) + sale.bcWalletUsed });
-                }
+            if (sale.discount > 0) {
+                subTotalDisplay -= sale.discount;
             }
-            for (const item of (sale.items || [])) {
-                if (!item.isOldGold && item.id && !item.id.startsWith('manual_')) {
-                    const invItem = await getItem('inventory', item.id);
-                    if (invItem) {
-                        const newPcs = (parseInt(invItem.pieces) || 0) + (item.sellQty || 1);
-                        const newWt = getSafeNum(invItem.grossWt || invItem.netWt || invItem.weight) + (item.grossWt || 0);
-                        await updateItem('inventory', item.id, { status: 'stock', pieces: newPcs, grossWt: newWt, netWt: newWt - (
-                                item.stoneWt || 0) });
-                    }
-                }
-            }
-            await updateItem('sales', saleId, { status: 'cancelled', pendingAmount: 0 });
-            closeModal('cancelModal');
-            alert('Sale cancelled and stock restored.');
-            loadHistory();
-        }
 
-        function openCancelModal(saleId) {
-            getItem('sales', saleId).then(sale => {
-                if (!sale) return;
-                document.getElementById('cancelSaleId').value = saleId;
-                document.getElementById('cBillTotal').innerText = '₹' + (sale.grandTotal || 0).toLocaleString();
-                document.getElementById('cBillPaid').innerText = '₹' + (sale.totalPaid || 0).toLocaleString();
-                document.getElementById('cBillOldGold').innerText = '₹' + (sale.totalOldGold || 0).toLocaleString();
-                document.getElementById('cBillOldGoldDiv').style.display = (sale.totalOldGold || 0) > 0 ? 'flex' : 'none';
-                document.getElementById('cRefundAmt').value = sale.totalPaid || 0;
-                openModal('cancelModal');
-            });
-        }
-
-        // ──────────────────────────────────────────────
-        // PRINT BILL
-        // ──────────────────────────────────────────────
-        function printBill(saleData, saleId) {
-            const area = document.getElementById('invoice-area');
-            const invNo = saleData.invoiceNo || formatInv(saleId);
-            let itemsHtml = '';
-            let totalQty = 0;
-            let totalGrossWt = 0;
-            let totalNetWt = 0;
-            (saleData.items || cart).forEach((it, idx) => {
-                const sign = it.isOldGold ? '-' : '';
-                totalQty += (it.sellQty || 1);
-                totalGrossWt += (it.grossWt || it.weight || 0);
-                totalNetWt += (it.netWt || 0);
-                itemsHtml += `<tr>
-                    <td>${idx + 1}</td>
-                    <td>${it.category || it.barcode}</td>
-                    <td>${it.purity || ''}</td>
-                    <td>${(it.grossWt || it.weight || 0).toFixed(3)}</td>
-                    <td>${(it.netWt || 0).toFixed(3)}</td>
-                    <td>${(it.rate || 0).toFixed(0)}</td>
-                    <td>${sign}₹${Math.abs(it.total || 0).toLocaleString()}</td>
-                </tr>`;
-            });
-            area.innerHTML = `
-            <div class="print-page print-border-maroon">
+            let html = `
+            <div class="print-page front-page print-border-maroon">
                 <div class="inv-header-grid">
-                    <div class="inv-address-box">
-                        <strong>BHARTI JEWELLERS</strong><br>
-                        Shop No. 5, Main Market<br>
-                        City Center, Delhi - 110001<br>
-                        GSTIN: 07AAJCB1234K1Z9<br>
-                        Contact: 9876543210
+                    <div class="inv-address-box text-maroon">
+                        प्लॉट नं.डी ५६, गोखले स्कुल समोर,<br>
+                        सेक्टर १२, खारघर, नवी मुंबई ४१०२१०.
                     </div>
                     <div class="inv-logo-box">
-                        <p class="inv-logo-text">BJ</p>
-                        <p class="inv-logo-sub">BHARTI JEWELLERS</p>
-                        <p class="inv-gst-text">TAX INVOICE</p>
+                        <div class="inv-logo-text">भारती</div>
+                        <div class="inv-logo-sub">ज्वेलर्स</div>
                     </div>
                 </div>
-                <div class="inv-middle-bar">
-                    <span>Invoice #: ${invNo}</span>
-                    <span class="inv-middle-title">RETAIL INVOICE</span>
-                    <span>Date: ${new Date(saleData.date || Date.now()).toLocaleDateString('en-IN')}</span>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1.5fr 1fr; margin-bottom:10px;">
+                    <div style="border:1px solid #6c1122; border-left:none; padding:5px; font-size:12px; font-weight:bold;">
+                        <div style="border-bottom:1px solid #6c1122; padding-bottom:3px; margin-bottom:3px;">
+                            Invoice No. <span style="color:#D32F2F; margin-left:10px;">${sale.invoiceNo || formatInv(sale).replace('INV-', '')}</span>
+                        </div>
+                        <div>Date & Time &nbsp; ${new Date(sale.date).toLocaleString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}</div>
+                    </div>
+                    <div style="text-align:center; padding:10px 0; font-size:14px; font-weight:bold; color:#6c1122;">
+                        ${titleText}<br>GOLD SALES BILL
+                    </div>
+                    <div style="font-size:10px; font-weight:bold; text-align:right; padding-top:5px;">
+                        GSTN No. : 27BGYPJ5125N1ZM<br>
+                        GST Type : SGST + CGST
+                    </div>
                 </div>
-                <div class="inv-cust-grid">
-                    <span>Customer:</span><span>:</span><span><strong>${document.getElementById('custNameDisplay')?.innerText?.replace(/<[^>]*>/g,'') || 'Walk-in'}</strong></span>
-                    <span>Mobile</span><span>:</span><span>${document.getElementById('custDisplay')?.querySelector('span')?.innerText?.match(/\d{10}/)?.[0] || ''}</span>
+
+                <div style="border-top:1px solid #6c1122;">
+                    <div class="inv-cust-grid">
+                        <div>Name</div> <div>:</div> <div>${cust.name}</div>
+                        <div>Address</div> <div>:</div> <div>${cust.city || ''}</div>
+                        <div>Mobile No.</div> <div>:</div> <div>${cust.mobile}</div>
+                        <div style="margin-top:10px;">City & Pin No.</div> <div style="margin-top:10px;">:</div> <div style="margin-top:10px;">Kharghar - 410210</div>
+                        <div>Pan No.</div> <div>:</div> <div></div>
+                        <div>GSTN No.</div> <div>:</div> <div>NA</div>
+                        <div>State & Code</div> <div>:</div> <div>27 - Maharashtra</div>
+                    </div>
                 </div>
+
                 <div class="inv-items-container">
                     <table class="inv-main-table">
-                        <thead><tr class="bg-maroon"><th>#</th><th>Item</th><th>Purity</th><th>Gr.Wt(g)</th><th>Net.Wt(g)</th><th>Rate(₹/g)</th><th>Amount</th></tr></thead>
-                        <tbody>${itemsHtml}</tbody>
+                        <thead class="bg-maroon">
+                            <tr>
+                                <th>HSN<br>Code</th>
+                                <th>Particular</th>
+                                <th>HUID</th>
+                                <th>Purity</th>
+                                <th>Pcs</th>
+                                <th>Gross<br>Wt</th>
+                                <th>Net<br>Wt</th>
+                                <th>Rate<br>Per Gm</th>
+                                <th>Other<br>Amt</th>
+                                <th>Making</th>
+                                <th style="border-right:none;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            sale.items.forEach(i => {
+                if(i.isOldGold) return; 
+
+                let mkDisplay = i.makingAmount ? i.makingAmount : '-';
+                let amtDisplay = i.baseAmount;
+
+                html += `
+                            <tr>
+                                <td></td>
+                                <td style="text-align:left;">${i.category}</td>
+                                <td>${i.huid || ''}</td>
+                                <td>${i.purity}</td>
+                                <td>${i.sellQty || 1}</td>
+                                <td>${(i.grossWt || i.weight).toFixed(3)}</td>
+                                <td>${(i.netWt || i.weight).toFixed(3)}</td>
+                                <td>${i.rate}</td>
+                                <td></td>
+                                <td>${mkDisplay}</td>
+                                <td style="border-right:none;">${amtDisplay.toLocaleString()}</td>
+                            </tr>`;
+            });
+
+            let payModes = "Cash";
+            if (sale.payments && sale.payments.length > 0) {
+                const modes = [...new Set(sale.payments.map(p => p.mode))];
+                payModes = modes.join(', ');
+            }
+
+            html += `
+                        </tbody>
                     </table>
                 </div>
+
                 <div class="inv-footer-grid">
                     <div class="inv-footer-left">
-                        <div style="padding:8px;">
-                            <div class="inv-summary-row"><span>Subtotal</span><span>₹${(saleData.baseSubtotal || 0).toLocaleString()}</span></div>
-                            <div class="inv-summary-row"><span>GST</span><span>₹${(saleData.totalGst || 0).toLocaleString()}</span></div>
-                            ${(saleData.totalOldGold || 0) > 0 ? `<div class="inv-summary-row" style="color:#8e24aa;"><span>Less: Exchange</span><span>-₹${(saleData.totalOldGold || 0).toLocaleString()}</span></div>` : ''}
-                            ${(saleData.bcWalletUsed || 0) > 0 ? `<div class="inv-summary-row"><span>Less: BC Wallet</span><span>-₹${(saleData.bcWalletUsed || 0).toLocaleString()}</span></div>` : ''}
-                            <div class="inv-summary-row"><span>Discount</span><span>₹${(saleData.discount || 0).toLocaleString()}</span></div>
-                            <div class="inv-summary-row bold" style="font-size:14px;"><span>GRAND TOTAL</span><span>₹${(saleData.grandTotal || 0).toLocaleString()}</span></div>
-                            <div style="font-weight:bold; margin-top:5px; font-size:12px;">Amount in Words: ${numberToWords(Math.round(saleData.grandTotal || 0))}</div>
+                        <div style="padding:5px;">
+                            <div style="border-bottom:1px solid #6c1122; padding-bottom:5px;">
+                                <strong>Invoice Value (In Words) :</strong><br>
+                                <span style="font-weight:normal; margin-left:10px;">Rupees ${numberToWords(sale.grandTotal)}</span>
+                            </div>
+                            <div style="border-bottom:1px solid #6c1122; padding:5px 0;">
+                                <strong>Narration :</strong>
+                            </div>
+                            <div style="padding:30px 0 5px 0;">
+                                <strong>Reference Person :</strong>
+                            </div>
                         </div>
-                        <div style="padding:8px; border-top:1px solid #6c1122; font-size:10px;">
-                            <strong>Payment Details:</strong><br>
-                            ${(saleData.payments || payments).map(p => `${p.mode}: ₹${p.amount.toLocaleString()}`).join('<br>') || 'N/A'}<br>
-                            <strong>Balance Due: ₹${(saleData.pendingAmount || 0).toLocaleString()}</strong>
+                        <div style="border-top:1px solid #6c1122; display:flex;">
+                            <div style="padding:5px; border-right:1px solid #6c1122; flex:1;">
+                                <strong>URD Details:</strong>
+                            </div>
+                            <table class="inv-urd-table" style="flex:3; border:none; margin:0;">
+                                <tr style="background:#eee;">
+                                    <th style="border-top:none; border-bottom:none;">Doc No.</th>
+                                    <th style="border-top:none; border-bottom:none;">Old Gold Wt.</th>
+                                    <th style="border-top:none; border-bottom:none; border-right:none;">URD Amount</th>
+                                </tr>
+                                <tr>
+                                    <td style="border-bottom:none;"></td>
+                                    <td style="border-bottom:none;">${sale.totalExchWt ? sale.totalExchWt.toFixed(3) + ' g' : '-'}</td>
+                                    <td style="border-bottom:none; border-right:none;">${sale.oldGoldDeduction > 0 ? sale.oldGoldDeduction.toLocaleString() : '-'}</td>
+                                </tr>
+                            </table>
                         </div>
                     </div>
+
                     <div class="inv-footer-right">
-                        <table class="inv-urd-table">
-                            <tr class="bg-maroon"><th>HUID</th><th>Gross Wt</th><th>Net Wt</th></tr>
-                            ${(saleData.items || cart).filter(it => it.huid).map(it => `<tr><td>${it.huid}</td><td>${(it.grossWt || it.weight || 0).toFixed(3)}</td><td>${(it.netWt || 0).toFixed(3)}</td></tr>`).join('') || '<tr><td colspan="3">-</td></tr>'}
-                        </table>
-                        <div style="text-align:right; padding:15px; font-weight:bold; font-size:12px; margin-top:20px;">
-                            <p style="margin:0;">For BHARTI JEWELLERS</p>
-                            <p style="margin:60px 0 0 0;">Authorized Signatory</p>
-                        </div>
+                        <div class="inv-summary-row"><span>Gross Amt</span> <span>${sale.subTotal.toLocaleString()}</span></div>
+                        <div class="inv-summary-row"><span>CC Charges</span> <span></span></div>
+                        <div class="inv-summary-row"><span>Less Disc.</span> <span>${sale.discount > 0 ? sale.discount.toLocaleString() : ''}</span></div>
+                        <div class="inv-summary-row"><span>Add CGST</span> <span>${isGst && sale.gst > 0 ? cgstAmt : ''}</span></div>
+                        <div class="inv-summary-row"><span>Add SGST</span> <span>${isGst && sale.gst > 0 ? sgstAmt : ''}</span></div>
+                        <div class="inv-summary-row"><span>Add IGST</span> <span></span></div>
+                        <div class="inv-summary-row"><span>Other Charges</span> <span></span></div>
+                        <div class="inv-summary-row bold"><span>Sub Total</span> <span>${Math.round(subTotalDisplay).toLocaleString()}</span></div>
+                        <div class="inv-summary-row"><span>Less URD</span> <span>${(sale.oldGoldDeduction + (sale.bcWalletDeduction||0)) > 0 ? (sale.oldGoldDeduction + (sale.bcWalletDeduction||0)).toLocaleString() : ''}</span></div>
+                        <div class="inv-summary-row"><span>Round Off</span> <span></span></div>
+                        <div class="inv-summary-row bold" style="border-bottom:none;"><span>Net Payable</span> <span>${sale.grandTotal.toLocaleString()}</span></div>
+                        <div class="inv-summary-row" style="border-top:1px solid #6c1122; padding-top:4px; margin-top:2px;"><span>Paid Amount</span> <span>${sale.paidAmount.toLocaleString()}</span></div>
+                        <div class="inv-summary-row"><span>Pay Mode</span> <span style="font-size: 9px; text-align: right; max-width: 60%;">${payModes}</span></div>
+                        <div class="inv-summary-row bold" style="color: ${sale.pendingAmount > 0 ? '#c62828' : '#333'}; border-bottom:none;"><span>Balance Due</span> <span>${sale.pendingAmount.toLocaleString()}</span></div>
                     </div>
+                </div>
+
+                <div style="border-top:1px solid #6c1122; text-align:right; padding:20px 10px 5px 10px; font-weight:bold; font-size:12px; color:#6c1122;">
+                    For Bharti Jewellers
                 </div>
             </div>
-            <div class="print-page page-break">
-                <div class="tc-container">
-                    <div class="tc-sidebar">TERMS &amp; CONDITIONS</div>
-                    <div class="tc-content">
-                        <div class="tc-title">Terms &amp; Conditions</div>
-                        <ol class="tc-list">
-                            <li>All disputes are subject to Delhi jurisdiction only.</li>
-                            <li>Goods once sold will not be taken back or exchanged.</li>
-                            <li>Gold rate is based on prevailing market rate at the time of billing.</li>
-                            <li>Making charges are non-refundable.</li>
-                            <li>Hallmarked jewellery carries BIS hallmark guarantee as per purity.</li>
-                            <li>Exchange buyback is subject to melting and purity verification.</li>
-                            <li>Customer must retain original invoice for any future claims.</li>
-                            <li>E. &amp; O.E. (Errors and Omissions Excepted)</li>
-                        </ol>
-                    </div>
+
+            <div class="print-page page-break tc-container">
+                <div class="tc-sidebar">
+                    BHARTI JEWELLERS
                 </div>
-            </div>`;
-            area.style.display = 'block';
-            setTimeout(() => { triggerPrint();
-                area.style.display = 'none'; }, 300);
-        }
-
-        async function printHistory(saleId) {
-            const sale = await getItem('sales', saleId);
-            if (sale) { printBill(sale, saleId); } else { alert('Sale not found.'); }
-        }
-
-        // ──────────────────────────────────────────────
-        // HISTORY
-        // ──────────────────────────────────────────────
-        async function loadHistory() {
-            allSalesData = await getAllItems('sales');
-            allSalesData.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-            filterHistory();
-        }
-
-        function filterHistory() {
-            const term = document.getElementById('histSearch').value.toLowerCase();
-            const statusFilter = document.getElementById('histStatusFilter').value;
-            let filtered = allSalesData;
-            if (term) {
-                filtered = filtered.filter(s => {
-                    const invNo = (s.invoiceNo || formatInv(s.id)).toLowerCase();
-                    return invNo.includes(term);
-                });
-            }
-            if (statusFilter !== 'all') {
-                filtered = filtered.filter(s => s.status === statusFilter);
-            }
-            const list = document.getElementById('histList');
-            list.innerHTML = '';
-            filtered.slice(0, 50).forEach(s => {
-                const card = document.createElement('div');
-                card.style.cssText =
-                    'background:white; padding:15px; border-radius:8px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); border-left:4px solid ' +
-                    (s.status === 'cancelled' ? '#d32f2f' : s.status === 'paid' ? '#4caf50' : '#ff9800');
-                card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                    <div>
-                        <b style="font-size:1.1rem;">${s.invoiceNo || formatInv(s.id)}</b>
-                        <span style="background:#eee; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-left:8px;">${s.status?.toUpperCase() || 'UNKNOWN'}</span>
-                        <br><small style="color:#666;">${new Date(s.date).toLocaleDateString('en-IN')} | Items: ${(s.items?.length || 0)}</small>
-                    </div>
-                    <div style="text-align:right;">
-                        <b style="color:#333;">₹${(s.grandTotal || 0).toLocaleString()}</b><br>
-                        <small style="color:${(s.pendingAmount || 0) > 0 ? '#d32f2f' : '#4caf50'};">${(s.pendingAmount || 0) > 0 ? 'Due: ₹' + s.pendingAmount.toLocaleString() : 'Paid'}</small>
-                    </div>
+                <div class="tc-content">
+                    <div class="tc-title">TERMS AND CONDITIONS</div>
+                    <ul class="tc-list">
+                        <li>Jewellery once sold can be exchanged to full value only if returned by the customer in same condition in which it was sold, within seven (7) days from date of invoice/sale. No cash refund is admissible.</li>
+                        <li>Only the jewellery purchased from Bharti Jewellery is applicable for buyback/refund. 5% of current gold value will be deducted while granting the refund. (Stone and wax weight will be deducted).</li>
+                        <li>Hallmark jewellery will be eligible for weight to weight exchange, only making charges and GST will have to be paid. (Stone and wax weight will be deducted)</li>
+                        <li>Payment of amount greater than Rs 10,000 to customers will be done only through Cheque/RTGS/IMPS/NEFT</li>
+                        <li>We are not responsible for any loss due to mishandle of ornaments which may cause breakage, chipping of enamel and falling of stones.</li>
+                        <li>The original Sales bill has to be submitted at the time of above sales return / exchange.</li>
+                        <li>If the payment is made by Cheque/IMPS/RTGS/NEFT, delivery of items purchased will be made only after realization of the amount to company.</li>
+                        <li>The daily rates of sale, exchange and purchase (buyback) displayed in showroom will be applicable for all transactions.</li>
+                        <li>Only the diamond and platinum jewellery purchased from Bharti Jewellers is applicable for buyback/refund. 25% of the total invoice value and G.S.T. will be deducted while granting the refund.</li>
+                        <li>While exchanging diamond jewellery 10% of the total invoice value and G.S.T. will be deducted.</li>
+                        <li>While exchanging platinum jewellery 10% of the total invoice value and G.S.T. will be deducted.</li>
+                        <li>In case of any dispute, only the courts in Mumbai will have jurisdiction.</li>
+                        <li>We reserve the right to modify these terms and condition from to time.</li>
+                    </ul>
                 </div>
-                <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="btn-outline" onclick="printHistory('${s.id}')"><i class="fas fa-print"></i> Print</button>
-                    ${s.status !== 'cancelled' ? `<button class="btn-outline" onclick="editSale('${s.id}')"><i class="fas fa-edit"></i> Edit</button>` : ''}
-                    ${s.status !== 'cancelled' ? `<button class="btn-outline" style="color:#d32f2f; border-color:#d32f2f;" onclick="openCancelModal('${s.id}')"><i class="fas fa-undo"></i>
+            </div>
+            `;
+
+            document.getElementById('invoice-area').innerHTML = html;
+            
+            setTimeout(() => {
+                triggerPrint();
+            }, 300);
+        }
+
+        function waInvoice(idOrInv, mobile, name, total, due) {
+            let invText = idOrInv.startsWith('INV') || !isNaN(idOrInv) ? idOrInv : formatInv(idOrInv);
+            let msg = `Hello ${name},\n\nThank you for shopping at Bharti Jewellers! 🙏\n\nYour Invoice Details:\nInvoice No: ${invText}\nTotal Amount: ₹${total.toLocaleString()}\n`;
+            if(due > 0) msg += `Pending Due: ₹${due.toLocaleString()}\n`;
+            msg += `\nWe hope to see you again soon.\n\nRegards,\nBharti Jewellers`;
+
+            let phone = mobile.toString().replace(/\D/g, ''); 
+            if(phone.length === 10) phone = '+91' + phone;
+            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
+            else if(!phone.startsWith('+')) phone = '+' + phone;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    </script>
+</body>
+</html>
+
+
+
