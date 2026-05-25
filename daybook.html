@@ -789,15 +789,30 @@
             let mSalesTotal = 0, mSalesRecv = 0, mUdhariTotal = 0;
             let mGoldIn = 0, mGoldOut = 0, mSilverIn = 0, mSilverOut = 0;
 
-            // --- NAYA LOGIC FOR DIRECT INVENTORY ADDITION TO BALANCE ---
+           // --- NAYA LOGIC FOR DIRECT INVENTORY ADDITION TO BALANCE ---
             inventory.forEach(inv => {
-                if (!inv.purchaseId && !inv.isFromPurchase && !inv.orderId) {
+                // Check karein ki ye purchase se nahi aaya hai
+                let isFromPur = inv.purchaseId || inv.isFromPurchase || inv.source === 'purchase' || inv.orderId;
+                
+                if (!isFromPur) {
                     let invNet = getSafeNet(inv);
-                    let isSilv = isSilver(inv.purity || inv.category);
-                    let invDate = getSafeDate(inv.date || inv.createdAt);
+                    let isSilv = isSilver(inv.purity || inv.category || inv.metalType);
                     
-                    if (!isSilv && invNet > 0 && invDate && invDate <= selectedDateStr) {
-                        logMetal(invDate, invNet, 'OUT', 'inv_add', 'Direct Stock Added', 'fas fa-box', 'var(--fine-gold)', 'Opening/Direct Stock (No Purchase Bill)', 'System', `STK-${inv.id}`, true, 'NET', true);
+                    // NAYA FIX: Firebase Timestamp parsing
+                    let dVal = inv.date || inv.createdAt || inv.timestamp;
+                    if (dVal && typeof dVal === 'object' && dVal.seconds) {
+                        dVal = new Date(dVal.seconds * 1000); // Convert Firebase Timestamp to JS Date
+                    } else if (dVal && typeof dVal.toDate === 'function') {
+                        dVal = dVal.toDate();
+                    }
+                    
+                    let invDate = getSafeDate(dVal);
+                    // Agar date fail ho jaye toh purani date de dein taaki opening balance me add ho jaye
+                    if (!invDate || invDate.includes('object')) invDate = '2000-01-01'; 
+                    
+                    if (!isSilv && invNet > 0 && invDate <= selectedDateStr) {
+                        // skipDaybookUI = false pass kiya hai, taaki aaj ki date me card show ho!
+                        logMetal(invDate, invNet, 'OUT', 'inv_add', 'Direct Stock Added', 'fas fa-box', 'var(--fine-gold)', 'Opening/Direct Stock (No Purchase Bill)', 'System', `STK-${inv.id}`, true, 'NET', false);
                     }
                 }
             });
