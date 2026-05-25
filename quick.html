@@ -267,26 +267,6 @@
             a { text-decoration: none; color: inherit; }
 
         }
-        /* --- EXPENSE MODAL STYLES --- */
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center;
-        }
-        .modal-box {
-            background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.3); border-top: 5px solid #c62828;
-        }
-        .modal-header { font-size: 1.3rem; font-weight: 800; margin-bottom: 15px; color: #c62828; display: flex; align-items: center; gap: 10px;}
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 5px; color: #444;}
-        .form-group input, .form-group select { 
-            width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-family: inherit;
-            box-sizing: border-box; font-size: 1rem; font-weight: 600; outline: none;
-        }
-        .form-group input:focus, .form-group select:focus { border-color: #c62828; }
-        .modal-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
-        .btn-cancel { padding: 12px; background: #eee; border: none; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 800; color: #555; }
-        .btn-save { padding: 12px; background: #c62828; color: white; border: none; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 800; }
 
     </style>
 
@@ -503,16 +483,8 @@
             <div class="action-wrapper"><a href="repairs.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund)</a><div id="log-Repair Out" class="mini-log"></div></div>
 
             <div class="action-wrapper"><a href="schemes.html" class="action-btn btn-out"><i class="fas fa-gift"></i> BC Matured (Nama)</a><div id="log-BC Out" class="mini-log"></div></div>
-<div class="action-wrapper">
-                <a href="javascript:void(0)" onclick="openExpenseModal()" class="action-btn btn-out" style="background: #ffebee; color: #c62828; text-decoration: none;">
-                    <i class="fas fa-money-bill-wave"></i> Quick Expense (Kharcha)
-                </a>
-                <div id="log-Expense" class="mini-log"></div>
-            </div>
-            <div class="action-wrapper">
-                <a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice"></i> Other OUT (Nama)</a>
-                <div id="log-Other Out" class="mini-log"></div>
-            </div>
+
+            <div class="action-wrapper"><a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice"></i> Expense / Other OUT</a><div id="log-Other Out" class="mini-log"></div></div>
 
             
 
@@ -747,52 +719,7 @@
 
 
 </div>
-<!-- QUICK EXPENSE MODAL -->
-<div id="expenseModal" class="modal-overlay">
-    <div class="modal-box">
-        <div class="modal-header"><i class="fas fa-money-bill-wave"></i> Add Expense</div>
-        
-        <div class="form-group">
-            <label>Amount (₹) *</label>
-            <input type="number" id="expAmount" placeholder="Enter Amount" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Category (Kharcha Type) *</label>
-            <select id="expCategory" onchange="checkNewCategory()">
-                <option value="Food & Tea">Food & Tea (चाय/नाश्ता)</option>
-                <option value="Petrol">Petrol (पेट्रोल/सफर)</option>
-                <option value="Stationery">Stationery (स्टेशनरी)</option>
-                <option value="Salary">Salary (पगार)</option>
-                <option value="Shop Expense">Shop Expense (दुकान खर्च)</option>
-                <option value="AddNew">+ Add New Category (नया जोड़ें)</option>
-            </select>
-        </div>
-        
-        <div class="form-group" id="newCategoryDiv" style="display: none;">
-            <label>New Category Name</label>
-            <input type="text" id="expNewCategory" placeholder="E.g. Electricity Bill">
-        </div>
 
-        <div class="form-group">
-            <label>Payment Mode</label>
-            <select id="expMode">
-                <option value="Cash">Cash (*)</option>
-                <option value="Bank">Bank / UPI (#)</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label>Note (Optional)</label>
-            <input type="text" id="expNote" placeholder="Any details...">
-        </div>
-        
-        <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeExpenseModal()">Cancel</button>
-            <button class="btn-save" onclick="saveQuickExpense()"><i class="fas fa-save"></i> Save</button>
-        </div>
-    </div>
-</div>
 
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -2632,17 +2559,21 @@ if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
                         pushLog('Other In', amt, entityName || 'Income', '', spl, true);
 
                     } else {
-                    if (type === 'IN') {
-                        pushLog('Other In', amt, entityName || 'Income', '', spl, true);
-                    } else {
-                        // यहाँ हमने नए खर्चों के नाम जोड़ दिए हैं और 'Other Out' की जगह 'Expense' कर दिया है
-                        if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent') || cat.includes('food') || cat.includes('tea') || cat.includes('petrol') || cat.includes('stationery')) {
-                            pushLog('Expense', amt, entityName || 'Kharcha', cat, spl, false);
+
+                        if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
+
+                            pushLog('Other Out', amt, entityName || 'Kharcha', 'Kharcha', spl, false);
+
                         } else {
+
                             pushLog('Other Out', amt, entityName || 'Paid', '', spl, false);
+
                         }
+
                     }
+
                 }
+
             });
 
 
@@ -2699,76 +2630,5 @@ if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
 
     }
 
-</script>
-
-    <script>
-// --- QUICK EXPENSE MODAL LOGIC ---
-function openExpenseModal() {
-    document.getElementById('expenseModal').style.display = 'flex';
-    document.getElementById('expAmount').focus();
-}
-
-function closeExpenseModal() {
-    document.getElementById('expenseModal').style.display = 'none';
-    document.getElementById('expAmount').value = '';
-    document.getElementById('expNote').value = '';
-    document.getElementById('expCategory').value = 'Food & Tea';
-    checkNewCategory();
-}
-
-function checkNewCategory() {
-    let cat = document.getElementById('expCategory').value;
-    let newCatDiv = document.getElementById('newCategoryDiv');
-    if(newCatDiv) {
-        newCatDiv.style.display = (cat === 'AddNew') ? 'block' : 'none';
-    }
-}
-
-async function saveQuickExpense() {
-    let amt = parseFloat(document.getElementById('expAmount').value);
-    if (!amt || amt <= 0) { alert('Please enter a valid amount!'); return; }
-    
-    let cat = document.getElementById('expCategory').value;
-    if (cat === 'AddNew') {
-        cat = document.getElementById('expNewCategory').value.trim();
-        if(!cat) { alert('Please enter the new category name!'); return; }
-    }
-    
-    let mode = document.getElementById('expMode').value;
-    let note = document.getElementById('expNote').value.trim();
-    let dashboardDate = document.getElementById('selectedDate').value || new Date().toISOString().split('T')[0];
-    
-    let dateObj = new Date();
-    if(dashboardDate !== dateObj.toISOString().split('T')[0]) {
-        dateObj = new Date(dashboardDate + 'T12:00:00');
-    }
-
-    let entry = {
-        type: 'OUT',
-        amount: amt,
-        category: cat,
-        note: note,
-        mode: mode,
-        date: dateObj.toISOString(),
-        timestamp: dateObj.getTime()
-    };
-    
-    try {
-        // Save to Firebase
-        await firebase.firestore().collection('cashflow').add(entry);
-        
-        // Close Modal
-        closeExpenseModal();
-        
-        // Refresh Dashboard Live
-        if (typeof updateDashboardAndLogs === "function") {
-            await updateDashboardAndLogs();
-        }
-        
-    } catch (error) {
-        console.error("Error saving expense: ", error);
-        alert("Error saving expense! Check connection.");
-    }
-}
 </script>
 
