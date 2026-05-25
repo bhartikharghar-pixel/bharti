@@ -2450,54 +2450,46 @@
 
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
 
+let vyapariName = '';
+let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
 
+// अगर सेटलमेंट है तो ID निकालकर मर्चेंट ढूँढने की कोशिश करें
+if (!mId && note.includes('settlement')) {
+    let match = c.note.match(/(?:#|id)\s*[:\-]?\s*(\d+)/i);
+    if (match && match[1]) {
+        let mp = mPayments.find(x => String(x.id) === String(match[1]));
+        if (mp && mp.merchantId) { 
+            mId = mp.merchantId; 
+        } else {
+            mId = match[1]; // डायरेक्ट मर्चेंट ID भी हो सकती है
+        }
+    }
+}
 
-                let vyapariName = '';
+if (mId) {
+    vyapariName = getMerchName(mId);
+}
 
-                let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
-
-                
-
-                if (!mId && (note.includes('settlement') || cat.includes('settlement'))) {
-
-                    let match = note.match(/(?:#|id)\s*(\d+)/i);
-
-                    if (match && match[1]) {
-
-                        let mp = mPayments.find(x => String(x.id) === String(match[1]));
-
-                        if (mp && mp.merchantId) mId = mp.merchantId;
-
-                    }
-
-                }
-
-
-
-                if (mId) {
-
-                    vyapariName = getMerchName(mId);
-
-                }
-
-
-
-                if (!vyapariName || vyapariName === 'Merchant') {
-
-                    vyapariName = c.merchantName || c.partyName || c.party || c.ledgerName || c.name || '';
-
-                }
-
+if (!vyapariName || vyapariName === 'Merchant') {
+    vyapariName = c.merchantName || c.merchant_name || c.partyName || c.party_name || c.party || c.ledgerName || c.name || '';
+}
 
 let entityName = c.note || c.category || 'Payment';
 
 if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
     entityName = `${getCustName(c.customerId)} - ${entityName}`;
 } else if (isVyapariPayment) {
-    // ✅ सही कोड: अगर Merchant ID नहीं है, तो Note (c.note) में लिखा नाम दिखाएगा
-    entityName = (vyapariName && vyapariName !== 'Merchant') ? vyapariName : (c.note ? c.note : 'Vyapari');
+    if (vyapariName && vyapariName !== 'Merchant') {
+        // अगर मर्चेंट मिल गया है, तो उसका नाम दिखाएं
+        if (c.note && c.note.toLowerCase().includes('settlement')) {
+            entityName = `${vyapariName} (${c.note})`; 
+        } else {
+            entityName = vyapariName;
+        }
+    } else {
+        entityName = c.note ? c.note : 'Vyapari';
+    }
 }
-
 
                 if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
 
