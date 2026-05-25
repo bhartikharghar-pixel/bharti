@@ -403,14 +403,17 @@
         
         <div class="form-group">
             <label>Category (Kharcha Type) *</label>
-            <select id="expCategory" onchange="checkNewCategory()">
-                <option value="Food & Tea">Food & Tea (चाय/नाश्ता)</option>
-                <option value="Petrol">Petrol (पेट्रोल/सफर)</option>
-                <option value="Stationery">Stationery (स्टेशनरी)</option>
-                <option value="Salary">Salary (पगार)</option>
-                <option value="Shop Expense">Shop Expense (दुकान खर्च)</option>
-                <option value="AddNew">+ Add New Category (नया जोड़ें)</option>
-            </select>
+            <div style="display: flex; gap: 10px;">
+                <select id="expCategory" onchange="checkNewCategory()" style="flex: 1;">
+                    <option value="Food & Tea">Food & Tea (चाय/नाश्ता)</option>
+                    <option value="Petrol">Petrol (पेट्रोल/सफर)</option>
+                    <option value="Stationery">Stationery (स्टेशनरी)</option>
+                    <option value="Salary">Salary (पगार)</option>
+                    <option value="Shop Expense">Shop Expense (दुकान खर्च)</option>
+                    <option value="AddNew">+ Add New Category (नया जोड़ें)</option>
+                </select>
+                <button id="delCatBtn" onclick="deleteCustomCategory()" title="Delete Custom Category" style="display:none; width: 45px; border-radius: 8px; border: 2px solid #ffcdd2; background: #ffebee; color: #c62828; cursor: pointer; font-size: 1.1rem;"><i class="fas fa-trash"></i></button>
+            </div>
         </div>
         
         <div class="form-group" id="newCategoryDiv" style="display: none;">
@@ -452,6 +455,30 @@
 
     let allCustomers = [];
     let allMerchants = [];
+    let customExpenseCategories = []; // नई केटेगरी को याद रखने के लिए
+
+    // नई केटेगरी को डेटाबेस से मंगाने वाला फंक्शन
+    async function loadExpenseCategories() {
+        try {
+            let snapshot = await firebase.firestore().collection('expense_categories').get();
+            let select = document.getElementById('expCategory');
+            document.querySelectorAll('.custom-cat-opt').forEach(el => el.remove());
+            customExpenseCategories = []; 
+            
+            snapshot.forEach(doc => {
+                let catName = doc.data().name;
+                customExpenseCategories.push(catName.toLowerCase()); // नाम सेव कर लिया
+                
+                let opt = document.createElement('option');
+                opt.value = catName;
+                opt.innerText = catName;
+                opt.className = 'custom-cat-opt';
+                opt.dataset.id = doc.id; 
+                select.insertBefore(opt, select.querySelector('option[value="AddNew"]'));
+            });
+            checkNewCategory();
+        } catch(e) { console.log("Error loading categories", e); }
+    }
 
     function parseNum(val) {
         if (typeof val === 'number') return val;
@@ -545,6 +572,7 @@
         try {
             allCustomers = await safeGetAll('customers');
             allMerchants = await safeGetAll('merchants');
+            await loadExpenseCategories(); // Load saved categories on start
         } catch(e) {}
         await updateDashboardAndLogs();
     };
@@ -1306,7 +1334,6 @@
                 let vyapariName = '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
 
-                // अगर सेटलमेंट है तो ID निकालकर मर्चेंट ढूँढने की कोशिश करें
                 if (!mId && note.includes('settlement')) {
                     let match = c.note.match(/(?:#|id)\s*[:\-]?\s*(\d+)/i);
                     if (match && match[1]) {
@@ -1314,7 +1341,7 @@
                         if (mp && mp.merchantId) { 
                             mId = mp.merchantId; 
                         } else {
-                            mId = match[1]; // डायरेक्ट मर्चेंट ID भी हो सकती है
+                            mId = match[1]; 
                         }
                     }
                 }
@@ -1333,7 +1360,7 @@
                     entityName = `${getCustName(c.customerId)} - ${entityName}`;
                 } else if (isVyapariPayment) {
                     if (vyapariName && vyapariName !== 'Merchant') {
-                        entityName = vyapariName; // ✅ अब सिर्फ मर्चेंट का साफ नाम आएगा
+                        entityName = vyapariName; 
                     } else {
                         entityName = c.note ? c.note : 'Vyapari';
                     }
@@ -1376,7 +1403,18 @@
                     if (type === 'IN') {
                         pushLog('Other In', amt, entityName || 'Income', '', spl, true);
                     } else {
-                        if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent') || cat.includes('food') || cat.includes('tea') || cat.includes('petrol') || cat.includes('stationery')) {
+                        // ✅ FIX: अब पुरानी और नई कस्टम केटेगरी दोनों हमेशा "Expense" में ही जाएंगी
+                        let isExp = cat.includes('expense') || cat.includes('salary') || cat.includes('rent') || cat.includes('food') || cat.includes('tea') || cat.includes('petrol') || cat.includes('stationery');
+                        
+                        if (!isExp && customExpenseCategories.includes(cat)) {
+                            isExp = true;
+                        }
+
+                        if(c.isQuickExpense === true) {
+                            isExp = true;
+                        }
+
+                        if(isExp) {
                             pushLog('Expense', amt, entityName || 'Kharcha', cat, spl, false);
                         } else {
                             pushLog('Other Out', amt, entityName || 'Paid', '', spl, false);
@@ -1425,14 +1463,49 @@ function closeExpenseModal() {
     document.getElementById('expAmount').value = '';
     document.getElementById('expNote').value = '';
     document.getElementById('expCategory').value = 'Food & Tea';
+    document.getElementById('expNewCategory').value = '';
     checkNewCategory();
 }
 
 function checkNewCategory() {
-    let cat = document.getElementById('expCategory').value;
+    let select = document.getElementById('expCategory');
+    let cat = select.value;
     let newCatDiv = document.getElementById('newCategoryDiv');
+    let delBtn = document.getElementById('delCatBtn');
+    
     if(newCatDiv) {
         newCatDiv.style.display = (cat === 'AddNew') ? 'block' : 'none';
+    }
+    
+    // अगर चुनी गई केटेगरी 'कस्टम' है, तो डिलीट बटन दिखाएँ
+    let selectedOpt = select.options[select.selectedIndex];
+    if(selectedOpt && selectedOpt.classList.contains('custom-cat-opt')) {
+        delBtn.style.display = 'block';
+    } else {
+        delBtn.style.display = 'none';
+    }
+}
+
+async function deleteCustomCategory() {
+    let select = document.getElementById('expCategory');
+    let selectedOpt = select.options[select.selectedIndex];
+    
+    if(selectedOpt && selectedOpt.classList.contains('custom-cat-opt')) {
+        let docId = selectedOpt.dataset.id;
+        let catName = selectedOpt.value;
+        
+        if(confirm("क्या आप पक्का '" + catName + "' केटेगरी डिलीट करना चाहते हैं?")) {
+            try {
+                await firebase.firestore().collection('expense_categories').doc(docId).delete();
+                alert("Category Deleted!");
+                await loadExpenseCategories(); // लिस्ट दोबारा मंगाएं
+                document.getElementById('expCategory').value = 'Food & Tea';
+                checkNewCategory();
+            } catch(e) { 
+                console.error("Delete Error", e);
+                alert("डिलीट करने में एरर आया!"); 
+            }
+        }
     }
 }
 
@@ -1444,6 +1517,12 @@ async function saveQuickExpense() {
     if (cat === 'AddNew') {
         cat = document.getElementById('expNewCategory').value.trim();
         if(!cat) { alert('Please enter the new category name!'); return; }
+        
+        // नयी केटेगरी को हमेशा के लिए सेव करें
+        try {
+            await firebase.firestore().collection('expense_categories').add({ name: cat });
+            await loadExpenseCategories(); // लिस्ट को तुरंत अपडेट करें
+        } catch(e) { console.log("Category Save Error", e); }
     }
     
     let mode = document.getElementById('expMode').value;
@@ -1462,21 +1541,16 @@ async function saveQuickExpense() {
         note: note,
         mode: mode,
         date: dateObj.toISOString(),
-        timestamp: dateObj.getTime()
+        timestamp: dateObj.getTime(),
+        isQuickExpense: true // ✅ इस टैग से यह हमेशा "Expense" में ही जाएगा
     };
     
     try {
-        // Save to Firebase
         await firebase.firestore().collection('cashflow').add(entry);
-        
-        // Close Modal
         closeExpenseModal();
-        
-        // Refresh Dashboard Live
         if (typeof updateDashboardAndLogs === "function") {
             await updateDashboardAndLogs();
         }
-        
     } catch (error) {
         console.error("Error saving expense: ", error);
         alert("Error saving expense! Check connection.");
