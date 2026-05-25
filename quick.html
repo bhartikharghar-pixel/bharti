@@ -239,7 +239,16 @@
                 <span id="openBalText">₹0 T = 0* + 0#</span>
             </div>
 
-            <div class="action-wrapper"><a href="sales.html" class="action-btn btn-in"><i class="fas fa-shopping-bag"></i> Sale (Bikri)</a><div id="log-Sale" class="mini-log"></div></div>
+            <div class="action-wrapper">
+                <a href="javascript:void(0)" onclick="openSaleModal()" class="action-btn btn-in">
+                    <i class="fas fa-bolt"></i> Quick Sale (Bikri)
+                </a>
+                <div style="text-align:center; padding: 5px; background: #e8f5e9;">
+                    <a href="sales.html" style="color: #2e7d32; font-size: 0.8rem; font-weight: 700; text-decoration: underline;">Full Sale Page ➔</a>
+                </div>
+                <div id="log-Sale" class="mini-log"></div>
+            </div>
+
             <div class="action-wrapper"><a href="loans.html" class="action-btn btn-in"><i class="fas fa-coins"></i> Byaaj Jama</a><div id="log-Byaaj Jama" class="mini-log"></div></div>
             <div class="action-wrapper"><a href="loans.html" class="action-btn btn-in"><i class="fas fa-unlock"></i> Girvi Chhudaya / Jama Pete</a><div id="log-Girvi Chhudaya" class="mini-log"></div></div>
             <div class="action-wrapper"><a href="orders.html" class="action-btn btn-in"><i class="fas fa-concierge-bell"></i> Order Advance / Payment</a><div id="log-Order In" class="mini-log"></div></div>
@@ -437,6 +446,68 @@
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeExpenseModal()">Cancel</button>
             <button class="btn-save" onclick="saveQuickExpense()"><i class="fas fa-save"></i> Save</button>
+        </div>
+    </div>
+</div>
+
+<div id="quickSaleModal" class="modal-overlay">
+    <div class="modal-box" style="border-top-color: #2e7d32; max-width: 400px;">
+        <div class="modal-header" style="color: #2e7d32;"><i class="fas fa-barcode"></i> Fast Barcode Sale</div>
+        
+        <input type="hidden" id="qsMakingValue" value="0">
+
+        <div class="form-group">
+            <label>Barcode Number *</label>
+            <input type="text" id="qsBarcode" placeholder="Scan Barcode & Press Enter" onchange="fetchInventoryItem()" style="border: 2px solid #2e7d32; font-size: 1.1rem; font-weight: bold; text-align: center;">
+        </div>
+
+        <div class="form-group" style="display: flex; justify-content: space-between; background: #f4f6f9; padding: 10px; border-radius: 8px; border: 1px dashed #ccc;">
+            <div>
+                <span style="font-size: 0.8rem; color: #777; display: block;">Item Name</span>
+                <strong id="qsItemText" style="color: #111; font-size: 1rem;">-</strong>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 0.8rem; color: #777; display: block;">Net Wt (g)</span>
+                <strong id="qsNetWtText" style="color: #c62828; font-size: 1.1rem;">0.000</strong>
+            </div>
+        </div>
+        
+        <div class="form-group" style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+                <label>Today's Rate (/g)</label>
+                <input type="number" id="qsRate" placeholder="Rate" onchange="saveTodayRate(); recalculateDefault()" style="background: #e3f2fd; font-weight: bold;">
+            </div>
+            <div style="flex: 1;">
+                <label>Customer</label>
+                <input type="text" id="qsCustomer" placeholder="Walk-in">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label style="color: #c62828; font-size: 1.1rem;">Final Bill Amount (₹) *</label>
+            <input type="number" id="qsFinalAmt" placeholder="Enter Final Amount" oninput="adjustMakingOnFinal()" style="border: 2px solid #c62828; background: #fff8e1; font-size: 1.3rem; font-weight: 900; text-align: center;" required>
+            <div style="text-align: right; font-size: 0.75rem; color: #777; margin-top: 4px;" id="makingDisplay">
+                Auto Making: ₹0 (12%)
+            </div>
+        </div>
+
+        <div class="form-group" style="display: flex; gap: 10px;">
+            <div style="flex: 2;">
+                <label>Paid (₹)</label>
+                <input type="number" id="qsPaidAmt" placeholder="Amt Rcvd">
+            </div>
+            <div style="flex: 1;">
+                <label>Mode</label>
+                <select id="qsMode">
+                    <option value="Cash">Cash (*)</option>
+                    <option value="Bank">Bank (#)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeSaleModal()">Cancel</button>
+            <button class="btn-save" style="background: #2e7d32; font-size: 1.1rem;" onclick="saveBarcodeSale()"><i class="fas fa-bolt"></i> BILL BANAO</button>
         </div>
     </div>
 </div>
@@ -1477,7 +1548,6 @@ function checkNewCategory() {
         newCatDiv.style.display = (cat === 'AddNew') ? 'block' : 'none';
     }
     
-    // अगर चुनी गई केटेगरी 'कस्टम' है, तो डिलीट बटन दिखाएँ
     let selectedOpt = select.options[select.selectedIndex];
     if(selectedOpt && selectedOpt.classList.contains('custom-cat-opt')) {
         delBtn.style.display = 'block';
@@ -1498,7 +1568,7 @@ async function deleteCustomCategory() {
             try {
                 await firebase.firestore().collection('expense_categories').doc(docId).delete();
                 alert("Category Deleted!");
-                await loadExpenseCategories(); // लिस्ट दोबारा मंगाएं
+                await loadExpenseCategories();
                 document.getElementById('expCategory').value = 'Food & Tea';
                 checkNewCategory();
             } catch(e) { 
@@ -1518,10 +1588,9 @@ async function saveQuickExpense() {
         cat = document.getElementById('expNewCategory').value.trim();
         if(!cat) { alert('Please enter the new category name!'); return; }
         
-        // नयी केटेगरी को हमेशा के लिए सेव करें
         try {
             await firebase.firestore().collection('expense_categories').add({ name: cat });
-            await loadExpenseCategories(); // लिस्ट को तुरंत अपडेट करें
+            await loadExpenseCategories();
         } catch(e) { console.log("Category Save Error", e); }
     }
     
@@ -1542,7 +1611,7 @@ async function saveQuickExpense() {
         mode: mode,
         date: dateObj.toISOString(),
         timestamp: dateObj.getTime(),
-        isQuickExpense: true // ✅ इस टैग से यह हमेशा "Expense" में ही जाएगा
+        isQuickExpense: true
     };
     
     try {
@@ -1554,6 +1623,210 @@ async function saveQuickExpense() {
     } catch (error) {
         console.error("Error saving expense: ", error);
         alert("Error saving expense! Check connection.");
+    }
+}
+</script>
+
+<script>
+// --- ADVANCED QUICK SALE (BARCODE INTEGRATION) ---
+let currentInventoryItem = null;
+let currentNetWt = 0;
+const DEFAULT_MAKING_PERCENT = 0.12; // 12% Default Making
+
+// Modal Open & Close
+function openSaleModal() {
+    document.getElementById('quickSaleModal').style.display = 'flex';
+    document.getElementById('qsBarcode').focus();
+    
+    // Auto-load today's rate if saved previously
+    let savedRate = localStorage.getItem('todayGoldRate');
+    if (savedRate) document.getElementById('qsRate').value = savedRate;
+}
+
+function closeSaleModal() {
+    document.getElementById('quickSaleModal').style.display = 'none';
+    document.getElementById('qsBarcode').value = '';
+    document.getElementById('qsItemText').innerText = '-';
+    document.getElementById('qsNetWtText').innerText = '0.000';
+    document.getElementById('qsFinalAmt').value = '';
+    document.getElementById('qsCustomer').value = '';
+    document.getElementById('qsPaidAmt').value = '';
+    document.getElementById('qsMakingValue').value = '0';
+    document.getElementById('makingDisplay').innerText = 'Auto Making: ₹0';
+    currentInventoryItem = null;
+    currentNetWt = 0;
+}
+
+// Save Rate locally so you don't have to type it every time
+function saveTodayRate() {
+    let rate = document.getElementById('qsRate').value;
+    if (rate) localStorage.setItem('todayGoldRate', rate);
+}
+
+// 1. Fetch Item from Barcode
+async function fetchInventoryItem() {
+    let barcode = document.getElementById('qsBarcode').value.trim();
+    if (!barcode) return;
+
+    try {
+        let snapshot = await firebase.firestore().collection('inventory')
+            .where('barcode', '==', barcode)
+            .where('status', '==', 'stock')
+            .get();
+
+        if (snapshot.empty) {
+            alert("Maal stock me nahi mila ya barcode galat hai!");
+            closeSaleModal();
+            return;
+        }
+
+        let doc = snapshot.docs[0];
+        let itemData = doc.data();
+        currentInventoryItem = { id: doc.id, ...itemData };
+
+        currentNetWt = parseFloat(itemData.netWeight || itemData.netWt || itemData.net_wt || 0);
+        let name = itemData.category || itemData.itemName || itemData.name || 'Gold Item';
+
+        document.getElementById('qsItemText').innerText = name;
+        document.getElementById('qsNetWtText').innerText = currentNetWt.toFixed(3);
+        
+        recalculateDefault(); // Auto calculate bill amount!
+
+        // Directly focus on Final Amount so you can just type/edit and hit save
+        let finalInput = document.getElementById('qsFinalAmt');
+        finalInput.focus();
+        finalInput.select(); 
+
+    } catch (e) {
+        console.error("Barcode Error:", e);
+        alert("Barcode fetch fail ho gaya!");
+    }
+}
+
+// 2. Default Calculation (Rate * Wt + 12%)
+function recalculateDefault() {
+    let rate = parseFloat(document.getElementById('qsRate').value) || 0;
+    if (currentNetWt > 0 && rate > 0) {
+        let baseGoldValue = currentNetWt * rate;
+        let defaultMaking = baseGoldValue * DEFAULT_MAKING_PERCENT; // 12% calculation
+        
+        let finalEstAmt = Math.round(baseGoldValue + defaultMaking);
+        
+        // Auto-fill values
+        document.getElementById('qsFinalAmt').value = finalEstAmt;
+        document.getElementById('qsPaidAmt').value = finalEstAmt;
+        document.getElementById('qsMakingValue').value = defaultMaking.toFixed(2);
+        
+        document.getElementById('makingDisplay').innerText = `Auto Making: ₹${Math.round(defaultMaking)} (12%)`;
+    }
+}
+
+// 3. Background Adjust Making if User types a different Final Amount
+function adjustMakingOnFinal() {
+    let rate = parseFloat(document.getElementById('qsRate').value) || 0;
+    let finalAmt = parseFloat(document.getElementById('qsFinalAmt').value) || 0;
+
+    if (currentNetWt > 0 && rate > 0 && finalAmt > 0) {
+        let baseGoldValue = currentNetWt * rate;
+        let adjustedMaking = finalAmt - baseGoldValue; 
+        
+        // Save hidden making charge
+        document.getElementById('qsMakingValue').value = adjustedMaking.toFixed(2);
+        
+        // Auto sync Paid amount
+        document.getElementById('qsPaidAmt').value = finalAmt;
+        
+        // Update display text
+        document.getElementById('makingDisplay').innerText = `Auto Making: ₹${Math.round(adjustedMaking)} (Adjusted)`;
+    }
+}
+
+// 4. Final Database Save
+async function saveBarcodeSale() {
+    if (!currentInventoryItem) {
+        alert("Pehle barcode scan karein!");
+        return;
+    }
+
+    let customer = document.getElementById('qsCustomer').value.trim() || 'Walk-in';
+    let finalAmt = parseFloat(document.getElementById('qsFinalAmt').value) || 0;
+    let paidAmt = parseFloat(document.getElementById('qsPaidAmt').value) || 0;
+    let mode = document.getElementById('qsMode').value;
+    
+    let rate = parseFloat(document.getElementById('qsRate').value);
+    let making = parseFloat(document.getElementById('qsMakingValue').value); // Hidden Making Charge fetched here
+
+    if (finalAmt <= 0) {
+        alert("Final Amount invalid hai!");
+        return;
+    }
+
+    let pendingAmt = finalAmt - paidAmt;
+    if (pendingAmt < 0) pendingAmt = 0;
+
+    let dashboardDate = document.getElementById('selectedDate').value || new Date().toISOString().split('T')[0];
+    let dateObj = new Date();
+    if(dashboardDate !== dateObj.toISOString().split('T')[0]) {
+        dateObj = new Date(dashboardDate + 'T12:00:00');
+    }
+
+    let saleEntry = {
+        customerId: customer,
+        date: dateObj.toISOString(),
+        timestamp: dateObj.getTime(),
+        status: 'completed',
+        totalAmount: finalAmt,
+        paidAmount: paidAmt,
+        pendingAmount: pendingAmt,
+        mode: mode,
+        items: [{
+            inventoryId: currentInventoryItem.id,
+            barcode: currentInventoryItem.barcode || document.getElementById('qsBarcode').value,
+            category: document.getElementById('qsItemText').innerText,
+            netWeight: currentNetWt,
+            rate: rate,
+            makingCharge: making,
+            isOldGold: false
+        }],
+        payments: paidAmt > 0 ? [{ amount: paidAmt, mode: mode, date: dateObj.toISOString() }] : []
+    };
+
+    try {
+        let db = firebase.firestore();
+        let batch = db.batch();
+
+        // Inventory se out karna
+        let invRef = db.collection('inventory').doc(currentInventoryItem.id);
+        batch.update(invRef, { status: 'sold', soldDate: dateObj.toISOString() });
+
+        // Sale add karna
+        let newSaleRef = db.collection('sales').doc();
+        batch.set(newSaleRef, saleEntry);
+
+        // Cashbook me amount jama karna
+        if (paidAmt > 0) {
+            let cashRef = db.collection('cashflow').doc();
+            batch.set(cashRef, {
+                type: 'IN',
+                amount: paidAmt,
+                category: 'Sale (Bikri)',
+                note: `Inv-${currentInventoryItem.barcode} (${customer})`,
+                mode: mode,
+                date: dateObj.toISOString(),
+                timestamp: dateObj.getTime(),
+                saleId: newSaleRef.id
+            });
+        }
+
+        await batch.commit(); 
+        
+        alert("Bill generate ho gaya!");
+        closeSaleModal();
+        if (typeof updateDashboardAndLogs === "function") await updateDashboardAndLogs();
+        
+    } catch (error) {
+        console.error("Sale Error: ", error);
+        alert("Bill save hone me problem aayi!");
     }
 }
 </script>
