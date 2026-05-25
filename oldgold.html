@@ -963,6 +963,7 @@
             loadOldGoldLedger();
         }
 
+        // Updated waReceipt with anchor tag to bypass popup blockers
         function waReceipt(name, mobile, weight, purity, total) {
             if(!mobile || mobile.length < 10) return showToast("Valid mobile number not found.", "error");
             let phone = mobile.toString().replace(/\D/g, ''); 
@@ -976,12 +977,29 @@
             msg += `*Total Amount Paid:* Rs. ${total.toLocaleString()}\n`;
             msg += `\nThank you for your trust!\nRegards,\nBharti Jewellers`;
             
-            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+            const link = document.createElement('a');
+            link.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
-        // --- NEW FUNCTION: Print Self Declaration ---
+        // --- FIXED FUNCTION: Print Self Declaration using hidden iframe ---
         function printDeclaration(name, phone, desc, wt, purity, amount, date) {
-            const printWindow = window.open('', '_blank');
+            let printFrame = document.getElementById('hiddenPrintFrame');
+            if (!printFrame) {
+                printFrame = document.createElement('iframe');
+                printFrame.id = 'hiddenPrintFrame';
+                printFrame.style.position = 'fixed';
+                printFrame.style.right = '0';
+                printFrame.style.bottom = '0';
+                printFrame.style.width = '0';
+                printFrame.style.height = '0';
+                printFrame.style.border = 'none';
+                document.body.appendChild(printFrame);
+            }
+            
             const metalName = currentMetal || 'Metal';
             
             const html = `
@@ -1049,16 +1067,20 @@
                         Signature / Thumb Impression of Customer
                     </div>
                 </div>
-                <script>
-                    window.onload = function() { window.print(); }
-                    window.onafterprint = function() { window.close(); }
-                <\/script>
             </body>
             </html>
             `;
             
-            printWindow.document.write(html);
-            printWindow.document.close();
+            const doc = printFrame.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+            
+            // Wait slightly for browser to render the frame before printing
+            setTimeout(() => {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            }, 250);
         }
     </script>
 </body>
