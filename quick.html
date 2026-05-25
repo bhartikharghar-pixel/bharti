@@ -2701,3 +2701,74 @@ if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
 
 </script>
 
+    <script>
+// --- QUICK EXPENSE MODAL LOGIC ---
+function openExpenseModal() {
+    document.getElementById('expenseModal').style.display = 'flex';
+    document.getElementById('expAmount').focus();
+}
+
+function closeExpenseModal() {
+    document.getElementById('expenseModal').style.display = 'none';
+    document.getElementById('expAmount').value = '';
+    document.getElementById('expNote').value = '';
+    document.getElementById('expCategory').value = 'Food & Tea';
+    checkNewCategory();
+}
+
+function checkNewCategory() {
+    let cat = document.getElementById('expCategory').value;
+    let newCatDiv = document.getElementById('newCategoryDiv');
+    if(newCatDiv) {
+        newCatDiv.style.display = (cat === 'AddNew') ? 'block' : 'none';
+    }
+}
+
+async function saveQuickExpense() {
+    let amt = parseFloat(document.getElementById('expAmount').value);
+    if (!amt || amt <= 0) { alert('Please enter a valid amount!'); return; }
+    
+    let cat = document.getElementById('expCategory').value;
+    if (cat === 'AddNew') {
+        cat = document.getElementById('expNewCategory').value.trim();
+        if(!cat) { alert('Please enter the new category name!'); return; }
+    }
+    
+    let mode = document.getElementById('expMode').value;
+    let note = document.getElementById('expNote').value.trim();
+    let dashboardDate = document.getElementById('selectedDate').value || new Date().toISOString().split('T')[0];
+    
+    let dateObj = new Date();
+    if(dashboardDate !== dateObj.toISOString().split('T')[0]) {
+        dateObj = new Date(dashboardDate + 'T12:00:00');
+    }
+
+    let entry = {
+        type: 'OUT',
+        amount: amt,
+        category: cat,
+        note: note,
+        mode: mode,
+        date: dateObj.toISOString(),
+        timestamp: dateObj.getTime()
+    };
+    
+    try {
+        // Save to Firebase
+        await firebase.firestore().collection('cashflow').add(entry);
+        
+        // Close Modal
+        closeExpenseModal();
+        
+        // Refresh Dashboard Live
+        if (typeof updateDashboardAndLogs === "function") {
+            await updateDashboardAndLogs();
+        }
+        
+    } catch (error) {
+        console.error("Error saving expense: ", error);
+        alert("Error saving expense! Check connection.");
+    }
+}
+</script>
+
