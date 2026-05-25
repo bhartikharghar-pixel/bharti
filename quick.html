@@ -526,7 +526,7 @@
 
     let allCustomers = [];
     let allMerchants = [];
-    let customExpenseCategories = []; // नई केटेगरी को याद रखने के लिए
+    let customExpenseCategories = []; 
 
     // नई केटेगरी को डेटाबेस से मंगाने वाला फंक्शन
     async function loadExpenseCategories() {
@@ -538,7 +538,7 @@
             
             snapshot.forEach(doc => {
                 let catName = doc.data().name;
-                customExpenseCategories.push(catName.toLowerCase()); // नाम सेव कर लिया
+                customExpenseCategories.push(catName.toLowerCase()); 
                 
                 let opt = document.createElement('option');
                 opt.value = catName;
@@ -572,7 +572,6 @@
         return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
     }
 
-    // --- NEW FUNCTION: सिर्फ Gold चेक करने के लिए ---
     function isGold(item) {
         if (!item) return true; 
         let text = String(item.metal || item.metalType || item.category || item.itemName || item.name || '').toLowerCase();
@@ -584,7 +583,6 @@
 
     function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
 
-    // --- UPDATED FIREBASE FETCH FUNCTION ---
     async function safeGetAll(storeName) {
         try {
             return await getAllItems(storeName);
@@ -643,7 +641,7 @@
         try {
             allCustomers = await safeGetAll('customers');
             allMerchants = await safeGetAll('merchants');
-            await loadExpenseCategories(); // Load saved categories on start
+            await loadExpenseCategories(); 
         } catch(e) {}
         await updateDashboardAndLogs();
     };
@@ -706,7 +704,6 @@
             const logMetal = (dateStr, amt, isPos, category) => {
                 if(amt <= 0 || !dateStr) return;
                 
-                // 🚨 FIX 1: T aur Space dono se date ko clean karo taaki time hat jaye
                 let d = String(dateStr).split('T')[0].split(' ')[0].trim();
                 if(!d || d === 'null' || d === 'undefined') return;
 
@@ -722,14 +719,14 @@
                     else { if(isPos) todayNetIn += amt; else todayNetOut += amt; }
                 }
             };
-            // ✅ Sales Metal Tracking (STRICTLY INVENTORY & GOLD)
+            
             sales.forEach(s => {
                 if (s.status === 'cancelled') return;
                 let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
                 let metalIn = 0, metalOut = 0;
                 
                 (s.items || []).forEach(i => {
-                    if (!isGold(i)) return; // 🚫 Skip Silver/Other metals
+                    if (!isGold(i)) return; 
                     
                     let net = getSafeNet(i);
                     let isItemOld = i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
@@ -756,9 +753,8 @@
                 }
             });
 
-            // ✅ Purchases Metal Tracking (GOLD ONLY)
             purchases.forEach(p => {
-                if (!isGold(p)) return; // 🚫 Skip Silver
+                if (!isGold(p)) return; 
                 
                 let mIn = 0;
                 let rootNet = parseNum(p.totalNetWeight || p.netWt || p.netWeight);
@@ -779,7 +775,6 @@
                 }
             });
 
-            // ✅ Merchant Payment (Raw Metal goes to MIX)
             mPayments.forEach(mp => {
                 if (mp.goldType !== 'fixed') {
                     let net = parseNum(mp.gold);
@@ -792,7 +787,6 @@
                 }
             });
 
-            // Old Gold & Melting Metal Tracking
             oldGold.forEach(o => {
                 if (o.mode !== 'POS Exchange' && isGold(o)) { 
                     let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
@@ -834,7 +828,6 @@
                 }
             });
 
-            // ✅ Orders & Repairs (Raw metal sent to Karigar goes to MIX)
             orders.forEach(o => {
                 if (o.status === 'cancelled') return;
                 
@@ -880,7 +873,6 @@
                 }
             });
 
-            // ✅ INVENTORY MANUAL (CUSTOM STOCK) - ONLY GOLD
             inventory.forEach(inv => {
                 if (inv.source !== 'purchase' && isGold(inv)) {
                     let mIn = getSafeNet(inv);
@@ -894,7 +886,6 @@
                 }
             });
 
-            // --- 2. CASH FLOW LOGIC ---
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 let cDate = c.date ? c.date.split('T')[0] : '';
@@ -922,7 +913,6 @@
             let closingOld = openOld + todayOldIn - todayOldOut;
             let closingMix = openMix + todayMixIn - todayMixOut;
 
-            // ✅ ACTUAL STOCK CALCULATION FOR DISCREPANCY CHECK (ONLY GOLD)
             let liveInventoryStockNet = 0;
             inventory.forEach(inv => {
                 if (inv.status === 'stock' && isGold(inv)) {
@@ -1474,7 +1464,6 @@
                     if (type === 'IN') {
                         pushLog('Other In', amt, entityName || 'Income', '', spl, true);
                     } else {
-                        // ✅ FIX: अब पुरानी और नई कस्टम केटेगरी दोनों हमेशा "Expense" में ही जाएंगी
                         let isExp = cat.includes('expense') || cat.includes('salary') || cat.includes('rent') || cat.includes('food') || cat.includes('tea') || cat.includes('petrol') || cat.includes('stationery');
                         
                         if (!isExp && customExpenseCategories.includes(cat)) {
@@ -1631,14 +1620,12 @@ async function saveQuickExpense() {
 // --- ADVANCED QUICK SALE (BARCODE INTEGRATION) ---
 let currentInventoryItem = null;
 let currentNetWt = 0;
-const DEFAULT_MAKING_PERCENT = 0.12; // 12% Default Making
+const DEFAULT_MAKING_PERCENT = 0.12; 
 
-// Modal Open & Close
 function openSaleModal() {
     document.getElementById('quickSaleModal').style.display = 'flex';
     document.getElementById('qsBarcode').focus();
     
-    // Auto-load today's rate if saved previously
     let savedRate = localStorage.getItem('todayGoldRate');
     if (savedRate) document.getElementById('qsRate').value = savedRate;
 }
@@ -1657,29 +1644,51 @@ function closeSaleModal() {
     currentNetWt = 0;
 }
 
-// Save Rate locally so you don't have to type it every time
 function saveTodayRate() {
     let rate = document.getElementById('qsRate').value;
     if (rate) localStorage.setItem('todayGoldRate', rate);
 }
 
-// 1. Fetch Item from Barcode
+// 1. Fetch Item from Barcode (Updated with Number & String check)
 async function fetchInventoryItem() {
-    let barcode = document.getElementById('qsBarcode').value.trim();
-    if (!barcode) return;
+    let barcodeInput = document.getElementById('qsBarcode').value.trim();
+    if (!barcodeInput) return;
 
     try {
-        let snapshot = await firebase.firestore().collection('inventory')
-            .where('barcode', '==', barcode)
+        let db = firebase.firestore();
+        
+        // Step A: Pehle as a STRING search karein
+        let snapshot = await db.collection('inventory')
+            .where('barcode', '==', barcodeInput)
             .where('status', '==', 'stock')
             .get();
 
+        // Step B: Agar string se nahi mila, toh as a NUMBER search karein
+        if (snapshot.empty && !isNaN(barcodeInput)) {
+            let barcodeNum = Number(barcodeInput);
+            snapshot = await db.collection('inventory')
+                .where('barcode', '==', barcodeNum)
+                .where('status', '==', 'stock')
+                .get();
+        }
+
+        // Step C: Agar phir bhi nahi mila, toh status bina lagaye check karein (Debugging ke liye)
         if (snapshot.empty) {
-            alert("Maal stock me nahi mila ya barcode galat hai!");
-            closeSaleModal();
+            let checkAnyStatus = await db.collection('inventory').where('barcode', 'in', [barcodeInput, Number(barcodeInput)]).get();
+            
+            if (!checkAnyStatus.empty) {
+                alert("Ye barcode system me hai, par iska status 'stock' nahi hai (Shayad bik chuka hai)!");
+            } else {
+                alert("Maal system me nahi mila ya barcode galat hai!");
+            }
+            
+            // Modal band karne ke bajaye sirf input clear karein taaki wapas scan ho sake
+            document.getElementById('qsBarcode').value = '';
+            document.getElementById('qsBarcode').focus();
             return;
         }
 
+        // Maal mil gaya! 
         let doc = snapshot.docs[0];
         let itemData = doc.data();
         currentInventoryItem = { id: doc.id, ...itemData };
@@ -1690,16 +1699,15 @@ async function fetchInventoryItem() {
         document.getElementById('qsItemText').innerText = name;
         document.getElementById('qsNetWtText').innerText = currentNetWt.toFixed(3);
         
-        recalculateDefault(); // Auto calculate bill amount!
+        recalculateDefault(); 
 
-        // Directly focus on Final Amount so you can just type/edit and hit save
         let finalInput = document.getElementById('qsFinalAmt');
         finalInput.focus();
         finalInput.select(); 
 
     } catch (e) {
         console.error("Barcode Error:", e);
-        alert("Barcode fetch fail ho gaya!");
+        alert("Barcode fetch fail ho gaya! Internet connection check karein.");
     }
 }
 
@@ -1708,11 +1716,10 @@ function recalculateDefault() {
     let rate = parseFloat(document.getElementById('qsRate').value) || 0;
     if (currentNetWt > 0 && rate > 0) {
         let baseGoldValue = currentNetWt * rate;
-        let defaultMaking = baseGoldValue * DEFAULT_MAKING_PERCENT; // 12% calculation
+        let defaultMaking = baseGoldValue * DEFAULT_MAKING_PERCENT; 
         
         let finalEstAmt = Math.round(baseGoldValue + defaultMaking);
         
-        // Auto-fill values
         document.getElementById('qsFinalAmt').value = finalEstAmt;
         document.getElementById('qsPaidAmt').value = finalEstAmt;
         document.getElementById('qsMakingValue').value = defaultMaking.toFixed(2);
@@ -1730,18 +1737,13 @@ function adjustMakingOnFinal() {
         let baseGoldValue = currentNetWt * rate;
         let adjustedMaking = finalAmt - baseGoldValue; 
         
-        // Save hidden making charge
         document.getElementById('qsMakingValue').value = adjustedMaking.toFixed(2);
-        
-        // Auto sync Paid amount
         document.getElementById('qsPaidAmt').value = finalAmt;
-        
-        // Update display text
         document.getElementById('makingDisplay').innerText = `Auto Making: ₹${Math.round(adjustedMaking)} (Adjusted)`;
     }
 }
 
-// 4. Final Database Save
+// 4. Final Database Save (Updated & Error-Proof)
 async function saveBarcodeSale() {
     if (!currentInventoryItem) {
         alert("Pehle barcode scan karein!");
@@ -1751,10 +1753,11 @@ async function saveBarcodeSale() {
     let customer = document.getElementById('qsCustomer').value.trim() || 'Walk-in';
     let finalAmt = parseFloat(document.getElementById('qsFinalAmt').value) || 0;
     let paidAmt = parseFloat(document.getElementById('qsPaidAmt').value) || 0;
-    let mode = document.getElementById('qsMode').value;
+    let mode = document.getElementById('qsMode').value || 'Cash';
     
-    let rate = parseFloat(document.getElementById('qsRate').value);
-    let making = parseFloat(document.getElementById('qsMakingValue').value); // Hidden Making Charge fetched here
+    // Strict fallback to 0 to prevent NaN errors in Firebase
+    let rate = parseFloat(document.getElementById('qsRate').value) || 0;
+    let making = parseFloat(document.getElementById('qsMakingValue').value) || 0; 
 
     if (finalAmt <= 0) {
         alert("Final Amount invalid hai!");
@@ -1780,10 +1783,10 @@ async function saveBarcodeSale() {
         pendingAmount: pendingAmt,
         mode: mode,
         items: [{
-            inventoryId: currentInventoryItem.id,
-            barcode: currentInventoryItem.barcode || document.getElementById('qsBarcode').value,
-            category: document.getElementById('qsItemText').innerText,
-            netWeight: currentNetWt,
+            inventoryId: currentInventoryItem.id || "",
+            barcode: currentInventoryItem.barcode || document.getElementById('qsBarcode').value || "",
+            category: document.getElementById('qsItemText').innerText || "Gold Item",
+            netWeight: currentNetWt || 0,
             rate: rate,
             makingCharge: making,
             isOldGold: false
@@ -1795,15 +1798,15 @@ async function saveBarcodeSale() {
         let db = firebase.firestore();
         let batch = db.batch();
 
-        // Inventory se out karna
+        // 1. Inventory se item out karna
         let invRef = db.collection('inventory').doc(currentInventoryItem.id);
         batch.update(invRef, { status: 'sold', soldDate: dateObj.toISOString() });
 
-        // Sale add karna
+        // 2. Sale bill create karna
         let newSaleRef = db.collection('sales').doc();
         batch.set(newSaleRef, saleEntry);
 
-        // Cashbook me amount jama karna
+        // 3. Cashbook (Rojmel) me amount dalna
         if (paidAmt > 0) {
             let cashRef = db.collection('cashflow').doc();
             batch.set(cashRef, {
@@ -1818,15 +1821,27 @@ async function saveBarcodeSale() {
             });
         }
 
+        // Saara data ek sath safely Firebase me push karo
         await batch.commit(); 
         
         alert("Bill generate ho gaya!");
         closeSaleModal();
-        if (typeof updateDashboardAndLogs === "function") await updateDashboardAndLogs();
         
     } catch (error) {
         console.error("Sale Error: ", error);
-        alert("Bill save hone me problem aayi!");
+        // Ab exact error screen pe dikhega
+        alert("System Error: " + error.message);
+        return; // Agar error aaye toh aage refresh execute nahi hoga
+    }
+
+    // Refresh function ko Try-Catch se bahar rakha hai
+    // Taaki dashboard update ke time koi glitch aaye, toh "Save Error" ka false alarm na baje.
+    try {
+        if (typeof updateDashboardAndLogs === "function") {
+            await updateDashboardAndLogs();
+        }
+    } catch (refreshError) {
+        console.error("Dashboard Refresh Error: ", refreshError);
     }
 }
 </script>
