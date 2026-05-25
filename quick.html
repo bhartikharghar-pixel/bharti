@@ -147,7 +147,7 @@
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; padding: 0; }
             .header-actions { display: none !important; }
             .master-container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; border: none; }
-            .app-header, .sidebar-drawer, .sidebar-overlay { display: none !important; } /* Hide Header & Sidebar on Print */
+            .app-header, .sidebar-drawer, .sidebar-overlay { display: none !important; } 
             .mini-log { max-height: none !important; overflow: visible !important; }
             .cash-dashboard { grid-template-columns: repeat(4, 1fr) !important; }
             .action-grid { grid-template-columns: 1fr 1fr !important; }
@@ -455,6 +455,7 @@
         <div class="modal-header" style="color: #2e7d32;"><i class="fas fa-barcode"></i> Fast Barcode Sale</div>
         
         <input type="hidden" id="qsMakingValue" value="0">
+        <input type="hidden" id="qsCustId" value="">
 
         <div class="form-group">
             <label>Barcode Number *</label>
@@ -478,9 +479,15 @@
                 <input type="number" id="qsRate" placeholder="Rate" onchange="saveTodayRate(); recalculateDefault()" style="background: #e3f2fd; font-weight: bold;">
             </div>
             <div style="flex: 1;">
-                <label>Customer</label>
-                <input type="text" id="qsCustomer" placeholder="Walk-in">
+                <label>Cust Mobile</label>
+                <input type="text" id="qsCustMobile" list="customerDataList" placeholder="Search No." oninput="autoFillCustomer()" maxlength="10">
+                <datalist id="customerDataList"></datalist>
             </div>
+        </div>
+
+        <div class="form-group">
+            <label>Customer Name</label>
+            <input type="text" id="qsCustomer" placeholder="New Name / Walk-in">
         </div>
         
         <div class="form-group">
@@ -528,7 +535,6 @@
     let allMerchants = [];
     let customExpenseCategories = []; 
 
-    // नई केटेगरी को डेटाबेस से मंगाने वाला फंक्शन
     async function loadExpenseCategories() {
         try {
             let snapshot = await firebase.firestore().collection('expense_categories').get();
@@ -549,6 +555,22 @@
             });
             checkNewCategory();
         } catch(e) { console.log("Error loading categories", e); }
+    }
+
+    // --- POPULATE OLD CUSTOMERS ---
+    function populateCustomerList() {
+        let datalist = document.getElementById('customerDataList');
+        if(datalist) {
+            datalist.innerHTML = '';
+            allCustomers.forEach(c => {
+                if(c.mobile) {
+                    let opt = document.createElement('option');
+                    opt.value = c.mobile;
+                    opt.text = c.name;
+                    datalist.appendChild(opt);
+                }
+            });
+        }
     }
 
     function parseNum(val) {
@@ -641,7 +663,8 @@
         try {
             allCustomers = await safeGetAll('customers');
             allMerchants = await safeGetAll('merchants');
-            await loadExpenseCategories(); 
+            await loadExpenseCategories();
+            populateCustomerList(); // Load Customers for Modal
         } catch(e) {}
         await updateDashboardAndLogs();
     };
@@ -1617,7 +1640,7 @@ async function saveQuickExpense() {
 </script>
 
 <script>
-// --- ADVANCED QUICK SALE (BARCODE INTEGRATION) ---
+// --- ADVANCED QUICK SALE (BARCODE + CUSTOMER INTEGRATION) ---
 let currentInventoryItem = null;
 let currentNetWt = 0;
 const DEFAULT_MAKING_PERCENT = 0.12; 
@@ -1636,10 +1659,16 @@ function closeSaleModal() {
     document.getElementById('qsItemText').innerText = '-';
     document.getElementById('qsNetWtText').innerText = '0.000';
     document.getElementById('qsFinalAmt').value = '';
+    
+    // Clear Customer Details
+    document.getElementById('qsCustMobile').value = '';
     document.getElementById('qsCustomer').value = '';
+    document.getElementById('qsCustId').value = '';
+    
     document.getElementById('qsPaidAmt').value = '';
     document.getElementById('qsMakingValue').value = '0';
     document.getElementById('makingDisplay').innerText = 'Auto Making: ₹0';
+    
     currentInventoryItem = null;
     currentNetWt = 0;
 }
@@ -1649,7 +1678,7 @@ function saveTodayRate() {
     if (rate) localStorage.setItem('todayGoldRate', rate);
 }
 
-// 1. Fetch Item from Barcode (Updated with Number & String check)
+// 1. Fetch Item from Barcode 
 async function fetchInventoryItem() {
     let barcodeInput = document.getElementById('qsBarcode').value.trim();
     if (!barcodeInput) return;
@@ -1657,13 +1686,11 @@ async function fetchInventoryItem() {
     try {
         let db = firebase.firestore();
         
-        // Step A: Pehle as a STRING search karein
         let snapshot = await db.collection('inventory')
             .where('barcode', '==', barcodeInput)
             .where('status', '==', 'stock')
             .get();
 
-        // Step B: Agar string se nahi mila, toh as a NUMBER search karein
         if (snapshot.empty && !isNaN(barcodeInput)) {
             let barcodeNum = Number(barcodeInput);
             snapshot = await db.collection('inventory')
@@ -1672,23 +1699,18 @@ async function fetchInventoryItem() {
                 .get();
         }
 
-        // Step C: Agar phir bhi nahi mila, toh status bina lagaye check karein (Debugging ke liye)
         if (snapshot.empty) {
             let checkAnyStatus = await db.collection('inventory').where('barcode', 'in', [barcodeInput, Number(barcodeInput)]).get();
-            
             if (!checkAnyStatus.empty) {
                 alert("Ye barcode system me hai, par iska status 'stock' nahi hai (Shayad bik chuka hai)!");
             } else {
                 alert("Maal system me nahi mila ya barcode galat hai!");
             }
-            
-            // Modal band karne ke bajaye sirf input clear karein taaki wapas scan ho sake
             document.getElementById('qsBarcode').value = '';
             document.getElementById('qsBarcode').focus();
             return;
         }
 
-        // Maal mil gaya! 
         let doc = snapshot.docs[0];
         let itemData = doc.data();
         currentInventoryItem = { id: doc.id, ...itemData };
@@ -1743,19 +1765,29 @@ function adjustMakingOnFinal() {
     }
 }
 
-// 4. Final Database Save (Updated & Error-Proof)
+// 4. CUSTOMER AUTO-FILL LOGIC
+function autoFillCustomer() {
+    let inputMob = document.getElementById('qsCustMobile').value.trim();
+    let matchedCust = allCustomers.find(c => c.mobile === inputMob);
+    
+    if (matchedCust) {
+        document.getElementById('qsCustomer').value = matchedCust.name;
+        document.getElementById('qsCustId').value = matchedCust.id;
+    } else {
+        document.getElementById('qsCustId').value = '';
+    }
+}
+
+// 5. Final Database Save (UPDATED WITH 100% BULLETPROOF WRAPPERS)
 async function saveBarcodeSale() {
-    if (!currentInventoryItem) {
-        alert("Pehle barcode scan karein!");
+    if (!currentInventoryItem || !currentInventoryItem.id) {
+        alert("Pehle barcode properly scan karein!");
         return;
     }
 
-    let customer = document.getElementById('qsCustomer').value.trim() || 'Walk-in';
     let finalAmt = parseFloat(document.getElementById('qsFinalAmt').value) || 0;
     let paidAmt = parseFloat(document.getElementById('qsPaidAmt').value) || 0;
     let mode = document.getElementById('qsMode').value || 'Cash';
-    
-    // Strict fallback to 0 to prevent NaN errors in Firebase
     let rate = parseFloat(document.getElementById('qsRate').value) || 0;
     let making = parseFloat(document.getElementById('qsMakingValue').value) || 0; 
 
@@ -1767,39 +1799,63 @@ async function saveBarcodeSale() {
     let pendingAmt = finalAmt - paidAmt;
     if (pendingAmt < 0) pendingAmt = 0;
 
-    let dashboardDate = document.getElementById('selectedDate').value || new Date().toISOString().split('T')[0];
-    let dateObj = new Date();
-    if(dashboardDate !== dateObj.toISOString().split('T')[0]) {
-        dateObj = new Date(dashboardDate + 'T12:00:00');
+    let dashboardDate = document.getElementById('selectedDate').value;
+    let dateObj = dashboardDate ? new Date(dashboardDate + 'T12:00:00') : new Date();
+
+    // CUSTOMER SAVING LOGIC
+    let db = firebase.firestore();
+    let batch = db.batch();
+    
+    let custId = document.getElementById('qsCustId').value;
+    let custMobile = document.getElementById('qsCustMobile').value.trim();
+    let custName = document.getElementById('qsCustomer').value.trim();
+    
+    let finalCustName = custName || "Walk-in";
+    let finalCustId = custId;
+
+    // Naya Customer banaye agar data hai par ID nahi hai
+    if (!finalCustId && (custMobile !== "" || custName !== "")) {
+        let newCustRef = db.collection('customers').doc();
+        finalCustId = newCustRef.id;
+        
+        batch.set(newCustRef, {
+            name: String(finalCustName),
+            mobile: String(custMobile),
+            address: "",
+            date: dateObj.toISOString(),
+            timestamp: dateObj.getTime()
+        });
+        
+        allCustomers.push({id: finalCustId, name: finalCustName, mobile: custMobile});
+    } else if (!finalCustId) {
+        finalCustId = "Walk-in";
     }
 
+    // SALE ENTRY (STRICTLY CONVERTING EVERYTHING TO AVOID UNDEFINED ERRORS)
     let saleEntry = {
-        customerId: customer,
+        customerId: String(finalCustId),
         date: dateObj.toISOString(),
         timestamp: dateObj.getTime(),
         status: 'completed',
-        totalAmount: finalAmt,
-        paidAmount: paidAmt,
-        pendingAmount: pendingAmt,
-        mode: mode,
+        totalAmount: Number(finalAmt),
+        paidAmount: Number(paidAmt),
+        pendingAmount: Number(pendingAmt),
+        mode: String(mode),
         items: [{
-            inventoryId: currentInventoryItem.id || "",
-            barcode: currentInventoryItem.barcode || document.getElementById('qsBarcode').value || "",
-            category: document.getElementById('qsItemText').innerText || "Gold Item",
-            netWeight: currentNetWt || 0,
-            rate: rate,
-            makingCharge: making,
+            inventoryId: String(currentInventoryItem.id),
+            barcode: String(currentInventoryItem.barcode || document.getElementById('qsBarcode').value || ""),
+            category: String(document.getElementById('qsItemText').textContent || "Gold Item"),
+            netWeight: Number(currentNetWt),
+            rate: Number(rate),
+            makingCharge: Number(making),
             isOldGold: false
         }],
-        payments: paidAmt > 0 ? [{ amount: paidAmt, mode: mode, date: dateObj.toISOString() }] : []
+        payments: paidAmt > 0 ? [{ amount: Number(paidAmt), mode: String(mode), date: dateObj.toISOString() }] : []
     };
 
     try {
-        let db = firebase.firestore();
-        let batch = db.batch();
-
         // 1. Inventory se item out karna
-        let invRef = db.collection('inventory').doc(currentInventoryItem.id);
+        let invRef = db.collection('inventory').doc(String(currentInventoryItem.id));
         batch.update(invRef, { status: 'sold', soldDate: dateObj.toISOString() });
 
         // 2. Sale bill create karna
@@ -1811,17 +1867,17 @@ async function saveBarcodeSale() {
             let cashRef = db.collection('cashflow').doc();
             batch.set(cashRef, {
                 type: 'IN',
-                amount: paidAmt,
+                amount: Number(paidAmt),
                 category: 'Sale (Bikri)',
-                note: `Inv-${currentInventoryItem.barcode} (${customer})`,
-                mode: mode,
+                note: `Inv-${currentInventoryItem.barcode} (${finalCustName})`,
+                mode: String(mode),
                 date: dateObj.toISOString(),
                 timestamp: dateObj.getTime(),
                 saleId: newSaleRef.id
             });
         }
 
-        // Saara data ek sath safely Firebase me push karo
+        // Pura ek sath save karein
         await batch.commit(); 
         
         alert("Bill generate ho gaya!");
@@ -1829,13 +1885,10 @@ async function saveBarcodeSale() {
         
     } catch (error) {
         console.error("Sale Error: ", error);
-        // Ab exact error screen pe dikhega
         alert("System Error: " + error.message);
-        return; // Agar error aaye toh aage refresh execute nahi hoga
+        return; 
     }
 
-    // Refresh function ko Try-Catch se bahar rakha hai
-    // Taaki dashboard update ke time koi glitch aaye, toh "Save Error" ka false alarm na baje.
     try {
         if (typeof updateDashboardAndLogs === "function") {
             await updateDashboardAndLogs();
