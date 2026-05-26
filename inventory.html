@@ -1434,67 +1434,79 @@
         let sum = 0; document.querySelectorAll('.tag-gross').forEach(i => sum += parseFloat(i.value)||0);
         document.getElementById('tagTotalWt').innerText = sum.toFixed(3) + " g";
     }
-    // FIXED: Added button locking to confirmTagging
     async function confirmTagging() {
-        const btn = document.getElementById('generateTagBtn');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GENERATING...'; }
+        const btn = document.getElementById('generateTagBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GENERATING...'; }
 
-        const sum = parseFloat(document.getElementById('tagTotalWt').innerText);
-        if(sum<=0) {
-            if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
-            return appAlert("Enter Valid Weights");
-        }
-        const sourceId = document.getElementById('tagSourceId').value;
-        const item = allInventory.find(i => String(i.id) === String(sourceId));
-        const available = parseFloat(item.grossWt||item.weight);
-        if(sum > available+0.01) {
-            if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
-            return appAlert("Weight Exceeds Source");
-        }
+        const sum = parseFloat(document.getElementById('tagTotalWt').innerText) || 0;
+        if(sum <= 0) {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
+            return appAlert("Enter Valid Weights");
+        }
 
-        const cat = document.getElementById('tagCategory').value; 
-        const purity = item.purity;
-        const count = parseInt(document.getElementById('tagPieces').value)||1;
-        let subCat = "";
-        const tagSubCatVal = document.getElementById('tagSubCatSelect').value;
-        if (tagSubCatVal && tagSubCatVal !== 'NEW') subCat = tagSubCatVal;
-        let finalName = subCat ? subCat : cat;
-        let newlyAddedItems = [];
-        const isSilv = checkIsSilver(purity);
-        const prefix = cat.substring(0,3).toUpperCase();
-        const extractDocNo = 'EXT-' + Date.now();
-        const inputs = document.querySelectorAll('.tag-gross');
-        const huidInputs = document.querySelectorAll('.tag-huid');
-        
-        for (let i = 0; i < inputs.length; i++) {
-            const g = parseFloat(inputs[i].value) || 0;
-            const hp = huidInputs[i] ? huidInputs[i].value.trim().toUpperCase() : '';
-            if (g > 0) {
-                const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                const newItem = { barcode, huid: hp, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
-                await addItem('inventory', newItem); 
-                newlyAddedItems.push(newItem);
-            }
-        }
-        
-        if (available - sum <= 0.01) {
-            item.status = 'removed';
-            item.removeDocNo = extractDocNo;
-            item.removeDate = new Date().toISOString();
-            await updateItem('inventory', item); 
-        } else { 
-            item.grossWt = parseFloat((available - sum).toFixed(3)); 
-            item.netWt = parseFloat((parseFloat(item.netWt) - sum).toFixed(3)); 
-            if(item.netWt < 0) item.netWt = 0;
-            item.fineWt = parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3));
-            item.pieces = Math.max(1, (parseInt(item.pieces)||1) - count);
-            await updateItem('inventory', item); 
-        }
+        const sourceId = document.getElementById('tagSourceId').value;
+        const item = allInventory.find(i => String(i.id) === String(sourceId));
+        
+        const currentGross = parseFloat(item.grossWt || item.weight || 0);
+        const currentNet = parseFloat(item.netWt || currentGross || 0);
+        
+        if(sum > currentGross + 0.01) {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
+            return appAlert("Weight Exceeds Source");
+        }
 
-        if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
-        showToast("Tag Created Successfully!"); closeModal('tagModal'); loadInventory();
-        setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
-    }
+        const cat = document.getElementById('tagCategory').value; 
+        const purity = item.purity;
+        const count = parseInt(document.getElementById('tagPieces').value) || 1;
+        let subCat = "";
+        const tagSubCatVal = document.getElementById('tagSubCatSelect').value;
+        if (tagSubCatVal && tagSubCatVal !== 'NEW') subCat = tagSubCatVal;
+        let finalName = subCat ? subCat : cat;
+        let newlyAddedItems = [];
+        const isSilv = checkIsSilver(purity);
+        const prefix = cat.substring(0,3).toUpperCase();
+        const extractDocNo = 'EXT-' + Date.now();
+        const inputs = document.querySelectorAll('.tag-gross');
+        const huidInputs = document.querySelectorAll('.tag-huid');
+        
+        for (let i = 0; i < inputs.length; i++) {
+            const g = parseFloat(inputs[i].value) || 0;
+            const hp = huidInputs[i] ? huidInputs[i].value.trim().toUpperCase() : '';
+            if (g > 0) {
+                const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
+                const newItem = { barcode, huid: hp, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
+                await addItem('inventory', newItem); 
+                newlyAddedItems.push(newItem);
+            }
+        }
+        
+        if (currentGross - sum <= 0.01) {
+            item.status = 'removed';
+            item.removeDocNo = extractDocNo;
+            item.removeDate = new Date().toISOString();
+            await updateItem('inventory', item); 
+        } else { 
+            item.grossWt = parseFloat((currentGross - sum).toFixed(3)); 
+            item.netWt = parseFloat((currentNet - sum).toFixed(3)); 
+            if (item.netWt < 0) item.netWt = 0;
+            if (item.grossWt < 0) item.grossWt = 0;
+            item.fineWt = parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3));
+            
+            let currentPieces = parseInt(item.pieces) || 1;
+            item.pieces = currentPieces - count;
+            if (item.pieces < 1 && item.grossWt > 0.01) {
+                item.pieces = 1; 
+            }
+            
+            await updateItem('inventory', item); 
+        }
+
+        if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
+        showToast("Tag Created Successfully!"); 
+        closeModal('tagModal'); 
+        loadInventory();
+        setTimeout(() => { if(newlyAddedItems.length > 0) autoPrint(newlyAddedItems); }, 1000);
+    }
 
     // Bulk HUID Update Functions
     let huidUpdateItems = [];
