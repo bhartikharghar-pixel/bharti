@@ -1441,13 +1441,23 @@
             item.removeDate = new Date().toISOString();
             await updateItem('inventory', item); 
         } else { 
-            item.grossWt = parseFloat((available - sum).toFixed(3)); 
-            item.netWt = parseFloat((parseFloat(item.netWt) - sum).toFixed(3)); 
+            // Wazan aur Pieces ko Number mein convert karke save karein
+            item.grossWt = Number(parseFloat((available - sum).toFixed(3))); 
+            item.netWt = Number(parseFloat((parseFloat(item.netWt) - sum).toFixed(3))); 
+            
             if(item.netWt < 0) item.netWt = 0;
-            item.fineWt = parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3));
-            item.pieces = Math.max(1, (parseInt(item.pieces)||1) - count);
+            
+            // Fine weight recalculate karein
+            item.fineWt = Number(parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3)));
+            
+            // Pieces update karein (Force Number)
+            let currentPieces = parseInt(item.pieces) || 1;
+            item.pieces = Number(Math.max(1, currentPieces - count));
+            
+            // Database mein update bhejein
             await updateItem('inventory', item); 
         }
+
         showToast("Tag Created Successfully!"); closeModal('tagModal'); loadInventory();
         setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
     }
