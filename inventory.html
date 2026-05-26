@@ -988,7 +988,7 @@
     }
 
     // ==================== NEW MAIN GROUPING LOGIC WITH TOTALS ====================
-    function renderList(items) {
+        function renderList(items) {
         const container = document.getElementById('inventory-list'); 
         container.innerHTML = ''; 
         groupedInventory = {}; 
@@ -1012,7 +1012,6 @@
             const addedToday = isToday(item.addedDate);
             const removedToday = (item.status === 'sold' || item.status === 'removed') && isToday(item.removeDate || item.soldDate || item.date);
 
-            // Group Strictly By Category
             let key = item.category || 'Other'; 
             if (item.category === 'MIX') key = 'MIX';
             if (item.barcode?.startsWith('ORD-')) key = `ORDER_${item.category}`;
@@ -1033,7 +1032,6 @@
             let g = groupedInventory[key];
             if (item.purity) g.purities.add(item.purity);
             
-            // Core Logic for + / - calculations
             if (addedToday) {
                 g.addedQty += pcs;
                 g.addedWt += net;
@@ -1048,7 +1046,6 @@
                     g.outWt += net;
                 }
             } else if (item.status === 'stock') {
-                // Calculation of active stock
                 g.closingQty += pcs;
                 g.closingGross += gross;
                 g.closingNet += net;
@@ -1057,13 +1054,44 @@
             }
         });
 
+        // ==========================================
+        // FIX: ADJUST LOOSE ITEMS (OPENING & OUT) FOR TODAY'S SALES
+        // ==========================================
+        if (allSalesData && allSalesData.length > 0) {
+            allSalesData.forEach(sale => {
+                let saleDate = sale.date || sale.timestamp || sale.soldDate;
+                // Sirf aaj ke bills check karo
+                if (sale.status !== 'cancelled' && isToday(saleDate)) {
+                    (sale.items || []).forEach(si => {
+                        // Agar becha hua item LOOSE stock tha
+                        if (si.barcode && si.barcode.startsWith('LOOSE')) {
+                            let key = si.category || 'Other';
+                            if (si.category === 'MIX') key = 'MIX';
+                            
+                            if (groupedInventory[key]) {
+                                let sQty = parseInt(si.sellQty || si.qty || si.pieces || 1);
+                                let sNet = parseFloat(si.netWt || si.weight || si.grossWt || 0);
+                                
+                                // 1. Aaj jo bika hai usko "- Out" mein dikhao
+                                groupedInventory[key].outQty += sQty;
+                                groupedInventory[key].outWt += sNet;
+                                
+                                // 2. Biki hui quantity ko wapas "Opening" mein jod do (taaki subah ka sahi stock dikhe)
+                                groupedInventory[key].openingQty += sQty;
+                                groupedInventory[key].openingWt += sNet;
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        // ==========================================
+
         let groupsArray = Object.values(groupedInventory).sort((a, b) => (a.category || '').localeCompare(b.category || ''));
 
         groupsArray.forEach(group => {
-            // Ignore completely empty rows (0 everywhere)
             if (group.openingQty === 0 && group.addedQty === 0 && group.outQty === 0 && group.closingQty === 0) return;
 
-            // Increment Grand Totals
             tOpenQty += group.openingQty; tOpenWt += group.openingWt;
             tAddQty += group.addedQty; tAddWt += group.addedWt;
             tOutQty += group.outQty; tOutWt += group.outWt;
@@ -1098,7 +1126,6 @@
             container.appendChild(tr);
         });
 
-        // Add Grand Total Row
         let totalRow = document.createElement('tr');
         totalRow.style.backgroundColor = '#e2e8f0';
         totalRow.style.position = 'sticky';
@@ -1126,6 +1153,7 @@
         `;
         container.appendChild(totalRow);
     }
+
 
     // ==================== ALL REMAINING FUNCTIONS (Unchanged from original) ====================
 
