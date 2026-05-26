@@ -932,9 +932,53 @@
         return code;
     }
 
+    // UPDATED FUNCTION WITH FIX
     async function loadInventory() {
         allInventory = await getAllItems('inventory');
         allSalesData = await getAllItems('sales').catch(()=>[]);
+
+        // ==========================================
+        // FIX: SALES KO INVENTORY SE DEDUCT KAREIN
+        // ==========================================
+        if (allSalesData && allSalesData.length > 0) {
+            allSalesData.forEach(sale => {
+                // Agar bill cancel nahi hua hai tabhi minus karo
+                if (sale.status !== 'cancelled') {
+                    let saleItems = sale.items || [];
+                    saleItems.forEach(soldItem => {
+                        // Inventory me same barcode wala item dhundo
+                        let invItem = allInventory.find(i => String(i.id) === String(soldItem.id) || i.barcode === soldItem.barcode);
+
+                        if (invItem && invItem.status === 'stock') {
+                            // Agar item Loose/Bulk category ka hai (Weight/Qty less karna hai)
+                            if (invItem.barcode && invItem.barcode.startsWith('LOOSE')) {
+                                let soldQty = parseInt(soldItem.qty || soldItem.pieces || 1);
+                                let soldGross = parseFloat(soldItem.grossWt || soldItem.weight || 0);
+                                let soldNet = parseFloat(soldItem.netWt || soldItem.weight || 0);
+
+                                invItem.pieces = (parseInt(invItem.pieces) || 1) - soldQty;
+                                invItem.grossWt = parseFloat((parseFloat(invItem.grossWt || 0) - soldGross).toFixed(3));
+                                invItem.netWt = parseFloat((parseFloat(invItem.netWt || 0) - soldNet).toFixed(3));
+                                invItem.fineWt = parseFloat((invItem.netWt * getPurityFactor(invItem.purity)).toFixed(3));
+
+                                // Agar loose item completely bik gaya (0 bacha hai)
+                                if (invItem.pieces <= 0 || invItem.grossWt <= 0) {
+                                    invItem.status = 'sold';
+                                    invItem.soldDate = sale.date || sale.timestamp || new Date().toISOString();
+                                }
+                            }
+                            // Agar Unique item hai (Seedha Sold mark karna hai)
+                            else {
+                                invItem.status = 'sold';
+                                invItem.soldDate = sale.date || sale.timestamp || new Date().toISOString();
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        // ==========================================
+
         allInventory.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0));
         applyFilters();
         updateSubCatFilter();
