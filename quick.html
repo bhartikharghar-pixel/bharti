@@ -664,7 +664,7 @@
             allCustomers = await safeGetAll('customers');
             allMerchants = await safeGetAll('merchants');
             await loadExpenseCategories();
-            populateCustomerList(); // Load Customers for Modal
+            populateCustomerList(); 
         } catch(e) {}
         await updateDashboardAndLogs();
     };
@@ -1660,7 +1660,6 @@ function closeSaleModal() {
     document.getElementById('qsNetWtText').innerText = '0.000';
     document.getElementById('qsFinalAmt').value = '';
     
-    // Clear Customer Details
     document.getElementById('qsCustMobile').value = '';
     document.getElementById('qsCustomer').value = '';
     document.getElementById('qsCustId').value = '';
@@ -1733,7 +1732,7 @@ async function fetchInventoryItem() {
     }
 }
 
-// 2. Default Calculation (Rate * Wt + 12%)
+// 2. Default Calculation
 function recalculateDefault() {
     let rate = parseFloat(document.getElementById('qsRate').value) || 0;
     if (currentNetWt > 0 && rate > 0) {
@@ -1750,7 +1749,7 @@ function recalculateDefault() {
     }
 }
 
-// 3. Background Adjust Making if User types a different Final Amount
+// 3. Background Adjust Making
 function adjustMakingOnFinal() {
     let rate = parseFloat(document.getElementById('qsRate').value) || 0;
     let finalAmt = parseFloat(document.getElementById('qsFinalAmt').value) || 0;
@@ -1778,7 +1777,7 @@ function autoFillCustomer() {
     }
 }
 
-// 5. Final Database Save (UPDATED WITH 100% BULLETPROOF WRAPPERS)
+// 5. Final Database Save (100% MATCH WITH MAIN SALES PAGE)
 async function saveBarcodeSale() {
     if (!currentInventoryItem || !currentInventoryItem.id) {
         alert("Pehle barcode properly scan karein!");
@@ -1802,7 +1801,6 @@ async function saveBarcodeSale() {
     let dashboardDate = document.getElementById('selectedDate').value;
     let dateObj = dashboardDate ? new Date(dashboardDate + 'T12:00:00') : new Date();
 
-    // CUSTOMER SAVING LOGIC
     let db = firebase.firestore();
     let batch = db.batch();
     
@@ -1813,7 +1811,6 @@ async function saveBarcodeSale() {
     let finalCustName = custName || "Walk-in";
     let finalCustId = custId;
 
-    // Naya Customer banaye agar data hai par ID nahi hai
     if (!finalCustId && (custMobile !== "" || custName !== "")) {
         let newCustRef = db.collection('customers').doc();
         finalCustId = newCustRef.id;
@@ -1831,32 +1828,77 @@ async function saveBarcodeSale() {
         finalCustId = "Walk-in";
     }
 
-    // SALE ENTRY (STRICTLY CONVERTING EVERYTHING TO AVOID UNDEFINED ERRORS)
+    // CREATE INVOICE NO FORMAT MATCHING MAIN PAGE (e.g., 05241)
+    let invNo = '';
+    const prefix = String(dateObj.getMonth() + 1).padStart(2, '0') + String(dateObj.getFullYear()).slice(-2);
+    try {
+        let snapshot = await db.collection('sales')
+            .where('invoiceNo', '>=', prefix)
+            .where('invoiceNo', '<=', prefix + '\uf8ff')
+            .get();
+        invNo = `${prefix}${snapshot.docs.length + 1}`;
+    } catch(e) {
+        invNo = 'Q-' + Date.now().toString().slice(-5); // Failsafe
+    }
+
+    // SALE ENTRY (EXACT MATCH WITH SALES.HTML STRUCTURE)
     let saleEntry = {
+        invoiceNo: String(invNo),
         customerId: String(finalCustId),
         date: dateObj.toISOString(),
         timestamp: dateObj.getTime(),
         status: 'completed',
-        totalAmount: Number(finalAmt),
-        paidAmount: Number(paidAmt),
-        pendingAmount: Number(pendingAmt),
+        jobType: 'Sale', // For main page identifying standard sale
+        
+        subTotal: Number(finalAmt), // Base amount before deductions
+        gst: 0, // Quick sale handles GST within final amount for now
+        oldGoldDeduction: 0,
+        totalExchWt: 0,
+        discountMode: 'flat',
+        discount: 0,
+        bcWalletDeduction: 0,
+        isGstBill: false, // Defaulting to estimate for quick sale
+        
+        grandTotal: Number(finalAmt), 
+        paidAmount: Number(paidAmt), 
+        pendingAmount: Number(pendingAmt), 
         mode: String(mode),
+        
         items: [{
-            inventoryId: String(currentInventoryItem.id),
+            id: String(currentInventoryItem.id),
+            isOldGold: false,
             barcode: String(currentInventoryItem.barcode || document.getElementById('qsBarcode').value || ""),
             category: String(document.getElementById('qsItemText').textContent || "Gold Item"),
-            netWeight: Number(currentNetWt),
+            purity: String(currentInventoryItem.purity || "22K"),
+            huid: String(currentInventoryItem.huid || ""),
+            weight: Number(currentNetWt),
+            grossWt: Number(currentNetWt), 
+            stoneWt: 0,
+            netWt: Number(currentNetWt),
+            sellQty: 1,
             rate: Number(rate),
-            makingCharge: Number(making),
-            isOldGold: false
+            makingType: 'flat',
+            makingRate: Number(making),
+            makingAmount: Number(making),
+            baseAmount: Number(finalAmt), 
+            gstPct: 0,
+            gstAmount: 0,
+            total: Number(finalAmt)
         }],
-        payments: paidAmt > 0 ? [{ amount: Number(paidAmt), mode: String(mode), date: dateObj.toISOString() }] : []
+        payments: paidAmt > 0 ? [{ amount: Number(paidAmt), mode: String(mode), date: dateObj.toISOString(), isNew: false }] : []
     };
 
     try {
         // 1. Inventory se item out karna
         let invRef = db.collection('inventory').doc(String(currentInventoryItem.id));
-        batch.update(invRef, { status: 'sold', soldDate: dateObj.toISOString() });
+        batch.update(invRef, { 
+            status: 'sold', 
+            soldDate: dateObj.toISOString(),
+            pieces: 0,
+            netWt: 0,
+            grossWt: 0,
+            weight: 0
+        });
 
         // 2. Sale bill create karna
         let newSaleRef = db.collection('sales').doc();
@@ -1868,8 +1910,8 @@ async function saveBarcodeSale() {
             batch.set(cashRef, {
                 type: 'IN',
                 amount: Number(paidAmt),
-                category: 'Sale (Bikri)',
-                note: `Inv-${currentInventoryItem.barcode} (${finalCustName})`,
+                category: 'POS Sale', // Exact match with main page cashflow
+                note: `Payment for Bill #${invNo}`, // Exact match
                 mode: String(mode),
                 date: dateObj.toISOString(),
                 timestamp: dateObj.getTime(),
@@ -1880,7 +1922,7 @@ async function saveBarcodeSale() {
         // Pura ek sath save karein
         await batch.commit(); 
         
-        alert("Bill generate ho gaya!");
+        alert(`Bill generated successfully! (Inv: ${invNo})`);
         closeSaleModal();
         
     } catch (error) {
