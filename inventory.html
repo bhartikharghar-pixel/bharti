@@ -1826,6 +1826,73 @@
         link.click();
         document.body.removeChild(link);
     }
+// ==========================================
+// ONE-TIME SYNC: OLD SALES DATABASE FIX
+// ==========================================
+async function fixOldSalesDatabase() {
+    const btn = document.getElementById('btnSyncSales');
+    if (btn) { 
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing Database...'; 
+        btn.disabled = true; 
+    }
+    
+    let updatedCount = 0;
+    // Database se fresh data fetch karein
+    const inv = await getAllItems('inventory');
+    const sales = await getAllItems('sales').catch(()=>[]);
+
+    if (sales && sales.length > 0) {
+        for (let sale of sales) {
+            if (sale.status !== 'cancelled') {
+                let saleItems = sale.items || [];
+                
+                for (let soldItem of saleItems) {
+                    // Inventory me item dhundo
+                    let invItem = inv.find(i => String(i.id) === String(soldItem.id) || i.barcode === soldItem.barcode);
+
+                    if (invItem && invItem.status === 'stock') {
+                        // Agar LOOSE / BULK item hai
+                        if (invItem.barcode && invItem.barcode.startsWith('LOOSE')) {
+                            let soldQty = parseInt(soldItem.qty || soldItem.pieces || 1);
+                            let soldGross = parseFloat(soldItem.grossWt || soldItem.weight || 0);
+                            let soldNet = parseFloat(soldItem.netWt || soldItem.weight || 0);
+
+                            invItem.pieces = (parseInt(invItem.pieces) || 1) - soldQty;
+                            invItem.grossWt = parseFloat((parseFloat(invItem.grossWt || 0) - soldGross).toFixed(3));
+                            invItem.netWt = parseFloat((parseFloat(invItem.netWt || 0) - soldNet).toFixed(3));
+                            invItem.fineWt = parseFloat((invItem.netWt * getPurityFactor(invItem.purity)).toFixed(3));
+
+                            // Agar poora bik gaya toh status update karo
+                            if (invItem.pieces <= 0 || invItem.grossWt <= 0) {
+                                invItem.status = 'sold';
+                                invItem.soldDate = sale.date || sale.timestamp || new Date().toISOString();
+                            }
+                            
+                            // DATABASE MEIN SAVE KAREIN
+                            await updateItem('inventory', invItem);
+                            updatedCount++;
+                        } 
+                        // Agar UNIQUE (single) item hai
+                        else {
+                            invItem.status = 'sold';
+                            invItem.soldDate = sale.date || sale.timestamp || new Date().toISOString();
+                            
+                            // DATABASE MEIN SAVE KAREIN
+                            await updateItem('inventory', invItem);
+                            updatedCount++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    alert(`✅ Database Sync Complete! Total ${updatedCount} purane items permanently Sold mark ho gaye hain.`);
+    if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> Done'; }
+    
+    // Page reload karein taaki fresh data dikhe
+    window.location.reload();
+}
 </script>
 </body>
 </html>
