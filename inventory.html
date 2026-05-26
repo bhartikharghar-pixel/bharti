@@ -195,6 +195,7 @@
                 <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-export" style="background: #0ea5e9;" onclick="openHuidModal()"><i class="fas fa-fingerprint"></i> Bulk HUID</button>
                 <button class="btn-history" style="background: var(--active-red);" onclick="openRemoveStockModal()"><i class="fas fa-minus-circle"></i> Batch Remove</button>
                 <button class="btn-history" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
                 <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
@@ -229,7 +230,7 @@
     <div class="search-box-container">
         <i class="fas fa-barcode search-icon"></i>
         <input type="text" id="searchInput" class="search-box" placeholder="Scan Barcode or Search HUID / Name..." onkeyup="applyFilters()">
-    </div>
+        </div>
 
     <div class="table-container">
         <table class="inv-table">
@@ -256,7 +257,6 @@
     <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
 </div>
 
-<!-- All Modals remain fully intact, detail modal handles unique item logic perfectly -->
 <div id="docHistoryModal" class="modal">
     <div class="modal-content" style="max-width: 850px;">
         <button class="close-btn" onclick="closeModal('docHistoryModal')">&times;</button>
@@ -276,6 +276,25 @@
                 <tbody id="docHistoryList"></tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<div id="huidModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <button class="close-btn" onclick="closeModal('huidModal')">&times;</button>
+        <h3 style="margin-top:0; color:var(--info-blue); font-size:1.4rem;"><i class="fas fa-fingerprint"></i> Bulk Assign HUID</h3>
+        <p style="font-size:0.85rem; color:#64748b; margin-bottom: 15px;">List only shows unique tags that currently don't have an HUID.</p>
+        <div class="search-box-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="huidSearchInput" class="search-box" placeholder="Search Barcode, Category or Purity..." onkeyup="filterHuidList()">
+        </div>
+        <div style="max-height: 50vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <table class="inv-table">
+                <thead><tr><th>Barcode</th><th>Category</th><th>Gross Wt</th><th>HUID Input</th></tr></thead>
+                <tbody id="huidUpdateList"></tbody>
+            </table>
+        </div>
+        <button class="btn-block btn-primary" onclick="saveBulkHuid()" style="margin-top:15px; background: #0ea5e9;"><i class="fas fa-save"></i> Save Added HUIDs</button>
     </div>
 </div>
 
@@ -365,6 +384,7 @@
         <div class="item-detail-row"><span class="item-detail-lbl">Sub-Category:</span><span class="item-detail-val" id="idmSubCat">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Purity:</span><span class="item-detail-val" id="idmPurity">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Barcode:</span><span class="item-detail-val" id="idmBarcode">...</span></div>
+        <div class="item-detail-row"><span class="item-detail-lbl">HUID:</span><span class="item-detail-val" id="idmHuid" style="color:#0ea5e9; font-weight:bold;">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Gross Weight:</span><span class="item-detail-val" id="idmGross">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Stone Weight:</span><span class="item-detail-val" id="idmStone">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Net Weight:</span><span class="item-detail-val" id="idmNet">0.000 g</span></div>
@@ -407,7 +427,7 @@
 </div>
 
 <div id="tagModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 650px;">
         <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-tags"></i> Extract & Create Tag</h3>
         <input type="hidden" id="tagSourceId">
@@ -435,8 +455,8 @@
         </div>
         <input type="hidden" id="tagStockMode" value="individual">
         <div class="form-group">
-            <label>Enter Weights (g)</label>
-            <div id="tagInputsContainer" style="margin-top:10px; max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+            <label>Enter Weights & HUID</label>
+            <div id="tagInputsContainer" style="margin-top:10px; max-height: 250px; overflow-y: auto; overflow-x:hidden; padding-right: 5px;"></div>
         </div>
         <div style="background:#f8fafc; padding:20px; border-radius:12px; margin-top:20px;">
             <div style="display:flex; justify-content:space-between; font-weight:bold;">
@@ -444,7 +464,7 @@
                 <span id="tagTotalWt" style="color:var(--active-red);">0.000 g</span>
             </div>
         </div>
-        <button class="btn-block btn-primary" onclick="confirmTagging()">GENERATE STOCK</button>
+                <button class="btn-block btn-primary" id="generateTagBtn" onclick="confirmTagging()">GENERATE STOCK</button>
     </div>
 </div>
 
@@ -492,7 +512,8 @@
             <label>Sub-Category / Description</label>
             <select id="manSubCatSelect" onchange="toggleManSubCatInput()" style="width: 100%;"></select>
         </div>
-        <div class="grid-2">
+        
+        <div class="grid-3">
             <div class="form-group">
                 <label>Total Gross Wt (g)</label>
                 <input type="number" id="manGross" step="0.001" oninput="calcManNet()">
@@ -501,8 +522,14 @@
                 <label>Total Stone Wt (g)</label>
                 <input type="number" id="manStone" step="0.001" value="0" oninput="calcManNet()">
             </div>
+            <div class="form-group" id="manSingleHuidWrapper">
+                <label>HUID (Optional)</label>
+                <input type="text" id="manSingleHuid" placeholder="Enter HUID" style="text-transform:uppercase;">
+            </div>
         </div>
+
         <div id="dynamicManPieceInputs" style="display:none; background:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:15px; grid-column: 1 / -1;"></div>
+        
         <div class="grid-2">
             <div class="form-group">
                 <label>Total Net Wt (g)</label>
@@ -513,7 +540,7 @@
                 <input type="number" id="manFine" step="0.001" readonly style="background:#eff6ff;">
             </div>
         </div>
-        <button class="btn-block btn-primary" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save to Inventory</button>
+                <button class="btn-block btn-primary" id="saveManualBtn" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save to Inventory</button>
     </div>
 </div>
 
@@ -885,7 +912,8 @@
     function setupBarcodeScanner() {
         document.getElementById('searchInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
-                const exactMatch = allInventory.find(i => i.barcode && i.barcode.toUpperCase() === this.value.toUpperCase().trim() && i.status === 'stock');
+                const term = this.value.toUpperCase().trim();
+                const exactMatch = allInventory.find(i => (i.barcode && i.barcode.toUpperCase() === term) || (i.huid && i.huid.toUpperCase() === term) && i.status === 'stock');
                 if (exactMatch) { openItemDetails(exactMatch.id); this.value = ''; applyFilters(); }
             }
         });
@@ -938,11 +966,7 @@
         
         let filtered = allInventory.filter(i => {
             if (i.status === 'cancelled') return false; 
-            
-            // Allow stock items to process into current
             if (i.status === 'stock') return true; 
-            
-            // Allow items sold or removed TODAY so we can calculate 'Out/Sale'
             if (i.status === 'sold' || i.status === 'removed') {
                 const outDate = i.removeDate || i.soldDate || i.date;
                 if (isToday(outDate)) return true;
@@ -974,7 +998,7 @@
                 }
             }
         }
-        if (searchTerm) filtered = filtered.filter(i => i.barcode?.toUpperCase().includes(searchTerm) || i.category?.toUpperCase().includes(searchTerm) || (i.name && i.name.toUpperCase().includes(searchTerm)));
+        if (searchTerm) filtered = filtered.filter(i => i.barcode?.toUpperCase().includes(searchTerm) || (i.huid && i.huid.toUpperCase().includes(searchTerm)) || i.category?.toUpperCase().includes(searchTerm) || (i.name && i.name.toUpperCase().includes(searchTerm)));
         
         renderList(filtered);
     }
@@ -987,7 +1011,6 @@
         return 0;
     }
 
-    // ==================== NEW MAIN GROUPING LOGIC WITH TOTALS ====================
     function renderList(items) {
         const container = document.getElementById('inventory-list'); 
         container.innerHTML = ''; 
@@ -1012,7 +1035,6 @@
             const addedToday = isToday(item.addedDate);
             const removedToday = (item.status === 'sold' || item.status === 'removed') && isToday(item.removeDate || item.soldDate || item.date);
 
-            // Group Strictly By Category
             let key = item.category || 'Other'; 
             if (item.category === 'MIX') key = 'MIX';
             if (item.barcode?.startsWith('ORD-')) key = `ORDER_${item.category}`;
@@ -1033,7 +1055,6 @@
             let g = groupedInventory[key];
             if (item.purity) g.purities.add(item.purity);
             
-            // Core Logic for + / - calculations
             if (addedToday) {
                 g.addedQty += pcs;
                 g.addedWt += net;
@@ -1048,7 +1069,6 @@
                     g.outWt += net;
                 }
             } else if (item.status === 'stock') {
-                // Calculation of active stock
                 g.closingQty += pcs;
                 g.closingGross += gross;
                 g.closingNet += net;
@@ -1060,10 +1080,8 @@
         let groupsArray = Object.values(groupedInventory).sort((a, b) => (a.category || '').localeCompare(b.category || ''));
 
         groupsArray.forEach(group => {
-            // Ignore completely empty rows (0 everywhere)
             if (group.openingQty === 0 && group.addedQty === 0 && group.outQty === 0 && group.closingQty === 0) return;
 
-            // Increment Grand Totals
             tOpenQty += group.openingQty; tOpenWt += group.openingWt;
             tAddQty += group.addedQty; tAddWt += group.addedWt;
             tOutQty += group.outQty; tOutWt += group.outWt;
@@ -1098,7 +1116,6 @@
             container.appendChild(tr);
         });
 
-        // Add Grand Total Row
         let totalRow = document.createElement('tr');
         totalRow.style.backgroundColor = '#e2e8f0';
         totalRow.style.position = 'sticky';
@@ -1127,13 +1144,12 @@
         container.appendChild(totalRow);
     }
 
-    // ==================== ALL REMAINING FUNCTIONS (Unchanged from original) ====================
-
     function openManualEntry() {
         document.getElementById('manualEntryModal').style.display = 'flex';
         document.getElementById('manMetal').value = (currentMetalFilter === 'SILVER') ? 'Silver' : 'Gold';
         handleManualMetalChange();
         document.getElementById('manGross').value = '';
+        document.getElementById('manSingleHuid').value = '';
         document.getElementById('manStockMode').disabled = false;
     }
     function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
@@ -1185,11 +1201,29 @@
         const mode = document.getElementById('manStockMode').value;
         const pieces = parseInt(document.getElementById('manPieces').value) || 1;
         const container = document.getElementById('dynamicManPieceInputs');
-        if (mode === 'bulk' || pieces <= 1) { container.style.display = 'none'; document.getElementById('manGross').readOnly = false; return; }
-        container.style.display = 'block'; document.getElementById('manGross').readOnly = true;
-        let html = `<div style="max-height: 200px; overflow-y: auto;">`;
-        for (let i = 1; i <= pieces; i++) html += `<div style="display:flex; gap:10px; margin-bottom:10px;"><input type="number" class="man-piece-gross" placeholder="Piece ${i} Gross" oninput="sumManPieceWeights()"><input type="number" class="man-piece-stone" placeholder="Piece ${i} Stone" oninput="sumManPieceWeights()"></div>`;
-        container.innerHTML = html + `</div>`; sumManPieceWeights();
+        const huidWrapper = document.getElementById('manSingleHuidWrapper');
+
+        if (mode === 'bulk' || pieces <= 1) { 
+            container.style.display = 'none'; 
+            document.getElementById('manGross').readOnly = false; 
+            if(mode === 'bulk') huidWrapper.style.display = 'none';
+            else huidWrapper.style.display = 'block';
+            return; 
+        }
+
+        huidWrapper.style.display = 'none';
+        container.style.display = 'block'; 
+        document.getElementById('manGross').readOnly = true;
+        let html = `<div style="max-height: 250px; overflow-y: auto; overflow-x:hidden; padding-right:5px;">`;
+        for (let i = 1; i <= pieces; i++) {
+            html += `<div style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="number" class="man-piece-gross" placeholder="Piece ${i} Gross" oninput="sumManPieceWeights()" style="flex:1;">
+                <input type="number" class="man-piece-stone" placeholder="Piece ${i} Stone" oninput="sumManPieceWeights()" style="flex:1;">
+                <input type="text" class="man-piece-huid" placeholder="Piece ${i} HUID" style="flex:1; text-transform:uppercase;">
+            </div>`;
+        }
+        container.innerHTML = html + `</div>`; 
+        sumManPieceWeights();
     }
     function sumManPieceWeights() {
         let tg = 0; let ts = 0;
@@ -1202,7 +1236,11 @@
         const net = Math.max(0, g - s);
         document.getElementById('manNet').value = net.toFixed(3); document.getElementById('manFine').value = (net * getPurityFactor(document.getElementById('manPurity').value)).toFixed(3);
     }
+    // FIXED: Added button locking to saveManualEntry
     async function saveManualEntry() {
+        const btn = document.getElementById('saveManualBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SAVING...'; }
+
         const cat = document.getElementById('manCategory').value;
         const mode = document.getElementById('manStockMode').value;
         const isBulk = mode === 'bulk' || cat === 'MIX';
@@ -1215,7 +1253,11 @@
         if(!name) name = isBulk ? "General Loose" : cat;
         const purity = document.getElementById('manPurity').value; const pieces = parseInt(document.getElementById('manPieces').value) || 1;
         const g = parseFloat(document.getElementById('manGross').value) || 0; const s = parseFloat(document.getElementById('manStone').value) || 0;
-        if(!g || g<=0) return appAlert("Enter Valid Weight");
+        if(!g || g<=0) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save to Inventory'; }
+            return appAlert("Enter Valid Weight");
+        }
+
         let newlyAddedItems = [];
         const n = Math.max(0, g - s); const f = n * getPurityFactor(purity);
         const isSilv = checkIsSilver(purity);
@@ -1225,9 +1267,8 @@
             const finalFolderName = useFolder ? name : "General Loose";
             const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             const cleanName = finalFolderName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-        // BUG FIX: Prefix ki jagah poora category name use karenge taaki naam alag rahe
-        const cleanCatName = cat.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-        const barcode = `LOOSE-${cleanCatName}-${cleanName}-${cleanPurity}`;
+            const cleanCatName = cat.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const barcode = `LOOSE-${cleanCatName}-${cleanName}-${cleanPurity}`;
             let existingItem = allInventory.find(i => i.barcode === barcode && i.purity === purity && i.status === 'stock');
             if (existingItem) {
                 existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + g).toFixed(3));
@@ -1244,21 +1285,28 @@
             }
         } else {
             if(pieces <= 1) {
+                const singleHuid = document.getElementById('manSingleHuid').value.trim().toUpperCase();
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
-                const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo };
+                const item = { barcode, huid: singleHuid, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo };
                 await addItem('inventory', item); newlyAddedItems.push(item);
             } else {
-                const gi = document.querySelectorAll('.man-piece-gross'); const si = document.querySelectorAll('.man-piece-stone');
+                const gi = document.querySelectorAll('.man-piece-gross'); 
+                const si = document.querySelectorAll('.man-piece-stone');
+                const hi = document.querySelectorAll('.man-piece-huid');
                 for(let i=0; i<pieces; i++) {
-                    const gp = parseFloat(gi[i].value)||0; const sp = parseFloat(si[i].value)||0;
+                    const gp = parseFloat(gi[i].value)||0; 
+                    const sp = parseFloat(si[i].value)||0;
+                    const hp = hi[i] ? hi[i].value.trim().toUpperCase() : '';
                     if(gp>0) {
                         const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo };
+                        const item = { barcode, huid: hp, category: cat, name: `${name} ${i+1}`, purity, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo };
                         await addItem('inventory', item); newlyAddedItems.push(item);
                     }
                 }
             }
         }
+
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> Save to Inventory'; }
         showToast("Added!"); closeModal('manualEntryModal'); loadInventory();
         if (newlyAddedItems.length > 0) autoPrint(newlyAddedItems);
     }
@@ -1272,6 +1320,7 @@
         if (!rawSub && item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) rawSub = item.name.replace(/\s+\d+$/, '').trim();
         document.getElementById('idmSubCat').innerText = rawSub || '-';
         document.getElementById('idmPurity').innerText = item.purity;
+        document.getElementById('idmHuid').innerText = item.huid || 'N/A';
         document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmStatus').innerText = item.status.toUpperCase();
@@ -1293,15 +1342,18 @@
     function openGroupDetails(key) {
         document.getElementById('detailsModalTitle').innerHTML = `<i class="fas fa-layer-group"></i> Category Items List`;
         const thead = document.getElementById('detailsModalHead');
-        thead.innerHTML = `<tr><th>Barcode / Date</th><th>Sub-Cat</th><th>Purity</th><th>Qty</th><th>Gross Wt</th><th>Net Wt</th><th style="color:#8e24aa;">Stone Wt</th><th>Fine Wt</th><th style="text-align:center;">Actions</th></tr>`;
+        thead.innerHTML = `<tr><th>Barcode / HUID</th><th>Sub-Cat</th><th>Purity</th><th>Qty</th><th>Gross Wt</th><th>Net Wt</th><th style="color:#8e24aa;">Stone Wt</th><th>Fine Wt</th><th style="text-align:center;">Actions</th></tr>`;
         const group = groupedInventory[key]; if(!group) return;
         const tbody = document.getElementById('groupDetailsList'); tbody.innerHTML = '';
         
         group.items.forEach(item => {
             const g = parseFloat(item.grossWt||item.weight).toFixed(3);
             let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : item.barcode;
+            if(item.huid) displayBc += `<br><span style="color:#0ea5e9; font-size:0.75rem; font-weight:700;"><i class="fas fa-fingerprint"></i> ${item.huid}</span>`;
+            
             let dateHtml = item.addedDate ? `<br><span style="font-size:0.75rem; color:#888;"><i class="fas fa-calendar-alt"></i> ${new Date(item.addedDate).toLocaleDateString('en-GB')}</span>` : '';
             displayBc += dateHtml;
+            
             let actionBtnHTML = '';
             if(item.barcode && item.barcode.startsWith('LOOSE') || item.category === 'MIX') {
                  actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${item.id}')"><i class="fas fa-tags"></i> Tag</button>`;
@@ -1372,23 +1424,42 @@
         const container = document.getElementById('tagInputsContainer'); container.innerHTML = '';
         const count = parseInt(document.getElementById('tagPieces').value)||1;
         for(let i=0; i<count; i++) {
-            container.innerHTML += `<div style="display:flex;gap:10px;margin-bottom:10px;"><input type="number" class="tag-input tag-gross" placeholder="Piece ${i+1} Gross" oninput="calcTagTotal()"></div>`;
+            container.innerHTML += `<div style="display:flex;gap:10px;margin-bottom:10px;">
+                <input type="number" class="tag-input tag-gross" placeholder="P${i+1} Gross Wt" oninput="calcTagTotal()" style="flex:1;">
+                <input type="text" class="tag-input tag-huid" placeholder="P${i+1} HUID (Optional)" style="flex:1; text-transform:uppercase;">
+            </div>`;
         }
     }
     function calcTagTotal() {
         let sum = 0; document.querySelectorAll('.tag-gross').forEach(i => sum += parseFloat(i.value)||0);
         document.getElementById('tagTotalWt').innerText = sum.toFixed(3) + " g";
     }
+    
+    // Yahan Update Kiya Gaya Function Hai
     async function confirmTagging() {
-        const sum = parseFloat(document.getElementById('tagTotalWt').innerText);
-        if(sum<=0) return appAlert("Enter Valid Weights");
+        const btn = document.getElementById('generateTagBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> GENERATING...'; }
+
+        const sum = parseFloat(document.getElementById('tagTotalWt').innerText) || 0;
+        if(sum <= 0) {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
+            return appAlert("Enter Valid Weights");
+        }
+
         const sourceId = document.getElementById('tagSourceId').value;
         const item = allInventory.find(i => String(i.id) === String(sourceId));
-        const available = parseFloat(item.grossWt||item.weight);
-        if(sum > available+0.01) return appAlert("Weight Exceeds Source");
+        
+        const currentGross = parseFloat(item.grossWt || item.weight || 0);
+        const currentNet = parseFloat(item.netWt || currentGross || 0);
+        
+        if(sum > currentGross + 0.01) {
+            if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
+            return appAlert("Weight Exceeds Source");
+        }
+
         const cat = document.getElementById('tagCategory').value; 
         const purity = item.purity;
-        const count = parseInt(document.getElementById('tagPieces').value)||1;
+        const count = parseInt(document.getElementById('tagPieces').value) || 1;
         let subCat = "";
         const tagSubCatVal = document.getElementById('tagSubCatSelect').value;
         if (tagSubCatVal && tagSubCatVal !== 'NEW') subCat = tagSubCatVal;
@@ -1398,30 +1469,103 @@
         const prefix = cat.substring(0,3).toUpperCase();
         const extractDocNo = 'EXT-' + Date.now();
         const inputs = document.querySelectorAll('.tag-gross');
+        const huidInputs = document.querySelectorAll('.tag-huid');
+        
         for (let i = 0; i < inputs.length; i++) {
             const g = parseFloat(inputs[i].value) || 0;
+            const hp = huidInputs[i] ? huidInputs[i].value.trim().toUpperCase() : '';
             if (g > 0) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                const newItem = { barcode, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
+                const newItem = { barcode, huid: hp, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
                 await addItem('inventory', newItem); 
                 newlyAddedItems.push(newItem);
             }
         }
-        if (available - sum <= 0.01) {
+        
+        if (currentGross - sum <= 0.01) {
             item.status = 'removed';
             item.removeDocNo = extractDocNo;
             item.removeDate = new Date().toISOString();
             await updateItem('inventory', item); 
         } else { 
-            item.grossWt = parseFloat((available - sum).toFixed(3)); 
-            item.netWt = parseFloat((parseFloat(item.netWt) - sum).toFixed(3)); 
-            if(item.netWt < 0) item.netWt = 0;
+            item.grossWt = parseFloat((currentGross - sum).toFixed(3)); 
+            item.netWt = parseFloat((currentNet - sum).toFixed(3)); 
+            if (item.netWt < 0) item.netWt = 0;
+            if (item.grossWt < 0) item.grossWt = 0;
             item.fineWt = parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3));
-            item.pieces = Math.max(1, (parseInt(item.pieces)||1) - count);
+            
+            let currentPieces = parseInt(item.pieces) || 1;
+            item.pieces = currentPieces - count;
+            if (item.pieces < 1 && item.grossWt > 0.01) {
+                item.pieces = 1; 
+            }
+            
             await updateItem('inventory', item); 
         }
-        showToast("Tag Created Successfully!"); closeModal('tagModal'); loadInventory();
-        setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
+
+        if (btn) { btn.disabled = false; btn.innerHTML = 'GENERATE STOCK'; }
+        showToast("Tag Created Successfully!"); 
+        closeModal('tagModal'); 
+        loadInventory();
+        setTimeout(() => { if(newlyAddedItems.length > 0) autoPrint(newlyAddedItems); }, 1000);
+    }
+
+    // Bulk HUID Update Functions
+    let huidUpdateItems = [];
+    function openHuidModal() {
+        huidUpdateItems = allInventory.filter(i => i.status === 'stock' && getCategoryMode(i.category) === 'individual' && i.category !== 'MIX' && !(i.barcode && i.barcode.startsWith('LOOSE')) && !i.huid);
+        document.getElementById('huidSearchInput').value = '';
+        renderHuidList(huidUpdateItems);
+        openModal('huidModal');
+    }
+    function renderHuidList(items) {
+        const tbody = document.getElementById('huidUpdateList');
+        tbody.innerHTML = '';
+        if(items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">All unique items already have HUIDs.</td></tr>';
+            return;
+        }
+        const displayItems = items.slice(0, 100); 
+        displayItems.forEach(item => {
+            const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+            tbody.innerHTML += `<tr>
+                <td style="font-weight:bold; color:var(--info-blue);">${item.barcode}</td>
+                <td>${item.category}</td>
+                <td>${gross}g</td>
+                <td><input type="text" id="huid_inp_${item.id}" value="${item.huid || ''}" placeholder="Enter HUID" class="huid-bulk-input" data-id="${item.id}" style="padding: 8px; width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; text-transform:uppercase;"></td>
+            </tr>`;
+        });
+        if(items.length > 100) {
+            tbody.innerHTML += `<tr><td colspan="4" style="text-align:center; font-size:0.8rem; color:#888;">Showing 100 of ${items.length} items. Search to find others.</td></tr>`;
+        }
+    }
+    function filterHuidList() {
+        const term = document.getElementById('huidSearchInput').value.toUpperCase().trim();
+        const filtered = huidUpdateItems.filter(i => (i.barcode && i.barcode.toUpperCase().includes(term)) || (i.category && i.category.toUpperCase().includes(term)));
+        renderHuidList(filtered);
+    }
+    async function saveBulkHuid() {
+        const inputs = document.querySelectorAll('.huid-bulk-input');
+        let updatedCount = 0;
+        for (let inp of inputs) {
+            const val = inp.value.trim().toUpperCase();
+            if (val) {
+                const id = inp.getAttribute('data-id');
+                const item = allInventory.find(i => String(i.id) === String(id));
+                if (item && (item.huid || '') !== val) {
+                    item.huid = val;
+                    await updateItem('inventory', item);
+                    updatedCount++;
+                }
+            }
+        }
+        if (updatedCount > 0) {
+            showToast(`${updatedCount} HUID(s) updated Successfully!`);
+            loadInventory(); 
+            closeModal('huidModal');
+        } else {
+            showToast("No HUID changes added.", "info");
+        }
     }
 
     let removeBatchList = [];
@@ -1620,10 +1764,10 @@
     function exportInventoryCSV() {
         if (allInventory.length === 0) return showToast("No data to export", "error");
         let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Barcode,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
+        csvContent += "Barcode,HUID,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
         allInventory.forEach(row => {
             let rDate = row.addedDate ? new Date(row.addedDate).toLocaleDateString() : '';
-            let rowStr = `${row.barcode||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
+            let rowStr = `${row.barcode||''},${row.huid||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
             csvContent += rowStr + "\n";
         });
         const encodedUri = encodeURI(csvContent);
