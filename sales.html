@@ -1593,61 +1593,46 @@
         }
 
        async function updateStockStatusInternal(items, action) {
-            if(items.length === 0) return;
+            if(!items || items.length === 0) return;
 
             for(const i of items) {
-                if (typeof i.id === 'string' && i.id.startsWith('manual_')) {
-                    continue;
-                }
+                if (typeof i.id === 'string' && i.id.startsWith('manual_')) continue;
                 
-                // 🔴 FIX 1: Handle ID Type Mismatch (Number vs String) for IndexedDB
-                let parsedId = isNaN(i.id) ? i.id : Number(i.id);
-                let item = await getItem('inventory', parsedId);
-                if (!item) item = await getItem('inventory', String(i.id));
+                let itemId = String(i.id); 
+                let item = await getItem('inventory', itemId);
 
                 if(item) { 
                     const sellQty = parseInt(i.sellQty) || 1;
-                    const sellGross = i.grossWt !== undefined ? parseFloat(i.grossWt) : (parseFloat(i.weight) || 0);
+                    const sellGross = parseFloat(i.grossWt !== undefined ? i.grossWt : (i.weight || 0));
                     const sellStone = parseFloat(i.stoneWt) || 0;
-                    const sellNet = i.netWt !== undefined ? parseFloat(i.netWt) : sellGross;
+                    const sellNet = parseFloat(i.netWt !== undefined ? i.netWt : sellGross);
                     
                     const isSilver = checkIsSilver(item.purity);
+                    const isLooseStock = isSilver || item.category === 'MIX' || (item.barcode && item.barcode.startsWith('LOOSE')) || parseInt(item.pieces) > 1;
 
                     if (action === 'sold') {
-                        if (isSilver || item.category === 'MIX' || item.pieces > 1) {
-                            item.pieces = (parseInt(item.pieces) || 1) - sellQty;
+                        if (isLooseStock) {
+                            item.pieces = Math.max(0, (parseInt(item.pieces) || 1) - sellQty);
                             item.grossWt = Math.max(0, (parseFloat(item.grossWt) || 0) - sellGross);
                             item.stoneWt = Math.max(0, (parseFloat(item.stoneWt) || 0) - sellStone);
                             item.netWt = Math.max(0, (parseFloat(item.netWt) || 0) - sellNet);
                             item.weight = item.grossWt; 
                             item.fineWt = item.netWt * getPurityFactor(item.purity);
 
-                            if (item.pieces <= 0 || item.netWt <= 0.05) {
+                            if (item.pieces === 0 || item.netWt <= 0.05) {
                                 item.status = 'sold';
-                                item.soldDate = new Date().toISOString(); // 🔴 FIX 2: Save exact Sold Date
-                                item.pieces = 0;
-                                item.netWt = 0;
-                                item.grossWt = 0;
-                                item.stoneWt = 0;
-                                item.weight = 0;
-                                item.fineWt = 0;
+                                item.soldDate = new Date().toISOString(); 
                             } else {
                                 item.status = 'stock';
                             }
                         } else {
                             item.status = 'sold';
-                            item.soldDate = new Date().toISOString(); // 🔴 FIX 2: Save exact Sold Date
-                            item.pieces = 0;
-                            item.netWt = 0;
-                            item.grossWt = 0;
-                            item.stoneWt = 0;
-                            item.weight = 0;
-                            item.fineWt = 0;
+                            item.soldDate = new Date().toISOString(); 
                         }
                     } else if (action === 'stock') {
-                        // Reverting Sale (Cancel/Edit)
                         item.status = 'stock';
-                        item.soldDate = null; // Clear sold date
+                        item.soldDate = null;
+                        
                         item.pieces = (parseInt(item.pieces) || 0) + sellQty;
                         item.grossWt = (parseFloat(item.grossWt) || 0) + sellGross;
                         item.stoneWt = (parseFloat(item.stoneWt) || 0) + sellStone;
@@ -1655,9 +1640,14 @@
                         item.weight = item.grossWt;
                         item.fineWt = item.netWt * getPurityFactor(item.purity);
                     }
-                    await updateItem('inventory', item);
+                    
+                    try {
+                        await updateItem('inventory', item);
+                    } catch(err) {
+                        console.error("Firebase update failed:", err);
+                    }
                 } else {
-                    console.error("Stock Update Failed! Item ID not found in Database:", i.id);
+                    console.warn("Item Database mein nahi mila:", itemId);
                 }
             }
         }
