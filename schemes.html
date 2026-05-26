@@ -610,7 +610,7 @@
 
                         <div class="s-footer" style="margin-top: ${s.status === 'redeemed' ? '10px' : 'auto'};">
                             <span style="font-size:0.75rem; color:#666;">Scheme #${s.id}</span>
-                            <button class="btn-view" onclick="openManageModal(${s.id})">Manage Ledger</button>
+                            <button class="btn-view" onclick="openManageModal('${s.id}')">Manage Ledger</button>
                         </div>
                     </div>
                 `;
@@ -724,8 +724,11 @@
 
         // --- MANAGE LEDGER ---
         async function openManageModal(id) {
-            const s = allSchemes.find(x => x.id === id);
-            if(!s) return;
+            const s = allSchemes.find(x => String(x.id) === String(id));
+            if(!s) {
+                console.error("Scheme nahi mili ID ke liye:", id);
+                return;
+            }
 
             const paidReq = parseInt(s.paidMonthsRequired) || 11;
             const bonusReq = parseInt(s.bonusMonthsRequired) || 1;
@@ -825,7 +828,7 @@
 
         // --- ENHANCED MULTIPLE INSTALLMENT PAYMENT LOGIC ---
         async function payInstallment() {
-            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const id = document.getElementById('viewSchemeId').value;
             const payAmt = parseFloat(document.getElementById('payAmountInput').value) || 0;
             const payMode = document.getElementById('payModeInput').value;
             
@@ -901,7 +904,7 @@
         async function undoLastPayment() {
             if(!confirm("Are you sure you want to revert the last payment? This will mark the month as Unpaid and log a Reversal/Refund in the Cashbook to balance the drawer.")) return;
             
-            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const id = document.getElementById('viewSchemeId').value;
             const s = await getItem('schemes', id);
             if(!s) return;
 
@@ -958,13 +961,14 @@
         async function redeemScheme() {
             if(!confirm("Redeem this scheme? This will close the account and add the full maturity value to the customer's BC Wallet for future purchases.")) return;
             
-            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const id = document.getElementById('viewSchemeId').value;
             const refVal = document.getElementById('redeemRefInput').value.trim() || 'Wallet Transfer';
             
             const db = await dbPromise;
             const tx = db.transaction(['schemes', 'customers', 'cashflow'], 'readwrite');
             
-            let sReq = tx.objectStore('schemes').get(id);
+            let parsedId = isNaN(id) ? id : parseInt(id);
+            let sReq = tx.objectStore('schemes').get(parsedId);
             sReq.onsuccess = (e) => {
                 const s = e.target.result;
                 if(s.status === 'redeemed') return; 
@@ -1007,7 +1011,7 @@
         // --- TEST MODE: FAST FORWARD ---
         async function quickFillTenMonths() {
             if(!isTestMode) return;
-            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const id = document.getElementById('viewSchemeId').value;
             
             const s = await getItem('schemes', id);
             const paidReq = parseInt(s.paidMonthsRequired) || 11;
@@ -1035,8 +1039,8 @@
 
         // --- WHATSAPP REMINDER ---
         function sendWhatsAppReminder() {
-            const id = parseInt(document.getElementById('viewSchemeId').value);
-            const s = allSchemes.find(x => x.id === id);
+            const id = document.getElementById('viewSchemeId').value;
+            const s = allSchemes.find(x => String(x.id) === String(id));
             const phoneStr = document.getElementById('vCustPhone').value;
             
             if(!phoneStr || phoneStr.length < 10) return alert("Valid mobile number not found for customer.");
@@ -1059,7 +1063,7 @@
 
         // --- DELETE SCHEME ---
         async function deleteScheme() {
-            const id = parseInt(document.getElementById('viewSchemeId').value);
+            const id = document.getElementById('viewSchemeId').value;
             if(!confirm("DANGER: Are you sure you want to completely delete this scheme? (Cashbook history of payments will not be deleted).")) return;
             
             await deleteItem('schemes', id);
@@ -1070,8 +1074,8 @@
 
         // --- PRINT PASSBOOK ---
         function printPassbook() {
-            const id = parseInt(document.getElementById('viewSchemeId').value);
-            const s = allSchemes.find(x => x.id === id);
+            const id = document.getElementById('viewSchemeId').value;
+            const s = allSchemes.find(x => String(x.id) === String(id));
             if(!s) return;
 
             const paidReq = parseInt(s.paidMonthsRequired) || 11;
