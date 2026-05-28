@@ -695,13 +695,56 @@
             }
         }
         
-        async function selectCust(c) {
+       async function selectCust(c) {
             document.getElementById('custSearch').value = '';
             document.getElementById('custSuggestions').style.display = 'none';
             document.getElementById('custId').value = c.id;
             document.getElementById('custDisplay').style.display = 'flex';
             document.getElementById('custNameDisplay').innerHTML = `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
             
+            // --- 🟢 NEW: Tags Show Karne Ka Code 🟢 ---
+            const tagsBox = document.getElementById('custTagsDisplay');
+            if(c.tags && c.tags.length > 0) {
+                let tagsHtml = c.tags.map(t => {
+                    let bg = '#f1f5f9', col = '#475569'; // Neutral default
+                    let lowT = t.toLowerCase();
+                    if(lowT.includes('good') || lowT.includes('clear') || lowT.includes('allowed')) { bg='#dcfce7'; col='#15803d'; } // Green
+                    if(lowT.includes('no credit') || lowT.includes('bargain')) { bg='#fee2e2'; col='#b91c1c'; } // Red
+                    if(lowT.includes('high making')) { bg='#fff8e1'; col='#f57f17'; } // Gold/Orange
+                    return `<span style="background:${bg}; color:${col}; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; text-transform:uppercase; border:1px solid ${col}40;">${t}</span>`;
+                }).join('');
+                tagsBox.innerHTML = tagsHtml;
+                tagsBox.style.display = 'flex';
+            } else {
+                tagsBox.style.display = 'none';
+            }
+
+            // --- 🟢 NEW: Loyalty Coins Calculate Karne Ka Code 🟢 ---
+            const allSalesDataForCoins = await getAllItems('sales');
+            const mySales = allSalesDataForCoins.filter(s => s.customerId == c.id && s.status !== 'cancelled');
+            let totalMakingPaid = 0;
+            mySales.forEach(s => {
+                if(s.items && Array.isArray(s.items)) {
+                    s.items.forEach(item => {
+                        if(!item.isOldGold && item.makingAmount) {
+                            totalMakingPaid += parseFloat(item.makingAmount);
+                        }
+                    });
+                }
+            });
+            let earnedCoins = Math.floor(totalMakingPaid * 0.10); // 10% of Making
+            let redeemedCoins = parseFloat(c.redeemedCoins) || 0;
+            let availableCoins = earnedCoins - redeemedCoins;
+
+            const coinsBox = document.getElementById('custCoinsDisplay');
+            if(availableCoins > 0) {
+                document.getElementById('lblCoins').innerText = availableCoins.toLocaleString();
+                coinsBox.style.display = 'block';
+            } else {
+                coinsBox.style.display = 'none';
+            }
+            // -----------------------------------------------------
+
             const allSchemes = await getAllItems('schemes');
             pendingMaturedSchemes = allSchemes.filter(s => String(s.customerId) === String(c.id) && s.status === 'completed');
             maturedSchemesTotal = pendingMaturedSchemes.reduce((sum, s) => sum + (s.amount * 12), 0);
