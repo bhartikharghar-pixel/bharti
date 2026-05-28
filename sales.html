@@ -1792,7 +1792,7 @@
             renderHistory(filtered);
         }
 
-        async function renderHistory(list) {
+       async function renderHistory(list) {
             const custs = await getAllItems('customers');
             const div = document.getElementById('histList');
             div.innerHTML = '';
@@ -1824,6 +1824,21 @@
                 
                 const payDueBtn = s.pendingAmount > 0 && !isCancelled ? `<button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--accent-gold); color:#000; font-weight:bold; cursor:pointer;" onclick="editSale('${s.id}')"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>` : '';
 
+                // 🔥 NEW CODE: Items List Nikalne ke liye 🔥
+                let itemsSoldHtml = '';
+                if (s.items && s.items.length > 0) {
+                    // Sabhi items ko comma-separated list mein convert karna
+                    let itemNames = s.items.map(i => {
+                        let typeTag = i.isOldGold ? '<span style="color:#8e24aa;">[Exch]</span> ' : '';
+                        return `${typeTag}${i.category} <b>(${i.barcode})</b>`;
+                    }).join(' • ');
+                    
+                    itemsSoldHtml = `
+                    <div style="font-size:0.85rem; color:#444; margin-top:10px; background:#f0f4f8; padding:8px 12px; border-radius:6px; border: 1px solid #e1e8ed;">
+                        <i class="fas fa-boxes" style="color:var(--accent-gold);"></i> ${itemNames}
+                    </div>`;
+                }
+
                 div.innerHTML += `<div style="background:#fff; padding:20px; border-radius:12px; margin-bottom:15px; border-left:4px solid #333; ${cardStyle}">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-weight:700; font-size:1.1rem; color:#222;">${c.name}</span>
@@ -1833,7 +1848,8 @@
                         <div style="font-size:0.85rem; color:#666;">${s.invoiceNo || formatInv(s)} | ${new Date(s.date).toLocaleString('en-IN', {day:'numeric', month:'short', year:'numeric'})}</div>
                         ${statusHtml}
                     </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px; background:#f9f9f9; padding:5px; border-radius:4px;">
+                    
+                    ${itemsSoldHtml} <div style="display:flex; justify-content:space-between; margin-top:10px; background:#f9f9f9; padding:8px; border-radius:4px;">
                         ${paidHtml}
                         ${dueHtml}
                     </div>
