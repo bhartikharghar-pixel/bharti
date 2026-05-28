@@ -1201,27 +1201,24 @@
                 
                 if (!isNaN(parsedRate) && parsedRate >= 0) {
                     try {
-                        const db = await dbPromise;
-                        const tx = db.transaction('loans', 'readwrite');
-                        const store = tx.objectStore('loans');
+                        // NAYA TARIQA: Seedha db.js ka function call karenge jo hamesha work karta hai
+                        let loanData = await getItem('loans', currentLoanId);
                         
-                        store.get(currentLoanId).onsuccess = async (e) => {
-                            let loanData = e.target.result;
-                            if (loanData) {
-                                // Rate update karein
-                                loanData.ratePercent = parsedRate;
-                                store.put(loanData);
-                                
-                                alert(`Interest Rate successfully update ho kar ${parsedRate}% ho gaya hai!\n\nAgle mahine se jo bhi naya interest charge lagega, wo is naye rate par calculate hoga.`);
-                                
-                                // Data reload aur T-Ledger refresh karein
-                                await loadLoans(); 
-                                openLedger(currentLoanId); 
-                            }
-                        };
+                        if (loanData) {
+                            loanData.ratePercent = parsedRate;
+                            await updateItem('loans', loanData); // Save to database
+                            
+                            alert(`Interest Rate successfully update ho kar ${parsedRate}% ho gaya hai!\n\nAgle mahine se jo bhi naya interest charge lagega, wo is naye rate par calculate hoga.`);
+                            
+                            // Data reload aur T-Ledger refresh karein
+                            await loadLoans(); 
+                            openLedger(currentLoanId); 
+                        } else {
+                            alert("Error: Loan database mein nahi mila.");
+                        }
                     } catch (err) {
                         console.error("Rate Update Error:", err);
-                        alert("Error: Rate update nahi ho paya.");
+                        alert("Error: Rate update nahi ho paya. Console check karein.");
                     }
                 } else {
                     alert("Please enter a valid number.");
