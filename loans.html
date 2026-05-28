@@ -1188,27 +1188,56 @@
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-        async function editInterestRate() {
+     async function editInterestRate() {
             if (!currentLoanId) return;
             
             const l = allLoans.find(x => String(x.id) === String(currentLoanId));
             if (!l) return;
 
-            const newRate = prompt(`A/C #${l.id} ke liye naya Interest Rate (%) enter karein:\n(Current Rate: ${l.ratePercent}%)`, l.ratePercent);
+            const newRate = prompt(`A/C #${l.id} ke liye naya Interest Rate (%) enter karein:\nYe naya rate SHURU SE (Day 1) sabhi mahino par apply hoga!\n(Current Rate: ${l.ratePercent}%)`, l.ratePercent);
             
             if (newRate !== null && newRate !== "") {
                 const parsedRate = parseFloat(newRate);
                 
                 if (!isNaN(parsedRate) && parsedRate >= 0) {
                     try {
-                        // NAYA TARIQA: Seedha db.js ka function call karenge jo hamesha work karta hai
                         let loanData = await getItem('loans', currentLoanId);
                         
                         if (loanData) {
+                            let oldRate = loanData.ratePercent || 1; // Division by zero bachane ke liye
                             loanData.ratePercent = parsedRate;
-                            await updateItem('loans', loanData); // Save to database
                             
-                            alert(`Interest Rate successfully update ho kar ${parsedRate}% ho gaya hai!\n\nAgle mahine se jo bhi naya interest charge lagega, wo is naye rate par calculate hoga.`);
+                            // 1. Shuru se Main Principal ka saara interest recalculate karein
+                            if (loanData.ledger && loanData.ledger.length > 0) {
+                                loanData.ledger.forEach(row => {
+                                    if (row.openPrincipal !== undefined) {
+                                        row.interestCharged = Math.round((row.openPrincipal * parsedRate) / 100);
+                                    } else {
+                                        row.interestCharged = Math.round((row.interestCharged / oldRate) * parsedRate);
+                                    }
+                                });
+                            }
+
+                            // 2. Agar koi extra Top-Up liya gaya tha, toh uska bhi interest shuru se recalculate karein
+                            if (loanData.topUps && loanData.topUps.length > 0) {
+                                loanData.topUps.forEach(t => {
+                                    if (t.ledger && t.ledger.length > 0) {
+                                        t.ledger.forEach(row => {
+                                            if (oldRate > 0) {
+                                                row.interestCharged = Math.round((row.interestCharged / oldRate) * parsedRate);
+                                            } else {
+                                                let p = t.amount - (t.paidPrincipal || 0);
+                                                row.interestCharged = Math.round((p * parsedRate) / 100);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+
+                            // Update in database
+                            await updateItem('loans', loanData); 
+                            
+                            alert(`Interest Rate successfully update ho kar ${parsedRate}% ho gaya hai!\n\nShuru se lekar ab tak ka saara udhar (due interest) naye rate ke hisaab se badal diya gaya hai.`);
                             
                             // Data reload aur T-Ledger refresh karein
                             await loadLoans(); 
