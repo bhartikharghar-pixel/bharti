@@ -261,7 +261,8 @@
                 </div>
                 <div style="text-align: right;">
                     <strong>Item:</strong> <span id="vItemDesc"></span><br>
-                    <strong>Rate:</strong> <span id="vInterestRate"></span>
+                   <strong>Rate:</strong> <span id="vInterestRate"></span> 
+<button onclick="editInterestRate()" style="background:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; font-size:0.7rem; cursor:pointer; margin-left:5px; color:#1976d2;"><i class="fas fa-edit"></i> Edit</button>
                 </div>
             </div>
 
@@ -1161,6 +1162,47 @@
             else if(!phone.startsWith('+')) phone = '+' + phone;
             
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        async function editInterestRate() {
+            if (!currentLoanId) return;
+            
+            const l = allLoans.find(x => String(x.id) === String(currentLoanId));
+            if (!l) return;
+
+            const newRate = prompt(`A/C #${l.id} ke liye naya Interest Rate (%) enter karein:\n(Current Rate: ${l.ratePercent}%)`, l.ratePercent);
+            
+            if (newRate !== null && newRate !== "") {
+                const parsedRate = parseFloat(newRate);
+                
+                if (!isNaN(parsedRate) && parsedRate >= 0) {
+                    try {
+                        const db = await dbPromise;
+                        const tx = db.transaction('loans', 'readwrite');
+                        const store = tx.objectStore('loans');
+                        
+                        store.get(currentLoanId).onsuccess = async (e) => {
+                            let loanData = e.target.result;
+                            if (loanData) {
+                                // Rate update karein
+                                loanData.ratePercent = parsedRate;
+                                store.put(loanData);
+                                
+                                alert(`Interest Rate successfully update ho kar ${parsedRate}% ho gaya hai!\n\nAgle mahine se jo bhi naya interest charge lagega, wo is naye rate par calculate hoga.`);
+                                
+                                // Data reload aur T-Ledger refresh karein
+                                await loadLoans(); 
+                                openLedger(currentLoanId); 
+                            }
+                        };
+                    } catch (err) {
+                        console.error("Rate Update Error:", err);
+                        alert("Error: Rate update nahi ho paya.");
+                    }
+                } else {
+                    alert("Please enter a valid number.");
+                }
+            }
         }
     </script>
 </body>
