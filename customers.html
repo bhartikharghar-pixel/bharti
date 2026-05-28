@@ -55,6 +55,18 @@
         .cust-info h4 { margin: 0 0 4px 0; font-size: 1.15rem; color: #222; }
         .cust-info p { margin: 0; font-size: 0.85rem; color: #666; display: flex; align-items: center; gap: 8px; }
         
+        /* New Tag Styles */
+        .tag-chip { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; display: inline-block; margin-right: 5px; margin-bottom: 5px; border: 1px solid transparent; letter-spacing: 0.5px; text-transform: uppercase;}
+        .tag-good { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+        .tag-bad { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .tag-neutral { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+        .tag-gold { background: #fff8e1; color: #f57f17; border-color: #ffecb3; }
+        .tag-interactive { cursor: pointer; transition: 0.2s; user-select: none; opacity: 0.5; }
+        .tag-interactive.active { opacity: 1; transform: scale(1.05); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        /* Coins Styles */
+        .coin-badge { background: linear-gradient(135deg, #FFD700, #F57F17); color: #000; padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(245, 127, 23, 0.4); border: 1px solid #FBC02D;}
+
         .cust-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; padding-top: 15px; border-top: 1px dashed #eee; }
         .stat-item { font-size: 0.8rem; color: #777; background: #fafafa; padding: 10px; border-radius: 8px; border: 1px solid #f0f0f0;}
         .stat-val { font-weight: 700; font-size: 1.05rem; display: block; color:#333; margin-top:3px;}
@@ -223,9 +235,8 @@
         </div>
     </div>
 
-    <!-- NEW CUSTOMER MODAL -->
     <div id="custModal" class="modal">
-        <div class="modal-content" style="max-width:450px;">
+        <div class="modal-content" style="max-width:550px;">
             <div class="modal-header">
                 <h3 id="custModalTitle" class="modal-title">New Customer</h3>
                 <button class="close-btn" onclick="closeModal('custModal')">&times;</button>
@@ -239,6 +250,7 @@
                     <img id="photoPreview" src="" style="display:none; width: 120px; height: 120px; border-radius: 50%; margin: 15px auto 0 auto; object-fit: cover; border: 3px solid #eee;">
                     <input type="hidden" id="cPhotoBase64">
                 </div>
+                
                 <div class="form-group">
                     <label>Full Name <span class="text-red">*</span></label>
                     <input type="text" id="cName" placeholder="e.g. Rahul Sharma">
@@ -247,6 +259,18 @@
                     <label>Mobile Number <span class="text-red">*</span></label>
                     <input type="tel" id="cMobile" placeholder="e.g. 9876543210">
                 </div>
+                
+                <div class="form-group" style="background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0;">
+                    <label><i class="fas fa-tags" style="color:var(--accent-gold);"></i> Customer Nature / Tags</label>
+                    <p style="font-size:0.8rem; color:#64748b; margin-top:0;">Click tags to apply them to this customer.</p>
+                    <div id="tagSelectionArea" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                        </div>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="cCustomTag" placeholder="Create your own custom tag..." style="padding:10px;">
+                        <button class="btn-small" onclick="addCustomTag()" style="background:#333; color:white; border:none; padding:0 20px;">Add</button>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Aadhar Number (Optional)</label>
                     <input type="text" id="cAadhar" placeholder="12-digit Aadhar Number" maxlength="12">
@@ -265,7 +289,6 @@
         </div>
     </div>
 
-    <!-- LEAD MODAL -->
     <div id="leadModal" class="modal">
         <div class="modal-content" style="max-width:500px;">
             <div class="modal-header">
@@ -324,7 +347,6 @@
         </div>
     </div>
 
-    <!-- 360 MODAL -->
     <div id="c360Modal" class="modal">
         <div class="modal-content">
             <div class="modal-header" style="border:none; padding-bottom:0; margin-bottom:0;">
@@ -338,10 +360,21 @@
                         <div class="avatar" id="v360Avatar" style="width:90px; height:90px; font-size:2.5rem;"></div>
                     </div>
                     <h2 class="c360-name" id="v360Name">Customer Name</h2>
-                    <div class="c360-phone">
+                    
+                    <div class="c360-phone" style="margin-bottom:8px;">
                         <i class="fas fa-phone"></i> <span id="v360Phone">9876543210</span> &nbsp;|&nbsp; 
                         <i class="fas fa-map-marker-alt"></i> <span id="v360City">City</span>
                     </div>
+
+                    <div id="v360Tags" style="display:flex; justify-content:center; flex-wrap:wrap; gap:5px; margin-bottom:10px;"></div>
+                    
+                    <div style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:10px;">
+                        <div class="coin-badge" title="Earned from 10% of total making charges paid">
+                            <i class="fas fa-coins"></i> <span id="v360Coins">0</span> Loyalty Coins
+                        </div>
+                        <button class="btn-small" onclick="redeemCoinsPrompt()" style="padding:4px 10px; font-size:0.8rem;"><i class="fas fa-minus-circle"></i> Redeem</button>
+                    </div>
+
                 </div>
                 
                 <div class="tabs">
@@ -500,6 +533,10 @@
 
         let dbCustomers = [], dbSales = [], dbOrders = [], dbLoans = [], dbSchemes = [], dbDeposits = [];
         let aggregatedCustomers = [];
+        
+        // Tag Logic State
+        let currentCustomerTags = [];
+        const PRESET_TAGS = ['Good Customer', 'Credit Allowed', 'No Credit', 'Bargainer', 'Clear Accounts', 'Low Making', 'High Making'];
 
         window.onload = async function() {
             await loadAllData();
@@ -519,24 +556,53 @@
             aggregatedCustomers = dbCustomers.map(c => {
                 const mySales = dbSales.filter(s => s.customerId == c.id && s.status !== 'cancelled');
                 const totalSales = mySales.reduce((sum, s) => sum + (parseFloat(s.grandTotal) || 0), 0);
+                
                 let pendingSales = 0;
+                let totalMakingPaid = 0; // Calculate total making for loyalty coins
+
                 mySales.forEach(s => {
                     let due = parseFloat(s.pendingAmount) || 0;
                     if(due > 0) pendingSales += due;
+                    
+                    // Accumulate making charges from items in the bill
+                    if(s.items && Array.isArray(s.items)) {
+                        s.items.forEach(item => {
+                            if(!item.isOldGold && item.makingAmount) {
+                                totalMakingPaid += parseFloat(item.makingAmount);
+                            }
+                        });
+                    }
                 });
+
+                // Coins = 10% of total making charges
+                let earnedCoins = Math.floor(totalMakingPaid * 0.10);
+                let redeemedCoins = parseFloat(c.redeemedCoins) || 0;
+                let availableCoins = earnedCoins - redeemedCoins;
+
                 const myLoans = dbLoans.filter(l => l.customerId == c.id && l.status === 'active');
                 let activeLoanPrin = 0;
                 myLoans.forEach(l => {
                     if(l.ledger && l.ledger.length > 0) activeLoanPrin += l.ledger[l.ledger.length-1].closingPrincipal;
                     else activeLoanPrin += parseFloat(l.amount);
                 });
+                
                 const myDeps = dbDeposits.filter(d => d.customerId == c.id);
                 let depBalance = 0;
                 myDeps.forEach(d => {
                     if(d.type === 'IN') depBalance += parseFloat(d.amount);
                     if(d.type === 'OUT') depBalance -= parseFloat(d.amount);
                 });
-                return { ...c, totalSales, pendingSales, activeLoanPrin, depBalance, inquiries: c.inquiries || [] };
+                
+                return { 
+                    ...c, 
+                    totalSales, 
+                    pendingSales, 
+                    activeLoanPrin, 
+                    depBalance, 
+                    inquiries: c.inquiries || [],
+                    tags: c.tags || [],
+                    availableCoins: availableCoins
+                };
             });
             aggregatedCustomers.sort((a,b) => b.id - a.id);
             filterData();
@@ -553,7 +619,15 @@
             if (currentMainTab === 'crm') renderCrmTable(filtered);
         }
 
-        // --- DIRECTORY RENDER (onClick fixed with quotes) ---
+        // Helper function for Tag colors
+        function getTagStyle(tag) {
+            const t = tag.toLowerCase();
+            if(t.includes('good') || t.includes('clear') || t.includes('allowed')) return 'tag-good';
+            if(t.includes('no credit') || t.includes('bargain')) return 'tag-bad';
+            if(t.includes('high making')) return 'tag-gold';
+            return 'tag-neutral';
+        }
+
         function renderCustomers(list) {
             const container = document.getElementById('view-directory');
             container.innerHTML = '';
@@ -566,6 +640,14 @@
                 const initial = c.name ? c.name.charAt(0).toUpperCase() : 'U';
                 const avatarContent = c.photo ? `<img src="${c.photo}" style="width:100%; height:100%; object-fit:cover;">` : initial;
                 
+                let tagsHtml = '';
+                if(c.tags && c.tags.length > 0) {
+                    tagsHtml = `<div style="margin-top:6px;">` + 
+                        c.tags.slice(0,3).map(t => `<span class="tag-chip ${getTagStyle(t)}">${t}</span>`).join('') + 
+                        (c.tags.length > 3 ? `<span class="tag-chip tag-neutral">+${c.tags.length-3}</span>` : '') +
+                    `</div>`;
+                }
+
                 container.innerHTML += `
                     <div class="card ${hasDue ? 'has-due' : ''}">
                         <div class="cust-header">
@@ -574,18 +656,19 @@
                                 <div class="cust-info">
                                     <h4>${c.name}</h4>
                                     <p><i class="fas fa-phone"></i> ${c.mobile} | <i class="fas fa-map-marker-alt"></i> ${c.city || 'N/A'}</p>
+                                    ${tagsHtml}
                                 </div>
                             </div>
                             <button class="btn-icon" style="background:var(--whatsapp); color:white; border:none;" onclick="waMessage('${c.mobile}', '${c.name}')" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
                         </div>
                         <div class="cust-stats">
                             <div class="stat-item">Udhari (Dues)<span class="stat-val ${c.pendingSales > 0 ? 'text-red' : 'text-green'}">₹${c.pendingSales.toLocaleString()}</span></div>
+                            <div class="stat-item">Loyalty Coins<span class="stat-val" style="color:#f57f17;"><i class="fas fa-coins"></i> ${c.availableCoins.toLocaleString()}</span></div>
                             <div class="stat-item">Active Loans<span class="stat-val text-blue">₹${c.activeLoanPrin.toLocaleString()}</span></div>
                             <div class="stat-item">Jama (Deposits)<span class="stat-val text-green">₹${c.depBalance.toLocaleString()}</span></div>
-                            <div class="stat-item">Total Bought<span class="stat-val" style="color:#555;">₹${c.totalSales.toLocaleString()}</span></div>
                         </div>
                         <div class="cust-actions">
-                            <button class="btn-action btn-primary" onclick="open360Modal('${c.id}')"><i class="fas fa-book-open"></i> Open Khata & Profile</button>
+                            <button class="btn-action btn-primary" onclick="open360Modal('${c.id}')"><i class="fas fa-book-open"></i> Open Profile</button>
                             <button class="btn-action" onclick="openCustomerModal('${c.id}')" style="flex: 0.4;" title="Edit Customer Details"><i class="fas fa-edit"></i> Edit</button>
                         </div>
                     </div>
@@ -593,8 +676,48 @@
             });
         }
 
-        // --- CRM PIPELINE RENDER (onClick fixed) ---
-        function getTagClass(reason) {
+        // --- TAG SYSTEM LOGIC ---
+        function renderTagSelection() {
+            const area = document.getElementById('tagSelectionArea');
+            area.innerHTML = '';
+            
+            // Combine presets + any custom tags the user already has
+            const allTagsToDisplay = [...new Set([...PRESET_TAGS, ...currentCustomerTags])];
+
+            allTagsToDisplay.forEach(tag => {
+                const isActive = currentCustomerTags.includes(tag);
+                const styleClass = getTagStyle(tag);
+                area.innerHTML += `
+                    <span class="tag-chip tag-interactive ${styleClass} ${isActive ? 'active' : ''}" 
+                          onclick="toggleTag('${tag}')">
+                        ${tag} ${isActive ? '<i class="fas fa-check-circle"></i>' : ''}
+                    </span>
+                `;
+            });
+        }
+
+        function toggleTag(tag) {
+            if(currentCustomerTags.includes(tag)) {
+                currentCustomerTags = currentCustomerTags.filter(t => t !== tag);
+            } else {
+                currentCustomerTags.push(tag);
+            }
+            renderTagSelection();
+        }
+
+        function addCustomTag() {
+            const input = document.getElementById('cCustomTag');
+            const val = input.value.trim();
+            if(val && !currentCustomerTags.includes(val)) {
+                currentCustomerTags.push(val);
+                input.value = '';
+                renderTagSelection();
+            }
+        }
+
+
+        // --- CRM PIPELINE RENDER ---
+        function getCrmBadge(reason) {
             if(!reason) return 'tag-design';
             if(reason.includes('Rate')) return 'tag-rate';
             if(reason.includes('Budget')) return 'tag-budget';
@@ -637,7 +760,7 @@
                                 <td><strong style="font-size:1.05rem;">${c.name}</strong><br><span style="color:#666; font-size:0.85rem;"><i class="fas fa-phone"></i> ${c.mobile}</span></td>
                                 <td>
                                     <span style="font-weight:600; font-size:1rem;">${inq.item}</span><br>
-                                    <span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span>
+                                    <span class="tag ${getCrmBadge(inq.reason)}">${inq.reason}</span>
                                     ${inq.price ? `<br><small style="color:#888; display:block; margin-top:4px;">Budget: ₹${inq.price}</small>` : ''}
                                     ${taskHtml}
                                 </td>
@@ -645,7 +768,7 @@
                                 <td><div class="history-log">${historyHTML}</div></td>
                                 <td>
                                     ${actionLogic}
-                                    <button class="btn-small" style="width:100%; justify-content:center; background:#1e293b; color:white; border:none;" onclick="logFollowUp('${c.id}', ${idx})"><i class="fas fa-plus-circle"></i> Log Update / Task Entry</button>
+                                    <button class="btn-small" style="width:100%; justify-content:center; background:#1e293b; color:white; border:none;" onclick="logFollowUp('${c.id}', ${idx})"><i class="fas fa-plus-circle"></i> Log Update / Task</button>
                                 </td>
                             </tr>
                         `;
@@ -677,9 +800,10 @@
             const occasion = document.getElementById('lOccasion').value;
             const date = document.getElementById('lDate').value;
             if(!name || !mobile || !item) return alert("Name, Phone, and Viewed Item are required.");
+            
             let cust = dbCustomers.find(c => c.mobile == mobile);
             if(!cust) {
-                const newId = await addItem('customers', { name, mobile, joined: new Date().toISOString(), inquiries: [] });
+                const newId = await addItem('customers', { name, mobile, tags: [], redeemedCoins: 0, joined: new Date().toISOString(), inquiries: [] });
                 cust = await getItem('customers', newId);
             }
             if(!cust.inquiries) cust.inquiries = [];
@@ -715,13 +839,14 @@
             waMessage(c.mobile, c.name, message);
         }
 
-        // --- CUSTOMER CRUD (no parseInt) ---
+        // --- CUSTOMER CRUD ---
         function openCustomerModal(id = null) {
             const delBtn = document.getElementById('btnDeleteCust');
             document.getElementById('cPhoto').value = ''; 
             document.getElementById('photoPreview').style.display = 'none';
             document.getElementById('photoPreview').src = '';
             document.getElementById('cPhotoBase64').value = '';
+            document.getElementById('cCustomTag').value = '';
 
             if(id) {
                 const c = dbCustomers.find(x => x.id == id);
@@ -737,6 +862,7 @@
                     document.getElementById('photoPreview').style.display = 'block';
                     document.getElementById('cPhotoBase64').value = c.photo;
                 }
+                currentCustomerTags = c.tags ? [...c.tags] : [];
                 delBtn.style.display = 'block';
             } else {
                 document.getElementById('custModalTitle').innerText = "New Customer";
@@ -746,8 +872,10 @@
                 document.getElementById('cAadhar').value = '';
                 document.getElementById('cPan').value = '';
                 document.getElementById('cCity').value = '';
+                currentCustomerTags = [];
                 delBtn.style.display = 'none';
             }
+            renderTagSelection();
             openModal('custModal');
         }
 
@@ -786,9 +914,10 @@
             if(id) {
                 const c = await getItem('customers', id);
                 c.name = name; c.mobile = mobile; c.aadhar = aadhar; c.pan = pan; c.city = city; c.photo = photo;
+                c.tags = currentCustomerTags; // Save tags
                 await updateItem('customers', c);
             } else {
-                await addItem('customers', { name, mobile, aadhar, pan, city, photo, joined: new Date().toISOString(), inquiries: [] });
+                await addItem('customers', { name, mobile, aadhar, pan, city, photo, tags: currentCustomerTags, redeemedCoins: 0, joined: new Date().toISOString(), inquiries: [] });
             }
             closeModal('custModal');
             loadAllData(); 
@@ -828,9 +957,13 @@
             document.getElementById(`tab-${tab}`).classList.add('active');
         }
 
+        // Store selected 360 ID globally to access for redeeming coins
+        let active360CustomerId = null;
+
         function open360Modal(id) {
             const c = aggregatedCustomers.find(x => x.id == id);
             if(!c) return;
+            active360CustomerId = c.id;
 
             const v360Avatar = document.getElementById('v360Avatar');
             if(c.photo) {
@@ -850,6 +983,18 @@
                     <i class="fas fa-id-card"></i> Aadhar: <b>${c.aadhar || '<span style="color:#c62828;">Pending</span>'}</b> &nbsp;|&nbsp; PAN: <b>${c.pan || 'N/A'}</b>
                 </span>
             `;
+
+            // Display Tags in 360 Header
+            const tagsBox = document.getElementById('v360Tags');
+            if(c.tags && c.tags.length > 0) {
+                tagsBox.innerHTML = c.tags.map(t => `<span class="tag-chip ${getTagStyle(t)}">${t}</span>`).join('');
+                tagsBox.style.display = 'flex';
+            } else {
+                tagsBox.style.display = 'none';
+            }
+
+            // Display Coins
+            document.getElementById('v360Coins').innerText = c.availableCoins.toLocaleString();
 
             // Khata
             const bKhata = document.getElementById('b360Khata');
@@ -900,7 +1045,7 @@
                     bInquiries.innerHTML += `
                         <tr>
                             <td style="vertical-align:top;"><strong style="font-size:1rem;">${inq.item}</strong>${taskHtml}</td>
-                            <td style="vertical-align:top;"><span class="tag ${getTagClass(inq.reason)}">${inq.reason}</span><br><small style="color:#666;">Budget: ₹${inq.price || 'N/A'}</small></td>
+                            <td style="vertical-align:top;"><span class="tag ${getCrmBadge(inq.reason)}">${inq.reason}</span><br><small style="color:#666;">Budget: ₹${inq.price || 'N/A'}</small></td>
                             <td><div class="history-log">${historyHTML}</div></td>
                         </tr>
                     `;
@@ -1000,6 +1145,38 @@
             document.querySelectorAll('#c360Modal .tab')[0].click();
             openModal('c360Modal');
         }
+
+        async function redeemCoinsPrompt() {
+            if(!active360CustomerId) return;
+            const c = aggregatedCustomers.find(x => x.id == active360CustomerId);
+            if(!c) return;
+
+            if(c.availableCoins <= 0) {
+                return alert("This customer doesn't have any coins to redeem.");
+            }
+
+            const input = prompt(`Customer has ${c.availableCoins} Coins available.\n\nHow many coins do you want to redeem as a discount in today's bill?\n(1 Coin = ₹1 Discount)`);
+            if(!input) return;
+
+            const redeemAmount = parseInt(input);
+            if(isNaN(redeemAmount) || redeemAmount <= 0) return alert("Invalid amount entered.");
+            
+            if(redeemAmount > c.availableCoins) {
+                return alert("Cannot redeem more than available balance!");
+            }
+
+            if(confirm(`Are you sure you want to deduct ${redeemAmount} coins from this customer's account?`)) {
+                // Update customer object in DB
+                const dbCust = await getItem('customers', c.id);
+                dbCust.redeemedCoins = (parseFloat(dbCust.redeemedCoins) || 0) + redeemAmount;
+                await updateItem('customers', dbCust);
+                
+                alert(`Successfully redeemed ${redeemAmount} coins! Please apply a ₹${redeemAmount} manual discount in the Sales & Billing page.`);
+                await loadAllData();
+                open360Modal(c.id); // Refresh modal data
+            }
+        }
+
     </script> 
 </body>
 </html>
