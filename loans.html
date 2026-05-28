@@ -510,7 +510,7 @@
             }
         }
 
-        function renderLoans() {
+      function renderLoans() {
             const container = document.getElementById('loans-list');
             container.innerHTML = '';
             
@@ -526,13 +526,27 @@
                         activeCount: 0,
                         closedCount: 0,
                         totalActivePrincipal: 0,
+                        totalActiveInterest: 0, // 🔥 NAYA: Interest store karne ke liye
                         loans: []
                     };
                 }
                 groups[l.customerId].loans.push(l);
+                
                 if (l.status === 'active') {
                     groups[l.customerId].activeCount++;
                     groups[l.customerId].totalActivePrincipal += l.currentPrincipal;
+                    
+                    // 🔥 NAYA: Is loan ka pending interest calculate karna (Main + TopUps)
+                    let pendingInt = 0;
+                    if (l.ledger) {
+                        l.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
+                    }
+                    if (l.topUps) {
+                        l.topUps.forEach(t => {
+                            if (t.ledger) t.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
+                        });
+                    }
+                    groups[l.customerId].totalActiveInterest += pendingInt;
                 } else {
                     groups[l.customerId].closedCount++;
                 }
@@ -556,6 +570,15 @@
                 let badgeClass = g.activeCount > 0 ? 'badge-active' : 'badge-closed';
                 let badgeText = g.activeCount > 0 ? `${g.activeCount} Active Loan(s)` : `All Closed`;
 
+                // 🔥 NAYA: Agar active interest 0 se jyada hai to dikhaye
+                let interestHtml = '';
+                if (g.activeCount > 0) {
+                    interestHtml = `
+                    <div style="font-size:1.05rem; color:#d84315; font-weight:700; margin-top:2px;">
+                        + ₹${g.totalActiveInterest.toLocaleString()} <span style="font-size:0.75rem; color:#666; font-weight:normal;">Pending Int.</span>
+                    </div>`;
+                }
+
                 container.innerHTML += `
                     <div class="loan-card" style="border-top-color: ${borderTopColor};">
                         <div class="l-header">
@@ -565,8 +588,9 @@
                             </div>
                             <span class="l-badge ${badgeClass}">${badgeText}</span>
                         </div>
-                        <div class="l-amt">₹${g.totalActivePrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Active Principal</span></div>
-                        <div class="l-footer">
+                        
+                        <div class="l-amt" style="margin-bottom:0;">₹${g.totalActivePrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Principal</span></div>
+                        ${interestHtml} <div class="l-footer">
                             <span style="font-size:0.85rem; color:#666; font-weight:600;">Total Records: ${g.loans.length}</span>
                             <button class="btn-view" onclick="openCustomerLoans('${g.customerId}')">View Details</button>
                         </div>
