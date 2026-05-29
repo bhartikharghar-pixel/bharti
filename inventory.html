@@ -65,7 +65,7 @@
         .search-icon { position: absolute; left: 16px; top: 18px; color: #999; font-size: 1.1rem; }
 
         .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: var(--card-shadow); max-height: 70vh;}
-        .inv-table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        .inv-table { width: 100%; border-collapse: collapse; min-width: 1300px; }
         .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 12px; font-weight: 700; font-size: 0.75rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
         .inv-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.85rem; vertical-align: middle; }
         
@@ -237,18 +237,19 @@
                 <tr>
                     <th>Category</th>
                     <th>Purity</th>
-                    <th style="color:#15803d; background:#dcfce7; padding:12px;">Open (Qty / Wt)</th>
-                    <th style="color:#6d28d9; background:#ede9fe; padding:12px;">+ Added (Qty / Wt)</th>
-                    <th style="color:#b91c1c; background:#fee2e2; padding:12px;">- Out (Qty / Wt)</th>
+                    <th style="color:#15803d; background:#dcfce7; padding:12px;">Open (Qty/Wt)</th>
+                    <th style="color:#6d28d9; background:#ede9fe; padding:12px;">+ Added (Qty/Wt)</th>
+                    <th style="color:#b91c1c; background:#fee2e2; padding:12px;">- Sale/Rem (Qty/Wt)</th>
+                    <th style="color:#ea580c; background:#ffedd5; padding:12px;">- Tagged Out (Qty/Wt)</th>
                     <th style="color:#0369a1; background:#e0f2fe; padding:12px;">= Close Qty</th>
-                    <th>Close Gross Wt</th>
-                    <th>Close Net Wt</th>
-                    <th>Close Fine Wt</th>
+                    <th>Close Gross</th>
+                    <th>Close Net</th>
+                    <th>Close Fine</th>
                     <th style="text-align:center;">Action</th>
                 </tr>
             </thead>
             <tbody id="inventory-list">
-                <tr><td colspan="10" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
+                <tr><td colspan="11" style="text-align:center; padding:40px; color:#888;">Loading Inventory...</td></tr>
             </tbody>
         </table>
     </div>
@@ -256,7 +257,6 @@
     <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
 </div>
 
-<!-- All Modals remain fully intact, detail modal handles unique item logic perfectly -->
 <div id="docHistoryModal" class="modal">
     <div class="modal-content" style="max-width: 850px;">
         <button class="close-btn" onclick="closeModal('docHistoryModal')">&times;</button>
@@ -580,7 +580,7 @@
     function autoPrint(items) {
         const container = document.getElementById('printContainer');
         container.innerHTML = '';
-        let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && i.status !== 'cancelled' && !(i.barcode && i.barcode.startsWith('LOOSE')));
+        let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && i.status !== 'cancelled' && i.status !== 'extracted' && !(i.barcode && i.barcode.startsWith('LOOSE')));
         if(printItems.length === 0) return;
         printItems.forEach((item, index) => {
             const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
@@ -734,21 +734,35 @@
         if (categoryModes[catName]) return categoryModes[catName];
         return 'individual';
     }
-    function checkIsSilver(purity) {
-        if(!purity) return false;
-        const p = purity.toUpperCase();
-        
-        // 1. Agar purity ke naam mein 'SIL' ya '92.5' hai
-        if (p.includes('SIL') || p.includes('92.5')) return true;
+    
+    // UPDATED AND REFINED: Accurately checks if an item belongs to Silver tab
+    function checkIsSilver(itemOrPurity) {
+        if (!itemOrPurity) return false;
+        let purity = '';
+        let cat = '';
+        let metal = '';
 
-        // 2. Custom Silver Settings ko check karein (Taki Gold ke % wale items Silver mein na jayein)
+        if (typeof itemOrPurity === 'string') {
+            purity = itemOrPurity;
+        } else {
+            purity = itemOrPurity.purity || '';
+            cat = itemOrPurity.category || '';
+            metal = itemOrPurity.metal || '';
+        }
+
+        let p = purity.toUpperCase();
+        
+        if (metal.toUpperCase() === 'SILVER') return true;
+        if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
+        if (cat && silverCategories.includes(cat) && !goldCategories.includes(cat)) return true;
+
         if (goldRates && goldRates.customSilverPurities && Array.isArray(goldRates.customSilverPurities)) {
             const isCustomSilver = goldRates.customSilverPurities.some(cp => cp.pct + '%' === purity || cp.name.toUpperCase() === p);
             if (isCustomSilver) return true;
         }
-        
         return false;
     }
+    
     const getPurityFactor = (key) => {
         if (!key) return 1.000;
         if (key === '24K' || key === 'Silver') return 1.000;
@@ -951,8 +965,8 @@
             // Allow stock items to process into current
             if (i.status === 'stock') return true; 
             
-            // Allow items sold or removed TODAY so we can calculate 'Out/Sale'
-            if (i.status === 'sold' || i.status === 'removed') {
+            // EXTRACTED allowed so it calculates Tagged Out accurately
+            if (i.status === 'sold' || i.status === 'removed' || i.status === 'extracted') {
                 const outDate = i.removeDate || i.soldDate || i.date;
                 if (isToday(outDate)) return true;
             }
@@ -960,10 +974,11 @@
         });
 
         filtered = filtered.filter(i => {
-            const isSilv = checkIsSilver(i.purity);
+            const isSilv = checkIsSilver(i); // Now checks entire object securely
             if (currentMetalFilter === 'ALL') return true;
             if (currentMetalFilter === 'SILVER') return isSilv;
             if (isSilv) return false;
+            
             const isOrder = i.barcode?.startsWith('ORD-') || i.source?.startsWith('order_');
             const isFineOrMelt = i.purity === '24K' || i.category?.toUpperCase().includes('MELT') || i.category?.toUpperCase().includes('FINE');
             if (currentMetalFilter === 'GOLD_ORDER') return isOrder;
@@ -997,7 +1012,7 @@
     }
 
     // ==================== NEW MAIN GROUPING LOGIC WITH TOTALS ====================
-        function renderList(items) {
+    function renderList(items) {
         const container = document.getElementById('inventory-list'); 
         container.innerHTML = ''; 
         groupedInventory = {}; 
@@ -1005,10 +1020,11 @@
         let tOpenQty = 0, tOpenWt = 0;
         let tAddQty = 0, tAddWt = 0;
         let tOutQty = 0, tOutWt = 0;
+        let tTaggedQty = 0, tTaggedWt = 0;
         let tCloseQty = 0, tCloseGross = 0, tCloseNet = 0, tCloseFine = 0;
 
         if (items.length === 0) { 
-            container.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:40px; color:#888;">No items found.</td></tr>'; 
+            container.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:40px; color:#888;">No items found.</td></tr>'; 
             return; 
         }
 
@@ -1019,7 +1035,7 @@
             const fine = calculateFineWeight(item);
 
             const addedToday = isToday(item.addedDate);
-            const removedToday = (item.status === 'sold' || item.status === 'removed') && isToday(item.removeDate || item.soldDate || item.date);
+            const removedToday = (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') && isToday(item.removeDate || item.soldDate || item.date);
 
             let key = item.category || 'Other'; 
             if (item.category === 'MIX') key = 'MIX';
@@ -1033,6 +1049,7 @@
                     openingQty: 0, openingWt: 0,
                     addedQty: 0, addedWt: 0,
                     outQty: 0, outWt: 0,
+                    taggedOutQty: 0, taggedOutWt: 0,
                     closingQty: 0, closingGross: 0, closingNet: 0, closingFine: 0, 
                     items: [] 
                 };
@@ -1054,6 +1071,11 @@
                     g.outQty += pcs;
                     g.outWt += net;
                 }
+            } else if (item.status === 'extracted') {
+                if (removedToday) {
+                    g.taggedOutQty += pcs;
+                    g.taggedOutWt += net;
+                }
             } else if (item.status === 'stock') {
                 g.closingQty += pcs;
                 g.closingGross += gross;
@@ -1063,31 +1085,23 @@
             }
         });
 
-        // ==========================================
         // FIX: ADJUST LOOSE ITEMS (OPENING & OUT) FOR TODAY'S SALES
-        // ==========================================
         if (allSalesData && allSalesData.length > 0) {
             allSalesData.forEach(sale => {
                 let saleDate = sale.date || sale.timestamp || sale.soldDate;
-                // Sirf aaj ke bills check karo
                 if (sale.status !== 'cancelled' && isToday(saleDate)) {
                     (sale.items || []).forEach(si => {
-                        // Agar becha hua item LOOSE stock tha
                         if (si.barcode && si.barcode.startsWith('LOOSE')) {
                             let key = si.category || 'Other';
                             if (si.category === 'MIX') key = 'MIX';
                             
                             if (groupedInventory[key]) {
-    let sQty = parseInt(si.sellQty || si.sellPieces || si.qty || 1); // Only check sold quantities
-    
-    // Yahan order change kiya gaya hai. Pehle becha hua weight check hoga (sellWt ya weight), fir original netWt.
-    let sNet = parseFloat(si.sellWt || si.saleWt || si.weight || si.netWt || si.grossWt || 0);
+                                let sQty = parseInt(si.sellQty || si.sellPieces || si.qty || 1);
+                                let sNet = parseFloat(si.sellWt || si.saleWt || si.weight || si.netWt || si.grossWt || 0);
 
-    // 1. Aaj jo bika hai usko "- Out" mein dikhao
-    groupedInventory[key].outQty += sQty;
-    groupedInventory[key].outWt += sNet;
+                                groupedInventory[key].outQty += sQty;
+                                groupedInventory[key].outWt += sNet;
                                 
-                                // 2. Biki hui quantity ko wapas "Opening" mein jod do (taaki subah ka sahi stock dikhe)
                                 groupedInventory[key].openingQty += sQty;
                                 groupedInventory[key].openingWt += sNet;
                             }
@@ -1096,16 +1110,16 @@
                 }
             });
         }
-        // ==========================================
 
         let groupsArray = Object.values(groupedInventory).sort((a, b) => (a.category || '').localeCompare(b.category || ''));
 
         groupsArray.forEach(group => {
-            if (group.openingQty === 0 && group.addedQty === 0 && group.outQty === 0 && group.closingQty === 0) return;
+            if (group.openingQty === 0 && group.addedQty === 0 && group.outQty === 0 && group.closingQty === 0 && group.taggedOutQty === 0) return;
 
             tOpenQty += group.openingQty; tOpenWt += group.openingWt;
             tAddQty += group.addedQty; tAddWt += group.addedWt;
             tOutQty += group.outQty; tOutWt += group.outWt;
+            tTaggedQty += group.taggedOutQty; tTaggedWt += group.taggedOutWt;
             tCloseQty += group.closingQty;
             tCloseGross += group.closingGross; tCloseNet += group.closingNet; tCloseFine += group.closingFine;
 
@@ -1127,6 +1141,10 @@
                 <td style="background:#fef2f2; border-right: 1px solid #fee2e2;">
                     <div style="font-weight:700; color:#b91c1c; font-size:1.05rem;">- ${group.outQty}</div>
                     <div style="font-size:0.75rem; color:#991b1b; font-weight:600;">${group.outWt.toFixed(3)} g</div>
+                </td>
+                <td style="background:#fff7ed; border-right: 1px solid #ffedd5;">
+                    <div style="font-weight:700; color:#ea580c; font-size:1.05rem;">- ${group.taggedOutQty}</div>
+                    <div style="font-size:0.75rem; color:#c2410c; font-weight:600;">${group.taggedOutWt.toFixed(3)} g</div>
                 </td>
                 <td style="font-weight:700; color:#0369a1; background:#f0f9ff; font-size:1rem; border-right: 1px solid #e0f2fe;">= ${group.closingQty}</td>
                 <td>${group.closingGross.toFixed(3)} g</td>
@@ -1156,6 +1174,10 @@
                 <div style="font-weight:800; color:#b91c1c; font-size:1.1rem;">- ${tOutQty}</div>
                 <div style="font-size:0.8rem; color:#991b1b; font-weight:700;">${tOutWt.toFixed(3)} g</div>
             </td>
+            <td style="background:#fff7ed; border-right: 1px solid #fed7aa;">
+                <div style="font-weight:800; color:#ea580c; font-size:1.1rem;">- ${tTaggedQty}</div>
+                <div style="font-size:0.8rem; color:#c2410c; font-weight:700;">${tTaggedWt.toFixed(3)} g</div>
+            </td>
             <td style="font-weight:800; color:#0369a1; background:#e0f2fe; font-size:1.1rem; border-right: 1px solid #bae6fd;">= ${tCloseQty}</td>
             <td style="font-weight:800;">${tCloseGross.toFixed(3)} g</td>
             <td style="font-weight:800; color:#0f172a;">${tCloseNet.toFixed(3)} g</td>
@@ -1164,9 +1186,6 @@
         `;
         container.appendChild(totalRow);
     }
-
-
-    // ==================== ALL REMAINING FUNCTIONS (Unchanged from original) ====================
 
     function openManualEntry() {
         document.getElementById('manualEntryModal').style.display = 'flex';
@@ -1257,16 +1276,15 @@
         if(!g || g<=0) return appAlert("Enter Valid Weight");
         let newlyAddedItems = [];
         const n = Math.max(0, g - s); const f = n * getPurityFactor(purity);
-        const isSilv = checkIsSilver(purity);
         const prefix = cat === 'MIX' ? 'MIX' : cat.substring(0,3).toUpperCase();
         const currentDocNo = 'DOC-' + Date.now();
         if (isBulk) {
             const finalFolderName = useFolder ? name : "General Loose";
             const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             const cleanName = finalFolderName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-        // BUG FIX: Prefix ki jagah poora category name use karenge taaki naam alag rahe
-        const cleanCatName = cat.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-        const barcode = `LOOSE-${cleanCatName}-${cleanName}-${cleanPurity}`;
+            const cleanCatName = cat.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const barcode = `LOOSE-${cleanCatName}-${cleanName}-${cleanPurity}`;
+            
             let existingItem = allInventory.find(i => i.barcode === barcode && i.purity === purity && i.status === 'stock');
             if (existingItem) {
                 existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) + g).toFixed(3));
@@ -1282,6 +1300,7 @@
                 allInventory.push(item);
             }
         } else {
+            const isSilv = checkIsSilver({category: cat, purity: purity});
             if(pieces <= 1) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
                 const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo };
@@ -1361,7 +1380,7 @@
         document.getElementById('tagSourceMaxWt').value = item.grossWt||item.weight;
         document.getElementById('tagPurity').value = item.purity; 
         document.getElementById('tagPieces').value = 1;
-        const isSilv = checkIsSilver(item.purity);
+        const isSilv = checkIsSilver(item);
         const catsToUse = isSilv ? silverCategories : goldCategories;
         const catDrop = document.getElementById('tagCategory');
         let opts = ''; 
@@ -1418,6 +1437,8 @@
         let sum = 0; document.querySelectorAll('.tag-gross').forEach(i => sum += parseFloat(i.value)||0);
         document.getElementById('tagTotalWt').innerText = sum.toFixed(3) + " g";
     }
+
+    // UPDATED FUNCTION: Correctly updates extraction and pushes to the Tagged Out ledger tracking
     async function confirmTagging() {
         const sum = parseFloat(document.getElementById('tagTotalWt').innerText);
         if(sum<=0) return appAlert("Enter Valid Weights");
@@ -1425,6 +1446,7 @@
         const item = allInventory.find(i => String(i.id) === String(sourceId));
         const available = parseFloat(item.grossWt||item.weight);
         if(sum > available+0.01) return appAlert("Weight Exceeds Source");
+        
         const cat = document.getElementById('tagCategory').value; 
         const purity = item.purity;
         const count = parseInt(document.getElementById('tagPieces').value)||1;
@@ -1433,10 +1455,13 @@
         if (tagSubCatVal && tagSubCatVal !== 'NEW') subCat = tagSubCatVal;
         let finalName = subCat ? subCat : cat;
         let newlyAddedItems = [];
-        const isSilv = checkIsSilver(purity);
+        
+        const isSilv = checkIsSilver(item);
         const prefix = cat.substring(0,3).toUpperCase();
         const extractDocNo = 'EXT-' + Date.now();
         const inputs = document.querySelectorAll('.tag-gross');
+        
+        // Add new unique tags
         for (let i = 0; i < inputs.length; i++) {
             const g = parseFloat(inputs[i].value) || 0;
             if (g > 0) {
@@ -1444,32 +1469,51 @@
                 const newItem = { barcode, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
                 await addItem('inventory', newItem); 
                 newlyAddedItems.push(newItem);
+                allInventory.push(newItem);
             }
         }
+
+        // Generate dummy record strictly for tracking the -Tagged Out column
+        const dummyExtractedItem = {
+            barcode: item.barcode + '-EXT-' + Date.now(),
+            category: item.category,
+            name: (item.name || item.category) + ' (Extracted)',
+            purity: item.purity,
+            grossWt: sum,
+            stoneWt: 0,
+            netWt: sum,
+            fineWt: sum * getPurityFactor(item.purity),
+            pieces: count,
+            status: 'extracted',
+            addedDate: item.addedDate, // Inherit so opening stock calculates correctly
+            removeDate: new Date().toISOString(),
+            removeDocNo: extractDocNo,
+            source: 'extraction'
+        };
+        await addItem('inventory', dummyExtractedItem);
+        allInventory.push(dummyExtractedItem);
+
         if (available - sum <= 0.01) {
             item.status = 'removed';
             item.removeDocNo = extractDocNo;
             item.removeDate = new Date().toISOString();
             await updateItem('inventory', item); 
         } else { 
-            // Wazan aur Pieces ko Number mein convert karke save karein
             item.grossWt = Number(parseFloat((available - sum).toFixed(3))); 
             item.netWt = Number(parseFloat((parseFloat(item.netWt) - sum).toFixed(3))); 
             
             if(item.netWt < 0) item.netWt = 0;
-            
-            // Fine weight recalculate karein
             item.fineWt = Number(parseFloat((item.netWt * getPurityFactor(item.purity)).toFixed(3)));
             
-            // Pieces update karein (Force Number)
             let currentPieces = parseInt(item.pieces) || 1;
             item.pieces = Number(Math.max(1, currentPieces - count));
             
-            // Database mein update bhejein
             await updateItem('inventory', item); 
         }
 
-        showToast("Tag Created Successfully!"); closeModal('tagModal'); loadInventory();
+        showToast("Tag Created Successfully!"); closeModal('tagModal'); 
+        applyFilters();
+        loadInventory();
         setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
     }
 
