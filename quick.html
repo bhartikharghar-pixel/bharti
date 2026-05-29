@@ -181,7 +181,7 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
         <div class="sidebar-footer">
-            App Version 2.5 <br> <span style="color:#C5A059">● 100% Sync Validated</span>
+            App Version 2.6 <br> <span style="color:#C5A059">● 100% Sync Validated</span>
         </div>
     </aside>
 
@@ -368,7 +368,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="db.js?v=38"></script>
+<script src="db.js?v=39"></script>
 
 <script>
     // --- SIDEBAR FUNCTION ---
@@ -380,7 +380,7 @@
     let allCustomers = [];
     let allMerchants = [];
     
-    // Default categories if DB settings are not found
+    // Default categories
     let goldCategories = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
     let silverCategories = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
 
@@ -405,7 +405,7 @@
         return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
     }
 
-    // --- 🔥 NEW EXTREMELY STRICT GOLD CHECK (Filters out Silver perfectly) ---
+    // --- 🔥 NEW EXTREMELY STRICT GOLD CHECK ---
     function isGold(item) {
         if (!item) return true; 
 
@@ -506,6 +506,7 @@
             let sCatsItem = settingsData.find(x => x.id === 'silver_categories' || x.key === 'silver_categories');
             if (sCatsItem && sCatsItem.value) silverCategories = sCatsItem.value;
         } catch(e) {}
+        
         await updateDashboardAndLogs();
     };
 
@@ -515,19 +516,18 @@
             let dateEl = document.getElementById('selectedDate');
             let today = dateEl.value || new Date().toISOString().split('T')[0];
 
-            // 1. Initialize Variables
             let openCash = 0, openBank = 0;
             let todayCashIn = 0, todayBankIn = 0;
             let todayCashOut = 0, todayBankOut = 0;
 
-            // --- ALL METAL CALCULATIONS WILL NOW STRICTLY FOLLOW INVENTORY TABLE ---
-            let openNet = 0, openMix = 0, openOld = 0;
+            // Track Today's changes for Metal
             let todayNetIn = 0, todayNetOut = 0;
             let todayMixIn = 0, todayMixOut = 0;
-            let todayOldIn = 0, todayOldOut = 0;
+            let openOld = 0, todayOldIn = 0, todayOldOut = 0;
 
             let dMetal = { Net: { in: [], out: [] }, Old: { in: [], out: [] }, Mix: { in: [], out: [] } };
 
+            // Helper to add logs to the UI columns
             const pushMetalLog = (val, type, entity, desc, isIN) => {
                 val = Math.abs(val);
                 if(val <= 0) return;
@@ -550,6 +550,7 @@
                 else dMetal[cType].out.push(html);
             };
 
+            // Fetch All Data
             let cFlows = await safeGetAll('cashflow');
             let sales = await safeGetAll('sales');
             let purchases = await safeGetAll('purchases');
@@ -560,144 +561,259 @@
             let schemes = await safeGetAll('schemes');
             let inventory = await safeGetAll('inventory');
 
-            // ==========================================
-            // 🔥 NEW: 100% INVENTORY-SYNCED METAL DAYBOOK
-            // ==========================================
+            // ==============================================================
+            // 1. EXACT CURRENT INVENTORY CALCULATION (FOR REVERSE CALC)
+            // ==============================================================
+            let liveInventoryStockNet = 0;
+            let liveInventoryStockMix = 0;
 
-            // 1. Process Absolute Inventory Table (For NET and MIX)
             inventory.forEach(inv => {
-                if (!isGold(inv) || inv.status === 'cancelled') return;
-
-                let isMix = inv.category === 'MIX' || (inv.barcode && String(inv.barcode).toUpperCase().startsWith('LOOSE'));
-                let net = getSafeNet(inv);
-
-                let addDate = (inv.addedDate || inv.date || '').split('T')[0];
-                let isAddedToday = (addDate === today);
-                let isAddedBefore = (addDate !== '' && addDate < today);
-
-                let isOut = ['sold', 'removed', 'extracted'].includes(inv.status);
-                let outDate = isOut ? (inv.removeDate || inv.soldDate || inv.date || '').split('T')[0] : '';
-                let isOutToday = isOut && (outDate === today);
-                let isOutBefore = isOut && (outDate !== '' && outDate < today);
-
-                // Opening Calculation
-                if (isAddedBefore && !isOutBefore) {
-                    if (isMix) openMix += net; else openNet += net;
-                }
-
-                // IN Calculation
-                if (isAddedToday) {
+                if (inv.status === 'stock' && isGold(inv)) {
+                    let isMix = inv.category === 'MIX' || (inv.barcode && String(inv.barcode).toUpperCase().startsWith('LOOSE'));
                     if (isMix) {
-                        todayMixIn += net;
-                        pushMetalLog(net, 'Mix', inv.name || 'Loose', 'Stock Added', true);
+                        liveInventoryStockMix += getSafeNet(inv);
                     } else {
-                        todayNetIn += net;
-                        pushMetalLog(net, 'Net', inv.barcode || 'Item', 'Stock Added', true);
-                    }
-                }
-
-                // OUT Calculation
-                if (isOutToday) {
-                    if (isMix) {
-                        todayMixOut += net;
-                        pushMetalLog(net, 'Mix', inv.name || 'Loose', `Out (${inv.status})`, false);
-                    } else {
-                        todayNetOut += net;
-                        pushMetalLog(net, 'Net', inv.barcode || 'Item', `Out (${inv.status})`, false);
+                        liveInventoryStockNet += getSafeNet(inv);
                     }
                 }
             });
 
-            // 2. Adjust MIX for Partial Loose Sales TODAY
-            // (Since inventory.html directly reduces the weight in DB, the opening weight seen above is missing today's sold weight)
+            // Helper to aggregate logs for historical metal
+            const logMetal = (dateStr, amt, isPos, category) => {
+                if(amt <= 0 || !dateStr) return;
+                
+                let d = String(dateStr).split('T')[0].split(' ')[0].trim();
+                if(!d || d === 'null' || d === 'undefined') return;
+
+                let signedAmt = isPos ? amt : -amt;
+                
+                if (d < today) {
+                    if (category === 'OLD') openOld += signedAmt;
+                    // Note: We are no longer using openMix and openNet from history. 
+                    // We will reverse calculate them later to guarantee a 100% match.
+                } else if (d === today) {
+                    if (category === 'OLD') { if(isPos) todayOldIn += amt; else todayOldOut += amt; }
+                    else if (category === 'MIX') { if(isPos) todayMixIn += amt; else todayMixOut += amt; }
+                    else { if(isPos) todayNetIn += amt; else todayNetOut += amt; }
+                }
+            };
+
+            // ==============================================================
+            // 2. PROCESS TRANSACTIONS FOR TODAY IN/OUT (AND OLD GOLD HISTORICAL)
+            // ==============================================================
+            
             sales.forEach(s => {
                 if (s.status === 'cancelled') return;
-                let sDate = (s.date || '').split('T')[0];
+                let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
+                let metalIn = 0, metalOut = 0;
                 
-                if (sDate === today) {
-                    (s.items || []).forEach(si => {
-                        if (!isGold(si)) return;
-                        let isItemMix = si.category === 'MIX' || (si.barcode && String(si.barcode).toUpperCase().startsWith('LOOSE'));
-                        if (isItemMix) {
-                            let sNet = getSafeNet(si);
-                            openMix += sNet;       // Add back to opening
-                            todayMixOut += sNet;   // Show as sold today
-                            pushMetalLog(sNet, 'Mix', getCustName(s.customerId), 'Loose Sold', false);
+                (s.items || []).forEach(i => {
+                    if (isGold(i)) {
+                        let net = getSafeNet(i);
+                        let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
+                        let isFromInventory = i.stockId || i.inventoryId || i.barcode || i.fromInventory || i.itemId;
+
+                        if (isItemOld) metalIn += net; 
+                        else if (isFromInventory) metalOut += net;
+                    }
+                });
+                
+                let ogTypeStr = String(s.oldGoldType || s.oldGoldName || '').toLowerCase();
+                let isOgSilver = ogTypeStr.includes('silver') || ogTypeStr.includes('chandi') || ogTypeStr.includes('92.5') || ogTypeStr.includes('payal') || ogTypeStr.includes('99.9');
+
+                if (metalIn === 0 && !isOgSilver && isGold(s)) {
+                    let saleOgWt = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
+                    if (saleOgWt > 0) metalIn = saleOgWt;
+                }
+
+                if (metalIn > 0) logMetal(s.date, metalIn, true, 'OLD'); 
+                if (metalOut > 0) {
+                    if (!isOrderBill || (isOrderBill && s.jobType !== 'Repair')) {
+                        logMetal(s.date, metalOut, false, 'NET');
+                    }
+                }
+
+                if (s.date && s.date.startsWith(today)) {
+                    let cName = getCustName(s.customerId);
+                    if (metalOut > 0) {
+                        if (!isOrderBill || (isOrderBill && s.jobType !== 'Repair')) {
+                            pushMetalLog(metalOut, 'Net', cName, 'Sale Delivered', false);
                         }
+                    }
+                    if (metalIn > 0) pushMetalLog(metalIn, 'Old', cName, 'Old Gold Recv', true);
+                }
+            });
+
+            purchases.forEach(p => {
+                let mIn = 0;
+                if (p.itemDetails && p.itemDetails.length > 0) {
+                    p.itemDetails.forEach(i => { 
+                        if(isGold(i)) mIn += getSafeNet(i); 
                     });
-                }
-                
-                // --- OLD GOLD from Sales Exchange ---
-                if (isGold(s)) {
-                    let isOrderBill = parseNum(s.advanceAmount) > 0 || String(s.jobType || '').toLowerCase().includes('order');
-                    if (!isOrderBill) {
-                        let oldWtRcv = 0;
-                        (s.items || []).forEach(i => {
-                            if (isGold(i) && (i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old'))) {
-                                oldWtRcv += getSafeNet(i);
-                            }
-                        });
-                        let ogTypeStr = String(s.oldGoldType || s.oldGoldName || '').toLowerCase();
-                        let isOgSilver = ogTypeStr.includes('silver') || ogTypeStr.includes('chandi') || ogTypeStr.includes('92.5') || ogTypeStr.includes('payal') || ogTypeStr.includes('99.9');
-                        
-                        if (oldWtRcv === 0 && !isOgSilver) {
-                            oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || 0);
-                        }
-
-                        if (oldWtRcv > 0) {
-                            if (sDate < today) openOld += oldWtRcv;
-                            else if (sDate === today) {
-                                todayOldIn += oldWtRcv;
-                                pushMetalLog(oldWtRcv, 'Old', getCustName(s.customerId), 'Sale OG Exch', true);
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 3. Process Old Gold Table (for OLD calculation)
-            oldGold.forEach(o => {
-                if (!isGold(o) || o.mode === 'POS Exchange') return;
-                let oDate = (o.date || '').split('T')[0];
-                let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
-
-                if (isMelt) {
-                    let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
-                    if (oDate < today) {
-                        openOld -= sent;
-                    } else if (oDate === today) {
-                        todayOldOut += sent;
-                        pushMetalLog(sent, 'Old', 'Refinery', 'Melt Sent', false);
-                    }
                 } else {
-                    let wt = getSafeNet(o);
-                    if (oDate < today) {
-                        openOld += wt;
-                    } else if (oDate === today) {
-                        todayOldIn += wt;
-                        pushMetalLog(wt, 'Old', getCustName(o.customerId), 'Bought OG', true);
+                    if (isGold(p)) {
+                        let rootNet = parseNum(p.totalNetWeight || p.netWt || p.netWeight);
+                        let rootGross = parseNum(p.totalGrossWeight || p.grossWt);
+                        let rootStone = parseNum(p.totalStoneWeight || p.stoneWt);
+                        if (rootNet > 0) mIn = rootNet;
+                        else if (rootGross > 0) mIn = rootGross - rootStone;
+                        else mIn = parseNum(p.totalWeight || p.weight);
                     }
                 }
-            });
-
-            // 4. Process Orders (for OLD Gold Advance)
-            orders.forEach(o => {
-                if (o.status === 'cancelled' || !isGold(o)) return;
-                let oDate = (o.orderDate || o.date || '').split('T')[0];
-                let inWt = parseNum(o.oldGoldNet);
                 
-                if (inWt > 0) {
-                    if (oDate < today) openOld += inWt;
-                    else if (oDate === today) {
-                        todayOldIn += inWt;
-                        pushMetalLog(inWt, 'Old', getCustName(o.customerId), 'Order OG Advance', true);
+                if (mIn > 0) {
+                    logMetal(p.date, mIn, true, 'NET');
+                    if (p.date && p.date.startsWith(today)) {
+                        pushMetalLog(mIn, 'Net', getMerchName(p.merchantId), 'Purchase Stock', true);
                     }
                 }
             });
 
-            // ==========================================
-            // --- CASH FLOW LOGIC (REMAINS UNAFFECTED) ---
-            // ==========================================
+            mPayments.forEach(mp => {
+                if (!isGold(mp)) return; 
+                if (mp.goldType !== 'fixed') {
+                    let net = parseNum(mp.gold);
+                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'MIX');
+                    else logMetal(mp.date, net, true, 'MIX');
+
+                    if (mp.date && mp.date.startsWith(today) && net > 0) {
+                        pushMetalLog(net, 'Mix', getMerchName(mp.merchantId), mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv', mp.paymentType !== 'OUT');
+                    }
+                }
+            });
+
+            oldGold.forEach(o => {
+                if (o.mode !== 'POS Exchange' && isGold(o)) { 
+                    let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
+                    if (isMelt) {
+                        let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
+                        let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
+                        let loss = parseNum(o.lossWt);
+                        if (recv > 0 && loss === 0) loss = sent - recv;
+                        if (loss > 0 && recv === 0) recv = sent - loss;
+                        if (loss < 0) loss = 0;
+                        if (recv < 0) recv = 0;
+
+                        if (recv > 0 || loss > 0) {
+                            if (recv > 0) { 
+                                logMetal(o.date, recv, true, 'MIX'); 
+                                logMetal(o.date, recv, false, 'OLD'); 
+                            }
+                            if (loss > 0) {
+                                logMetal(o.date, loss, false, 'OLD');
+                            }
+                        } else {
+                            logMetal(o.date, sent, false, 'OLD');
+                        }
+
+                        if (o.date && o.date.startsWith(today)) {
+                            if (sent > 0 && loss === 0 && recv === 0) pushMetalLog(sent, 'Old', 'Refinery', 'Melt Sent', false);
+                            else if (sent > 0 && loss > 0) {
+                                let converted = sent - loss;
+                                if(converted > 0) pushMetalLog(converted, 'Old', 'Refinery', 'Melt Sent', false);
+                                pushMetalLog(loss, 'Old', 'Refinery', 'Melting Loss', false);
+                            }
+                            if (recv > 0) pushMetalLog(recv, 'Mix', 'Refinery', 'Pure Recv', true);
+                        }
+                    } else {
+                        let wt = getSafeNet(o);
+                        logMetal(o.date, wt, true, 'OLD');
+                        if (o.date && o.date.startsWith(today) && wt > 0) pushMetalLog(wt, 'Old', getCustName(o.customerId), 'Bought OG', true);
+                    }
+                }
+            });
+
+            orders.forEach(o => {
+                if (o.status === 'cancelled') return;
+                
+                let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
+                if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
+                let kName = kNameRaw + ' (Karigar)';
+
+                if (isGold(o)) {
+                    if (o.jobType === 'Repair') {
+                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                        
+                        if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'MIX');
+                        if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'MIX');
+
+                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                        if (iDate && iDate.startsWith(today) && shopIssued > 0) pushMetalLog(shopIssued, 'Mix', kName, 'Repair Issue', false);
+                        let aDate = o.repairMeta?.auditDate || o.orderDate;
+                        if (aDate && aDate.startsWith(today) && returnedRaw > 0) pushMetalLog(returnedRaw, 'Mix', kName, 'Repair Recv', true);
+
+                    } else {
+                        let inWt = parseNum(o.oldGoldNet);
+                        if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
+
+                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                        let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
+                        if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
+
+                        let receivedFromKarigarWt = parseNum(o.finalNet);
+                        if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                            logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
+                        }
+
+                        if (o.orderDate && o.orderDate.startsWith(today)) {
+                            let cName = getCustName(o.customerId);
+                            if(inWt > 0) pushMetalLog(inWt, 'Old', cName, 'Order Advance OG', true);
+                            if(karigarIssuedWt > 0) pushMetalLog(karigarIssuedWt, issueCategory, kName, 'Order Metal Issue', false);
+                            if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                                pushMetalLog(receivedFromKarigarWt, 'Net', kName, 'Order Metal Recv', true);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Log Manual Inventory Adds Today (INVENTORY - GOLD ONLY)
+            inventory.forEach(inv => {
+                if (inv.source !== 'purchase' && isGold(inv)) {
+                    let mIn = getSafeNet(inv);
+                    let itemDate = inv.addedDate || inv.date || '';
+                    logMetal(itemDate, mIn, true, 'NET');
+
+                    if (itemDate.startsWith(today) && mIn > 0) {
+                        let displayName = inv.category || inv.name || 'Inventory';
+                        // pushMetalLog(mIn, 'Net', displayName, 'Custom Add Kiya', true);
+                        // Handled above in logMetal but we specifically want to push to UI ONLY if it's manual
+                        if (inv.source === 'manual' || !inv.source) {
+                            pushMetalLog(mIn, 'Net', displayName, 'Custom Add', true);
+                        }
+                    }
+                }
+            });
+
+            // --- 3. REVERSE CALCULATE OPENING TO MATCH EXACT INVENTORY CLOSING ---
+            
+            // For Old Gold, we use the historical sum (because it's not a single table tracking live items)
+            let closingOld = openOld + todayOldIn - todayOldOut;
+            
+            // For Net and Mix, CLOSING MUST BE exactly what the live inventory says.
+            let closingNet = liveInventoryStockNet;
+            let closingMix = liveInventoryStockMix;
+
+            // So OPENING must logically be:
+            let openNet = closingNet - todayNetIn + todayNetOut;
+            let openMix = closingMix - todayMixIn + todayMixOut;
+
+            // Update Math logic
+            let jamaNet = openNet + todayNetIn;
+            let jamaOld = openOld + todayOldIn;
+            let jamaMix = openMix + todayMixIn;
+            let jamaTotalMetal = jamaNet + jamaOld + jamaMix;
+
+            let namaNet = todayNetOut + closingNet;
+            let namaOld = todayOldOut + closingOld;
+            let namaMix = todayMixOut + closingMix;
+            let namaTotalMetal = namaNet + namaOld + namaMix;
+
+
+            // ==============================================================
+            // 4. PROCESS CASH FLOW
+            // ==============================================================
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 let cDate = c.date ? c.date.split('T')[0] : '';
@@ -720,21 +836,6 @@
             let closingCash = openCash + todayCashIn - todayCashOut;
             let closingBank = openBank + todayBankIn - todayBankOut;
             let closingTotal = closingCash + closingBank;
-
-            // Final Metal Closings
-            let closingNet = openNet + todayNetIn - todayNetOut;
-            let closingOld = openOld + todayOldIn - todayOldOut;
-            let closingMix = openMix + todayMixIn - todayMixOut;
-
-            let jamaNet = openNet + todayNetIn;
-            let jamaOld = openOld + todayOldIn;
-            let jamaMix = openMix + todayMixIn;
-            let jamaTotalMetal = jamaNet + jamaOld + jamaMix;
-
-            let namaNet = todayNetOut + closingNet;
-            let namaOld = todayOldOut + closingOld;
-            let namaMix = todayMixOut + closingMix;
-            let namaTotalMetal = namaNet + namaOld + namaMix;
 
             // Print to UI
             document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
@@ -776,7 +877,7 @@
             document.getElementById('tNamaMix').innerText = namaMix.toFixed(3) + "g";
             document.getElementById('tNamaTotal').innerText = namaTotalMetal.toFixed(3) + "g";
 
-            // --- CASH FLOW UI GENERATION ---
+            // --- 5. CASH FLOW UI GENERATION ---
             let logs = {
                 'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
                 'SaleDueRecv': [], 'PurchaseDue': [], 'MeltIn': [],
