@@ -405,7 +405,7 @@
         return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
     }
 
-    // --- 🔥 NEW EXTREMELY STRICT GOLD CHECK ---
+    // --- 🔥 UPDATED GOLD CHECK BUG FIX ---
     function isGold(item) {
         if (!item) return true; 
 
@@ -423,16 +423,16 @@
             (item.description || '')
         ).toLowerCase();
         
-        if (text.includes('silver') || text.includes('chandi') || text.includes('92.5') || 
-            text.includes('99.9') || text.includes('payal') || text.includes('sterling') || 
-            text.includes('imitation') || String(item.purity).toLowerCase() === 'sil') {
+        // Removed 92.5 and 99.9 check to allow fine gold and custom gold purities
+        if (text.includes('silver') || text.includes('chandi') || text.includes('payal') || 
+            text.includes('sterling') || text.includes('imitation') || String(item.purity).toLowerCase().includes('sil')) {
             return false;
         }
 
         let cat = item.category || item.itemName || item.name || '';
         if (cat) {
             let isOnlySilverCat = silverCategories.some(c => c.toLowerCase() === cat.toLowerCase()) && 
-                                 !goldCategories.some(c => c.toLowerCase() === cat.toLowerCase());
+                                  !goldCategories.some(c => c.toLowerCase() === cat.toLowerCase());
             if (isOnlySilverCat) return false;
         }
 
@@ -570,10 +570,12 @@
             inventory.forEach(inv => {
                 if (inv.status === 'stock' && isGold(inv)) {
                     let isMix = inv.category === 'MIX' || (inv.barcode && String(inv.barcode).toUpperCase().startsWith('LOOSE'));
+                    // Note: Maintaining strict net logic for 100% precision with Daybook math equation
+                    let mWt = getSafeNet(inv); 
                     if (isMix) {
-                        liveInventoryStockMix += getSafeNet(inv);
+                        liveInventoryStockMix += mWt;
                     } else {
-                        liveInventoryStockNet += getSafeNet(inv);
+                        liveInventoryStockNet += mWt;
                     }
                 }
             });
@@ -589,8 +591,6 @@
                 
                 if (d < today) {
                     if (category === 'OLD') openOld += signedAmt;
-                    // Note: We are no longer using openMix and openNet from history. 
-                    // We will reverse calculate them later to guarantee a 100% match.
                 } else if (d === today) {
                     if (category === 'OLD') { if(isPos) todayOldIn += amt; else todayOldOut += amt; }
                     else if (category === 'MIX') { if(isPos) todayMixIn += amt; else todayMixOut += amt; }
@@ -768,19 +768,29 @@
                 }
             });
 
-            // Log Manual Inventory Adds Today (INVENTORY - GOLD ONLY)
+            // --- 🔥 BUG FIX: Log Manual Inventory Adds & Removes/Extractions Today ---
             inventory.forEach(inv => {
-                if (inv.source !== 'purchase' && isGold(inv)) {
-                    let mIn = getSafeNet(inv);
-                    let itemDate = inv.addedDate || inv.date || '';
-                    logMetal(itemDate, mIn, true, 'NET');
+                if (isGold(inv)) {
+                    let mWt = getSafeNet(inv); // Use strict Net balance
+                    
+                    // 1. Process as IN if it was manually added (and is not cancelled)
+                    if (inv.source !== 'purchase' && inv.status !== 'cancelled') {
+                        let itemDate = inv.addedDate || inv.date || '';
+                        logMetal(itemDate, mWt, true, 'NET');
 
-                    if (itemDate.startsWith(today) && mIn > 0) {
-                        let displayName = inv.category || inv.name || 'Inventory';
-                        // pushMetalLog(mIn, 'Net', displayName, 'Custom Add Kiya', true);
-                        // Handled above in logMetal but we specifically want to push to UI ONLY if it's manual
-                        if (inv.source === 'manual' || !inv.source) {
-                            pushMetalLog(mIn, 'Net', displayName, 'Custom Add', true);
+                        if (itemDate.startsWith(today) && mWt > 0 && (inv.source === 'manual' || !inv.source)) {
+                            let displayName = inv.category || inv.name || 'Inventory';
+                            pushMetalLog(mWt, 'Net', displayName, 'Custom Add', true);
+                        }
+                    }
+
+                    // 2. Process as OUT if it was manually removed or extracted
+                    if ((inv.status === 'removed' || inv.status === 'extracted') && inv.removeDate) {
+                        logMetal(inv.removeDate, mWt, false, 'NET');
+                        
+                        if (inv.removeDate.startsWith(today) && mWt > 0) {
+                            let displayName = inv.category || inv.name || 'Inventory';
+                            pushMetalLog(mWt, 'Net', displayName, inv.status === 'extracted' ? 'Converted/Extracted' : 'Manual Remove', false);
                         }
                     }
                 }
@@ -809,7 +819,6 @@
             let namaOld = todayOldOut + closingOld;
             let namaMix = todayMixOut + closingMix;
             let namaTotalMetal = namaNet + namaOld + namaMix;
-
 
             // ==============================================================
             // 4. PROCESS CASH FLOW
@@ -1113,7 +1122,6 @@
                 let net = parseNum(mp.gold);
                 if (mp.goldType !== 'fixed' && mp.date.startsWith(today) && net > 0) {
                     let fine = getSafeFine(mp);
-                    if (fine === 0 && mp.purity) fine = net * (getPurityFactor(mp.purity)); 
                     if (fine === 0) fine = net; 
                     
                     let mName = getMerchName(mp.merchantId);
