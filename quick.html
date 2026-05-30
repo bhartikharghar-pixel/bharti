@@ -368,7 +368,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="db.js?v=39"></script>
+<script src="db.js?v=40"></script>
 
 <script>
     // --- SIDEBAR FUNCTION ---
@@ -569,8 +569,9 @@
 
             inventory.forEach(inv => {
                 if (inv.status === 'stock' && isGold(inv)) {
-                    let isMix = inv.category === 'MIX' || (inv.barcode && String(inv.barcode).toUpperCase().startsWith('LOOSE'));
-                    // Note: Maintaining strict net logic for 100% precision with Daybook math equation
+                    // FIX: Strict check for Langadi/Refinery category only. Loose items go to NET.
+                    let catStr = String(inv.category || '').toUpperCase();
+                    let isMix = (catStr === 'LANGADI' || catStr === 'REFINERY'); 
                     let mWt = getSafeNet(inv); 
                     if (isMix) {
                         liveInventoryStockMix += mWt;
@@ -673,11 +674,12 @@
                 if (!isGold(mp)) return; 
                 if (mp.goldType !== 'fixed') {
                     let net = parseNum(mp.gold);
-                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'MIX');
-                    else logMetal(mp.date, net, true, 'MIX');
+                    // FIX: Unfixed metal goes to NET (Stock) instead of Langadi Mix
+                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'NET');
+                    else logMetal(mp.date, net, true, 'NET');
 
                     if (mp.date && mp.date.startsWith(today) && net > 0) {
-                        pushMetalLog(net, 'Mix', getMerchName(mp.merchantId), mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv', mp.paymentType !== 'OUT');
+                        pushMetalLog(net, 'Net', getMerchName(mp.merchantId), mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv', mp.paymentType !== 'OUT');
                     }
                 }
             });
@@ -696,7 +698,7 @@
 
                         if (recv > 0 || loss > 0) {
                             if (recv > 0) { 
-                                logMetal(o.date, recv, true, 'MIX'); 
+                                logMetal(o.date, recv, true, 'MIX'); // Pure Recv strictly goes to Mix (Refinery return)
                                 logMetal(o.date, recv, false, 'OLD'); 
                             }
                             if (loss > 0) {
@@ -735,20 +737,23 @@
                         let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
                         let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
                         
-                        if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'MIX');
-                        if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'MIX');
+                        // FIX: Repair is not sent to Langadi/Refinery, so it draws from and returns to NET
+                        if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'NET');
+                        if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'NET');
 
                         let iDate = o.repairMeta?.issuedDate || o.orderDate;
-                        if (iDate && iDate.startsWith(today) && shopIssued > 0) pushMetalLog(shopIssued, 'Mix', kName, 'Repair Issue', false);
+                        if (iDate && iDate.startsWith(today) && shopIssued > 0) pushMetalLog(shopIssued, 'Net', kName, 'Repair Issue', false);
                         let aDate = o.repairMeta?.auditDate || o.orderDate;
-                        if (aDate && aDate.startsWith(today) && returnedRaw > 0) pushMetalLog(returnedRaw, 'Mix', kName, 'Repair Recv', true);
+                        if (aDate && aDate.startsWith(today) && returnedRaw > 0) pushMetalLog(returnedRaw, 'Net', kName, 'Repair Recv', true);
 
                     } else {
                         let inWt = parseNum(o.oldGoldNet);
                         if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
 
                         let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
-                        let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
+                        
+                        // FIX: ALL loose items / stock sent to karigar comes out of NET stock, not Langadi Mix
+                        let issueCategory = 'NET'; 
                         if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
 
                         let receivedFromKarigarWt = parseNum(o.finalNet);
@@ -759,7 +764,7 @@
                         if (o.orderDate && o.orderDate.startsWith(today)) {
                             let cName = getCustName(o.customerId);
                             if(inWt > 0) pushMetalLog(inWt, 'Old', cName, 'Order Advance OG', true);
-                            if(karigarIssuedWt > 0) pushMetalLog(karigarIssuedWt, issueCategory, kName, 'Order Metal Issue', false);
+                            if(karigarIssuedWt > 0) pushMetalLog(karigarIssuedWt, 'Net', kName, 'Order Metal Issue', false);
                             if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
                                 pushMetalLog(receivedFromKarigarWt, 'Net', kName, 'Order Metal Recv', true);
                             }
@@ -772,25 +777,28 @@
             inventory.forEach(inv => {
                 if (isGold(inv)) {
                     let mWt = getSafeNet(inv); // Use strict Net balance
+                    let catStr = String(inv.category || '').toUpperCase();
+                    let isMix = (catStr === 'LANGADI' || catStr === 'REFINERY'); 
+                    let targetCategory = isMix ? 'MIX' : 'NET'; // Sahi column decide karein
                     
                     // 1. Process as IN if it was manually added (and is not cancelled)
                     if (inv.source !== 'purchase' && inv.status !== 'cancelled') {
                         let itemDate = inv.addedDate || inv.date || '';
-                        logMetal(itemDate, mWt, true, 'NET');
+                        logMetal(itemDate, mWt, true, targetCategory);
 
                         if (itemDate.startsWith(today) && mWt > 0 && (inv.source === 'manual' || !inv.source)) {
                             let displayName = inv.category || inv.name || 'Inventory';
-                            pushMetalLog(mWt, 'Net', displayName, 'Custom Add', true);
+                            pushMetalLog(mWt, targetCategory === 'MIX' ? 'Mix' : 'Net', displayName, 'Custom Add', true);
                         }
                     }
 
                     // 2. Process as OUT if it was manually removed or extracted
                     if ((inv.status === 'removed' || inv.status === 'extracted') && inv.removeDate) {
-                        logMetal(inv.removeDate, mWt, false, 'NET');
+                        logMetal(inv.removeDate, mWt, false, targetCategory);
                         
                         if (inv.removeDate.startsWith(today) && mWt > 0) {
                             let displayName = inv.category || inv.name || 'Inventory';
-                            pushMetalLog(mWt, 'Net', displayName, inv.status === 'extracted' ? 'Converted/Extracted' : 'Manual Remove', false);
+                            pushMetalLog(mWt, targetCategory === 'MIX' ? 'Mix' : 'Net', displayName, inv.status === 'extracted' ? 'Converted/Extracted' : 'Manual Remove', false);
                         }
                     }
                 }
@@ -991,7 +999,7 @@
                         }
                     } else {
                         let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
-                        let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
+                        let issueCategory = 'NET'; 
                         let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight || o.expectedFine);
 
                         if (o.orderDate === today && karigarIssuedWt > 0) {
@@ -1128,6 +1136,7 @@
                     
                     let customAmt = `<span style="color:#000;">${(fine > 0 ? fine : 0).toFixed(3)}gF</span>`;
 
+                    // FIX: UI Logs updated to show NET instead of Mix for Merchants
                     if (mp.paymentType === 'OUT') {
                         pushLog('Vyapari Diya', 0, mName, `Paid Unfixed`, '', false, [{val: net, label: 'NET'}], customAmt);
                     } else {
