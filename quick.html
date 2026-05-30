@@ -1322,6 +1322,22 @@
                     if (parts.length > 1) cNameFromFlow = parts[1].trim();
                 }
 
+                // 🔥 NEW: Extract customer from Sale Array using Bill ID
+                if (!cNameFromFlow && (c.saleId || note.includes('bill'))) {
+                    let sId = c.saleId;
+                    if (!sId && c.note) {
+                        let bMatch = c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i);
+                        if (bMatch) sId = bMatch[1];
+                    }
+                    if (sId) {
+                        let matchedSale = sales.find(x => String(x.id) === String(sId) || String(x.invoiceNo) === String(sId) || String(x.id).endsWith(sId));
+                        if (matchedSale && matchedSale.customerId) {
+                            let tempName = getCustName(matchedSale.customerId);
+                            if (tempName !== 'Walk-in') cNameFromFlow = tempName;
+                        }
+                    }
+                }
+
                 let entityName = '';
                 if (cNameFromFlow) {
                     entityName = cNameFromFlow; 
@@ -1346,13 +1362,31 @@
                 ));
 
                 if (isUdhariIn) {
-                    let displayTitle = cNameFromFlow || c.note || c.category || 'Customer';
-                    pushLog('SaleDueRecv', amt, displayTitle, 'Purani Jama', spl, true);
+                    let displayTitle = cNameFromFlow || 'Customer';
+                    // Agar naam nahi mila aur note me 'Payment for Bill' likha hai, to usko main title mat banao
+                    if (!cNameFromFlow && c.note && !c.note.toLowerCase().includes('payment for bill')) {
+                        displayTitle = c.note;
+                    }
+                    
+                    let desc = 'Purani Jama';
+                    let bMatch = c.note ? c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i) : null;
+                    if (bMatch) desc = `Bill #${bMatch[1]} Jama`;
+
+                    pushLog('SaleDueRecv', amt, displayTitle, desc, spl, true);
                     return;
                 }
+                
                 if (isUdhariOut) {
-                    let displayTitle = cNameFromFlow || c.note || c.category || 'Customer';
-                    pushLog('SaleDueGiven', amt, displayTitle, 'Udhari Diya', spl, false);
+                    let displayTitle = cNameFromFlow || 'Customer';
+                    if (!cNameFromFlow && c.note && !c.note.toLowerCase().includes('payment for bill')) {
+                        displayTitle = c.note;
+                    }
+                    
+                    let desc = 'Udhari Diya';
+                    let bMatch = c.note ? c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i) : null;
+                    if (bMatch) desc = `Bill #${bMatch[1]} Nama`;
+
+                    pushLog('SaleDueGiven', amt, displayTitle, desc, spl, false);
                     return;
                 }
 
