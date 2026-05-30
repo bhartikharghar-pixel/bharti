@@ -1309,28 +1309,50 @@
                     vyapariName = c.merchantName || c.merchant_name || c.partyName || c.party_name || c.party || c.ledgerName || c.name || '';
                 }
 
-                let entityName = c.note || c.category || 'Payment';
-
-                if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
-                    entityName = `${getCustName(c.customerId)} - ${entityName}`;
-                } else if (isVyapariPayment) {
-                    if (vyapariName && vyapariName !== 'Merchant') {
-                        entityName = vyapariName; 
-                    } else {
-                        entityName = c.note ? c.note : 'Vyapari';
-                    }
+                // 🔥 BETTER CUSTOMER NAME EXTRACTION
+                let cNameFromFlow = '';
+                if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameFromFlow = getCustName(c.customerId);
+                else if (c.customerName) cNameFromFlow = c.customerName;
+                else if (c.partyName && !isVyapariPayment) cNameFromFlow = c.partyName;
+                else if (c.name && !isVyapariPayment) cNameFromFlow = c.name;
+                
+                // Extract name from note if it says "from [Name]"
+                if (!cNameFromFlow && note.includes('from ')) {
+                    let parts = c.note.split(/from\s+/i);
+                    if (parts.length > 1) cNameFromFlow = parts[1].trim();
                 }
 
-                // 🔥 NEW UDHARI LOGIC HERE
-                let isUdhariIn = (type === 'IN' && !isVyapariPayment && (cat.includes('udhari') || note.includes('udhari') || cat.includes('sale') || note.includes('bill') || cat.includes('bikri')));
-                let isUdhariOut = (type === 'OUT' && !isVyapariPayment && (cat.includes('udhari') || note.includes('udhari')));
+                let entityName = '';
+                if (cNameFromFlow) {
+                    entityName = cNameFromFlow; 
+                } else if (isVyapariPayment && vyapariName && vyapariName !== 'Merchant') {
+                    entityName = vyapariName; 
+                } else {
+                    entityName = c.note || c.category || 'Payment';
+                }
+
+                // 🔥 NEW UDHARI LOGIC HERE WITH OUTSTANDING AND DUE KEYWORDS
+                let isUdhariIn = (type === 'IN' && !isVyapariPayment && !cat.includes('purchase') && (
+                    cat.includes('udhari') || note.includes('udhari') || 
+                    cat.includes('outstanding') || note.includes('outstanding') ||
+                    cat.includes('due') || note.includes('due') ||
+                    cat.includes('sale') || note.includes('bill') || cat.includes('bikri')
+                ));
+                
+                let isUdhariOut = (type === 'OUT' && !isVyapariPayment && !cat.includes('purchase') && (
+                    cat.includes('udhari') || note.includes('udhari') ||
+                    cat.includes('outstanding') || note.includes('outstanding') ||
+                    cat.includes('due') || note.includes('due')
+                ));
 
                 if (isUdhariIn) {
-                    pushLog('SaleDueRecv', amt, entityName, 'Purani Udhari (Jama)', spl, true);
+                    let displayTitle = cNameFromFlow || c.note || c.category || 'Customer';
+                    pushLog('SaleDueRecv', amt, displayTitle, 'Purani Jama', spl, true);
                     return;
                 }
                 if (isUdhariOut) {
-                    pushLog('SaleDueGiven', amt, entityName, 'Udhari Diya (Nama)', spl, false);
+                    let displayTitle = cNameFromFlow || c.note || c.category || 'Customer';
+                    pushLog('SaleDueGiven', amt, displayTitle, 'Udhari Diya', spl, false);
                     return;
                 }
 
