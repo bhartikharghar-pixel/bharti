@@ -200,7 +200,6 @@
         <span id="custNameDisplay"></span>
         <button onclick="resetCust()" style="background:white; border:1px solid #0d47a1; border-radius:4px; color:#0d47a1; padding:4px 8px; font-weight:bold; cursor:pointer;">Change</button>
     </div>
-    <!-- Naya Tags & Coins Box -->
     <div id="custTagsDisplay" style="display:none; flex-wrap:wrap; gap:5px;"></div>
     <div id="custCoinsDisplay" style="display:none; color:#f57f17; font-weight:bold; font-size:0.9rem; background:#fff8e1; padding:4px 8px; border-radius:6px; border:1px solid #ffecb3; width:fit-content;"><i class="fas fa-coins"></i> Loyalty Coins: <span id="lblCoins">0</span></div>
 </div>
@@ -240,7 +239,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Gross Wt (g) <small id="lblMaxWt" style="color:#1976d2;"></small></label>
-                                <input type="number" id="itemWt" step="0.001" oninput="calcItemLive()">
+                                <input type="number" id="itemWt" step="0.001" placeholder="Enter Weight" oninput="calcItemLive()">
                             </div>
                         </div>
 
@@ -553,12 +552,11 @@
             }
         }
 
-        // Convert number to words (Indian Format)
         function numberToWords(num) {
             const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
             const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
             if ((num = num.toString()).length > 9) return 'overflow';
-            n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            let n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
             if (!n) return; var str = '';
             str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
             str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
@@ -568,7 +566,6 @@
             return str.trim() + ' Only';
         }
 
-        // --- UI CONTROLS ---
         function toggleSidebar() { 
             const sidebar = document.getElementById('app-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
@@ -614,6 +611,9 @@
         let globalGstDefault = 3;
         let selectedPayMode = 'Cash';
 
+        // --- NEW: Category Modes for bulk vs individual tracking ---
+        let categoryModes = {};
+
         let availableBcBalance = 0;
         let useBcWallet = false;
         let appliedBcAmount = 0;
@@ -621,6 +621,14 @@
         let pendingMaturedSchemes = [];
         let maturedSchemesTotal = 0;
         let currentSelectedItem = null; 
+
+        function getCategoryMode(catName) {
+            if (!catName) return 'individual';
+            const upper = catName.toUpperCase();
+            if (upper === 'MIX' || upper.includes('LOOSE') || upper.includes('BULK')) return 'bulk';
+            if (categoryModes[catName]) return categoryModes[catName];
+            return 'individual';
+        }
 
         function checkIsSilver(purity) {
             if(!purity) return false;
@@ -652,6 +660,9 @@
 
             const r = await getSetting('gold_rates'); 
             if(r) goldRates = r;
+            
+            const savedModes = await getSetting('category_modes');
+            if (savedModes) categoryModes = savedModes;
 
             handleManualMetalChange(); 
             autoFillManualRate(); 
@@ -702,15 +713,14 @@
             document.getElementById('custDisplay').style.display = 'flex';
             document.getElementById('custNameDisplay').innerHTML = `<i class="fas fa-user-check"></i> ${c.name} <span style="color:#666; font-size:0.8rem; margin-left:10px;">${c.mobile}</span>`;
             
-            // --- 🟢 NEW: Tags Show Karne Ka Code 🟢 ---
             const tagsBox = document.getElementById('custTagsDisplay');
             if(c.tags && c.tags.length > 0) {
                 let tagsHtml = c.tags.map(t => {
-                    let bg = '#f1f5f9', col = '#475569'; // Neutral default
+                    let bg = '#f1f5f9', col = '#475569'; 
                     let lowT = t.toLowerCase();
-                    if(lowT.includes('good') || lowT.includes('clear') || lowT.includes('allowed')) { bg='#dcfce7'; col='#15803d'; } // Green
-                    if(lowT.includes('no credit') || lowT.includes('bargain')) { bg='#fee2e2'; col='#b91c1c'; } // Red
-                    if(lowT.includes('high making')) { bg='#fff8e1'; col='#f57f17'; } // Gold/Orange
+                    if(lowT.includes('good') || lowT.includes('clear') || lowT.includes('allowed')) { bg='#dcfce7'; col='#15803d'; }
+                    if(lowT.includes('no credit') || lowT.includes('bargain')) { bg='#fee2e2'; col='#b91c1c'; }
+                    if(lowT.includes('high making')) { bg='#fff8e1'; col='#f57f17'; } 
                     return `<span style="background:${bg}; color:${col}; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; text-transform:uppercase; border:1px solid ${col}40;">${t}</span>`;
                 }).join('');
                 tagsBox.innerHTML = tagsHtml;
@@ -719,7 +729,6 @@
                 tagsBox.style.display = 'none';
             }
 
-            // --- 🟢 NEW: Loyalty Coins Calculate Karne Ka Code 🟢 ---
             const allSalesDataForCoins = await getAllItems('sales');
             const mySales = allSalesDataForCoins.filter(s => s.customerId == c.id && s.status !== 'cancelled');
             let totalMakingPaid = 0;
@@ -732,7 +741,7 @@
                     });
                 }
             });
-            let earnedCoins = Math.floor(totalMakingPaid * 0.10); // 10% of Making
+            let earnedCoins = Math.floor(totalMakingPaid * 0.10);
             let redeemedCoins = parseFloat(c.redeemedCoins) || 0;
             let availableCoins = earnedCoins - redeemedCoins;
 
@@ -743,7 +752,6 @@
             } else {
                 coinsBox.style.display = 'none';
             }
-            // -----------------------------------------------------
 
             const allSchemes = await getAllItems('schemes');
             pendingMaturedSchemes = allSchemes.filter(s => String(s.customerId) === String(c.id) && s.status === 'completed');
@@ -829,6 +837,7 @@
             document.getElementById('itemHuid').value = i.huid || i.mark || '';
 
             const isSilv = checkIsSilver(i.purity);
+            const isBulk = getCategoryMode(i.category) === 'bulk' || (i.barcode && i.barcode.startsWith('LOOSE'));
             const availPcs = parseInt(i.pieces) || 1;
             const availWt = getSafeNum(i.grossWt || i.netWt || i.weight);
             
@@ -840,7 +849,8 @@
 
             qtyInput.max = availPcs;
 
-            if (availPcs > 1 || isSilv || i.category === 'MIX') {
+            // FIX: Identify Loose Items Properly and Force User to enter Weight
+            if (availPcs > 1 || isSilv || isBulk) {
                 document.getElementById('stockRemainderBox').style.display = 'flex';
                 qtyInput.value = 1;
                 qtyInput.removeAttribute('readonly');
@@ -848,7 +858,8 @@
                 qtyInput.style.background = '#fff';
                 wtInput.style.background = '#fff';
 
-                if (availPcs === 1) {
+                // Agar single bulk piece hai to field blank kar do taaki unhe type karna hi pade
+                if (availPcs === 1 && !isBulk && !isSilv) {
                     wtInput.value = availWt;
                 } else {
                     wtInput.value = ''; 
@@ -905,8 +916,9 @@
 
             if(currentSelectedItem) {
                 const availPcs = parseInt(currentSelectedItem.pieces) || 1;
+                const isBulk = getCategoryMode(currentSelectedItem.category) === 'bulk';
                 
-                if(availPcs > 1 || checkIsSilver(currentSelectedItem.purity) || currentSelectedItem.category === 'MIX') {
+                if(availPcs > 1 || checkIsSilver(currentSelectedItem.purity) || isBulk || currentSelectedItem.barcode?.startsWith('LOOSE')) {
                     const availWt = getSafeNum(currentSelectedItem.grossWt || currentSelectedItem.netWt || currentSelectedItem.weight);
                     const sellQty = parseInt(document.getElementById('itemSellQty').value) || 0;
 
@@ -937,6 +949,7 @@
                 
                 if (sellQty > availPcs) return alert(`Cannot sell more pieces than available in stock (${availPcs}).`);
                 if (grossWt > availWt) return alert(`Gross Weight exceeds available stock (${availWt}g).`);
+                if (grossWt <= 0) return alert(`Please enter the weight you want to sell.`);
             }
 
             const stoneWt = getSafeNum(document.getElementById('itemStoneWt').value);
@@ -1640,6 +1653,7 @@
             }
         }
 
+       // FIX: Category mode aware stock deduction to correctly reduce partial loose item weights
        async function updateStockStatusInternal(items, action) {
             if(!items || items.length === 0) return;
 
@@ -1656,7 +1670,8 @@
                     const sellNet = parseFloat(i.netWt !== undefined ? i.netWt : sellGross);
                     
                     const isSilver = checkIsSilver(item.purity);
-                    const isLooseStock = isSilver || item.category === 'MIX' || (item.barcode && item.barcode.startsWith('LOOSE')) || parseInt(item.pieces) > 1;
+                    const isBulkCat = getCategoryMode(item.category) === 'bulk' || item.category === 'MIX';
+                    const isLooseStock = isSilver || isBulkCat || (item.barcode && item.barcode.startsWith('LOOSE')) || parseInt(item.pieces) > 1;
 
                     if (action === 'sold') {
                         if (isLooseStock) {
@@ -1666,7 +1681,8 @@
                             item.netWt = Math.max(0, (parseFloat(item.netWt) || 0) - sellNet);
                             item.weight = item.grossWt; 
                             item.fineWt = item.netWt * getPurityFactor(item.purity);
-if (item.netWt <= 0.01) {
+                            
+                            if (item.netWt <= 0.01) {
                                 item.status = 'sold';
                                 item.soldDate = new Date().toISOString();
                                 item.pieces = 0; 
@@ -1875,10 +1891,8 @@ if (item.netWt <= 0.01) {
                 
                 const payDueBtn = s.pendingAmount > 0 && !isCancelled ? `<button style="flex:1; padding:8px; border-radius:6px; border:none; background:var(--accent-gold); color:#000; font-weight:bold; cursor:pointer;" onclick="editSale('${s.id}')"><i class="fas fa-hand-holding-usd"></i> Receive Due</button>` : '';
 
-                // 🔥 NEW CODE: Items List Nikalne ke liye 🔥
                 let itemsSoldHtml = '';
                 if (s.items && s.items.length > 0) {
-                    // Sabhi items ko comma-separated list mein convert karna
                     let itemNames = s.items.map(i => {
                         let typeTag = i.isOldGold ? '<span style="color:#8e24aa;">[Exch]</span> ' : '';
                         return `${typeTag}${i.category} <b>(${i.barcode})</b>`;
@@ -2135,6 +2149,3 @@ if (item.netWt <= 0.01) {
     </script>
 </body>
 </html>
-
-
-
