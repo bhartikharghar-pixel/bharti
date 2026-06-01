@@ -627,7 +627,6 @@
         let billingPayments = []; 
         let activeJobData = null; 
         
-        // **NEW: Master lock to prevent double clicks globally**
         let isProcessing = false;
 
         window.onload = async function() {
@@ -678,7 +677,7 @@
             const now = new Date(); now.setHours(0,0,0,0);
 
             allOrders = orders.filter(o => o.jobType === 'Repair').map(o => {
-                const c = allCustomers.find(x => x.id == o.customerId);
+                const c = allCustomers.find(x => String(x.id) === String(o.customerId));
                 const status = o.status;
 
                 if (status === 'pending') {
@@ -732,7 +731,9 @@
                     matchTab = (o.status === 'cancelled');
                 }
                 
-                const matchSearch = o.custName.toLowerCase().includes(term) || String(o.custMobile).includes(term) || (o.description||'').toLowerCase().includes(term) || String(o.invoiceNo||'').toLowerCase().includes(term);
+                const descSafe = o.description || '';
+                const invSafe = o.invoiceNo || '';
+                const matchSearch = o.custName.toLowerCase().includes(term) || String(o.custMobile).includes(term) || descSafe.toLowerCase().includes(term) || String(invSafe).toLowerCase().includes(term);
                 return matchTab && matchSearch;
             });
             if(filtered.length === 0) {
@@ -756,7 +757,7 @@
                 else if(o.status === 'completed' || o.status === 'ready') { badgeClass = 'b-completed'; badgeText = 'Ready'; } 
                 else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
                 else if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    const mId = o.repairMeta?.merchantId; const m = allMerchants.find(x => x.id == mId);
+                    const mId = o.repairMeta?.merchantId; const m = allMerchants.find(x => String(x.id) === String(mId));
                     badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`;
                 } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
 
@@ -778,6 +779,9 @@
                 const metalLabel = meta.metal === 'Silver' ? '[SILVER]' : '[GOLD]';
                 let displayWt = `${(meta.custOldWt||0).toFixed(3)}g (In) / ${(meta.estExtraGold||0).toFixed(3)}g (Est.Ex)`;
 
+                const descSafe = o.description || '';
+
+                // ADDED QUOTES AROUND ID IN ONCLICK
                 container.innerHTML += `
                     <div class="order-card ${cardClass}">
                         <div class="o-header">
@@ -787,7 +791,7 @@
                             </div>
                             <span class="badge ${badgeClass}">${badgeText}</span>
                         </div>
-                        <div class="o-desc">${icon} <b>${metalLabel}</b> Repair - ${o.description}</div>
+                        <div class="o-desc">${icon} <b>${metalLabel}</b> Repair - ${descSafe}</div>
                         <div class="o-meta">
                             <div><span>Weight Profile</span><strong>${displayWt}</strong></div>
                             <div><span>Due Date</span><strong style="${dateStyle}">${due.toLocaleDateString()}</strong></div>
@@ -796,7 +800,7 @@
                         </div>
                         <div class="o-footer">
                             <span style="font-size:0.85rem; color:#666;">Net Due: <b style="color:${netPayable < 0 ? 'var(--exchange-purple)' : 'var(--active-red)'}; font-size:1.1rem;">₹${Math.abs(netPayable).toLocaleString()}</b></span>
-                            <button class="btn-view" onclick="openViewModal(${o.id})">${(o.status === 'billed' || o.status === 'delivered') ? 'View Details' : 'Manage Repair'}</button>
+                            <button class="btn-view" onclick="openViewModal('${o.id}')">${(o.status === 'billed' || o.status === 'delivered') ? 'View Details' : 'Manage Repair'}</button>
                         </div>
                     </div>
                 `;
@@ -965,93 +969,104 @@
 
         // --- VIEW / MANAGE JOB ---
         function openViewModal(id) {
-            const o = allOrders.find(x => x.id === id);
-            if(!o) return;
-            
-            // Fix silent crash if legacy data doesn't have repairMeta object
-            if(!o.repairMeta) o.repairMeta = {}; 
-            
-            activeJobData = o;
-            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
-
-            document.getElementById('vId').value = o.id;
-            setText('vOrderId', `${invoiceNo}`);
-            setText('vCustName', o.custName);
-            
-            const metalDisp = o.repairMeta.metal ? o.repairMeta.metal : 'Gold';
-            setText('vDesc', `[${metalDisp}] Repair - ${o.description}`);
-            
-            const steps = ['step1', 'step2', 'step3', 'step4'];
-            steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
-            
-            const badge = document.getElementById('vStatusBadge');
-            if (badge) {
-                if(o.status === 'billed' || o.status === 'delivered') { 
-                    badge.className = 'badge b-billed'; badge.innerText = 'Delivered'; 
-                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('done'); document.getElementById('step4').classList.add('done');
-                } else if(o.status === 'completed' || o.status === 'ready') { 
-                    badge.className = 'badge b-completed'; badge.innerText = 'Ready'; 
-                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('active'); 
-                } else if(o.status === 'cancelled') { 
-                    badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
-                } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
-                    const mId = o.repairMeta?.merchantId;
-                    const m = allMerchants.find(x => x.id == mId); 
-                    badge.className = 'badge b-assigned'; badge.innerHTML = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`; 
-                    document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('active');
-                } else { 
-                    badge.className = 'badge b-pending'; badge.innerText = 'Intake'; 
-                    document.getElementById('step1').classList.add('active');
+            try {
+                // FIXED TYPE CONVERSION FOR STRING IDS
+                const o = allOrders.find(x => String(x.id) === String(id));
+                if(!o) {
+                    showToast("Error: Repair data not found", "error");
+                    return;
                 }
-            }
+                
+                // Fix silent crash if legacy data doesn't have repairMeta object
+                if(!o.repairMeta) o.repairMeta = {}; 
+                
+                activeJobData = o;
+                const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
 
-            const meta = o.repairMeta || {};
-            const isSilver = meta.metal === 'Silver';
-            const displayPurity = meta.custOldPurity ? `${meta.custOldPurity}${isSilver?'%':'K'}` : (isSilver?'92.5%':'22K');
-            
-            setText('vRepCustWt', `${(meta.custOldWt||0).toFixed(3)}g (${displayPurity})`);
-            setText('vRepEstEx', (meta.estExtraGold||0).toFixed(3) + 'g');
-            
-            const adv = o.advancePaid || 0;
-            let base = meta.finalBill || ((meta.estExtraGold||0) * (meta.estRate||0) + (meta.estLabour||0));
-            
-            setText('vTotalLabel', (o.status === 'completed' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered') ? "Final Total:" : "Est. Total:");
-            setText('vGrandTotal', "₹" + Math.round(base).toLocaleString());
-            setText('vAdv', "-₹" + adv.toLocaleString());
+                document.getElementById('vId').value = o.id;
+                setText('vOrderId', `${invoiceNo}`);
+                setText('vCustName', o.custName || 'Unknown');
+                
+                const metalDisp = o.repairMeta.metal ? o.repairMeta.metal : 'Gold';
+                setText('vDesc', `[${metalDisp}] Repair - ${o.description || ''}`);
+                
+                const steps = ['step1', 'step2', 'step3', 'step4'];
+                steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
+                
+                const badge = document.getElementById('vStatusBadge');
+                if (badge) {
+                    if(o.status === 'billed' || o.status === 'delivered') { 
+                        badge.className = 'badge b-billed'; badge.innerText = 'Delivered'; 
+                        document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('done'); document.getElementById('step4').classList.add('done');
+                    } else if(o.status === 'completed' || o.status === 'ready') { 
+                        badge.className = 'badge b-completed'; badge.innerText = 'Ready'; 
+                        document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('active'); 
+                    } else if(o.status === 'cancelled') { 
+                        badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
+                    } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
+                        const mId = o.repairMeta?.merchantId;
+                        const m = allMerchants.find(x => String(x.id) === String(mId)); 
+                        badge.className = 'badge b-assigned'; badge.innerHTML = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`; 
+                        document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('active');
+                    } else { 
+                        badge.className = 'badge b-pending'; badge.innerText = 'Intake'; 
+                        document.getElementById('step1').classList.add('active');
+                    }
+                }
 
-            let pending = base - adv;
-            if(o.status === 'billed' || o.status === 'delivered') pending = 0;
-            updateDueUI(pending, o.status);
+                const meta = o.repairMeta || {};
+                const isSilver = meta.metal === 'Silver';
+                const displayPurity = meta.custOldPurity ? `${meta.custOldPurity}${isSilver?'%':'K'}` : (isSilver?'92.5%':'22K');
+                
+                setText('vRepCustWt', `${(meta.custOldWt||0).toFixed(3)}g (${displayPurity})`);
+                setText('vRepEstEx', (meta.estExtraGold||0).toFixed(3) + 'g');
+                
+                const adv = o.advancePaid || 0;
+                let base = meta.finalBill || ((meta.estExtraGold||0) * (meta.estRate||0) + (meta.estLabour||0));
+                
+                setText('vTotalLabel', (o.status === 'completed' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered') ? "Final Total:" : "Est. Total:");
+                setText('vGrandTotal', "₹" + Math.round(base).toLocaleString());
+                setText('vAdv', "-₹" + adv.toLocaleString());
 
-            const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
-            
-            toggleDisplay('addPaySection', isDone ? 'none' : 'block');
-            toggleDisplay('btnCancel', isDone ? 'none' : 'block');
-            
-            if (isDone) {
-                toggleDisplay('btnForwardMerchant', 'none');
-                toggleDisplay('btnPrintKarigarSlip', 'none');
-                toggleDisplay('btnReceiveMerchant', 'none');
-                toggleDisplay('btnGoToSales', (o.status === 'completed' || o.status === 'ready') ? 'flex' : 'none');
-            } else {
-                toggleDisplay('btnGoToSales', 'none');
-                if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                let pending = base - adv;
+                if(o.status === 'billed' || o.status === 'delivered') pending = 0;
+                updateDueUI(pending, o.status);
+
+                const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
+                
+                toggleDisplay('addPaySection', isDone ? 'none' : 'block');
+                toggleDisplay('btnCancel', isDone ? 'none' : 'block');
+                
+                if (isDone) {
                     toggleDisplay('btnForwardMerchant', 'none');
-                    toggleDisplay('btnPrintKarigarSlip', 'block');
-                    toggleDisplay('btnReceiveMerchant', 'block');
-                } else {
-                    toggleDisplay('btnForwardMerchant', 'block');
                     toggleDisplay('btnPrintKarigarSlip', 'none');
                     toggleDisplay('btnReceiveMerchant', 'none');
+                    toggleDisplay('btnGoToSales', (o.status === 'completed' || o.status === 'ready') ? 'flex' : 'none');
+                } else {
+                    toggleDisplay('btnGoToSales', 'none');
+                    if(o.status === 'in_progress' || o.status === 'with_karigar') {
+                        toggleDisplay('btnForwardMerchant', 'none');
+                        toggleDisplay('btnPrintKarigarSlip', 'block');
+                        toggleDisplay('btnReceiveMerchant', 'block');
+                    } else {
+                        toggleDisplay('btnForwardMerchant', 'block');
+                        toggleDisplay('btnPrintKarigarSlip', 'none');
+                        toggleDisplay('btnReceiveMerchant', 'none');
+                    }
                 }
-            }
 
-            openModal('viewJobModal');
+                openModal('viewJobModal');
+            } catch (err) {
+                console.error("Error in openViewModal:", err);
+                showToast("System error loading data", "error");
+            }
         }
 
         function updateDueUI(pending, status) {
             const vDueLabel = document.getElementById('vDueLabel');
             const vDue = document.getElementById('vDue');
+            if (!vDueLabel || !vDue) return;
+            
             if (pending < 0) {
                 vDueLabel.innerText = "Refund Due:";
                 vDue.innerText = "₹" + Math.abs(pending).toLocaleString();
@@ -1069,7 +1084,7 @@
 
         async function addAdvance() {
             if(isProcessing) return;
-            const id = parseInt(document.getElementById('vId').value);
+            const id = document.getElementById('vId').value;
             const amt = parseFloat(document.getElementById('vNewPay').value);
             const mode = document.getElementById('vNewPayMode').value;
             if(!amt || amt <= 0) return showToast("Enter valid amount", "error");
@@ -1085,8 +1100,13 @@
                 const tx = db.transaction('orders', 'readwrite');
                 const store = tx.objectStore('orders');
 
-                store.get(id).onsuccess = async (e) => {
+                // Try integer parsing, but if using string keys in indexeddb fallback to string
+                let lookupId = isNaN(parseInt(id)) ? id : parseInt(id);
+
+                store.get(lookupId).onsuccess = async (e) => {
                     const o = e.target.result;
+                    if(!o) throw new Error("Order not found in DB");
+                    
                     const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
 
                     o.advancePaid = (o.advancePaid || 0) + amt;
@@ -1164,7 +1184,7 @@
         async function confirmAssignOrder() {
             if(isProcessing) return;
             
-            const oId = parseInt(document.getElementById('aOrderId').value);
+            const oId = document.getElementById('aOrderId').value;
             const mId = document.getElementById('aMerchantSelect').value;
             if(!mId) return showToast("Select a Karigar", "error");
 
@@ -1190,7 +1210,7 @@
                 const db = await dbPromise;
                 const tx = db.transaction(['orders', 'merchants', 'inventory'], 'readwrite');
 
-                o.repairMeta.merchantId = parseInt(mId);
+                o.repairMeta.merchantId = mId; // Keep raw format
                 o.repairMeta.shopGoldIssued = sGold;
                 o.repairMeta.sourceStockId = stockId; 
 
@@ -1202,7 +1222,8 @@
                 metalAddedToKarigar = custFineEquivalent + sGold;
 
                 if (sGold > 0) {
-                    let invReq = tx.objectStore('inventory').get(parseInt(stockId));
+                    let parseStock = isNaN(parseInt(stockId)) ? stockId : parseInt(stockId);
+                    let invReq = tx.objectStore('inventory').get(parseStock);
                     invReq.onsuccess = (e) => {
                         let item = e.target.result;
                         if(item) {
@@ -1219,10 +1240,13 @@
 
                 if (metalAddedToKarigar > 0) {
                     const mStore = tx.objectStore('merchants');
-                    mStore.get(parseInt(mId)).onsuccess = (e) => {
+                    let parseMerch = isNaN(parseInt(mId)) ? mId : parseInt(mId);
+                    mStore.get(parseMerch).onsuccess = (e) => {
                         const m = e.target.result;
-                        m.goldBalance = (parseFloat(m.goldBalance)||0) + metalAddedToKarigar;
-                        mStore.put(m);
+                        if(m){
+                            m.goldBalance = (parseFloat(m.goldBalance)||0) + metalAddedToKarigar;
+                            mStore.put(m);
+                        }
                     };
                 }
 
@@ -1386,11 +1410,15 @@
 
                 const pendingLab = lab - paidNow; 
                 const mStore = tx.objectStore('merchants');
-                mStore.get(o.repairMeta.merchantId).onsuccess = (e) => {
+                let parseMerch = isNaN(parseInt(o.repairMeta.merchantId)) ? o.repairMeta.merchantId : parseInt(o.repairMeta.merchantId);
+                
+                mStore.get(parseMerch).onsuccess = (e) => {
                     const m = e.target.result;
-                    m.goldBalance = (parseFloat(m.goldBalance)||0) - (finWFine + retWFine + allowedLossFine); 
-                    m.balance = (parseFloat(m.balance)||0) + pendingLab;
-                    mStore.put(m);
+                    if(m){
+                        m.goldBalance = (parseFloat(m.goldBalance)||0) - (finWFine + retWFine + allowedLossFine); 
+                        m.balance = (parseFloat(m.balance)||0) + pendingLab;
+                        mStore.put(m);
+                    }
                 };
 
                 if (retW > 0) {
@@ -1431,20 +1459,20 @@
             const o = activeJobData;
             document.getElementById('billOrderId').value = o.id;
             document.getElementById('billCustId').value = o.customerId;
-            document.getElementById('billCustNameText').innerText = o.custName;
+            document.getElementById('billCustNameText').innerText = o.custName || 'Unknown';
             
             const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
             document.getElementById('billInvoiceBadge').innerText = invoiceNo;
 
             const meta = o.repairMeta || {};
-            const shopGoldUsed = Math.max(0, meta.finishedWt - meta.custOldWt);
+            const shopGoldUsed = Math.max(0, (meta.finishedWt||0) - (meta.custOldWt||0));
             
-            document.getElementById('bRepFinWt').innerText = meta.finishedWt.toFixed(3) + 'g';
-            document.getElementById('bRepCustWt').innerText = '-' + meta.custOldWt.toFixed(3) + 'g';
+            document.getElementById('bRepFinWt').innerText = (meta.finishedWt||0).toFixed(3) + 'g';
+            document.getElementById('bRepCustWt').innerText = '-' + (meta.custOldWt||0).toFixed(3) + 'g';
             document.getElementById('bRepBillableWt').innerText = shopGoldUsed.toFixed(3) + 'g';
             
-            document.getElementById('bRepRate').value = meta.estRate;
-            document.getElementById('bRepLab').value = meta.estLabour;
+            document.getElementById('bRepRate').value = meta.estRate || 0;
+            document.getElementById('bRepLab').value = meta.estLabour || 0;
             
             calcRepairBill();
 
@@ -1456,7 +1484,7 @@
             const o = activeJobData;
             const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
             const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
-            const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+            const shopGoldUsed = Math.max(0, (o.repairMeta?.finishedWt||0) - (o.repairMeta?.custOldWt||0));
             
             const total = Math.round((shopGoldUsed * rate) + lab);
             const adv = o.advancePaid || 0;
@@ -1500,7 +1528,7 @@
             const o = activeJobData;
             const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
             const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
-            const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+            const shopGoldUsed = Math.max(0, (o.repairMeta?.finishedWt||0) - (o.repairMeta?.custOldWt||0));
             const netDue = Math.round((shopGoldUsed * rate) + lab) - (o.advancePaid || 0);
             
             const remaining = netDue - paidNow;
@@ -1537,7 +1565,7 @@
 
                 const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
                 const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
-                const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+                const shopGoldUsed = Math.max(0, (o.repairMeta?.finishedWt||0) - (o.repairMeta?.custOldWt||0));
                 const finalBill = Math.round((shopGoldUsed * rate) + lab);
 
                 let totalReceived = (o.advancePaid || 0) + newlyPaid;
@@ -1547,7 +1575,7 @@
                 }
 
                 o.status = 'delivered'; o.repairMeta.finalRate = rate; o.repairMeta.finalCustLabour = lab; o.repairMeta.finalBill = finalBill;
-                o.grandTotal = finalBill; o.customerId = parseInt(finalCustId);
+                o.grandTotal = finalBill; o.customerId = isNaN(parseInt(finalCustId)) ? finalCustId : parseInt(finalCustId);
                 if(!o.payments) o.payments = []; o.payments.push(...billingPayments);
                 
                 if (refundAmount > 0) {
@@ -1557,7 +1585,7 @@
                 tx.objectStore('orders').put(o);
                 
                 tx.objectStore('sales').add({
-                    date: new Date().toISOString(), customerId: parseInt(finalCustId), jobType: 'Repair',
+                    date: new Date().toISOString(), customerId: o.customerId, jobType: 'Repair',
                     invoiceNo: invoiceNo, orderId: o.id,
                     items: [{ id: 'rep_'+o.id, category: 'Repair Service', purity: '-', weight: shopGoldUsed, rate: rate, makingAmount: lab, total: finalBill }],
                     subTotal: finalBill, discount: 0, gst: 0, oldGoldDeduction: 0, grandTotal: finalBill,
@@ -1633,11 +1661,13 @@
                      const custFineEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / fineBase);
                      const totalIssuedFine = custFineEquivalent + (o.repairMeta.shopGoldIssued || 0);
                      
-                     let mReq = tx.objectStore('merchants').get(parseInt(o.repairMeta.merchantId));
+                     let parseMerch = isNaN(parseInt(o.repairMeta.merchantId)) ? o.repairMeta.merchantId : parseInt(o.repairMeta.merchantId);
+                     let mReq = tx.objectStore('merchants').get(parseMerch);
                      mReq.onsuccess = (ev) => { const m = ev.target.result; if(m) { m.goldBalance = (m.goldBalance || 0) - totalIssuedFine; tx.objectStore('merchants').put(m); } };
                      
                      if (o.repairMeta.shopGoldIssued > 0 && o.repairMeta.sourceStockId) {
-                         let invReq = tx.objectStore('inventory').get(parseInt(o.repairMeta.sourceStockId));
+                         let parseStock = isNaN(parseInt(o.repairMeta.sourceStockId)) ? o.repairMeta.sourceStockId : parseInt(o.repairMeta.sourceStockId);
+                         let invReq = tx.objectStore('inventory').get(parseStock);
                          invReq.onsuccess = (ev) => {
                              let item = ev.target.result;
                              if(item) {
@@ -1660,7 +1690,7 @@
 
         // --- PRINT ENGINE ---
         function printReceiptEngine(targetId = null) {
-            const o = targetId ? allOrders.find(x => x.id === targetId) : activeJobData;
+            const o = targetId ? allOrders.find(x => String(x.id) === String(targetId)) : activeJobData;
             if(!o) return;
             const isFinal = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered');
             const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
@@ -1671,110 +1701,4 @@
                     <h3 style="margin:5px 0 0 0;">${isFinal ? 'TAX INVOICE' : 'ESTIMATE'} (REPAIR)</h3>
                     <div style="font-size:15px; margin-top:6px; font-weight:bold; color:#1565c0;">Invoice No: ${invoiceNo}</div>
                 </div>
-                <b>Customer:</b> ${o.custName}<br><b>Item:</b> [${o.repairMeta?.metal || 'Gold'}] ${o.description}<br><b>Date:</b> ${new Date().toLocaleDateString()}<br>`;
-            
-            const meta = o.repairMeta || {};
-            if(!isFinal) {
-                html += `<table style="width:100%; margin-top:15px;">
-                    <tr><td>Old Metal Recv:</td><td style="text-align:right"><b>${(meta.custOldWt||0).toFixed(3)}g</b></td></tr>
-                    <tr><td>Est Extra Needed:</td><td style="text-align:right"><b>${(meta.estExtraGold||0).toFixed(3)}g</b></td></tr>
-                </table><hr style="border-top:1px dashed #000;">
-                <table style="width:100%;">
-                    <tr><td>Est Metal Cost (@₹${meta.estRate}):</td><td style="text-align:right">₹${Math.round((meta.estExtraGold||0)*(meta.estRate||0))}</td></tr>
-                    <tr><td>Est Repair Charge:</td><td style="text-align:right">₹${meta.estLabour}</td></tr>
-                </table><hr style="border-top:2px solid #000;">
-                <div style="display:flex; justify-content:space-between; font-size:16px;"><b>Total Est Cost:</b><b>₹${Math.round(((meta.estExtraGold||0)*(meta.estRate||0))+(meta.estLabour||0))}</b></div>`;
-            } else {
-                const shopGoldUsed = Math.max(0, meta.finishedWt - meta.custOldWt);
-                html += `<table style="width:100%; margin-top:15px;">
-                    <tr><td>Finished Weight:</td><td style="text-align:right"><b>${(meta.finishedWt||0).toFixed(3)}g</b></td></tr>
-                    <tr><td>Less Old Metal:</td><td style="text-align:right"><b>-${(meta.custOldWt||0).toFixed(3)}g</b></td></tr>
-                    <tr><td><b>Net Metal Added:</b></td><td style="text-align:right"><b>${shopGoldUsed.toFixed(3)}g</b></td></tr>
-                </table><hr style="border-top:1px dashed #000;">
-                <table style="width:100%;">
-                    <tr><td>Metal Cost (@₹${meta.finalRate}):</td><td style="text-align:right">₹${Math.round(shopGoldUsed*meta.finalRate)}</td></tr>
-                    <tr><td>Repair Charge:</td><td style="text-align:right">₹${meta.finalCustLabour}</td></tr>
-                </table><hr style="border-top:2px solid #000;">
-                <div style="display:flex; justify-content:space-between; font-size:18px;"><b>Final Bill:</b><b>₹${meta.finalBill}</b></div>`;
-            }
-            
-            html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div>`;
-            
-            if (isFinal && o.advancePaid > meta.finalBill) {
-                html += `<div style="font-weight:bold; color:#d32f2f;">Cash Refunded: ₹${o.advancePaid - meta.finalBill}</div>`;
-            }
-            
-            html += `</div>`;
-            document.getElementById('invoice-area').innerHTML = html;
-            window.print();
-        }
-
-        function printKarigarSlip() {
-            const o = activeJobData;
-            if(!o) return;
-            const mId = o.repairMeta?.merchantId;
-            const m = allMerchants.find(x => x.id == mId);
-            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
-            
-            document.getElementById('chKarigarName').innerText = m ? m.name : 'Unknown';
-            document.getElementById('chDate').innerText = new Date().toLocaleDateString();
-            document.getElementById('chOrderId').innerText = invoiceNo;
-            document.getElementById('chDueDate').innerText = new Date(o.dueDate).toLocaleDateString();
-            
-            document.getElementById('chItemBody').innerHTML = `
-                <tr>
-                    <td style="border: 1px solid #000; padding: 8px;"><b>Repair: ${o.category} [${o.repairMeta?.metal || 'Gold'}]</b><br><small>${o.description}</small></td>
-                    <td style="border: 1px solid #000; padding: 8px;">-</td>
-                    <td style="border: 1px solid #000; padding: 8px;">-</td>
-                </tr>
-            `;
-            
-            const isSilver = o.repairMeta.metal === 'Silver';
-            const fineBase = isSilver ? 99 : 24;
-            const workBase = isSilver ? (o.repairMeta.custOldPurity || 92.5) : 22;
-            const sym = isSilver ? '%' : 'K';
-
-            const custKarat = o.repairMeta.custOldPurity || workBase;
-            const custOldWork = (o.repairMeta.custOldWt || 0) * (custKarat / workBase);
-            
-            const shopFine = (o.repairMeta?.shopGoldIssued || 0);
-            const shopWorkEquiv = shopFine * (fineBase / workBase);
-            const totalIssuedWork = custOldWork + shopWorkEquiv;
-
-            document.getElementById('chIssuedGross').innerText = totalIssuedWork.toFixed(3);
-            document.getElementById('chIssuedPurity').innerText = `${workBase}${sym} Working Metal`;
-            document.getElementById('chIssuedWt').innerText = "-";
-            
-            window.print();
-        }
-
-        function sendWhatsApp() {
-            const o = activeJobData;
-            if(!o || !o.custMobile) return showToast("No mobile number found for this customer.", "error");
-            
-            let grandTotal = o.repairMeta.finalBill || ((o.repairMeta.estExtraGold||0) * (o.repairMeta.estRate||0) + (o.repairMeta.estLabour||0));
-            const adv = o.advancePaid || 0;
-            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
-            
-            let netDue = grandTotal - adv;
-            if (o.status === 'billed' || o.status === 'delivered') netDue = 0;
-
-            let msg = `Hello ${o.custName},\n\nYour [${o.repairMeta?.metal || 'Gold'}] repair for *${o.description}* (Ref: ${invoiceNo}) is ${o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar' ? 'currently being processed' : 'Ready for pickup!'}.\n\n`;
-            msg += `Repair Total: Rs. ${Math.round(grandTotal).toLocaleString()}\n`;
-            if (adv > 0) msg += `Advance Paid: -Rs. ${adv.toLocaleString()}\n`;
-            msg += `---------------------\n`;
-            if (netDue < 0) msg += `*Refund Due: Rs. ${Math.abs(netDue).toLocaleString()}*\n\n`;
-            else if (netDue === 0 && (o.status === 'billed' || o.status === 'delivered')) msg += `*Bill fully paid.*\n\n`;
-            else msg += `*Pending Balance: Rs. ${Math.round(netDue).toLocaleString()}*\n\n`;
-            msg += `Thank you,\n*Bharti Jewellers*`;
-            
-            let phone = o.custMobile.toString().replace(/\D/g, ''); 
-            if(phone.length === 10) phone = '+91' + phone;
-            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
-            else if(!phone.startsWith('+')) phone = '+' + phone;
-            
-            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-        }
-    </script>
-</body>
-</html>
+                <b>Customer:</b> ${o.custName || 'Unknown'}<br><b>Item:</b> [${o.repairMeta?.metal || 'Gold'}] ${
