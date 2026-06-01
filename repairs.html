@@ -112,6 +112,7 @@
         .btn-primary { width: 100%; padding: 12px; background: var(--repair-purple); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s;}
         .btn-outline { background: transparent; border: 1px solid #ccc; color: #555; }
         .btn-outline:hover { background: #f0f0f0; }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .summary-highlight { background: #1a1a1a; color: #fff; padding: 15px; border-radius: 8px; margin-top: 10px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);}
         .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; align-items: center;}
@@ -331,7 +332,7 @@
 
             <input type="hidden" id="oGrandTotalVal">
 
-            <button class="btn-primary" onclick="saveJob()"><i class="fas fa-lock"></i> Create Repair & Print Receipt</button>
+            <button class="btn-primary" id="btnSaveJob" onclick="saveJob()"><i class="fas fa-lock"></i> Create Repair & Print Receipt</button>
         </div>
     </div>
 
@@ -393,7 +394,7 @@
                 <div style="display:flex; gap:10px;">
                     <input type="number" id="vNewPay" placeholder="Amount (₹)" style="flex:1;">
                     <select id="vNewPayMode" style="width:100px;"><option value="Cash">Cash</option><option value="UPI">UPI</option></select>
-                    <button class="btn-primary" style="width:auto; margin:0; padding:10px 20px; background:#2e7d32;" onclick="addAdvance()">Add</button>
+                    <button class="btn-primary" id="btnAdvance" style="width:auto; margin:0; padding:10px 20px; background:#2e7d32;" onclick="addAdvance()">Add</button>
                 </div>
             </div>
 
@@ -441,7 +442,7 @@
                 </div>
             </div>
 
-            <button class="btn-primary" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
+            <button class="btn-primary" id="btnAssignConfirm" style="background:var(--merchant-orange); margin-top:20px;" onclick="confirmAssignOrder()"><i class="fas fa-paper-plane"></i> Confirm Issue</button>
         </div>
     </div>
 
@@ -515,7 +516,7 @@
                 </div>
             </div>
 
-            <button class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Complete Audit & Mark Ready</button>
+            <button class="btn-primary" id="btnReceiveConfirm" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Complete Audit & Mark Ready</button>
         </div>
     </div>
 
@@ -573,7 +574,7 @@
                 </div>
             </div>
 
-            <button class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button>
+            <button class="btn-primary" id="btnFinalBillConfirm" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button>
         </div>
     </div>
 
@@ -592,7 +593,7 @@
                 <label>Refund Advance Cash (₹)</label>
                 <input type="number" id="cRefundAmt">
             </div>
-            <button class="btn btn-danger" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button>
+            <button class="btn-primary" id="btnCancelConfirm" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button>
         </div>
     </div>
 
@@ -625,6 +626,9 @@
         let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
         let billingPayments = []; 
         let activeJobData = null; 
+        
+        // **NEW: Master lock to prevent double clicks globally**
+        let isProcessing = false;
 
         window.onload = async function() {
             const d = new Date(); d.setDate(d.getDate() + 10);
@@ -879,70 +883,103 @@
         }
 
         async function saveJob() {
+            if (isProcessing) return; // Prevent double clicks
+            
             const custId = document.getElementById('selectedCustId').value;
             const desc = document.getElementById('oDesc').value;
             
             if(!custId) return showToast("Select a Customer", "error");
             if(!desc) return showToast("Enter Description", "error");
-            
-            const metalT = document.getElementById('rMetalType').value;
 
-            let jobObj = {
-                jobType: 'Repair',
-                customerId: parseInt(custId),
-                orderDate: new Date().toISOString(),
-                dueDate: new Date(document.getElementById('oDue').value).toISOString(),
-                description: desc, 
-                category: 'Repair', 
-                status: 'pending',
-                advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
-                payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
-                repairMeta: {
-                    metal: metalT,
-                    custOldWt: parseFloat(document.getElementById('rCustGold').value) || 0,
-                    custOldPurity: parseFloat(document.getElementById('rCustPurity').value) || (metalT === 'Silver' ? 92.5 : 22),
-                    estExtraGold: parseFloat(document.getElementById('rEstExtra').value) || 0,
-                    estRate: parseFloat(document.getElementById('oRate').value) || 0,
-                    estLabour: parseFloat(document.getElementById('oMaking').value) || 0,
-                    merchantId: null, shopGoldIssued: 0, sourceStockId: null,
-                    finishedWt: 0, rawReturned: 0, karigarLabour: 0, karigarPaid: 0, allowedLoss: 0, actualLoss: 0, excessLoss: 0,
-                    finalRate: 0, finalCustLabour: 0, finalBill: 0,
-                    issuedDate: null, auditDate: null
-                }
-            };
+            isProcessing = true;
+            const btn = document.getElementById('btnSaveJob');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
 
-            const orderId = await addItem('orders', jobObj);
-            const invoiceNo = 'ORD-INVR' + String(orderId).padStart(3, '0');
-            
-            const db = await dbPromise;
-            const tx = db.transaction('orders', 'readwrite');
-            const req = tx.objectStore('orders').get(orderId);
-            req.onsuccess = async (e) => {
-                let o = e.target.result;
-                o.invoiceNo = invoiceNo;
-                tx.objectStore('orders').put(o);
+            try {
+                const metalT = document.getElementById('rMetalType').value;
+
+                let jobObj = {
+                    jobType: 'Repair',
+                    customerId: parseInt(custId),
+                    orderDate: new Date().toISOString(),
+                    dueDate: new Date(document.getElementById('oDue').value).toISOString(),
+                    description: desc, 
+                    category: 'Repair', 
+                    status: 'pending',
+                    advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
+                    payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
+                    repairMeta: {
+                        metal: metalT,
+                        custOldWt: parseFloat(document.getElementById('rCustGold').value) || 0,
+                        custOldPurity: parseFloat(document.getElementById('rCustPurity').value) || (metalT === 'Silver' ? 92.5 : 22),
+                        estExtraGold: parseFloat(document.getElementById('rEstExtra').value) || 0,
+                        estRate: parseFloat(document.getElementById('oRate').value) || 0,
+                        estLabour: parseFloat(document.getElementById('oMaking').value) || 0,
+                        merchantId: null, shopGoldIssued: 0, sourceStockId: null,
+                        finishedWt: 0, rawReturned: 0, karigarLabour: 0, karigarPaid: 0, allowedLoss: 0, actualLoss: 0, excessLoss: 0,
+                        finalRate: 0, finalCustLabour: 0, finalBill: 0,
+                        issuedDate: null, auditDate: null
+                    }
+                };
+
+                const orderId = await addItem('orders', jobObj);
+                const invoiceNo = 'ORD-INVR' + String(orderId).padStart(3, '0');
                 
-                if(jobObj.advancePaid > 0) {
-                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Repair Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
-                }
+                const db = await dbPromise;
+                const tx = db.transaction('orders', 'readwrite');
+                const req = tx.objectStore('orders').get(orderId);
                 
-                showToast(`Repair Logged Successfully!`, "success"); 
-                closeModal('newJobModal'); 
-                loadOrders();
-            };
+                req.onsuccess = async (e) => {
+                    let o = e.target.result;
+                    if(o) {
+                        o.invoiceNo = invoiceNo;
+                        tx.objectStore('orders').put(o);
+                    }
+                    
+                    if(jobObj.advancePaid > 0) {
+                        await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Repair Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
+                    }
+                    
+                    showToast(`Repair Logged Successfully!`, "success"); 
+                    closeModal('newJobModal'); 
+                    loadOrders();
+                    resetButton(btn, origHTML);
+                };
+                req.onerror = () => { throw new Error("DB Transaction Failed"); }
+            } catch(error) {
+                console.error(error);
+                showToast("System Error while saving.", "error");
+                resetButton(btn, origHTML);
+            }
+        }
+
+        function resetButton(btn, originalHtml) {
+            if(btn) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+            setTimeout(() => { isProcessing = false; }, 300); // 300ms debounce
         }
 
         // --- VIEW / MANAGE JOB ---
         function openViewModal(id) {
             const o = allOrders.find(x => x.id === id);
             if(!o) return;
+            
+            // Fix silent crash if legacy data doesn't have repairMeta object
+            if(!o.repairMeta) o.repairMeta = {}; 
+            
             activeJobData = o;
             const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
 
             document.getElementById('vId').value = o.id;
             setText('vOrderId', `${invoiceNo}`);
             setText('vCustName', o.custName);
-            setText('vDesc', `[${o.repairMeta.metal || 'Gold'}] Repair - ${o.description}`);
+            
+            const metalDisp = o.repairMeta.metal ? o.repairMeta.metal : 'Gold';
+            setText('vDesc', `[${metalDisp}] Repair - ${o.description}`);
             
             const steps = ['step1', 'step2', 'step3', 'step4'];
             steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
@@ -1031,27 +1068,44 @@
         }
 
         async function addAdvance() {
+            if(isProcessing) return;
             const id = parseInt(document.getElementById('vId').value);
             const amt = parseFloat(document.getElementById('vNewPay').value);
             const mode = document.getElementById('vNewPayMode').value;
             if(!amt || amt <= 0) return showToast("Enter valid amount", "error");
 
-            const db = await dbPromise;
-            const tx = db.transaction('orders', 'readwrite');
-            const store = tx.objectStore('orders');
+            isProcessing = true;
+            const btn = document.getElementById('btnAdvance');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>...';
+            btn.disabled = true;
 
-            store.get(id).onsuccess = async (e) => {
-                const o = e.target.result;
-                const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+            try {
+                const db = await dbPromise;
+                const tx = db.transaction('orders', 'readwrite');
+                const store = tx.objectStore('orders');
 
-                o.advancePaid = (o.advancePaid || 0) + amt;
-                if(!o.payments) o.payments = [];
-                o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
-                store.put(o);
+                store.get(id).onsuccess = async (e) => {
+                    const o = e.target.result;
+                    const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
 
-                await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: mode, category: 'Repair Payment', amount: amt, note: `Payment for ${invoiceNo}` });
-                showToast("Payment Added!", "success"); document.getElementById('vNewPay').value = ''; closeModal('viewJobModal'); loadOrders();
-            };
+                    o.advancePaid = (o.advancePaid || 0) + amt;
+                    if(!o.payments) o.payments = [];
+                    o.payments.push({ date: new Date().toISOString(), amount: amt, mode: mode });
+                    store.put(o);
+
+                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: mode, category: 'Repair Payment', amount: amt, note: `Payment for ${invoiceNo}` });
+                    showToast("Payment Added!", "success"); 
+                    document.getElementById('vNewPay').value = ''; 
+                    closeModal('viewJobModal'); 
+                    loadOrders();
+                    resetButton(btn, origHTML);
+                };
+            } catch(err) {
+                console.error(err);
+                resetButton(btn, origHTML);
+                showToast("System error", "error");
+            }
         }
 
         // --- STEP 1: ASSIGN TO MERCHANT ---
@@ -1108,62 +1162,85 @@
         }
 
         async function confirmAssignOrder() {
+            if(isProcessing) return;
+            
             const oId = parseInt(document.getElementById('aOrderId').value);
             const mId = document.getElementById('aMerchantSelect').value;
             if(!mId) return showToast("Select a Karigar", "error");
 
             const o = activeJobData;
-            o.status = 'with_karigar';
-
-            if(!o.repairMeta) o.repairMeta = {};
-            o.repairMeta.issuedDate = new Date().toISOString(); 
-            
-            let metalAddedToKarigar = 0;
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'merchants', 'inventory'], 'readwrite');
-
             const sGold = parseFloat(document.getElementById('aRepShopGold').value) || 0; 
             const stockId = document.getElementById('aRepSourceSelect').value;
             
             if (sGold > 0 && !stockId) return showToast("Select a Fine Metal Source to deduct from.", "error");
 
-            o.repairMeta.merchantId = parseInt(mId);
-            o.repairMeta.shopGoldIssued = sGold;
-            o.repairMeta.sourceStockId = stockId; 
+            isProcessing = true;
+            const btn = document.getElementById('btnAssignConfirm');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.disabled = true;
 
-            const isSilver = o.repairMeta.metal === 'Silver';
-            const fineBase = isSilver ? 99 : 24;
-            const custKarat = o.repairMeta.custOldPurity || (isSilver ? 92.5 : 22);
+            try {
+                o.status = 'with_karigar';
 
-            const custFineEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / fineBase);
-            metalAddedToKarigar = custFineEquivalent + sGold;
+                if(!o.repairMeta) o.repairMeta = {};
+                o.repairMeta.issuedDate = new Date().toISOString(); 
+                
+                let metalAddedToKarigar = 0;
+                const db = await dbPromise;
+                const tx = db.transaction(['orders', 'merchants', 'inventory'], 'readwrite');
 
-            if (sGold > 0) {
-                let invReq = tx.objectStore('inventory').get(parseInt(stockId));
-                invReq.onsuccess = (e) => {
-                    let item = e.target.result;
-                    if(item) {
-                        item.netWt -= sGold;
-                        item.grossWt -= sGold;
-                        item.weight = item.netWt;
-                        if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; }
-                        tx.objectStore('inventory').put(item);
+                o.repairMeta.merchantId = parseInt(mId);
+                o.repairMeta.shopGoldIssued = sGold;
+                o.repairMeta.sourceStockId = stockId; 
+
+                const isSilver = o.repairMeta.metal === 'Silver';
+                const fineBase = isSilver ? 99 : 24;
+                const custKarat = o.repairMeta.custOldPurity || (isSilver ? 92.5 : 22);
+
+                const custFineEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / fineBase);
+                metalAddedToKarigar = custFineEquivalent + sGold;
+
+                if (sGold > 0) {
+                    let invReq = tx.objectStore('inventory').get(parseInt(stockId));
+                    invReq.onsuccess = (e) => {
+                        let item = e.target.result;
+                        if(item) {
+                            item.netWt -= sGold;
+                            item.grossWt -= sGold;
+                            item.weight = item.netWt;
+                            if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; }
+                            tx.objectStore('inventory').put(item);
+                        }
                     }
                 }
-            }
 
-            tx.objectStore('orders').put(o);
+                tx.objectStore('orders').put(o);
 
-            if (metalAddedToKarigar > 0) {
-                const mStore = tx.objectStore('merchants');
-                mStore.get(parseInt(mId)).onsuccess = (e) => {
-                    const m = e.target.result;
-                    m.goldBalance = (parseFloat(m.goldBalance)||0) + metalAddedToKarigar;
-                    mStore.put(m);
+                if (metalAddedToKarigar > 0) {
+                    const mStore = tx.objectStore('merchants');
+                    mStore.get(parseInt(mId)).onsuccess = (e) => {
+                        const m = e.target.result;
+                        m.goldBalance = (parseFloat(m.goldBalance)||0) + metalAddedToKarigar;
+                        mStore.put(m);
+                    };
+                }
+
+                tx.oncomplete = () => { 
+                    showToast("Issued to Karigar!", "success"); 
+                    closeModal('assignModal'); 
+                    loadOrders(); 
+                    resetButton(btn, origHTML);
                 };
+                tx.onerror = () => {
+                    showToast("Database error", "error");
+                    resetButton(btn, origHTML);
+                };
+            } catch(e) {
+                console.error(e);
+                showToast("System error", "error");
+                resetButton(btn, origHTML);
             }
-
-            tx.oncomplete = () => { showToast("Issued to Karigar!", "success"); closeModal('assignModal'); loadOrders(); };
         }
 
         // --- STEP 2: RECEIVE & AUDIT ---
@@ -1252,87 +1329,101 @@
         }
 
         async function confirmReceiveOrder() {
-            const o = activeJobData;
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'merchants', 'inventory', 'merchant_payments', 'cashflow'], 'readwrite');
-
+            if(isProcessing) return;
             const finW = parseFloat(document.getElementById('rRepFinished').value) || 0;
-            const retW = parseFloat(document.getElementById('rRepRawRet').value) || 0;
-            const lab = parseFloat(document.getElementById('rRepLabor').value) || 0;
-            const paidNow = parseFloat(document.getElementById('rRepPaidNow').value) || 0;
-            const payMode = document.getElementById('rRepPayMode').value;
-            const lossVal = parseFloat(document.getElementById('rRepLossVal').value) || 0;
-            const lossMode = document.getElementById('rRepLossMode').value;
-
             if(finW <= 0) return showToast("Enter Finished Weight", "error");
 
-            const isSilver = o.repairMeta.metal === 'Silver';
-            const fineBase = isSilver ? 99 : 24;
-            const workBase = isSilver ? (o.repairMeta.custOldPurity || 92.5) : 22;
-            const sym = isSilver ? '%' : 'K';
+            isProcessing = true;
+            const btn = document.getElementById('btnReceiveConfirm');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Completing...';
+            btn.disabled = true;
 
-            const custKarat = o.repairMeta.custOldPurity || workBase;
-            const custOldWork = (o.repairMeta.custOldWt || 0) * (custKarat / workBase);
-            
-            const shopFine = (o.repairMeta?.shopGoldIssued || 0);
-            const shopWorkEquiv = shopFine * (fineBase / workBase);
-            const totalIssuedWork = custOldWork + shopWorkEquiv;
-            
-            let allowedLossWork = lossMode === 'pct' ? totalIssuedWork * (lossVal / 100) : lossVal;
-            const totalReturnedWork = finW + retW;
-            const actualLossWork = Math.max(0, totalIssuedWork - totalReturnedWork);
-            const excessLossWork = Math.max(0, actualLossWork - allowedLossWork);
+            try {
+                const o = activeJobData;
+                const db = await dbPromise;
+                const tx = db.transaction(['orders', 'merchants', 'inventory', 'merchant_payments', 'cashflow'], 'readwrite');
 
-            o.status = 'ready';
-            o.repairMeta.finishedWt = finW; 
-            o.repairMeta.rawReturned = retW; 
-            o.repairMeta.karigarLabour = lab;
-            o.repairMeta.karigarPaid = paidNow;
-            o.repairMeta.allowedLoss = allowedLossWork;
-            o.repairMeta.actualLoss = actualLossWork;
-            o.repairMeta.excessLoss = excessLossWork;
-            o.repairMeta.auditDate = new Date().toISOString();
-            
-            tx.objectStore('orders').put(o);
+                const retW = parseFloat(document.getElementById('rRepRawRet').value) || 0;
+                const lab = parseFloat(document.getElementById('rRepLabor').value) || 0;
+                const paidNow = parseFloat(document.getElementById('rRepPaidNow').value) || 0;
+                const payMode = document.getElementById('rRepPayMode').value;
+                const lossVal = parseFloat(document.getElementById('rRepLossVal').value) || 0;
+                const lossMode = document.getElementById('rRepLossMode').value;
 
-            const finWFine = finW * (workBase / fineBase);
-            const retWFine = retW * (workBase / fineBase);
-            const allowedLossFine = allowedLossWork * (workBase / fineBase);
+                const isSilver = o.repairMeta.metal === 'Silver';
+                const fineBase = isSilver ? 99 : 24;
+                const workBase = isSilver ? (o.repairMeta.custOldPurity || 92.5) : 22;
+                const sym = isSilver ? '%' : 'K';
 
-            const pendingLab = lab - paidNow; 
-            const mStore = tx.objectStore('merchants');
-            mStore.get(o.repairMeta.merchantId).onsuccess = (e) => {
-                const m = e.target.result;
-                m.goldBalance = (parseFloat(m.goldBalance)||0) - (finWFine + retWFine + allowedLossFine); 
-                m.balance = (parseFloat(m.balance)||0) + pendingLab;
-                mStore.put(m);
-            };
+                const custKarat = o.repairMeta.custOldPurity || workBase;
+                const custOldWork = (o.repairMeta.custOldWt || 0) * (custKarat / workBase);
+                
+                const shopFine = (o.repairMeta?.shopGoldIssued || 0);
+                const shopWorkEquiv = shopFine * (fineBase / workBase);
+                const totalIssuedWork = custOldWork + shopWorkEquiv;
+                
+                let allowedLossWork = lossMode === 'pct' ? totalIssuedWork * (lossVal / 100) : lossVal;
+                const totalReturnedWork = finW + retW;
+                const actualLossWork = Math.max(0, totalIssuedWork - totalReturnedWork);
+                const excessLossWork = Math.max(0, actualLossWork - allowedLossWork);
 
-            if (retW > 0) {
-                const barcode = await generateBarcode('RAW-RET');
-                tx.objectStore('inventory').add({
-                    barcode: barcode, category: 'Raw Metal Returned', name: `From Repair #${o.id}`, purity: `${workBase}${sym}`,
-                    grossWt: retW, stoneWt: 0, netWt: retW, weight: retW, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
-                });
-            }
+                o.status = 'ready';
+                o.repairMeta.finishedWt = finW; 
+                o.repairMeta.rawReturned = retW; 
+                o.repairMeta.karigarLabour = lab;
+                o.repairMeta.karigarPaid = paidNow;
+                o.repairMeta.allowedLoss = allowedLossWork;
+                o.repairMeta.actualLoss = actualLossWork;
+                o.repairMeta.excessLoss = excessLossWork;
+                o.repairMeta.auditDate = new Date().toISOString();
+                
+                tx.objectStore('orders').put(o);
 
-            tx.objectStore('merchant_payments').add({
-                merchantId: o.repairMeta.merchantId, amount: lab, gold: -(finWFine + retWFine + allowedLossFine), goldType: 'unfixed', metal: isSilver ? 'Silver' : 'Gold', paymentType: 'OUT',
-                date: new Date().toISOString(), mode: 'System Audit', note: `Audit Settled Rep #${o.id} (Total Lab: ${lab})`
-            });
+                const finWFine = finW * (workBase / fineBase);
+                const retWFine = retW * (workBase / fineBase);
+                const allowedLossFine = allowedLossWork * (workBase / fineBase);
 
-            if (paidNow > 0) {
-                tx.objectStore('cashflow').add({
-                    date: new Date().toISOString(), type: 'OUT', mode: payMode, category: 'Karigar Repair Payment', amount: paidNow, note: `Paid to Karigar for Rep #${o.id}`
-                });
+                const pendingLab = lab - paidNow; 
+                const mStore = tx.objectStore('merchants');
+                mStore.get(o.repairMeta.merchantId).onsuccess = (e) => {
+                    const m = e.target.result;
+                    m.goldBalance = (parseFloat(m.goldBalance)||0) - (finWFine + retWFine + allowedLossFine); 
+                    m.balance = (parseFloat(m.balance)||0) + pendingLab;
+                    mStore.put(m);
+                };
+
+                if (retW > 0) {
+                    const barcode = await generateBarcode('RAW-RET');
+                    tx.objectStore('inventory').add({
+                        barcode: barcode, category: 'Raw Metal Returned', name: `From Repair #${o.id}`, purity: `${workBase}${sym}`,
+                        grossWt: retW, stoneWt: 0, netWt: retW, weight: retW, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
+                    });
+                }
 
                 tx.objectStore('merchant_payments').add({
-                    merchantId: o.repairMeta.merchantId, amount: paidNow, gold: 0, goldType: 'fixed', metal: 'Cash', paymentType: 'IN',
-                    date: new Date().toISOString(), mode: payMode, note: `Cash/UPI Paid for Rep #${o.id}`
+                    merchantId: o.repairMeta.merchantId, amount: lab, gold: -(finWFine + retWFine + allowedLossFine), goldType: 'unfixed', metal: isSilver ? 'Silver' : 'Gold', paymentType: 'OUT',
+                    date: new Date().toISOString(), mode: 'System Audit', note: `Audit Settled Rep #${o.id} (Total Lab: ${lab})`
                 });
-            }
 
-            tx.oncomplete = () => { showToast("Audit Complete!", "success"); closeModal('receiveModal'); loadOrders(); };
+                if (paidNow > 0) {
+                    tx.objectStore('cashflow').add({
+                        date: new Date().toISOString(), type: 'OUT', mode: payMode, category: 'Karigar Repair Payment', amount: paidNow, note: `Paid to Karigar for Rep #${o.id}`
+                    });
+
+                    tx.objectStore('merchant_payments').add({
+                        merchantId: o.repairMeta.merchantId, amount: paidNow, gold: 0, goldType: 'fixed', metal: 'Cash', paymentType: 'IN',
+                        date: new Date().toISOString(), mode: payMode, note: `Cash/UPI Paid for Rep #${o.id}`
+                    });
+                }
+
+                tx.oncomplete = () => { showToast("Audit Complete!", "success"); closeModal('receiveModal'); loadOrders(); resetButton(btn, origHTML); };
+                tx.onerror = () => { showToast("DB Error", "error"); resetButton(btn, origHTML); };
+            } catch(e) {
+                console.error(e);
+                showToast("System error", "error");
+                resetButton(btn, origHTML);
+            }
         }
 
         // --- STEP 3: FINAL CHECKOUT / BILLING ---
@@ -1425,60 +1516,78 @@
         }
 
         async function confirmFinalBill() {
-            const o = activeJobData;
+            if (isProcessing) return;
             const finalCustId = document.getElementById('billCustId').value;
             if(!finalCustId) return showToast("Select customer.", "error");
 
-            const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'sales', 'cashflow'], 'readwrite');
-            
-            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
-            o.invoiceNo = invoiceNo; 
+            isProcessing = true;
+            const btn = document.getElementById('btnFinalBillConfirm');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finalizing...';
+            btn.disabled = true;
 
-            const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
-            const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
-            const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
-            const finalBill = Math.round((shopGoldUsed * rate) + lab);
+            try {
+                const o = activeJobData;
+                const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
+                const db = await dbPromise;
+                const tx = db.transaction(['orders', 'sales', 'cashflow'], 'readwrite');
+                
+                const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+                o.invoiceNo = invoiceNo; 
 
-            let totalReceived = (o.advancePaid || 0) + newlyPaid;
-            let refundAmount = 0;
-            if (totalReceived > finalBill) {
-                refundAmount = totalReceived - finalBill;
-            }
+                const rate = parseFloat(document.getElementById('bRepRate').value) || 0;
+                const lab = parseFloat(document.getElementById('bRepLab').value) || 0;
+                const shopGoldUsed = Math.max(0, o.repairMeta.finishedWt - o.repairMeta.custOldWt);
+                const finalBill = Math.round((shopGoldUsed * rate) + lab);
 
-            o.status = 'delivered'; o.repairMeta.finalRate = rate; o.repairMeta.finalCustLabour = lab; o.repairMeta.finalBill = finalBill;
-            o.grandTotal = finalBill; o.customerId = parseInt(finalCustId);
-            if(!o.payments) o.payments = []; o.payments.push(...billingPayments);
-            
-            if (refundAmount > 0) {
-                o.refundedAmount = (o.refundedAmount || 0) + refundAmount;
-            }
-            
-            tx.objectStore('orders').put(o);
-            
-            tx.objectStore('sales').add({
-                date: new Date().toISOString(), customerId: parseInt(finalCustId), jobType: 'Repair',
-                invoiceNo: invoiceNo, orderId: o.id,
-                items: [{ id: 'rep_'+o.id, category: 'Repair Service', purity: '-', weight: shopGoldUsed, rate: rate, makingAmount: lab, total: finalBill }],
-                subTotal: finalBill, discount: 0, gst: 0, oldGoldDeduction: 0, grandTotal: finalBill,
-                paidAmount: finalBill, 
-                pendingAmount: Math.max(0, finalBill - totalReceived),
-                status: 'completed'
-            });
+                let totalReceived = (o.advancePaid || 0) + newlyPaid;
+                let refundAmount = 0;
+                if (totalReceived > finalBill) {
+                    refundAmount = totalReceived - finalBill;
+                }
 
-            billingPayments.forEach(p => {
-                tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Repair Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}` });
-            });
-
-            if (refundAmount > 0) {
-                tx.objectStore('cashflow').add({ 
-                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash', 
-                    category: 'Repair Excess Refund', amount: refundAmount, note: `Refunded excess advance for ${invoiceNo}` 
+                o.status = 'delivered'; o.repairMeta.finalRate = rate; o.repairMeta.finalCustLabour = lab; o.repairMeta.finalBill = finalBill;
+                o.grandTotal = finalBill; o.customerId = parseInt(finalCustId);
+                if(!o.payments) o.payments = []; o.payments.push(...billingPayments);
+                
+                if (refundAmount > 0) {
+                    o.refundedAmount = (o.refundedAmount || 0) + refundAmount;
+                }
+                
+                tx.objectStore('orders').put(o);
+                
+                tx.objectStore('sales').add({
+                    date: new Date().toISOString(), customerId: parseInt(finalCustId), jobType: 'Repair',
+                    invoiceNo: invoiceNo, orderId: o.id,
+                    items: [{ id: 'rep_'+o.id, category: 'Repair Service', purity: '-', weight: shopGoldUsed, rate: rate, makingAmount: lab, total: finalBill }],
+                    subTotal: finalBill, discount: 0, gst: 0, oldGoldDeduction: 0, grandTotal: finalBill,
+                    paidAmount: finalBill, 
+                    pendingAmount: Math.max(0, finalBill - totalReceived),
+                    status: 'completed'
                 });
-            }
 
-            tx.oncomplete = () => { showToast("Repair Billed & Refund Managed!", "success"); closeModal('billingModal'); printReceiptEngine(o.id); loadOrders(); };
+                billingPayments.forEach(p => {
+                    tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Repair Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}` });
+                });
+
+                if (refundAmount > 0) {
+                    tx.objectStore('cashflow').add({ 
+                        date: new Date().toISOString(), type: 'OUT', mode: 'Cash', 
+                        category: 'Repair Excess Refund', amount: refundAmount, note: `Refunded excess advance for ${invoiceNo}` 
+                    });
+                }
+
+                tx.oncomplete = () => { 
+                    showToast("Repair Billed & Refund Managed!", "success"); 
+                    closeModal('billingModal'); 
+                    printReceiptEngine(o.id); 
+                    loadOrders(); 
+                    resetButton(btn, origHTML); 
+                };
+                tx.onerror = () => { showToast("DB Error", "error"); resetButton(btn, origHTML); };
+            } catch(e) {
+                console.error(e); showToast("System Error", "error"); resetButton(btn, origHTML);
+            }
         }
 
         // --- CANCELLATION ENGINE ---
@@ -1492,49 +1601,61 @@
         }
 
         async function confirmCancelOrder() {
-            const o = activeJobData;
-            const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
-            const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
-            
-            const db = await dbPromise;
-            const tx = db.transaction(['orders', 'merchants', 'cashflow', 'inventory'], 'readwrite');
-            
-            o.status = 'cancelled'; o.refundedAmount = refundAmt;
-            tx.objectStore('orders').put(o);
-            
-            if(refundAmt > 0) {
-                tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
-            }
-            if ((o.advancePaid || 0) > 0) {
-                tx.objectStore('cashflow').add({ date: o.orderDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
-            }
+            if(isProcessing) return;
+            isProcessing = true;
+            const btn = document.getElementById('btnCancelConfirm');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
+            btn.disabled = true;
 
-            if(o.status === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
-                 const isSilver = o.repairMeta.metal === 'Silver';
-                 const fineBase = isSilver ? 99 : 24;
-                 const custKarat = o.repairMeta.custOldPurity || (isSilver ? 92.5 : 22);
-                 const custFineEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / fineBase);
-                 const totalIssuedFine = custFineEquivalent + (o.repairMeta.shopGoldIssued || 0);
-                 
-                 let mReq = tx.objectStore('merchants').get(parseInt(o.repairMeta.merchantId));
-                 mReq.onsuccess = (ev) => { const m = ev.target.result; if(m) { m.goldBalance = (m.goldBalance || 0) - totalIssuedFine; tx.objectStore('merchants').put(m); } };
-                 
-                 if (o.repairMeta.shopGoldIssued > 0 && o.repairMeta.sourceStockId) {
-                     let invReq = tx.objectStore('inventory').get(parseInt(o.repairMeta.sourceStockId));
-                     invReq.onsuccess = (ev) => {
-                         let item = ev.target.result;
-                         if(item) {
-                             item.netWt += o.repairMeta.shopGoldIssued;
-                             item.grossWt += o.repairMeta.shopGoldIssued;
-                             item.weight = item.netWt;
-                             item.status = 'stock';
-                             tx.objectStore('inventory').put(item);
+            try {
+                const o = activeJobData;
+                const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
+                const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
+                
+                const db = await dbPromise;
+                const tx = db.transaction(['orders', 'merchants', 'cashflow', 'inventory'], 'readwrite');
+                
+                o.status = 'cancelled'; o.refundedAmount = refundAmt;
+                tx.objectStore('orders').put(o);
+                
+                if(refundAmt > 0) {
+                    tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
+                }
+                if ((o.advancePaid || 0) > 0) {
+                    tx.objectStore('cashflow').add({ date: o.orderDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
+                }
+
+                if(o.status === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
+                     const isSilver = o.repairMeta.metal === 'Silver';
+                     const fineBase = isSilver ? 99 : 24;
+                     const custKarat = o.repairMeta.custOldPurity || (isSilver ? 92.5 : 22);
+                     const custFineEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / fineBase);
+                     const totalIssuedFine = custFineEquivalent + (o.repairMeta.shopGoldIssued || 0);
+                     
+                     let mReq = tx.objectStore('merchants').get(parseInt(o.repairMeta.merchantId));
+                     mReq.onsuccess = (ev) => { const m = ev.target.result; if(m) { m.goldBalance = (m.goldBalance || 0) - totalIssuedFine; tx.objectStore('merchants').put(m); } };
+                     
+                     if (o.repairMeta.shopGoldIssued > 0 && o.repairMeta.sourceStockId) {
+                         let invReq = tx.objectStore('inventory').get(parseInt(o.repairMeta.sourceStockId));
+                         invReq.onsuccess = (ev) => {
+                             let item = ev.target.result;
+                             if(item) {
+                                 item.netWt += o.repairMeta.shopGoldIssued;
+                                 item.grossWt += o.repairMeta.shopGoldIssued;
+                                 item.weight = item.netWt;
+                                 item.status = 'stock';
+                                 tx.objectStore('inventory').put(item);
+                             }
                          }
                      }
-                 }
-            }
+                }
 
-            tx.oncomplete = () => { showToast("Repair Cancelled & Refunded!", "success"); closeModal('cancelModal'); loadOrders(); };
+                tx.oncomplete = () => { showToast("Repair Cancelled & Refunded!", "success"); closeModal('cancelModal'); loadOrders(); resetButton(btn, origHTML); };
+                tx.onerror = () => { showToast("DB Error", "error"); resetButton(btn, origHTML); };
+            } catch(e) {
+                console.error(e); showToast("System Error", "error"); resetButton(btn, origHTML);
+            }
         }
 
         // --- PRINT ENGINE ---
