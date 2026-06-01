@@ -755,7 +755,7 @@
                 else if(o.status === 'completed' || o.status === 'ready') { badgeClass = 'b-completed'; badgeText = 'Ready'; } 
                 else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
                 else if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    const mId = o.repairMeta?.merchantId; const m = allMerchants.find(x => x.id == mId);
+                    const mId = o.repairMeta?.merchantId; const m = allMerchants.find(x => String(x.id) === String(mId));
                     badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned: ${m && m.name ? m.name.substring(0,8) : '...'}`;
                 } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
 
@@ -777,7 +777,6 @@
                 const metalLabel = meta.metal === 'Silver' ? '[SILVER]' : '[GOLD]';
                 let displayWt = `${(meta.custOldWt||0).toFixed(3)}g (In) / ${(meta.estExtraGold||0).toFixed(3)}g (Est.Ex)`;
 
-                /* BUG FIX: Added quotes around '${o.id}' to prevent string ID crashes */
                 container.innerHTML += `
                     <div class="order-card ${cardClass}">
                         <div class="o-header">
@@ -961,7 +960,6 @@
             setTimeout(() => { isProcessing = false; }, 300);
         }
 
-        /* BUG FIX: Made equality check loose/String based */
         function openViewModal(id) {
             const o = allOrders.find(x => String(x.id) === String(id));
             if(!o) return;
@@ -1200,15 +1198,18 @@
                 metalAddedToKarigar = custFineEquivalent + sGold;
 
                 if (sGold > 0) {
-                    let invReq = tx.objectStore('inventory').get(isNaN(stockId) ? stockId : parseInt(stockId));
-                    invReq.onsuccess = (e) => {
-                        let item = e.target.result;
-                        if(item) {
-                            item.netWt -= sGold;
-                            item.grossWt -= sGold;
-                            item.weight = item.netWt;
-                            if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; }
-                            tx.objectStore('inventory').put(item);
+                    let parsedStockId = parseInt(stockId); // Fix: Ensure it's safe
+                    if(!isNaN(parsedStockId)) {
+                        let invReq = tx.objectStore('inventory').get(parsedStockId);
+                        invReq.onsuccess = (e) => {
+                            let item = e.target.result;
+                            if(item) {
+                                item.netWt -= sGold;
+                                item.grossWt -= sGold;
+                                item.weight = item.netWt;
+                                if(item.netWt <= 0.05) { item.status = 'sold'; item.netWt = 0; }
+                                tx.objectStore('inventory').put(item);
+                            }
                         }
                     }
                 }
@@ -1595,6 +1596,7 @@
             closeModal('viewJobModal'); openModal('cancelModal');
         }
 
+        /* BUG FIX: Completely rewritten Cancel Order logic to prevent IndexedDB crashes */
         async function confirmCancelOrder() {
             if(isProcessing) return;
             isProcessing = true;
@@ -1605,56 +1607,90 @@
 
             try {
                 const o = activeJobData;
+                if(!o) throw new Error("No active job data");
+
                 const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
                 const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
                 
                 const db = await dbPromise;
                 const tx = db.transaction(['orders', 'merchants', 'cashflow', 'inventory'], 'readwrite');
                 
-                o.status = 'cancelled'; o.refundedAmount = refundAmt;
+                // IMPORTANT BUG FIX 1: Save the old status BEFORE changing it.
+                // Varna ye check hi nahi kar pata tha ki metal Karigar ke paas tha ya nahi.
+                const oldStatus = o.status; 
+                
+                o.status = 'cancelled'; 
+                o.refundedAmount = refundAmt;
+                
                 tx.objectStore('orders').put(o);
                 
+                // IMPORTANT BUG FIX 2: Using safe ISO string date instead of potentially undefined o.orderDate
+                const nowIsoDate = new Date().toISOString(); 
+
                 if(refundAmt > 0) {
-                    tx.objectStore('cashflow').add({ date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
+                    tx.objectStore('cashflow').add({ date: nowIsoDate, type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
                 }
                 if ((o.advancePaid || 0) > 0) {
-                    tx.objectStore('cashflow').add({ date: o.orderDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
+                    tx.objectStore('cashflow').add({ date: nowIsoDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
                 }
 
-                if(o.status === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
+                // Agar order pehle hi Karigar ko assign ho gaya tha, to uska metal wapas laana padega
+                if(oldStatus === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
                      const isSilver = o.repairMeta.metal === 'Silver';
                      const fineBase = isSilver ? 99 : 24;
                      const custKarat = o.repairMeta.custOldPurity || (isSilver ? 92.5 : 22);
                      const custFineEquivalent = (o.repairMeta.custOldWt || 0) * (custKarat / fineBase);
-                     const totalIssuedFine = custFineEquivalent + (o.repairMeta.shopGoldIssued || 0);
+                     const totalIssuedFine = custFineEquivalent + (parseFloat(o.repairMeta.shopGoldIssued) || 0);
                      
                      let mReq = tx.objectStore('merchants').get(parseInt(o.repairMeta.merchantId));
-                     mReq.onsuccess = (ev) => { const m = ev.target.result; if(m) { m.goldBalance = (m.goldBalance || 0) - totalIssuedFine; tx.objectStore('merchants').put(m); } };
+                     mReq.onsuccess = (ev) => { 
+                         const m = ev.target.result; 
+                         if(m) { 
+                             m.goldBalance = (parseFloat(m.goldBalance) || 0) - totalIssuedFine; 
+                             tx.objectStore('merchants').put(m); 
+                         } 
+                     };
                      
                      if (o.repairMeta.shopGoldIssued > 0 && o.repairMeta.sourceStockId) {
-                         let stockIdParsed = isNaN(o.repairMeta.sourceStockId) ? o.repairMeta.sourceStockId : parseInt(o.repairMeta.sourceStockId);
-                         let invReq = tx.objectStore('inventory').get(stockIdParsed);
-                         invReq.onsuccess = (ev) => {
-                             let item = ev.target.result;
-                             if(item) {
-                                 item.netWt += o.repairMeta.shopGoldIssued;
-                                 item.grossWt += o.repairMeta.shopGoldIssued;
-                                 item.weight = item.netWt;
-                                 item.status = 'stock';
-                                 tx.objectStore('inventory').put(item);
+                         // IMPORTANT BUG FIX 3: Handling NaN issue. Jab sourceStockId empty/null hota tha 
+                         // to IndexedDB parseInt(null) ki wajah se DataError crash deta tha.
+                         let stockIdParsed = parseInt(o.repairMeta.sourceStockId);
+                         if (!isNaN(stockIdParsed)) {
+                             let invReq = tx.objectStore('inventory').get(stockIdParsed);
+                             invReq.onsuccess = (ev) => {
+                                 let item = ev.target.result;
+                                 if(item) {
+                                     item.netWt += parseFloat(o.repairMeta.shopGoldIssued);
+                                     item.grossWt += parseFloat(o.repairMeta.shopGoldIssued);
+                                     item.weight = item.netWt;
+                                     item.status = 'stock';
+                                     tx.objectStore('inventory').put(item);
+                                 }
                              }
                          }
                      }
                 }
 
-                tx.oncomplete = () => { showToast("Repair Cancelled & Refunded!", "success"); closeModal('cancelModal'); loadOrders(); resetButton(btn, origHTML); };
-                tx.onerror = () => { showToast("DB Error", "error"); resetButton(btn, origHTML); };
+                tx.oncomplete = () => { 
+                    showToast("Repair Cancelled & Refunded!", "success"); 
+                    closeModal('cancelModal'); 
+                    loadOrders(); 
+                    resetButton(btn, origHTML); 
+                };
+                
+                tx.onerror = (err) => { 
+                    console.error("Database Transaction Error:", err); 
+                    showToast("Database Error during cancellation", "error"); 
+                    resetButton(btn, origHTML); 
+                };
+                
             } catch(e) {
-                console.error(e); showToast("System Error", "error"); resetButton(btn, origHTML);
+                console.error("System Exception Error:", e); 
+                showToast("System Error", "error"); 
+                resetButton(btn, origHTML);
             }
         }
 
-        /* BUG FIX: Added loose equality for string ID comparison */
         function printReceiptEngine(targetId = null) {
             const o = targetId ? allOrders.find(x => String(x.id) === String(targetId)) : activeJobData;
             if(!o) return;
@@ -1705,7 +1741,6 @@
             window.print();
         }
 
-        /* BUG FIX: Completely rewritten so it doesn't crash referencing non-existent HTML elements */
         function printKarigarSlip() {
             const o = activeJobData;
             if(!o) return;
