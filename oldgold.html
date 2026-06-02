@@ -939,7 +939,7 @@
             document.getElementById('mInstantPurityBox').style.display = chk ? 'block' : 'none';
         }
 
-        // SAVE STAGE 2: BAR RECEIVED
+       // SAVE STAGE 2: BAR RECEIVED (FIXED)
         async function saveMeltReceive(jobIdStr, sentWt) {
             const grossRecv = parseFloat(document.getElementById('mGrossRecvWt').value);
             const cutWt = parseFloat(document.getElementById('mCutWt').value) || 0;
@@ -967,97 +967,105 @@
                 fineWt = invWt * (pVal / 100);
             }
 
-            const db = await dbPromise;
-            const tx = db.transaction(['old_gold', 'inventory', 'cashflow'], 'readwrite');
-
-            // Generate unique bar barcode sequence
-            const allInv = await getAllItems('inventory');
-            const prefix = currentMetal === 'Silver' ? 'BARSLV' : 'BARGLD';
-            let maxIdx = 0;
-            allInv.forEach(item => {
-                if (item.barcode && item.barcode.startsWith(prefix)) {
-                    const num = parseInt(item.barcode.replace(prefix, ''));
-                    if (!isNaN(num) && num > maxIdx) maxIdx = num;
-                }
-            });
-            const nextBarcode = prefix + (maxIdx + 1).toString().padStart(3, '0');
-
-            // 1. Update Old Gold Table Job Row
-            // Converting jobIdStr to number if required by IndexedDB based on how it was created
-            const numericJobId = isNaN(jobIdStr) ? jobIdStr : Number(jobIdStr);
-
-            tx.objectStore('old_gold').put({
-                id: numericJobId, type: 'MELT', status: finalStatus, metal: currentMetal, date: now,
-                sentWt: sentWt, returnWt: grossRecv, cutWt: cutWt, lossWt: lossWt,
-                purity: purityStr, charges: charges, barcode: nextBarcode
-            });
-
-            // 2. Insert Bar into Stock Inventory
-            tx.objectStore('inventory').add({
-                barcode: nextBarcode,
-                category: `Mixed ${currentMetal}`,
-                name: `Refined Bar Batch #${numericJobId} (${purityStr})`,
-                purity: purityStr,
-                grossWt: invWt, netWt: invWt, weight: invWt,
-                fineWt: fineWt, pieces: 1, status: 'stock',
-                source: `melt_${currentMetal.toLowerCase()}_${numericJobId}`,
-                addedDate: now
-            });
-
-            // 3. Log refinery fees to cashbook
-            if(charges > 0) {
-                tx.objectStore('cashflow').add({
-                    date: now, type: 'OUT', mode: 'Cash',
-                    category: 'Refinery Charges (Tighal)', amount: charges,
-                    note: `Melting cost for batch #${numericJobId}`
+            try {
+                // Generate unique bar barcode sequence
+                const allInv = await getAllItems('inventory');
+                const prefix = currentMetal === 'Silver' ? 'BARSLV' : 'BARGLD';
+                let maxIdx = 0;
+                allInv.forEach(item => {
+                    if (item.barcode && item.barcode.startsWith(prefix)) {
+                        const num = parseInt(item.barcode.replace(prefix, ''));
+                        if (!isNaN(num) && num > maxIdx) maxIdx = num;
+                    }
                 });
-            }
+                const nextBarcode = prefix + (maxIdx + 1).toString().padStart(3, '0');
 
-            tx.oncomplete = () => {
+                const numericJobId = isNaN(jobIdStr) ? jobIdStr : Number(jobIdStr);
+
+                // 1. Update Old Gold Table Job Row
+                const oldGoldRecords = await getAllItems('old_gold');
+                const jobData = oldGoldRecords.find(r => r.id == numericJobId);
+                
+                if(jobData) {
+                    jobData.status = finalStatus;
+                    jobData.returnWt = grossRecv;
+                    jobData.cutWt = cutWt;
+                    jobData.lossWt = lossWt;
+                    jobData.purity = purityStr;
+                    jobData.charges = charges;
+                    jobData.barcode = nextBarcode;
+                    await updateItem('old_gold', numericJobId, jobData);
+                }
+
+                // 2. Insert Bar into Stock Inventory
+                await addItem('inventory', {
+                    barcode: nextBarcode,
+                    category: `Mixed ${currentMetal}`,
+                    name: `Refined Bar Batch #${numericJobId} (${purityStr})`,
+                    purity: purityStr,
+                    grossWt: invWt, netWt: invWt, weight: invWt,
+                    fineWt: fineWt, pieces: 1, status: 'stock',
+                    source: `melt_${currentMetal.toLowerCase()}_${numericJobId}`,
+                    addedDate: now
+                });
+
+                // 3. Log refinery fees to cashbook
+                if(charges > 0) {
+                    await addItem('cashflow', {
+                        date: now, type: 'OUT', mode: 'Cash',
+                        category: 'Refinery Charges (Tighal)', amount: charges,
+                        note: `Melting cost for batch #${numericJobId}`
+                    });
+                }
+
                 showToast(`Bar created with barcode ${nextBarcode}! Inventory Stock Updated.`, "success");
                 closeModal('meltModal');
                 loadOldGoldLedger();
-            };
+                
+            } catch(error) {
+                console.error("Error saving melt receive:", error);
+                showToast("System Error! Check console.", "error");
+            }
         }
 
-        // SAVE STAGE 3: DELAYED LAB TOUNCH REPORT APPLIED
+        // SAVE STAGE 3: DELAYED LAB TOUNCH REPORT APPLIED (FIXED)
         async function saveMeltTounchReport(jobIdStr) {
             const pVal = parseFloat(document.getElementById('mFinalPurity').value);
             if(!pVal || pVal <= 0 || pVal > 100) return showToast("Enter correct purity percent", "error");
 
-            const records = await getAllItems('old_gold').catch(() => []);
-            const job = records.find(r => r.id == jobIdStr);
-            if(!job) return;
+            try {
+                const records = await getAllItems('old_gold').catch(() => []);
+                const job = records.find(r => r.id == jobIdStr);
+                if(!job) return;
 
-            const remainingBarWt = job.returnWt - job.cutWt;
-            const calculatedFineWt = remainingBarWt * (pVal / 100);
-            const purityText = pVal + "%";
+                const remainingBarWt = job.returnWt - job.cutWt;
+                const calculatedFineWt = remainingBarWt * (pVal / 100);
+                const purityText = pVal + "%";
 
-            // Update in IndexedDB
-            const db = await dbPromise;
-            const tx = db.transaction(['old_gold', 'inventory'], 'readwrite');
+                // 1. Mark Job as Completed
+                job.status = 'COMPLETED';
+                job.purity = purityText;
+                await updateItem('old_gold', job.id, job);
 
-            // 1. Mark Job as Completed
-            job.status = 'COMPLETED';
-            job.purity = purityText;
-            tx.objectStore('old_gold').put(job);
+                // 2. Fetch linked Inventory record & update purity + Fine Weight
+                const allInv = await getAllItems('inventory');
+                const targetItem = allInv.find(item => item.barcode === job.barcode || item.source === `melt_${currentMetal.toLowerCase()}_${job.id}`);
 
-            // 2. Fetch linked Inventory record & update purity + Fine Weight
-            const allInv = await getAllItems('inventory');
-            const targetItem = allInv.find(item => item.barcode === job.barcode || item.source === `melt_${currentMetal.toLowerCase()}_${job.id}`);
+                if(targetItem) {
+                    targetItem.purity = purityText;
+                    targetItem.name = `Refined Bar Batch #${job.id} (${purityText})`;
+                    targetItem.fineWt = calculatedFineWt;
+                    await updateItem('inventory', targetItem.id, targetItem);
+                }
 
-            if(targetItem) {
-                targetItem.purity = purityText;
-                targetItem.name = `Refined Bar Batch #${job.id} (${purityText})`;
-                targetItem.fineWt = calculatedFineWt;
-                tx.objectStore('inventory').put(targetItem);
-            }
-
-            tx.oncomplete = () => {
                 showToast(`Purity report applied! Fine Weight calculated: ${calculatedFineWt.toFixed(3)}g`, "success");
                 closeModal('meltModal');
                 loadOldGoldLedger();
-            };
+                
+            } catch(error) {
+                console.error("Error saving tounch report:", error);
+                showToast("Error saving report!", "error");
+            }
         }
 
         async function deleteRecord(id) {
