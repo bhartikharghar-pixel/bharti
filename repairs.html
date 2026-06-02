@@ -410,6 +410,8 @@
                 <button class="btn-primary" style="background:#1976d2; margin-top:0; grid-column: span 2;" id="btnGoToSales" onclick="openBillingModal()"><i class="fas fa-desktop"></i> Finalize & Deliver</button>
 
                 <button class="btn-primary" id="btnCancel" style="background:#c62828; margin-top:0; grid-column: span 2;" onclick="openCancelModal()"><i class="fas fa-undo"></i> Cancel Repair & Refund</button>
+
+                <button class="btn-primary" id="btnDeleteRecord" style="background:#8e0000; margin-top:0; grid-column: span 2;" onclick="deleteRepairRecord()"><i class="fas fa-trash-alt"></i> Permanently Delete Record</button>
             </div>
         </div>
     </div>
@@ -1198,7 +1200,7 @@
                 metalAddedToKarigar = custFineEquivalent + sGold;
 
                 if (sGold > 0) {
-                    let parsedStockId = parseInt(stockId); // Fix: Ensure it's safe
+                    let parsedStockId = parseInt(stockId); 
                     if(!isNaN(parsedStockId)) {
                         let invReq = tx.objectStore('inventory').get(parsedStockId);
                         invReq.onsuccess = (e) => {
@@ -1596,7 +1598,6 @@
             closeModal('viewJobModal'); openModal('cancelModal');
         }
 
-        /* BUG FIX: Completely rewritten Cancel Order logic to prevent IndexedDB crashes */
         async function confirmCancelOrder() {
             if(isProcessing) return;
             isProcessing = true;
@@ -1615,8 +1616,6 @@
                 const db = await dbPromise;
                 const tx = db.transaction(['orders', 'merchants', 'cashflow', 'inventory'], 'readwrite');
                 
-                // IMPORTANT BUG FIX 1: Save the old status BEFORE changing it.
-                // Varna ye check hi nahi kar pata tha ki metal Karigar ke paas tha ya nahi.
                 const oldStatus = o.status; 
                 
                 o.status = 'cancelled'; 
@@ -1624,7 +1623,6 @@
                 
                 tx.objectStore('orders').put(o);
                 
-                // IMPORTANT BUG FIX 2: Using safe ISO string date instead of potentially undefined o.orderDate
                 const nowIsoDate = new Date().toISOString(); 
 
                 if(refundAmt > 0) {
@@ -1634,7 +1632,6 @@
                     tx.objectStore('cashflow').add({ date: nowIsoDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
                 }
 
-                // Agar order pehle hi Karigar ko assign ho gaya tha, to uska metal wapas laana padega
                 if(oldStatus === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
                      const isSilver = o.repairMeta.metal === 'Silver';
                      const fineBase = isSilver ? 99 : 24;
@@ -1652,8 +1649,6 @@
                      };
                      
                      if (o.repairMeta.shopGoldIssued > 0 && o.repairMeta.sourceStockId) {
-                         // IMPORTANT BUG FIX 3: Handling NaN issue. Jab sourceStockId empty/null hota tha 
-                         // to IndexedDB parseInt(null) ki wajah se DataError crash deta tha.
                          let stockIdParsed = parseInt(o.repairMeta.sourceStockId);
                          if (!isNaN(stockIdParsed)) {
                              let invReq = tx.objectStore('inventory').get(stockIdParsed);
@@ -1687,6 +1682,45 @@
             } catch(e) {
                 console.error("System Exception Error:", e); 
                 showToast("System Error", "error"); 
+                resetButton(btn, origHTML);
+            }
+        }
+
+        /* NEW FUNCTION: Permanently Delete Record */
+        async function deleteRepairRecord() {
+            if(isProcessing) return;
+            const o = activeJobData;
+            if(!o) return;
+
+            if(!confirm("Are you sure you want to PERMANENTLY DELETE this repair record? This action cannot be undone.")) return;
+
+            isProcessing = true;
+            const btn = document.getElementById('btnDeleteRecord');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+            btn.disabled = true;
+
+            try {
+                const db = await dbPromise;
+                const tx = db.transaction('orders', 'readwrite');
+                
+                // Safe parsing of ID just in case
+                let parseId = isNaN(o.id) ? o.id : parseInt(o.id);
+                tx.objectStore('orders').delete(parseId);
+                
+                tx.oncomplete = () => {
+                    showToast("Repair record deleted permanently!", "success");
+                    closeModal('viewJobModal');
+                    loadOrders(); 
+                    resetButton(btn, origHTML);
+                };
+                tx.onerror = () => {
+                    showToast("Database Error during deletion", "error");
+                    resetButton(btn, origHTML);
+                };
+            } catch(e) {
+                console.error(e);
+                showToast("System Error", "error");
                 resetButton(btn, origHTML);
             }
         }
