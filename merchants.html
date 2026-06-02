@@ -1034,10 +1034,10 @@
             }
         }
 
-        // ─── GENERATE LEDGER REPORT ────────────────────────────────────────────
+    // ─── GENERATE LEDGER REPORT (WITH AUTO-HEAL) ───────────────────────────
         async function generateReport(mId) {
             const tbody = document.getElementById('reportBody');
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger & Syncing Live Tounch Data...</td></tr>';
             document.getElementById('reportModal').style.display = 'block';
 
             const merchant = allMerchants.find(m => m.id == mId) || await getItem('merchants', mId);
@@ -1073,12 +1073,16 @@
             let payments = [];
             try { payments = await getAllItems('merchant_payments'); } catch (e) { }
             const orders = await getAllItems('orders');
+            
+            // Inventory Database fetch kiya taaki Live Tounch report check ho sake
+            const allInventory = await getAllItems('inventory'); 
 
             const myPurchases = purchases.filter(p => p.merchantId == mId && p.status !== 'cancelled');
             const myPayments = payments.filter(p => p.merchantId == mId && p.status !== 'cancelled');
             const myOrders = orders.filter(o => o.merchantId == mId);
 
             let transactions = [];
+            let needsBalanceUpdate = false; // Flag to check if we auto-healed
 
             myPurchases.forEach(p => {
                 let desc = `${p.category} - Ref #${p.id}`;
@@ -1119,11 +1123,12 @@
                 }
             });
 
-            myPayments.forEach(p => {
+            for (let p of myPayments) {
                 let descParts = [];
                 let pmtMult = p.paymentType === 'IN' ? 1 : -1;
                 let cashChange = parseFloat(p.amount || 0) * pmtMult;
                 let goldChange = 0, silverChange = 0;
+
                 if (p.amount > 0) descParts.push(`Cash ₹${p.amount} (${p.mode})`);
                 if (p.gold > 0) {
                     const metalName = p.metal || 'Gold';
@@ -1132,13 +1137,49 @@
                         cashChange += (fVal * pmtMult);
                         descParts.push(`Fixed ${metalName} ${p.gold}g @ ₹${p.rate}/g`);
                     } else {
-                        if (metalName === 'Silver') silverChange = parseFloat(p.gold || 0) * pmtMult;
-                        else goldChange = parseFloat(p.gold || 0) * pmtMult;
-                        descParts.push(`${metalName} ${p.gold}g (Fine)`);
+                        let actualWt = parseFloat(p.gold || 0);
+                        let displayPurity = "Fine";
+
+                        // --- AUTO HEAL LOGIC START ---
+                        if (p.inventoryBarcode) {
+                            const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
+                            if (liveItem && liveItem.fineWt) {
+                                displayPurity = liveItem.purity;
+                                const liveFineWt = parseFloat(liveItem.fineWt);
+                                
+                                // Agar purani entry (Gross Wt) naye Tounch (Fine Wt) se alag hai
+                                if (Math.abs(actualWt - liveFineWt) > 0.001) {
+                                    const diff = liveFineWt - actualWt;
+                                    actualWt = liveFineWt;
+                                    
+                                    // Payment Record ko chupchap theek kar do
+                                    p.gold = liveFineWt;
+                                    await updateItem('merchant_payments', p.id, p);
+                                    
+                                    // Merchant ke hisaab (Balance) ko theek kar do
+                                    if(metalName === 'Silver') merchant.silverBalance = (parseFloat(merchant.silverBalance)||0) + (diff * pmtMult);
+                                    else merchant.goldBalance = (parseFloat(merchant.goldBalance)||0) + (diff * pmtMult);
+                                    
+                                    needsBalanceUpdate = true;
+                                }
+                            }
+                        }
+                        // --- AUTO HEAL LOGIC END ---
+
+                        if (metalName === 'Silver') silverChange = actualWt * pmtMult;
+                        else goldChange = actualWt * pmtMult;
+                        descParts.push(`${metalName} ${actualWt.toFixed(3)}g (${displayPurity})`);
                     }
                 }
                 transactions.push({ date: p.date, type: `Settlement (${p.paymentType})`, desc: descParts.join(' & '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-pay' });
-            });
+            }
+
+            // Agar Auto-Heal hua hai, toh merchant ki details wapas database me save karke cards refresh karo
+            if (needsBalanceUpdate) {
+                await updateItem('merchants', merchant.id, merchant);
+                loadMerchants(); 
+                showToast("Live Tounch Report Synced! Balance Updated.", "success");
+            }
 
             transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
             currentReportData = transactions;
@@ -1209,7 +1250,6 @@
 
             currentReportMeta = { name: name, category: cat, cash: finalCash, gold: finalNetGold, silver: finalNetSilver };
         }
-
         // ─── DOWNLOAD CSV ──────────────────────────────────────────────────────
         function downloadCSV() {
             if (currentReportData.length === 0) return showToast("No data to export", "error");
