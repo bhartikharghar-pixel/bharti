@@ -185,6 +185,9 @@
                 <input type="date" id="ovTo" class="date-input">
                 <button class="btn-filter" onclick="loadOverview()"><i class="fas fa-sync"></i> Apply Filter</button>
                 <button class="btn-filter btn-print" style="background:var(--theme-grad); color:#fff; margin-left:auto; border:none;" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+           <button class="btn-filter" style="background:#1976d2; color:#fff; border:none; margin-left:10px;" onclick="sendToCA()">
+    <i class="fas fa-envelope"></i> Send to CA
+</button>
             </div>
 
             <div class="stats-grid">
@@ -1208,6 +1211,74 @@
             link.click();
             document.body.removeChild(link);
         }
+
+        async function sendToCA() {
+    const from = document.getElementById('ovFrom').value;
+    const to = document.getElementById('ovTo').value;
+
+    if(!from || !to) {
+        alert("Please select Date Range first.");
+        return;
+    }
+
+    // 1. Fetch Data
+    const sales = await getAllItems('sales').catch(() => []);
+    const purchases = await getAllItems('purchases').catch(() => []);
+    const merchants = await getAllItems('merchants').catch(() => []);
+    const customers = await getAllItems('customers').catch(() => []);
+
+    const custMap = {}; customers.forEach(c => custMap[c.id] = c.name);
+    const merchMap = {}; merchants.forEach(m => merchMap[m.id] = m.name);
+
+    // 2. Filter by Date
+    const fSales = sales.filter(s => { const d = parseDate(s.date); return d >= from && d <= to && s.status !== 'cancelled'; });
+    const fPurchases = purchases.filter(p => { const d = parseDate(p.date); return d >= from && d <= to; });
+
+    // 3. Format Sales CSV
+    let salesCSV = "Date,Invoice No,Customer Name,Gross Amount,Old Gold Deduction,Net Paid\n";
+    fSales.forEach(s => {
+        const cName = custMap[s.customerId] || 'Walk-in';
+        salesCSV += `${parseDate(s.date)},#${s.id},"${cName}",${s.grandTotal || 0},${s.oldGoldDeduction || 0},${(s.grandTotal || 0) - (s.oldGoldDeduction || 0)}\n`;
+    });
+
+    // 4. Format Purchases CSV
+    let purchCSV = "Date,Type,Merchant Name,Category,Total Weight,Total Amount\n";
+    fPurchases.forEach(p => {
+        const mName = merchMap[p.merchantId] || 'Direct';
+        purchCSV += `${parseDate(p.date)},${p.type},"${mName}",${p.category || '-'},${p.totalFineWeight || p.netWeight || 0},${p.totalAmount || 0}\n`;
+    });
+
+    // 5. Helper function to download CSV
+    const downloadCSV = (csvStr, filename) => {
+        const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Trigger Downloads
+    downloadCSV(salesCSV, `Sales_Report_${from}_to_${to}.csv`);
+    setTimeout(() => {
+        downloadCSV(purchCSV, `Purchase_Report_${from}_to_${to}.csv`);
+    }, 500); // 500ms delay to allow multiple downloads
+
+    // 6. Open Email Client (Mailto)
+    const caEmail = "yourca@example.com"; // Yahan apne CA ka email dalein
+    const subject = encodeURIComponent(`Bharti Jewellers - Accounts Data (${from} to ${to})`);
+    const body = encodeURIComponent(`Hello Sir,\n\nPlease find the attached Sales and Purchase reports for Bharti Jewellers from ${from} to ${to} for accounting and GST purposes.\n\nNote: Please attach the downloaded CSV files here.\n\nThanks,\nBharti Jewellers`);
+    
+    // Alert the user so they know they need to attach files
+    alert("Data downloaded successfully! Your email app will now open. Please ATTACH the downloaded CSV files before sending the email.");
+    
+    setTimeout(() => {
+        window.location.href = `mailto:${caEmail}?subject=${subject}&body=${body}`;
+    }, 1500);
+}
     </script>
 </body>
 </html>
