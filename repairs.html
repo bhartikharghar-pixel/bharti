@@ -896,6 +896,8 @@
 
             try {
                 const metalT = document.getElementById('rMetalType').value;
+                const advPaid = parseFloat(document.getElementById('oAdv').value) || 0;
+                const payMode = document.getElementById('oPayMode').value;
 
                 let jobObj = {
                     jobType: 'Repair',
@@ -905,8 +907,8 @@
                     description: desc, 
                     category: 'Repair', 
                     status: 'pending',
-                    advancePaid: parseFloat(document.getElementById('oAdv').value) || 0,
-                    payments: parseFloat(document.getElementById('oAdv').value) > 0 ? [{ date: new Date().toISOString(), amount: parseFloat(document.getElementById('oAdv').value), mode: document.getElementById('oPayMode').value }] : [],
+                    advancePaid: advPaid,
+                    payments: advPaid > 0 ? [{ date: new Date().toISOString(), amount: advPaid, mode: payMode }] : [],
                     repairMeta: {
                         metal: metalT,
                         custOldWt: parseFloat(document.getElementById('rCustGold').value) || 0,
@@ -921,37 +923,33 @@
                     }
                 };
 
+                // 1. Order add karein
                 const orderId = await addItem('orders', jobObj);
                 const invoiceNo = 'ORD-INVR' + String(orderId).padStart(3, '0');
                 
-                const db = await dbPromise;
-                const tx = db.transaction('orders', 'readwrite');
-                const req = tx.objectStore('orders').get(orderId);
+                // 2. Invoice number update karein (Safe Update)
+                let savedOrder = await getItem('orders', orderId);
+                if(savedOrder) {
+                    savedOrder.invoiceNo = invoiceNo;
+                    await updateItem('orders', savedOrder);
+                }
                 
-                req.onsuccess = async (e) => {
-                    let o = e.target.result;
-                    if(o) {
-                        o.invoiceNo = invoiceNo;
-                        tx.objectStore('orders').put(o);
-                    }
-                    
-                    if(jobObj.advancePaid > 0) {
-                        await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Repair Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
-                    }
-                    
-                    showToast(`Repair Logged Successfully!`, "success"); 
-                    closeModal('newJobModal'); 
-                    loadOrders();
-                    resetButton(btn, origHTML);
-                };
-                req.onerror = () => { throw new Error("DB Transaction Failed"); }
+                // 3. Cashflow add karein (Agar advance diya hai)
+                if(advPaid > 0) {
+                    await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: payMode, category: 'Repair Advance', amount: advPaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
+                }
+                
+                showToast(`Repair Logged Successfully!`, "success"); 
+                closeModal('newJobModal'); 
+                await loadOrders();
+                resetButton(btn, origHTML);
+
             } catch(error) {
-                console.error(error);
+                console.error("Save Job Error:", error);
                 showToast("System Error while saving.", "error");
                 resetButton(btn, origHTML);
             }
         }
-
         function resetButton(btn, originalHtml) {
             if(btn) {
                 btn.innerHTML = originalHtml;
@@ -1597,7 +1595,7 @@
         }
 
         /* BUG FIX: Completely rewritten Cancel Order logic to prevent IndexedDB crashes */
-        async function confirmCancelOrder() {
+      async function confirmCancelOrder() {
             if(isProcessing) return;
             isProcessing = true;
             const btn = document.getElementById('btnCancelConfirm');
@@ -1612,33 +1610,29 @@
                 const refundAmt = parseFloat(document.getElementById('cRefundAmt').value) || 0;
                 const invoiceNo = o.invoiceNo || 'ORD-INVR' + String(o.id).padStart(3, '0');
                 
-                const db = await dbPromise;
-                const tx = db.transaction(['orders', 'merchants', 'cashflow', 'inventory'], 'readwrite');
-                
-                // IMPORTANT BUG FIX 1: Save the old status BEFORE changing it.
-                // Varna ye check hi nahi kar pata tha ki metal Karigar ke paas tha ya nahi.
                 const oldStatus = o.status; 
                 
+                // 1. Order Update Karein
                 o.status = 'cancelled'; 
                 o.refundedAmount = refundAmt;
                 
-                // Keep ID safe
                 if (typeof o.id === 'string' && !isNaN(parseInt(o.id))) {
                     o.id = parseInt(o.id);
                 }
-
-                tx.objectStore('orders').put(o);
                 
-                // IMPORTANT BUG FIX 2: Using safe ISO string date instead of potentially undefined o.orderDate
+                await updateItem('orders', o);
+                
                 const nowIsoDate = new Date().toISOString(); 
 
+                // 2. Cashflow Update Karein
                 if(refundAmt > 0) {
-                    tx.objectStore('cashflow').add({ date: nowIsoDate, type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
+                    await addItem('cashflow', { date: nowIsoDate, type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundAmt, note: `Refund for ${invoiceNo}` });
                 }
                 if ((o.advancePaid || 0) > 0) {
-                    tx.objectStore('cashflow').add({ date: nowIsoDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
+                    await addItem('cashflow', { date: nowIsoDate, type: 'IN', mode: 'System', category: 'Restored Advance', amount: o.advancePaid, note: `Auto-balance for cancelled ${invoiceNo}` });
                 }
 
+                // 3. Karigar aur Inventory Return Management (Safe Method)
                 if(oldStatus === 'with_karigar' && o.repairMeta && o.repairMeta.merchantId) {
                      const isSilver = o.repairMeta.metal === 'Silver';
                      const fineBase = isSilver ? 99 : 24;
@@ -1646,56 +1640,43 @@
                      const custFineEquivalent = (parseFloat(o.repairMeta.custOldWt) || 0) * (custKarat / fineBase);
                      const totalIssuedFine = custFineEquivalent + (parseFloat(o.repairMeta.shopGoldIssued) || 0);
                      
+                     // Merchant balance theek karein
                      let mIdParsed = parseInt(o.repairMeta.merchantId);
                      if (!isNaN(mIdParsed)) {
-                         let mReq = tx.objectStore('merchants').get(mIdParsed);
-                         mReq.onsuccess = (ev) => { 
-                             const m = ev.target.result; 
-                             if(m) { 
-                                 m.goldBalance = (parseFloat(m.goldBalance) || 0) - totalIssuedFine; 
-                                 tx.objectStore('merchants').put(m); 
-                             } 
-                         };
+                         let m = await getItem('merchants', mIdParsed);
+                         if(m) { 
+                             m.goldBalance = (parseFloat(m.goldBalance) || 0) - totalIssuedFine; 
+                             await updateItem('merchants', m); 
+                         } 
                      }
                      
+                     // Shop ka sona wapas inventory mein daalein
                      if (parseFloat(o.repairMeta.shopGoldIssued) > 0 && o.repairMeta.sourceStockId) {
                          let stockIdParsed = parseInt(o.repairMeta.sourceStockId);
                          if (!isNaN(stockIdParsed)) {
-                             let invReq = tx.objectStore('inventory').get(stockIdParsed);
-                             invReq.onsuccess = (ev) => {
-                                 let item = ev.target.result;
-                                 if(item) {
-                                     item.netWt = (parseFloat(item.netWt) || 0) + parseFloat(o.repairMeta.shopGoldIssued);
-                                     item.grossWt = (parseFloat(item.grossWt) || 0) + parseFloat(o.repairMeta.shopGoldIssued);
-                                     item.weight = item.netWt;
-                                     item.status = 'stock';
-                                     tx.objectStore('inventory').put(item);
-                                 }
+                             let item = await getItem('inventory', stockIdParsed);
+                             if(item) {
+                                 item.netWt = (parseFloat(item.netWt) || 0) + parseFloat(o.repairMeta.shopGoldIssued);
+                                 item.grossWt = (parseFloat(item.grossWt) || 0) + parseFloat(o.repairMeta.shopGoldIssued);
+                                 item.weight = item.netWt;
+                                 item.status = 'stock';
+                                 await updateItem('inventory', item);
                              }
                          }
                      }
                 }
 
-                tx.oncomplete = () => { 
-                    showToast("Repair Cancelled & Refunded!", "success"); 
-                    closeModal('cancelModal'); 
-                    loadOrders(); 
-                    resetButton(btn, origHTML); 
-                };
-                
-                tx.onerror = (err) => { 
-                    console.error("Database Transaction Error:", err); 
-                    showToast("Database Error during cancellation", "error"); 
-                    resetButton(btn, origHTML); 
-                };
+                showToast("Repair Cancelled & Refunded!", "success"); 
+                closeModal('cancelModal'); 
+                await loadOrders(); 
+                resetButton(btn, origHTML); 
                 
             } catch(e) {
                 console.error("System Exception Error:", e); 
-                showToast("System Error", "error"); 
+                showToast("System Error during cancellation", "error"); 
                 resetButton(btn, origHTML);
             }
         }
-
         function printReceiptEngine(targetId = null) {
             const o = targetId ? allOrders.find(x => String(x.id) === String(targetId)) : activeJobData;
             if(!o) return;
