@@ -879,9 +879,8 @@
             }
         }
 
-        async function saveJob() {
+      async function saveJob() {
             if (isProcessing) return;
-            
             const custId = document.getElementById('selectedCustId').value;
             const desc = document.getElementById('oDesc').value;
             
@@ -895,15 +894,20 @@
             btn.disabled = true;
 
             try {
-                const metalT = document.getElementById('rMetalType').value;
+                // NAYA: Safe values check (agar khali chhoda to default lega)
+                const metalT = document.getElementById('rMetalType').value || 'Gold';
                 const advPaid = parseFloat(document.getElementById('oAdv').value) || 0;
-                const payMode = document.getElementById('oPayMode').value;
+                const payMode = document.getElementById('oPayMode').value || 'Cash';
+                const dueVal = document.getElementById('oDue').value;
+                
+                // BUG FIX: Agar date select nahi ki to aaj ki date le lega bina crash hue
+                const dueDateIso = dueVal ? new Date(dueVal).toISOString() : new Date().toISOString();
 
                 let jobObj = {
                     jobType: 'Repair',
                     customerId: parseInt(custId),
                     orderDate: new Date().toISOString(),
-                    dueDate: new Date(document.getElementById('oDue').value).toISOString(),
+                    dueDate: dueDateIso,
                     description: desc, 
                     category: 'Repair', 
                     status: 'pending',
@@ -923,18 +927,15 @@
                     }
                 };
 
-                // 1. Order add karein
                 const orderId = await addItem('orders', jobObj);
                 const invoiceNo = 'ORD-INVR' + String(orderId).padStart(3, '0');
                 
-                // 2. Invoice number update karein (Safe Update)
                 let savedOrder = await getItem('orders', orderId);
                 if(savedOrder) {
                     savedOrder.invoiceNo = invoiceNo;
                     await updateItem('orders', savedOrder);
                 }
                 
-                // 3. Cashflow add karein (Agar advance diya hai)
                 if(advPaid > 0) {
                     await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: payMode, category: 'Repair Advance', amount: advPaid, note: `Adv for ${invoiceNo} (Job #${orderId})` });
                 }
@@ -946,7 +947,7 @@
 
             } catch(error) {
                 console.error("Save Job Error:", error);
-                showToast("System Error while saving.", "error");
+                showToast("System Error! Check Console.", "error");
                 resetButton(btn, origHTML);
             }
         }
