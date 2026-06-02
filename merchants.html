@@ -715,7 +715,7 @@
             populateInventorySelect();
         }
 
-        async function populateInventorySelect() {
+       async function populateInventorySelect() {
             const type = document.getElementById('payDirection').value;
             const metal = document.getElementById('payMetalType').value;
             const mId = document.getElementById('payId').value;
@@ -732,7 +732,7 @@
                 const isSilv = (i.purity && (i.purity.toUpperCase().includes('SIL') || i.purity.includes('92.5')));
                 if (metal === 'Silver' && !isSilv) return false;
                 if (metal === 'Gold' && isSilv) return false;
-               // Naya logic jo Melted Bars (BARGLD / BARSLV) ko bhi dropdown me dikhayega
+                
                 return i.category === 'MIX' || 
                        (i.category && i.category.toUpperCase().includes('MIXED')) ||
                        (i.barcode && i.barcode.includes('MIX')) || 
@@ -745,14 +745,26 @@
             });
 
             select.innerHTML = '<option value="">-- Manual Custom Weight (No Inventory Link) --</option>';
+            
             availableStock.forEach(item => {
-                let fineWt = item.fineWt;
-                if (!fineWt) {
-                    const n = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
-                    // Assuming getPurityFactor is globally available or in db.js
-                    const factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
-                    fineWt = n * factor;
+                const isPending = item.purity === 'Pending';
+                let displayWt = 0;
+                let wtLabel = 'Fine';
+
+                // Agar Tounch Pending hai, toh Gross weight dikhayega
+                if (isPending) {
+                    displayWt = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
+                    wtLabel = 'Gross (Tounch Pending)';
+                } else {
+                    let fineWt = item.fineWt;
+                    if (!fineWt) {
+                        const n = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
+                        const factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
+                        fineWt = n * factor;
+                    }
+                    displayWt = fineWt;
                 }
+
                 let origin = "Shop Stock";
                 if (item.merchantId) {
                     const m = allMerchants.find(x => x.id == item.merchantId);
@@ -760,28 +772,47 @@
                 }
                 const opt = document.createElement('option');
                 opt.value = item.id;
-                opt.dataset.weight = parseFloat(fineWt).toFixed(3);
+                opt.dataset.weight = parseFloat(displayWt).toFixed(3);
                 opt.dataset.barcode = item.barcode;
-                opt.innerText = `${item.barcode} | ${item.purity} | ${parseFloat(fineWt).toFixed(3)}g Fine [From: ${origin}]`;
+                opt.dataset.ispending = isPending ? 'true' : 'false';
+                opt.innerText = `${item.barcode} | ${item.purity} | ${parseFloat(displayWt).toFixed(3)}g ${wtLabel} [From: ${origin}]`;
                 select.appendChild(opt);
             });
             handleInventorySelect();
         }
 
-        function toggleInventoryDropdown(type) {
-            const group = document.getElementById('inventoryGoldGroup');
+        function handleInventorySelect() {
             const select = document.getElementById('payInventorySelect');
             const goldInput = document.getElementById('payGold');
-            if (type === 'OUT') {
-                group.style.display = 'block';
-                populateInventorySelect();
+            const maxLabel = document.getElementById('maxWeightLabel');
+            
+            if (select.value) {
+                const selectedOpt = select.options[select.selectedIndex];
+                goldInput.value = selectedOpt.dataset.weight;
+                goldInput.dataset.maxWeight = selectedOpt.dataset.weight;
+                goldInput.readOnly = false;
+                goldInput.style.background = '#fff';
+                
+                // Agar pending hai, toh RED WARNING dikhayega
+                if (selectedOpt.dataset.ispending === 'true') {
+                    maxLabel.innerText = `(Gross Wt: ${selectedOpt.dataset.weight}g) ⚠️ TOUNCH PENDING`;
+                    maxLabel.style.color = '#d32f2f'; // Red warning
+                } else {
+                    maxLabel.innerText = `(Max Available Fine: ${selectedOpt.dataset.weight}g)`;
+                    maxLabel.style.color = 'var(--active-red)';
+                }
+                maxLabel.style.fontWeight = 'bold';
             } else {
-                group.style.display = 'none';
-                select.value = "";
+                goldInput.value = '';
+                goldInput.dataset.maxWeight = '';
                 goldInput.readOnly = false;
                 goldInput.style.background = '#f8fafc';
-                toggleGoldOptions();
+                maxLabel.innerText = `(Used for Ledger)`;
+                maxLabel.style.color = '#94a3b8';
+                maxLabel.style.fontWeight = 'normal';
             }
+            toggleGoldOptions();
+        }
         }
 
         async function openPay(id) {
