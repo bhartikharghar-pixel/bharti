@@ -939,7 +939,7 @@
             document.getElementById('mInstantPurityBox').style.display = chk ? 'block' : 'none';
         }
 
-       // SAVE STAGE 2: BAR RECEIVED (FIXED)
+  // SAVE STAGE 2: BAR RECEIVED (FIXED FOR INVENTORY VISIBILITY)
         async function saveMeltReceive(jobIdStr, sentWt) {
             const grossRecv = parseFloat(document.getElementById('mGrossRecvWt').value);
             const cutWt = parseFloat(document.getElementById('mCutWt').value) || 0;
@@ -994,19 +994,25 @@
                     jobData.purity = purityStr;
                     jobData.charges = charges;
                     jobData.barcode = nextBarcode;
-                    await updateItem('old_gold', numericJobId, jobData);
+                    await updateItem('old_gold', jobData.id, jobData);
                 }
 
-                // 2. Insert Bar into Stock Inventory
+                // 2. Insert Bar into Stock Inventory (ADDED date and metal to fix visibility)
                 await addItem('inventory', {
                     barcode: nextBarcode,
                     category: `Mixed ${currentMetal}`,
                     name: `Refined Bar Batch #${numericJobId} (${purityStr})`,
                     purity: purityStr,
-                    grossWt: invWt, netWt: invWt, weight: invWt,
-                    fineWt: fineWt, pieces: 1, status: 'stock',
+                    grossWt: invWt, 
+                    netWt: invWt, 
+                    weight: invWt,
+                    fineWt: fineWt, 
+                    pieces: 1, 
+                    status: 'stock',
                     source: `melt_${currentMetal.toLowerCase()}_${numericJobId}`,
-                    addedDate: now
+                    date: now,         // <-- YE LINE INVENTORY ME SHOW KARNE KE LIYE ZARURI HAI
+                    addedDate: now,
+                    metal: currentMetal // <-- METAL TYPE BHI ADD KIYA HAI
                 });
 
                 // 3. Log refinery fees to cashbook
