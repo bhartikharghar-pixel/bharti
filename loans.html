@@ -284,13 +284,22 @@
                         <span>UDHAR (Dues)</span>
                         <button id="btnAddTopUp" onclick="document.getElementById('topUpBox').style.display='block'" style="background:#c62828; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:bold;">+ Add Money</button>
                     </div>
-                    
-                    <div id="topUpBox" style="display:none; background:#ffebee; padding:10px; border-bottom:1px solid #ffcdd2;">
+                   <div id="topUpBox" style="display:none; background:#ffebee; padding:10px; border-bottom:1px solid #ffcdd2;">
                         <div style="font-size:0.8rem; font-weight:bold; margin-bottom:5px; color:#c62828;">Provide Additional Loan Amount</div>
                         <div style="display:flex; gap:10px;">
                             <input type="number" id="topUpAmount" placeholder="Amount (₹)" style="flex:1; padding:8px; border:1px solid #ef9a9a; border-radius:4px; font-size:0.85rem;">
                             <input type="date" id="topUpDate" style="flex:1; padding:8px; border:1px solid #ef9a9a; border-radius:4px; font-size:0.85rem;">
                         </div>
+                        
+                        <!-- NAYA: Cash/UPI/Bank Mode Selector -->
+                        <div style="display:flex; gap:10px; margin-top:8px;">
+                            <select id="topUpMode" style="flex:1; padding:8px; border:1px solid #ef9a9a; border-radius:4px; font-size:0.85rem;">
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Bank">Bank</option>
+                            </select>
+                        </div>
+
                         <div style="display:flex; gap:10px; margin-top:8px;">
                             <button onclick="saveTopUp()" style="background:#c62828; color:#fff; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; flex:1; font-size:0.8rem; font-weight:bold;">Save to Udhar</button>
                             <button onclick="document.getElementById('topUpBox').style.display='none'" style="background:#fff; color:#555; border:1px solid #ccc; padding:6px 10px; border-radius:4px; cursor:pointer; flex:1; font-size:0.8rem;">Cancel</button>
@@ -954,59 +963,60 @@
             }
         }
 
-        // --- ADD TOP-UP LOGIC ---
+      // --- ADD TOP-UP LOGIC ---
         async function saveTopUp() {
             const topUpAmt = parseFloat(document.getElementById('topUpAmount').value);
             const topUpDateVal = document.getElementById('topUpDate').value;
+            const topUpMode = document.getElementById('topUpMode').value; // NAYA: Payment mode yahan se read hoga
 
             if(!topUpAmt || topUpAmt <= 0) return alert("Enter Valid Top-Up Amount");
             if(!topUpDateVal) return alert("Select Top-Up Date");
 
             try {
-                // Here we still use dbPromise because we are SAVING data to the database
-                const db = await dbPromise;
-                const tx = db.transaction('loans', 'readwrite');
-                const store = tx.objectStore('loans');
+                // Error fix: Direct dbPromise ki jagah getItem use kiya gaya hai
+                let l = await getItem('loans', currentLoanId);
                 
-                store.get(currentLoanId).onsuccess = async (e) => {
-                    const l = e.target.result;
-                    if(!l) return alert("Loan not found in Database");
+                if(!l) return alert("Loan not found in Database");
 
-                    if(!l.topUps) l.topUps = [];
-                    const topUpDateObj = new Date(topUpDateVal);
-                    const monthStr = topUpDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                    const firstMonthInt = Math.round((topUpAmt * l.ratePercent) / 100);
+                if(!l.topUps) l.topUps = [];
+                const topUpDateObj = new Date(topUpDateVal);
+                const monthStr = topUpDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                const firstMonthInt = Math.round((topUpAmt * l.ratePercent) / 100);
 
-                    // Naya TopUp record object generate
-                    l.topUps.push({
-                        date: topUpDateObj.toISOString(),
-                        amount: topUpAmt,
-                        paidPrincipal: 0,
-                        ledger: [{
-                            month: monthStr,
-                            interestCharged: firstMonthInt,
-                            paidInterest: 0
-                        }]
-                    });
+                // Naya TopUp record object generate
+                l.topUps.push({
+                    date: topUpDateObj.toISOString(),
+                    amount: topUpAmt,
+                    paidPrincipal: 0,
+                    mode: topUpMode, // Top-up history mein mode save hoga
+                    ledger: [{
+                        month: monthStr,
+                        interestCharged: firstMonthInt,
+                        paidInterest: 0
+                    }]
+                });
 
-                    store.put(l);
+                // Database update call
+                await updateItem('loans', l);
 
-                    // Add to cashbook (Cash Out)
-                    await addItem('cashflow', {
-                        date: new Date().toISOString(), type: 'OUT', mode: 'Cash',
-                        category: 'Loan Top-Up', amount: topUpAmt, note: `Extra money given for Loan #${currentLoanId}`
-                    });
+                // Add to cashbook (Cash Out) - yahan Top-Up Mode pass kiya jayega
+                await addItem('cashflow', {
+                    date: new Date().toISOString(), type: 'OUT', mode: topUpMode,
+                    category: 'Loan Top-Up', amount: topUpAmt, note: `Extra money given for Loan #${currentLoanId}`
+                });
 
-                    alert("Additional Money Added Successfully!");
-                    document.getElementById('topUpBox').style.display = 'none';
-                    
-                    await loadCashBalance();
-                    await loadLoans(); // This re-fetches into allLoans
-                    openLedger(currentLoanId); // Re-open & refresh view using memory
-                };
-            } catch(e) { console.error("TopUp Error", e); }
+                alert("Additional Money Added Successfully!");
+                document.getElementById('topUpBox').style.display = 'none';
+                
+                await loadCashBalance();
+                await loadLoans(); // This re-fetches into allLoans
+                openLedger(currentLoanId); // Re-open & refresh view using memory
+                
+            } catch(e) { 
+                console.error("TopUp Error", e);
+                alert("Top-Up save karne mein error aayi. Console log check karein.");
+            }
         }
-
         // --- PAYMENT & AUTO-SPLIT LOGIC ---
         function calcTotalPay() {
             const cash = parseFloat(document.getElementById('payCash').value) || 0;
