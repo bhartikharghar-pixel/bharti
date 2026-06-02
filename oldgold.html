@@ -83,9 +83,6 @@
         .party-name { font-weight: 700; color: #333; display: block; font-size: 1rem;}
         .tx-desc { color: #666; font-size: 0.85rem; margin-top: 2px; display: block; }
         .tx-purity { font-size: 0.75rem; background: #eee; padding: 2px 6px; border-radius: 4px; color: #555; font-weight: 600;}
-        
-        .val-negative { color: var(--out-red); font-weight: bold; }
-        .val-positive { color: var(--receive-green); font-weight: bold; }
 
         /* Multi-FAB Menu */
         .fab-container { position: fixed; bottom: 30px; right: 30px; z-index: 100; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 15px;}
@@ -532,8 +529,8 @@
 
                 if (d.type === 'MELT') {
                     let textDesc = "Sent to Refinery";
-                    if(d.status === 'RECEIVED') textDesc = `Bar Recd (${d.returnWt}g) • Tounch Pending (Cut: ${d.cutWt}g)`;
-                    if(d.status === 'COMPLETED') textDesc = `Melted Bar Complete • Loss: ${(d.lossWt || 0).toFixed(3)}g`;
+                    if(d.status === 'RECEIVED') textDesc = `Bar Recd (${((d.returnWt || 0) - (d.cutWt || 0)).toFixed(3)}g) • Lab Cut (${(d.cutWt || 0)}g) • Loss (${(d.lossWt || 0).toFixed(3)}g)`;
+                    if(d.status === 'COMPLETED') textDesc = `Completed Bar • Lab Cut (${(d.cutWt || 0)}g) • Loss (${(d.lossWt || 0).toFixed(3)}g)`;
 
                     combinedLedger.push({
                         rawId: d.id, source: 'MELT', date: d.date,
@@ -850,33 +847,62 @@
                             <strong>Batch #${job.id} (${dateLabel})</strong><br>
                             <small>Sent Wt: ${job.sentWt}g | Stage: <b style="color:${badgeColor}">${job.status}</b></small>
                         </div>
-                        <button class="job-status-btn" style="background:${badgeColor};" onclick="loadMeltJobAction(${job.id}, '${job.status}')">${btnLabel}</button>
+                        <button class="job-status-btn" style="background:${badgeColor};" onclick="loadMeltJobAction('${job.id}', '${job.status}', ${job.sentWt})">${btnLabel}</button>
                     </div>
                 `;
             });
         }
 
+        // Global Helper for Live Stage 2 Loss Calculation
+        window.calcStage2Loss = function(sentWt) {
+            const grossRecv = parseFloat(document.getElementById('mGrossRecvWt').value) || 0;
+            const cutWt = parseFloat(document.getElementById('mCutWt').value) || 0;
+
+            let loss = 0;
+            let invWt = 0;
+
+            if (grossRecv > 0) {
+                loss = sentWt - grossRecv;
+                invWt = grossRecv - cutWt;
+            }
+
+            document.getElementById('mStage2Loss').innerText = loss.toFixed(3) + " g";
+            document.getElementById('mStage2InvWt').innerText = Math.max(0, invWt).toFixed(3) + " g";
+        }
+
         // LOAD ACTION FORM FOR SELECTED JOB
-        async function loadMeltJobAction(jobId, status) {
+        async function loadMeltJobAction(jobIdStr, status, sentWt) {
             const formDiv = document.getElementById('meltActionForm');
             formDiv.style.display = 'block';
             
             const records = await getAllItems('old_gold').catch(() => []);
-            const job = records.find(r => r.id == jobId);
+            const job = records.find(r => r.id == jobIdStr);
             if(!job) return;
 
             if(status === 'SENT') {
                 // STAGE 2 FORM: RECEIVE BAR FROM REFINERY
                 formDiv.innerHTML = `
-                    <h4 style="margin:0 0 10px 0; color:#ef6c00;"><i class="fas fa-balance-scale"></i> Receive Bar: Batch #${jobId}</h4>
+                    <h4 style="margin:0 0 10px 0; color:#ef6c00;"><i class="fas fa-balance-scale"></i> Receive Bar: Batch #${jobIdStr}</h4>
                     <div class="form-grid">
                         <div class="form-group">
-                            <label>Returned Bar Wt (Gross g)</label>
-                            <input type="number" id="mReturnWt" step="0.001" placeholder="0.000">
+                            <label>Total Bar Wt Received (g)</label>
+                            <input type="number" id="mGrossRecvWt" step="0.001" placeholder="0.000" oninput="calcStage2Loss(${job.sentWt})">
+                            <small style="color:#666;">(Refinery se wapas aaya kul wazan)</small>
                         </div>
                         <div class="form-group">
-                            <label>Cut Piece Wt for Lab (g)</label>
-                            <input type="number" id="mCutWt" step="0.001" value="0.000">
+                            <label>Cut Piece for Lab (g)</label>
+                            <input type="number" id="mCutWt" step="0.001" value="0.000" oninput="calcStage2Loss(${job.sentWt})">
+                            <small style="color:#666;">(Tounch check ke liye kata tukda)</small>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group" style="background:#ffebee; padding:10px; border-radius:6px; border:1px solid #ffcdd2;">
+                            <label style="color:#c62828; margin:0;">Melting Loss (g)</label>
+                            <div id="mStage2Loss" style="font-size:1.1rem; font-weight:bold; color:#c62828;">0.000 g</div>
+                        </div>
+                        <div class="form-group" style="background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #bbdefb;">
+                            <label style="color:#1565c0; margin:0;">Bar for Inventory (g)</label>
+                            <div id="mStage2InvWt" style="font-size:1.1rem; font-weight:bold; color:#1565c0;">0.000 g</div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -891,18 +917,19 @@
                         <label>Purity / Touch Report (%)</label>
                         <input type="number" id="mInstantPurity" step="0.01" placeholder="e.g. 99.50">
                     </div>
-                    <button class="btn-primary" style="background:#2e7d32;" onclick="saveMeltReceive(${jobId}, ${job.sentWt})">Save Received Stock</button>
+                    <button type="button" class="btn-primary" style="background:#2e7d32;" onclick="saveMeltReceive('${jobIdStr}', ${job.sentWt})">Save Received Stock</button>
                 `;
             } else if(status === 'RECEIVED') {
                 // STAGE 3 FORM: DELAYED LAB REPORT ENTRY
+                const remainingBarWt = job.returnWt - job.cutWt;
                 formDiv.innerHTML = `
-                    <h4 style="margin:0 0 10px 0; color:#0288d1;"><i class="fas fa-flask"></i> Enter Lab Tounch Report: Batch #${jobId}</h4>
-                    <p style="font-size:0.8rem; color:#666; margin-top:-5px;">Bar Weight: ${(job.returnWt - job.cutWt).toFixed(3)}g stock me add ho chuka hai. Lab report fill karein.</p>
+                    <h4 style="margin:0 0 10px 0; color:#0288d1;"><i class="fas fa-flask"></i> Enter Lab Tounch Report: Batch #${jobIdStr}</h4>
+                    <p style="font-size:0.8rem; color:#666; margin-top:-5px;">Bar Weight: ${remainingBarWt.toFixed(3)}g stock me add ho chuka hai. Lab report fill karein.</p>
                     <div class="form-group">
                         <label>Final Touch / Purity (%)</label>
                         <input type="number" id="mFinalPurity" step="0.01" placeholder="e.g. 99.20">
                     </div>
-                    <button class="btn-primary" style="background:#0288d1;" onclick="saveMeltTounchReport(${jobId})">Apply Purity Report</button>
+                    <button type="button" class="btn-primary" style="background:#0288d1;" onclick="saveMeltTounchReport('${jobIdStr}')">Apply Purity Report</button>
                 `;
             }
         }
@@ -913,17 +940,18 @@
         }
 
         // SAVE STAGE 2: BAR RECEIVED
-        async function saveMeltReceive(jobId, sentWt) {
-            const returnWt = parseFloat(document.getElementById('mReturnWt').value);
+        async function saveMeltReceive(jobIdStr, sentWt) {
+            const grossRecv = parseFloat(document.getElementById('mGrossRecvWt').value);
             const cutWt = parseFloat(document.getElementById('mCutWt').value) || 0;
             const charges = parseFloat(document.getElementById('mCharges').value) || 0;
             const isInstant = document.getElementById('mInstantTounch').checked;
             
-            if(!returnWt || returnWt <= 0) return showToast("Enter correct returned weight", "error");
-            if(cutWt >= returnWt) return showToast("Cut weight cannot exceed returned bar weight!", "error");
+            if(!grossRecv || grossRecv <= 0) return showToast("Enter total received weight", "error");
+            if(cutWt >= grossRecv) return showToast("Cut weight cannot be equal or greater than received weight!", "error");
+            if(grossRecv > sentWt) return showToast("Received weight cannot be greater than sent weight!", "error");
 
-            const remainingBarWt = returnWt - cutWt;
-            const initialLoss = sentWt - returnWt;
+            const invWt = grossRecv - cutWt;
+            const lossWt = sentWt - grossRecv;
             const now = new Date().toISOString();
 
             // Purity parsing logic
@@ -936,7 +964,7 @@
                 if(!pVal || pVal <= 0 || pVal > 100) return showToast("Enter valid purity percentage", "error");
                 finalStatus = 'COMPLETED';
                 purityStr = pVal + "%";
-                fineWt = remainingBarWt * (pVal / 100);
+                fineWt = invWt * (pVal / 100);
             }
 
             const db = await dbPromise;
@@ -955,9 +983,12 @@
             const nextBarcode = prefix + (maxIdx + 1).toString().padStart(3, '0');
 
             // 1. Update Old Gold Table Job Row
+            // Converting jobIdStr to number if required by IndexedDB based on how it was created
+            const numericJobId = isNaN(jobIdStr) ? jobIdStr : Number(jobIdStr);
+
             tx.objectStore('old_gold').put({
-                id: jobId, type: 'MELT', status: finalStatus, metal: currentMetal, date: now,
-                sentWt: sentWt, returnWt: returnWt, cutWt: cutWt, lossWt: initialLoss,
+                id: numericJobId, type: 'MELT', status: finalStatus, metal: currentMetal, date: now,
+                sentWt: sentWt, returnWt: grossRecv, cutWt: cutWt, lossWt: lossWt,
                 purity: purityStr, charges: charges, barcode: nextBarcode
             });
 
@@ -965,11 +996,11 @@
             tx.objectStore('inventory').add({
                 barcode: nextBarcode,
                 category: `Mixed ${currentMetal}`,
-                name: `Refined Bar Batch #${jobId} (${purityStr})`,
+                name: `Refined Bar Batch #${numericJobId} (${purityStr})`,
                 purity: purityStr,
-                grossWt: remainingBarWt, netWt: remainingBarWt, weight: remainingBarWt,
+                grossWt: invWt, netWt: invWt, weight: invWt,
                 fineWt: fineWt, pieces: 1, status: 'stock',
-                source: `melt_${currentMetal.toLowerCase()}_${jobId}`,
+                source: `melt_${currentMetal.toLowerCase()}_${numericJobId}`,
                 addedDate: now
             });
 
@@ -978,7 +1009,7 @@
                 tx.objectStore('cashflow').add({
                     date: now, type: 'OUT', mode: 'Cash',
                     category: 'Refinery Charges (Tighal)', amount: charges,
-                    note: `Melting cost for batch #${jobId}`
+                    note: `Melting cost for batch #${numericJobId}`
                 });
             }
 
@@ -990,12 +1021,12 @@
         }
 
         // SAVE STAGE 3: DELAYED LAB TOUNCH REPORT APPLIED
-        async function saveMeltTounchReport(jobId) {
+        async function saveMeltTounchReport(jobIdStr) {
             const pVal = parseFloat(document.getElementById('mFinalPurity').value);
             if(!pVal || pVal <= 0 || pVal > 100) return showToast("Enter correct purity percent", "error");
 
             const records = await getAllItems('old_gold').catch(() => []);
-            const job = records.find(r => r.id == jobId);
+            const job = records.find(r => r.id == jobIdStr);
             if(!job) return;
 
             const remainingBarWt = job.returnWt - job.cutWt;
@@ -1012,13 +1043,12 @@
             tx.objectStore('old_gold').put(job);
 
             // 2. Fetch linked Inventory record & update purity + Fine Weight
-            // Chahe ye 'stock' me ho ya 'karigar' ko issue ho chuka ho, meta data database me clean update hoga
             const allInv = await getAllItems('inventory');
-            const targetItem = allInv.find(item => item.barcode === job.barcode || item.source === `melt_${currentMetal.toLowerCase()}_${jobId}`);
+            const targetItem = allInv.find(item => item.barcode === job.barcode || item.source === `melt_${currentMetal.toLowerCase()}_${job.id}`);
 
             if(targetItem) {
                 targetItem.purity = purityText;
-                targetItem.name = `Refined Bar Batch #${jobId} (${purityText})`;
+                targetItem.name = `Refined Bar Batch #${job.id} (${purityText})`;
                 targetItem.fineWt = calculatedFineWt;
                 tx.objectStore('inventory').put(targetItem);
             }
