@@ -123,6 +123,15 @@
         .step-box { background: #fff8e1; border: 1px solid #ffe082; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #fbc02d;}
         .step-title { font-weight: 700; color: #f57f17; font-size: 0.9rem; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;}
 
+        /* Inner Tabs for Modal */
+        .modal-tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .m-tab { flex: 1; padding: 8px; border: none; background: #eee; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+        .m-tab.active { background: #455a64; color: white; }
+
+        /* Job Items */
+        .job-item { background: #f8f9fa; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .job-status-btn { padding: 6px 12px; border: none; border-radius: 4px; font-weight: bold; font-size: 0.8rem; cursor: pointer; color: white; }
+
         /* Toast Notifications */
         #toast {
             visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
@@ -199,6 +208,7 @@
                 <div class="stat-lbl" style="color:var(--exchange-purple);">Direct Cash Buys</div>
                 <div class="stat-val" id="statDirectWt">0.000 g</div>
                 <div style="font-size:0.8rem; color:#8e24aa;">Cash Paid: <b id="statDirectPaid">₹0</b></div>
+                <i class="fas fa-shopping-bag" style="position:absolute; right:15px; top:20px; font-size:2rem; color:#f3e5f5;"></i>
             </div>
         </div>
 
@@ -207,7 +217,7 @@
             <input type="date" id="filterFrom" class="date-input">
             <span style="color:#888;">to</span>
             <input type="date" id="filterTo" class="date-input">
-            <input type="text" id="filterSearch" class="date-input" placeholder="Search Customer, Phone, or Ref (e.g. INV-0021)..." style="flex:1;">
+            <input type="text" id="filterSearch" class="date-input" placeholder="Search Customer, Phone, or Ref..." style="flex:1;">
             <select id="filterSource" class="date-input" style="flex:0.5;">
                 <option value="ALL">All Categories</option>
                 <option value="DIRECT">Direct Cash Buys</option>
@@ -249,7 +259,7 @@
             </button>
             <button class="fab-action" onclick="openMeltModal()" style="background:#455a64;">
                 <i class="fas fa-fire"></i>
-                <span class="fab-label" id="lblFabMelt">Send to Refinery (Melt)</span>
+                <span class="fab-label" id="lblFabMelt">Refinery Pipeline (Melt)</span>
             </button>
         </div>
     </div>
@@ -305,70 +315,47 @@
 
             <div style="background:#f9f9f9; padding:15px; border-radius:8px; border: 1px solid #ddd; margin-bottom:15px; text-align:center;">
                 <span style="font-size:0.9rem; color:#666; font-weight:600;">Final Amount Paid to Customer (₹)</span><br>
-                <small style="color:#888; display:block; margin-bottom:8px;">You can manually change this if you paid a rounded or different amount.</small>
                 <input type="number" id="bFinalAmount" style="font-size:1.8rem; color:var(--out-red); font-weight:bold; text-align:center; padding:10px; border:2px dashed #ffccbc; border-radius:8px; background:#fff; width:100%; max-width:200px; margin:0 auto; display:block;" placeholder="0">
             </div>
 
             <button class="btn-primary" onclick="saveDirectPurchase()"><i class="fas fa-check-circle"></i> Save & Record Payment</button>
-            <p style="font-size:0.75rem; color:#666; text-align:center; margin-top:10px;">*This will automatically deduct the amount from your Master Cashbook.</p>
         </div>
     </div>
 
     <div id="meltModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <button class="close-btn" onclick="closeModal('meltModal')">&times;</button>
-            <h3 style="margin-top:0; color:#455a64;" id="meltModalTitle"><i class="fas fa-fire"></i> Melt Old Metal (Refinery)</h3>
-            <p style="font-size:0.85rem; color:#666; margin-top:-5px; margin-bottom:15px;">Convert accumulated UR Box into refined stock.</p>
-
-            <div class="step-box">
-                <div class="step-title"><i class="fas fa-box-open"></i> STEP 1: Current Box Status</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:1rem;">
-                    <span id="meltAvailLabel">Available Old Metal (UR):</span>
-                    <strong id="meltAvailableWt" style="font-size:1.3rem; color:#333;">0.000 g</strong>
-                </div>
+            <h3 style="margin-top:0; color:#455a64;" id="meltModalTitle"><i class="fas fa-fire"></i> Refinery & Melting Desk</h3>
+            
+            <div class="modal-tabs">
+                <button id="mTTabSend" class="m-tab active" onclick="switchMeltTab('SEND')">1. Issue / Send</button>
+                <button id="mTTabTrack" class="m-tab" onclick="switchMeltTab('TRACK')">2. Active Pipeline</button>
             </div>
 
-            <div class="form-group">
-                <label>Weight Sent to Refinery (g)</label>
-                <input type="number" id="meltSentWt" step="0.001" placeholder="e.g. 50.000" oninput="calcMeltLoss()">
-                <small style="color:#d32f2f; font-weight:bold; display:block; margin-top:4px;">This weight will be removed from your UR Box.</small>
+            <div id="mViewSend">
+                <div class="step-box">
+                    <div class="step-title"><i class="fas fa-box-open"></i> UR Box Balance</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:1rem;">
+                        <span id="meltAvailLabel">Available Old Metal (UR):</span>
+                        <strong id="meltAvailableWt" style="font-size:1.3rem; color:#333;">0.000 g</strong>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Weight Sent to Refinery (g)</label>
+                    <input type="number" id="meltSentWt" step="0.001" placeholder="Enter total weight to melt">
+                    <small style="color:#d32f2f; font-weight:bold; display:block; margin-top:4px;">This weight will leave the Box immediately.</small>
+                </div>
+                <button class="btn-primary" style="background:#455a64;" onclick="processMeltSend()"><i class="fas fa-paper-plane"></i> Send to Refinery</button>
             </div>
 
-            <div style="text-align:center; margin: 20px 0; color:#aaa;"><i class="fas fa-arrow-down fa-2x"></i></div>
+            <div id="mViewTrack" style="display:none;">
+                <label>Select Active Batch from Pipeline:</label>
+                <div id="meltPipelineList" style="max-height:150px; overflow-y:auto; margin-bottom:15px; border:1px solid #ddd; padding:8px; border-radius:8px; background:#fafafa;">
+                    </div>
 
-            <div class="step-box" style="background:#e8f5e9; border-color:#c8e6c9; border-left-color:#4caf50;">
-                <div class="step-title" style="color:#2e7d32;"><i class="fas fa-cubes"></i> STEP 2: Refinery Return</div>
-                
-                <div class="form-grid" style="margin-top:10px;">
-                    <div class="form-group">
-                        <label>Final Received Weight (g)</label>
-                        <input type="number" id="meltReturnWt" step="0.001" placeholder="e.g. 45.500" oninput="calcMeltLoss()">
+                <div id="meltActionForm" style="display:none; border-top:2px dashed #ccc; padding-top:15px;">
                     </div>
-                    <div class="form-group">
-                        <label>Resulting Purity (%)</label>
-                        <input type="number" id="meltResultPurity" step="0.01" value="100" placeholder="e.g. 100 or 99.5" oninput="calcMeltLoss()">
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top:5px; background:#fff3e0; padding:12px; border-radius:8px; border:1px solid #ffe0b2;">
-                    <label style="color:#e65100; margin-bottom:2px;">Calculated Fine Weight (Pure content)</label>
-                    <strong id="meltFineWtDisplay" style="font-size:1.4rem; color:#ef6c00;">0.000 g</strong>
-                </div>
-                
-                <div class="form-grid" style="margin-top:10px;">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Physical Loss / Dust (g)</label>
-                        <input type="text" id="meltLossWt" readonly style="background:transparent; border:none; color:var(--out-red); font-weight:bold; padding:0;">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label>Refinery Charges (₹) [Optional]</label>
-                        <input type="number" id="meltCharges" placeholder="0">
-                    </div>
-                </div>
             </div>
-
-            <button class="btn-primary" style="background:#455a64;" onclick="processMelt()"><i class="fas fa-cogs"></i> Process & Add to Inventory</button>
-            <p style="font-size:0.75rem; color:#888; text-align:center; margin-top:10px;">*The calculated Fine Weight will be logged and the Mixed block will be instantly added to your Stock Inventory.</p>
         </div>
     </div>
 
@@ -391,25 +378,22 @@
             setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
         }
 
-        // --- NEW LOGIC FOR GOLD/SILVER SPLIT ---
         let currentMetal = 'Gold'; 
         let globalOldGoldAvailable = 0;
         let globalOldSilverAvailable = 0;
-
+        let allCustomers = [];
+        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+        
         function switchMetal(metal) {
             currentMetal = metal;
-            
-            // Update Tab UI
             document.querySelectorAll('.metal-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.metal-tab[data-metal="${metal}"]`).classList.add('active');
             
-            // Update UI Labels
             document.getElementById('lblAccumulated').innerText = `Accumulated Box (UR ${metal})`;
             document.getElementById('tableTitle').innerHTML = `<i class="fas fa-list-alt"></i> Unified Old ${metal} Ledger`;
             document.getElementById('lblFabBuy').innerText = `Buy Old ${metal}`;
-            document.getElementById('lblFabMelt').innerText = `Send to Refinery (Melt ${metal})`;
+            document.getElementById('lblFabMelt').innerText = `Refinery Pipeline (${metal})`;
             
-            // Re-populate Dropdowns & Ledger
             populatePurityDropdown();
             loadOldGoldLedger();
         }
@@ -423,9 +407,6 @@
             return false;
         }
 
-        let allCustomers = [];
-        let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
-        
         window.onload = async function() {
             const today = new Date();
             document.getElementById('filterTo').valueAsDate = today;
@@ -504,7 +485,7 @@
 
             let combinedLedger = [];
 
-            // 1. Pull from POS Sales
+            // 1. POS Sales Data
             const sales = await getAllItems('sales');
             sales.forEach(s => {
                 if(s.status === 'cancelled') return; 
@@ -525,7 +506,7 @@
                 }
             });
 
-            // 2. Pull from Custom Orders
+            // 2. Custom Orders Data
             const orders = await getAllItems('orders');
             orders.forEach(o => {
                 if(o.status === 'cancelled' && o.oldGoldReturned) return; 
@@ -542,19 +523,22 @@
                 }
             });
 
-            // 3. Pull Direct Buys & Melts
+            // 3. Direct Buys & Multi-stage Melts
             let directRecords = [];
             try { directRecords = await getAllItems('old_gold'); } catch(e){}
             
             directRecords.forEach(d => {
-                // Determine if record is silver (fallback to purity check if 'metal' field is missing)
                 const isSilv = d.metal ? (d.metal === 'Silver') : checkIsSilver(d.purity);
 
                 if (d.type === 'MELT') {
+                    let textDesc = "Sent to Refinery";
+                    if(d.status === 'RECEIVED') textDesc = `Bar Recd (${d.returnWt}g) • Tounch Pending (Cut: ${d.cutWt}g)`;
+                    if(d.status === 'COMPLETED') textDesc = `Melted Bar Complete • Loss: ${(d.lossWt || 0).toFixed(3)}g`;
+
                     combinedLedger.push({
                         rawId: d.id, source: 'MELT', date: d.date,
                         customerName: 'REFINERY', customerPhone: '-',
-                        description: `Melted: ${d.lossWt}g Loss`, purity: d.purity || 'Mixed',
+                        description: textDesc, purity: d.purity || 'Pending',
                         netWt: -parseFloat(d.sentWt), 
                         rate: 0, amount: parseFloat(d.charges || 0),
                         isSilverItem: isSilv
@@ -562,8 +546,8 @@
                 } else if (d.type === 'BUY') { 
                     const c = allCustomers.find(x => x.id == d.customerId);
                     const custName = c ? c.name : 'Unknown';
-                    
                     const dDateStr = d.date.split('T')[0];
+                    
                     const isPosDuplicate = combinedLedger.some(posItem => 
                         posItem.source === 'POS' && 
                         posItem.date.startsWith(dDateStr) && 
@@ -586,7 +570,7 @@
                 }
             });
 
-            // Calculate Globals Separately
+            // Box Balance Calculation
             globalOldGoldAvailable = 0;
             globalOldSilverAvailable = 0;
             
@@ -595,11 +579,9 @@
                 else globalOldGoldAvailable += t.netWt;
             });
 
-            // FILTER based on Current Metal Tab
             const isLookingForSilver = (currentMetal === 'Silver');
             let filteredLedger = combinedLedger.filter(t => t.isSilverItem === isLookingForSilver);
 
-            // Apply User Filters
             const dateFrom = document.getElementById('filterFrom').value;
             const dateTo = document.getElementById('filterTo').value;
             const sourceFilter = document.getElementById('filterSource').value;
@@ -628,25 +610,21 @@
                     const inName = t.customerName.toLowerCase().includes(searchFilter);
                     const inPhone = t.customerPhone.includes(searchFilter);
                     const inRef = searchRef.includes(searchFilter) || String(t.rawId).includes(searchFilter);
-
                     if(!inName && !inPhone && !inRef) passSearch = false;
                 }
 
                 if(passDate && passSource && passSearch) {
                     totalWt += t.netWt;
                     if(t.source !== 'MELT') totalVal += t.amount;
-                    
                     if(t.source === 'DIRECT') { directPaid += t.amount; wtDirect += t.netWt; }
                     if(t.source === 'POS') wtPos += t.netWt;
                     if(t.source === 'ORDER') wtOrder += t.netWt;
                 }
-
                 return passDate && passSource && passSearch;
             });
 
             displayLedger.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-            // Update UI Stats
             const activeAvailableWt = isLookingForSilver ? globalOldSilverAvailable : globalOldGoldAvailable;
             document.getElementById('statTotalWt').innerText = activeAvailableWt.toFixed(3) + " g";
             document.getElementById('statTotalVal').innerText = "₹" + totalVal.toLocaleString();
@@ -676,32 +654,25 @@
                 if(t.source === 'POS') { badgeClass = 'b-pos'; badgeText = 'POS Exch'; linkUrl = `sales.html?edit=${t.rawId}`; }
                 if(t.source === 'ORDER') { badgeClass = 'b-order'; badgeText = 'Order Adv'; linkUrl = `orders.html`; }
                 if(t.source === 'DIRECT') { badgeClass = 'b-direct'; badgeText = 'Cash Buy'; }
-                if(t.source === 'MELT') { badgeClass = 'b-melt'; badgeText = 'Melted'; }
+                if(t.source === 'MELT') { badgeClass = 'b-melt'; badgeText = 'Melting'; }
 
                 let actionBtn = '';
                 if (t.source === 'DIRECT') {
                     const safeName = t.customerName ? t.customerName.replace(/'/g, "\\'") : '';
                     const safeDesc = t.description ? t.description.replace(/'/g, "\\'") : '';
-                    
                     actionBtn = `
                         <button style="padding:6px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:4px; cursor:pointer;" onclick="waReceipt('${safeName}', '${t.customerPhone}', ${t.netWt}, '${t.purity}', ${t.amount})" title="Send Receipt"><i class="fab fa-whatsapp"></i></button>
-                        <button style="padding:6px; background:#e3f2fd; color:#1976d2; border:none; border-radius:4px; cursor:pointer; margin-left:5px;" onclick="printDeclaration('${safeName}', '${t.customerPhone}', '${safeDesc}', ${t.netWt}, '${t.purity}', ${t.amount}, '${dateStr}')" title="Print Declaration Form"><i class="fas fa-file-signature"></i></button>
-                        <i class="fas fa-trash" style="color:#d32f2f; cursor:pointer; margin-left:10px; font-size:1.1rem;" onclick="deleteRecord(${t.rawId})" title="Delete Record"></i>
+                        <button style="padding:6px; background:#e3f2fd; color:#1976d2; border:none; border-radius:4px; cursor:pointer; margin-left:5px;" onclick="printDeclaration('${safeName}', '${t.customerPhone}', '${safeDesc}', ${t.netWt}, '${t.purity}', ${t.amount}, '${dateStr}')" title="Print Declaration"><i class="fas fa-file-signature"></i></button>
+                        <i class="fas fa-trash" style="color:#d32f2f; cursor:pointer; margin-left:10px; font-size:1.1rem;" onclick="deleteRecord(${t.rawId})"></i>
                     `;
                 } else if (t.source === 'MELT') {
-                    actionBtn = `<i class="fas fa-trash" style="color:#d32f2f; cursor:pointer; font-size:1.1rem;" onclick="deleteRecord(${t.rawId})" title="Delete Record"></i>`;
+                    actionBtn = `<button style="padding:5px 10px; background:#455a64; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;" onclick="openMeltModal(); switchMeltTab('TRACK');">Manage Process</button>`;
                 } else {
-                    actionBtn = `<button style="padding:5px 10px; background:#f0f0f0; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; color:#333;" onclick="window.location.href='${linkUrl}'">View Source</button>`;
+                    actionBtn = `<button style="padding:5px 10px; background:#f0f0f0; border:1px solid #ddd; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8rem; color:#333;" onclick="window.location.href='${linkUrl}'">Source</button>`;
                 }
 
-                let amountText = '';
-                if (t.source === 'MELT') {
-                    amountText = `(Fee) ₹${t.amount.toLocaleString()}`;
-                } else if (t.source === 'DIRECT') {
-                    amountText = `₹${t.amount.toLocaleString()}<br><span style="font-size:0.75rem; background:#e0e0e0; padding:2px 6px; border-radius:4px; color:#555; display:inline-block; margin-top:4px;"><i class="fas fa-money-bill-wave" style="font-size:0.7rem;"></i> ${t.mode}</span>`;
-                } else {
-                    amountText = `₹${t.amount.toLocaleString()}`;
-                }
+                let amountText = t.source === 'MELT' ? `(Fee) ₹${t.amount.toLocaleString()}` : `₹${t.amount.toLocaleString()}`;
+                if(t.source === 'DIRECT') amountText += `<br><span style="font-size:0.75rem; color:#666;"><i class="fas fa-wallet"></i> ${t.mode}</span>`;
 
                 const wtColor = t.netWt < 0 ? 'color:var(--out-red);' : '';
                 const sign = t.netWt < 0 ? '' : '+';
@@ -714,10 +685,8 @@
                             <span class="party-name">${t.customerName}</span>
                             <span class="tx-desc">${t.description} <span class="tx-purity">${t.purity}</span></span>
                         </td>
-                        <td style="font-weight:600; ${wtColor}">${sign}${t.netWt.toFixed(3)}g<br><small style="color:#888;">${t.rate > 0 ? '@ ₹'+t.rate+'/g' : ''}</small></td>
-                        <td class="text-right" style="font-weight:700; font-size:1.05rem; color: #333;">
-                            ${amountText}
-                        </td>
+                        <td style="font-weight:600; ${wtColor}">${sign}${t.netWt.toFixed(3)}g</td>
+                        <td class="text-right" style="font-weight:700; color: #333;">${amountText}</td>
                         <td style="text-align:center;">${actionBtn}</td>
                     </tr>
                 `;
@@ -741,7 +710,6 @@
             if(!selectEl) return;
             const purity = selectEl.value;
             let r = 0;
-            
             if(currentMetal === 'Gold') {
                 if(purity === '22K') r = goldRates.rate22k;
                 else if(purity === '24K') r = goldRates.rate24k;
@@ -751,21 +719,16 @@
                     const pct = parseFloat(selectedOpt.dataset.pct);
                     if(pct) r = (goldRates.rate24k * (pct / 100));
                 }
-                r = r / 10; // per gram
+                r = r / 10;
             } else {
-                r = (goldRates.rateSilver || 0) / 1000; // silver is usually per kg
+                r = (goldRates.rateSilver || 0) / 1000;
                 if(purity.includes('92.5')) r = r * 0.925;
                 else {
                     const selectedOpt = selectEl.options[selectEl.selectedIndex];
-                    if(selectedOpt && selectedOpt.dataset.pct) {
-                        const pct = parseFloat(selectedOpt.dataset.pct);
-                        if(pct) r = r * (pct / 100);
-                    }
+                    if(selectedOpt && selectedOpt.dataset.pct) r = r * (parseFloat(selectedOpt.dataset.pct) / 100);
                 }
             }
-            
-            if(r > 0) r = r * 0.95; // 5% buffer deduction for buy
-
+            if(r > 0) r = r * 0.95; // 5% Buffer deduction
             document.getElementById('bRate').value = parseFloat(r.toFixed(2));
             calcBuyItem();
         }
@@ -775,207 +738,313 @@
             const stoneWt = parseFloat(document.getElementById('bStoneWt').value) || 0;
             const netWt = Math.max(0, grossWt - stoneWt);
             document.getElementById('bNetWt').value = netWt.toFixed(3);
-
             const rate = parseFloat(document.getElementById('bRate').value) || 0;
-            const val = netWt * rate;
-
-            const exchPct = parseFloat(document.getElementById('bExchangePct').value) || 100;
-            const finalTotal = Math.round(val * (exchPct / 100));
-            
+            const finalTotal = Math.round((netWt * rate) * (parseFloat(document.getElementById('bExchangePct').value || 100) / 100));
             document.getElementById('bFinalAmount').value = finalTotal;
         }
 
         async function saveDirectPurchase() {
-            const custIdStr = document.getElementById('selectedCustomerId').value;
-            const custId = parseInt(custIdStr);
-            if(!custId) return showToast("Select a Customer from the search list", "error");
-
+            const custId = parseInt(document.getElementById('selectedCustomerId').value);
+            if(!custId) return showToast("Select a Customer first", "error");
             const desc = document.getElementById('bDesc').value;
             const netWt = parseFloat(document.getElementById('bNetWt').value) || 0;
-            const rate = parseFloat(document.getElementById('bRate').value) || 0;
             const finalTotal = parseFloat(document.getElementById('bFinalAmount').value) || 0;
-            const mode = document.getElementById('bMode').value;
-            const purity = document.getElementById('bPurity').value;
-
-            if(!desc) return showToast("Enter Item Description", "error");
-            if(netWt <= 0 || finalTotal <= 0) return showToast("Invalid Weight or Amount", "error");
+            if(!desc || netWt <= 0 || finalTotal <= 0) return showToast("Missing Fields", "error");
 
             const c = allCustomers.find(x => x.id == custId);
+            const now = new Date().toISOString();
 
             const txId = await addItem('old_gold', {
-                type: 'BUY',
-                metal: currentMetal,
-                customerId: custId,
-                date: new Date().toISOString(),
-                description: desc,
-                purity: purity,
+                type: 'BUY', metal: currentMetal, customerId: custId, date: now,
+                description: desc, purity: document.getElementById('bPurity').value,
                 grossWt: parseFloat(document.getElementById('bGrossWt').value) || 0,
                 stoneWt: parseFloat(document.getElementById('bStoneWt').value) || 0,
-                netWt: netWt,
-                rate: rate,
-                exchPct: parseFloat(document.getElementById('bExchangePct').value) || 100,
-                amount: finalTotal,
-                mode: mode
+                netWt: netWt, rate: parseFloat(document.getElementById('bRate').value) || 0,
+                amount: finalTotal, mode: document.getElementById('bMode').value
             });
 
             await addItem('cashflow', {
-                date: new Date().toISOString(),
-                type: 'OUT',
-                mode: mode,
-                category: `Old ${currentMetal} Direct Purchase`,
-                amount: finalTotal,
-                note: `Bought ${netWt}g ${purity} from ${c.name} (Ref #${txId})`
+                date: now, type: 'OUT', mode: document.getElementById('bMode').value,
+                category: `Old ${currentMetal} Direct Purchase`, amount: finalTotal,
+                note: `Bought ${netWt}g from ${c.name} (Ref #${txId})`
             });
 
-            showToast("Purchase Saved & Cashbook Updated!", "success");
+            showToast("Purchase Saved!", "success");
             closeModal('buyModal');
-            
-            const dateStr = new Date().toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
-
-            if(confirm("Purchase Saved! Do you want to Print the Customer Self-Declaration form?")) {
-                printDeclaration(c.name, c.mobile, desc, netWt, purity, finalTotal, dateStr);
-            } else if(confirm("Do you want to send a WhatsApp Receipt to the Customer instead?")) {
-                waReceipt(c.name, c.mobile, netWt, purity, finalTotal);
-            }
-            
             loadOldGoldLedger();
         }
 
+        // --- NEW MULTI-STAGE REFINERY PROCESS ENGINE ---
+        function switchMeltTab(tab) {
+            document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+            if(tab === 'SEND') {
+                document.getElementById('mTTabSend').classList.add('active');
+                document.getElementById('mViewSend').style.display = 'block';
+                document.getElementById('mViewTrack').style.display = 'none';
+            } else {
+                document.getElementById('mTTabTrack').classList.add('active');
+                document.getElementById('mViewSend').style.display = 'none';
+                document.getElementById('mViewTrack').style.display = 'block';
+                renderMeltPipeline();
+            }
+        }
+
         function openMeltModal() {
-            document.getElementById('meltModalTitle').innerHTML = `<i class="fas fa-fire"></i> Melt Old ${currentMetal} (Refinery)`;
-            document.getElementById('meltAvailLabel').innerText = `Available Old ${currentMetal} (UR):`;
+            document.getElementById('meltModalTitle').innerHTML = `<i class="fas fa-fire"></i> Refinery pipeline (${currentMetal})`;
             const activeAvail = currentMetal === 'Silver' ? globalOldSilverAvailable : globalOldGoldAvailable;
             document.getElementById('meltAvailableWt').innerText = activeAvail.toFixed(3) + " g";
-            
             document.getElementById('meltSentWt').value = '';
-            document.getElementById('meltReturnWt').value = '';
-            document.getElementById('meltResultPurity').value = '100'; 
-            document.getElementById('meltLossWt').value = '';
-            document.getElementById('meltCharges').value = '';
-            document.getElementById('meltFineWtDisplay').innerText = '0.000 g';
+            document.getElementById('meltActionForm').style.display = 'none';
+            switchMeltTab('SEND');
             document.getElementById('meltModal').style.display = 'flex';
         }
 
-        function calcMeltLoss() {
-            const sent = parseFloat(document.getElementById('meltSentWt').value) || 0;
-            const returned = parseFloat(document.getElementById('meltReturnWt').value) || 0;
-            const purity = parseFloat(document.getElementById('meltResultPurity').value) || 100;
+        // STAGE 1: ISSUE TO REFINERY
+        async function processMeltSend() {
+            const sentWt = parseFloat(document.getElementById('meltSentWt').value);
+            if(!sentWt || sentWt <= 0) return showToast("Enter valid weight to melt", "error");
 
-            if(sent > 0 && returned > 0) {
-                const loss = sent - returned; 
-                document.getElementById('meltLossWt').value = loss.toFixed(3) + " g";
-            } else {
-                document.getElementById('meltLossWt').value = '';
-            }
+            const activeAvail = currentMetal === 'Silver' ? globalOldSilverAvailable : globalOldGoldAvailable;
+            if(sentWt > activeAvail) return showToast("Box has insufficient metal!", "error");
 
-            const fineWt = returned * (purity / 100);
-            document.getElementById('meltFineWtDisplay').innerText = fineWt.toFixed(3) + " g";
+            if(!confirm(`Send ${sentWt}g to Refinery? Maal box se nikal jayega.`)) return;
+
+            await addItem('old_gold', {
+                type: 'MELT',
+                status: 'SENT', // Pipeline stage 1
+                metal: currentMetal,
+                date: new Date().toISOString(),
+                sentWt: sentWt,
+                returnWt: 0, cutWt: 0, lossWt: 0, purity: '', charges: 0
+            });
+
+            showToast("Batch dispatched to Refinery pipeline!", "success");
+            openMeltModal();
+            loadOldGoldLedger();
         }
 
-        async function processMelt() {
-            const sentWt = parseFloat(document.getElementById('meltSentWt').value);
-            const returnWt = parseFloat(document.getElementById('meltReturnWt').value);
-            const resultPurity = parseFloat(document.getElementById('meltResultPurity').value);
-            const charges = parseFloat(document.getElementById('meltCharges').value) || 0;
+        // RENDER ACTIVE PIPELINE JOBS
+        async function renderMeltPipeline() {
+            const listDiv = document.getElementById('meltPipelineList');
+            const formDiv = document.getElementById('meltActionForm');
+            formDiv.style.display = 'none';
+            listDiv.innerHTML = "Loading Active Jobs...";
 
-            if(!sentWt || sentWt <= 0) return showToast("Enter weight sent to refinery.", "error");
-            if(!returnWt || returnWt <= 0) return showToast("Enter returned weight.", "error");
-            if(!resultPurity || resultPurity <= 0 || resultPurity > 100) return showToast("Enter a valid resulting purity percentage.", "error");
-            
-            const activeAvail = currentMetal === 'Silver' ? globalOldSilverAvailable : globalOldGoldAvailable;
-            if(sentWt > activeAvail) return showToast(`Cannot melt ${sentWt}g. You only have ${activeAvail.toFixed(3)}g available.`, "error");
+            const records = await getAllItems('old_gold').catch(() => []);
+            const refineryJobs = records.filter(r => r.type === 'MELT' && r.metal === currentMetal && r.status !== 'COMPLETED');
 
-            const fineWt = returnWt * (resultPurity / 100);
-            const lossWt = sentWt - returnWt;
+            if(refineryJobs.length === 0) {
+                listDiv.innerHTML = `<div style="text-align:center; padding:10px; color:#888;">No active jobs in refinery pipeline.</div>`;
+                return;
+            }
 
-            if(!confirm(`Confirm Melting Details:\n\nSent: ${sentWt}g\nReceived: ${returnWt}g (${resultPurity}% Purity)\nFine Weight (Pure): ${fineWt.toFixed(3)}g\nLoss/Dust: ${lossWt.toFixed(3)}g\n\nThis will remove ${sentWt}g from UR ${currentMetal} and add ${returnWt}g to your Inventory. Proceed?`)) return;
-
-            const allInventory = await getAllItems('inventory');
-            
-            const prefix = currentMetal === 'Silver' ? 'MLTSLV' : 'MLTGLD';
-            let maxMeltIndex = 0;
-            
-            allInventory.forEach(item => {
-                if (item.barcode && item.barcode.startsWith(prefix)) {
-                    const num = parseInt(item.barcode.replace(prefix, ''));
-                    if (!isNaN(num) && num > maxMeltIndex) {
-                        maxMeltIndex = num;
-                    }
-                }
+            listDiv.innerHTML = "";
+            refineryJobs.forEach(job => {
+                const dateLabel = new Date(job.date).toLocaleDateString('en-IN', {day:'numeric', month:'short'});
+                let badgeColor = job.status === 'SENT' ? '#ef6c00' : '#0288d1';
+                let btnLabel = job.status === 'SENT' ? 'Receive Bar' : 'Enter Tounch';
+                
+                listDiv.innerHTML += `
+                    <div class="job-item">
+                        <div>
+                            <strong>Batch #${job.id} (${dateLabel})</strong><br>
+                            <small>Sent Wt: ${job.sentWt}g | Stage: <b style="color:${badgeColor}">${job.status}</b></small>
+                        </div>
+                        <button class="job-status-btn" style="background:${badgeColor};" onclick="loadMeltJobAction(${job.id}, '${job.status}')">${btnLabel}</button>
+                    </div>
+                `;
             });
+        }
+
+        // LOAD ACTION FORM FOR SELECTED JOB
+        async function loadMeltJobAction(jobId, status) {
+            const formDiv = document.getElementById('meltActionForm');
+            formDiv.style.display = 'block';
             
-            const nextSeq = maxMeltIndex + 1;
-            const newBarcode = prefix + nextSeq.toString().padStart(3, '0');
+            const records = await getAllItems('old_gold').catch(() => []);
+            const job = records.find(r => r.id == jobId);
+            if(!job) return;
+
+            if(status === 'SENT') {
+                // STAGE 2 FORM: RECEIVE BAR FROM REFINERY
+                formDiv.innerHTML = `
+                    <h4 style="margin:0 0 10px 0; color:#ef6c00;"><i class="fas fa-balance-scale"></i> Receive Bar: Batch #${jobId}</h4>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Returned Bar Wt (Gross g)</label>
+                            <input type="number" id="mReturnWt" step="0.001" placeholder="0.000">
+                        </div>
+                        <div class="form-group">
+                            <label>Cut Piece Wt for Lab (g)</label>
+                            <input type="number" id="mCutWt" step="0.001" value="0.000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Refinery Cost / Labor (₹)</label>
+                        <input type="number" id="mCharges" value="0">
+                    </div>
+                    <div style="background:#e8f5e9; padding:8px; border-radius:6px; margin-bottom:10px;">
+                        <input type="checkbox" id="mInstantTounch" onchange="toggleInstantTounchField()"> 
+                        <label style="display:inline; font-weight:bold; color:#2e7d32;">Report / Tounch aa gaya hai?</label>
+                    </div>
+                    <div id="mInstantPurityBox" class="form-group" style="display:none;">
+                        <label>Purity / Touch Report (%)</label>
+                        <input type="number" id="mInstantPurity" step="0.01" placeholder="e.g. 99.50">
+                    </div>
+                    <button class="btn-primary" style="background:#2e7d32;" onclick="saveMeltReceive(${jobId}, ${job.sentWt})">Save Received Stock</button>
+                `;
+            } else if(status === 'RECEIVED') {
+                // STAGE 3 FORM: DELAYED LAB REPORT ENTRY
+                formDiv.innerHTML = `
+                    <h4 style="margin:0 0 10px 0; color:#0288d1;"><i class="fas fa-flask"></i> Enter Lab Tounch Report: Batch #${jobId}</h4>
+                    <p style="font-size:0.8rem; color:#666; margin-top:-5px;">Bar Weight: ${(job.returnWt - job.cutWt).toFixed(3)}g stock me add ho chuka hai. Lab report fill karein.</p>
+                    <div class="form-group">
+                        <label>Final Touch / Purity (%)</label>
+                        <input type="number" id="mFinalPurity" step="0.01" placeholder="e.g. 99.20">
+                    </div>
+                    <button class="btn-primary" style="background:#0288d1;" onclick="saveMeltTounchReport(${jobId})">Apply Purity Report</button>
+                `;
+            }
+        }
+
+        function toggleInstantTounchField() {
+            const chk = document.getElementById('mInstantTounch').checked;
+            document.getElementById('mInstantPurityBox').style.display = chk ? 'block' : 'none';
+        }
+
+        // SAVE STAGE 2: BAR RECEIVED
+        async function saveMeltReceive(jobId, sentWt) {
+            const returnWt = parseFloat(document.getElementById('mReturnWt').value);
+            const cutWt = parseFloat(document.getElementById('mCutWt').value) || 0;
+            const charges = parseFloat(document.getElementById('mCharges').value) || 0;
+            const isInstant = document.getElementById('mInstantTounch').checked;
+            
+            if(!returnWt || returnWt <= 0) return showToast("Enter correct returned weight", "error");
+            if(cutWt >= returnWt) return showToast("Cut weight cannot exceed returned bar weight!", "error");
+
+            const remainingBarWt = returnWt - cutWt;
+            const initialLoss = sentWt - returnWt;
+            const now = new Date().toISOString();
+
+            // Purity parsing logic
+            let finalStatus = 'RECEIVED';
+            let purityStr = 'Pending';
+            let fineWt = 0;
+
+            if(isInstant) {
+                const pVal = parseFloat(document.getElementById('mInstantPurity').value);
+                if(!pVal || pVal <= 0 || pVal > 100) return showToast("Enter valid purity percentage", "error");
+                finalStatus = 'COMPLETED';
+                purityStr = pVal + "%";
+                fineWt = remainingBarWt * (pVal / 100);
+            }
 
             const db = await dbPromise;
             const tx = db.transaction(['old_gold', 'inventory', 'cashflow'], 'readwrite');
-            const now = new Date().toISOString();
 
-            const meltData = {
-                type: 'MELT',
-                metal: currentMetal,
-                date: now,
-                sentWt: sentWt,
-                returnWt: returnWt,
-                lossWt: lossWt,
-                purity: `${resultPurity}%`,
-                charges: charges
-            };
-            const meltReq = tx.objectStore('old_gold').add(meltData);
-
-            meltReq.onsuccess = async (e) => {
-                const meltId = e.target.result;
-
-                tx.objectStore('inventory').add({
-                    barcode: newBarcode,
-                    category: `Mixed ${currentMetal}`, 
-                    name: `Melted ${currentMetal} Mix (${resultPurity}%)`,
-                    purity: `${resultPurity}%`, 
-                    grossWt: returnWt,   
-                    netWt: returnWt,     
-                    fineWt: fineWt,      
-                    weight: returnWt,    
-                    pieces: 1,
-                    status: 'stock',
-                    source: `melt_${currentMetal.toLowerCase()}_${meltId}`,
-                    addedDate: now
-                });
-
-                if(charges > 0) {
-                    tx.objectStore('cashflow').add({
-                        date: now, type: 'OUT', mode: 'Cash',
-                        category: 'Refinery Charges (Tighal)', amount: charges,
-                        note: `Melting cost for ${currentMetal} Batch #${meltId}`
-                    });
+            // Generate unique bar barcode sequence
+            const allInv = await getAllItems('inventory');
+            const prefix = currentMetal === 'Silver' ? 'BARSLV' : 'BARGLD';
+            let maxIdx = 0;
+            allInv.forEach(item => {
+                if (item.barcode && item.barcode.startsWith(prefix)) {
+                    const num = parseInt(item.barcode.replace(prefix, ''));
+                    if (!isNaN(num) && num > maxIdx) maxIdx = num;
                 }
+            });
+            const nextBarcode = prefix + (maxIdx + 1).toString().padStart(3, '0');
 
-                tx.oncomplete = () => {
-                    showToast(`${currentMetal} Melted! Added ${newBarcode} to Inventory.`, "success");
-                    closeModal('meltModal');
-                    loadOldGoldLedger();
-                };
+            // 1. Update Old Gold Table Job Row
+            tx.objectStore('old_gold').put({
+                id: jobId, type: 'MELT', status: finalStatus, metal: currentMetal, date: now,
+                sentWt: sentWt, returnWt: returnWt, cutWt: cutWt, lossWt: initialLoss,
+                purity: purityStr, charges: charges, barcode: nextBarcode
+            });
+
+            // 2. Insert Bar into Stock Inventory
+            tx.objectStore('inventory').add({
+                barcode: nextBarcode,
+                category: `Mixed ${currentMetal}`,
+                name: `Refined Bar Batch #${jobId} (${purityStr})`,
+                purity: purityStr,
+                grossWt: remainingBarWt, netWt: remainingBarWt, weight: remainingBarWt,
+                fineWt: fineWt, pieces: 1, status: 'stock',
+                source: `melt_${currentMetal.toLowerCase()}_${jobId}`,
+                addedDate: now
+            });
+
+            // 3. Log refinery fees to cashbook
+            if(charges > 0) {
+                tx.objectStore('cashflow').add({
+                    date: now, type: 'OUT', mode: 'Cash',
+                    category: 'Refinery Charges (Tighal)', amount: charges,
+                    note: `Melting cost for batch #${jobId}`
+                });
+            }
+
+            tx.oncomplete = () => {
+                showToast(`Bar created with barcode ${nextBarcode}! Inventory Stock Updated.`, "success");
+                closeModal('meltModal');
+                loadOldGoldLedger();
+            };
+        }
+
+        // SAVE STAGE 3: DELAYED LAB TOUNCH REPORT APPLIED
+        async function saveMeltTounchReport(jobId) {
+            const pVal = parseFloat(document.getElementById('mFinalPurity').value);
+            if(!pVal || pVal <= 0 || pVal > 100) return showToast("Enter correct purity percent", "error");
+
+            const records = await getAllItems('old_gold').catch(() => []);
+            const job = records.find(r => r.id == jobId);
+            if(!job) return;
+
+            const remainingBarWt = job.returnWt - job.cutWt;
+            const calculatedFineWt = remainingBarWt * (pVal / 100);
+            const purityText = pVal + "%";
+
+            // Update in IndexedDB
+            const db = await dbPromise;
+            const tx = db.transaction(['old_gold', 'inventory'], 'readwrite');
+
+            // 1. Mark Job as Completed
+            job.status = 'COMPLETED';
+            job.purity = purityText;
+            tx.objectStore('old_gold').put(job);
+
+            // 2. Fetch linked Inventory record & update purity + Fine Weight
+            // Chahe ye 'stock' me ho ya 'karigar' ko issue ho chuka ho, meta data database me clean update hoga
+            const allInv = await getAllItems('inventory');
+            const targetItem = allInv.find(item => item.barcode === job.barcode || item.source === `melt_${currentMetal.toLowerCase()}_${jobId}`);
+
+            if(targetItem) {
+                targetItem.purity = purityText;
+                targetItem.name = `Refined Bar Batch #${jobId} (${purityText})`;
+                targetItem.fineWt = calculatedFineWt;
+                tx.objectStore('inventory').put(targetItem);
+            }
+
+            tx.oncomplete = () => {
+                showToast(`Purity report applied! Fine Weight calculated: ${calculatedFineWt.toFixed(3)}g`, "success");
+                closeModal('meltModal');
+                loadOldGoldLedger();
             };
         }
 
         async function deleteRecord(id) {
-            if(!confirm("DANGER: Are you sure you want to delete this record?\n\nNote: You must manually delete the corresponding expense entry from the Cashflow page to maintain accounting accuracy.")) return;
+            if(!confirm("Are you sure you want to delete this record permanently?")) return;
             await deleteItem('old_gold', parseInt(id));
             loadOldGoldLedger();
         }
 
-        // Updated waReceipt with anchor tag to bypass popup blockers
         function waReceipt(name, mobile, weight, purity, total) {
-            if(!mobile || mobile.length < 10) return showToast("Valid mobile number not found.", "error");
+            if(!mobile || mobile.length < 10) return showToast("Mobile missing", "error");
             let phone = mobile.toString().replace(/\D/g, ''); 
             if(phone.length === 10) phone = '+91' + phone;
-            else if(phone.length === 12 && phone.startsWith('91')) phone = '+' + phone;
-            else if(!phone.startsWith('+')) phone = '+' + phone;
 
             let msg = `Hello ${name},\n\nWe have successfully received your Old Metal at *Bharti Jewellers*.\n\n`;
             msg += `*Item:* Old ${currentMetal} (${purity})\n`;
             msg += `*Net Weight:* ${weight}g\n`;
-            msg += `*Total Amount Paid:* Rs. ${total.toLocaleString()}\n`;
-            msg += `\nThank you for your trust!\nRegards,\nBharti Jewellers`;
+            msg += `*Total Amount Paid:* Rs. ${total.toLocaleString()}\n\nThank you!\nRegards,\nBharti Jewellers`;
             
             const link = document.createElement('a');
             link.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
@@ -985,102 +1054,53 @@
             document.body.removeChild(link);
         }
 
-        // --- FIXED FUNCTION: Print Self Declaration using hidden iframe ---
         function printDeclaration(name, phone, desc, wt, purity, amount, date) {
             let printFrame = document.getElementById('hiddenPrintFrame');
             if (!printFrame) {
                 printFrame = document.createElement('iframe');
                 printFrame.id = 'hiddenPrintFrame';
-                printFrame.style.position = 'fixed';
-                printFrame.style.right = '0';
-                printFrame.style.bottom = '0';
-                printFrame.style.width = '0';
-                printFrame.style.height = '0';
-                printFrame.style.border = 'none';
+                printFrame.style.position = 'fixed'; printFrame.style.width = '0'; printFrame.style.height = '0'; printFrame.style.border = 'none';
                 document.body.appendChild(printFrame);
             }
-            
             const metalName = currentMetal || 'Metal';
-            
             const html = `
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Self Declaration - Bharti Jewellers</title>
                 <style>
-                    body { font-family: 'Arial', sans-serif; padding: 40px; color: #000; line-height: 1.6; max-width: 800px; margin: 0 auto; }
-                    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; }
-                    .header h1 { margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 1px; }
-                    .header h3 { margin: 8px 0 0 0; font-size: 18px; text-decoration: underline; }
-                    .content { font-size: 16px; text-align: justify; }
-                    .bold { font-weight: bold; }
-                    table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-                    th, td { border: 1px solid #000; padding: 12px; text-align: center; }
-                    th { background-color: #f0f0f0; }
-                    .signatures { display: flex; justify-content: space-between; margin-top: 100px; }
-                    .sig-box { text-align: center; width: 45%; }
-                    @media print {
-                        body { padding: 20px; }
-                    }
+                    body { font-family: sans-serif; padding: 30px; line-height: 1.5; }
+                    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #000; padding: 10px; text-align: center; }
+                    th { background: #f2f2f2; }
+                    .footer { display: flex; justify-content: space-between; margin-top: 80px; }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <h1>Bharti Jewellers</h1>
-                    <h3>SELF DECLARATION FOR SALE OF OLD ${metalName.toUpperCase()}</h3>
+                    <h2>BHARTI JEWELLERS</h2>
+                    <h4>CUSTOMER SELF DECLARATION FORM - OLD ${metalName.toUpperCase()} PURCHASE</h4>
                 </div>
-                <div class="content">
-                    <p style="text-align:right;">Date: <span class="bold">${date}</span></p>
-                    <p>I, <span class="bold">${name}</span> (Mobile: <span class="bold">${phone || 'N/A'}</span>), hereby declare and confirm that I have voluntarily sold the following old jewelry/metal to Bharti Jewellers:</p>
-                    
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Description of Item</th>
-                                <th>Purity</th>
-                                <th>Net Weight</th>
-                                <th>Total Value Paid (Rs)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>${desc}</td>
-                                <td>${purity}</td>
-                                <td>${wt} g</td>
-                                <td>Rs. ${amount.toLocaleString()}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <p>I solemnly affirm and declare that the above-mentioned items are my own absolute personal property and I have full legal rights to sell them. They are not stolen, encumbered, or illegal property. I bear full legal and financial responsibility for the origin of these items.</p>
-                    <p>I acknowledge that I have received the mutually agreed amount of <span class="bold">Rs. ${amount.toLocaleString()}</span> in full and final settlement for the sale of the aforementioned items, and I have no further claims regarding this transaction.</p>
-                    <p>Attached herewith is a copy of my valid ID proof for verification and legal compliance.</p>
-                </div>
-                
-                <div class="signatures">
-                    <div class="sig-box">
-                        _______________________________<br><br>
-                        Signature of Shop Representative
-                    </div>
-                    <div class="sig-box">
-                        _______________________________<br><br>
-                        Signature / Thumb Impression of Customer
-                    </div>
+                <p align="right">Date: <b>${date}</b></p>
+                <p>I <b>${name}</b> (Phone: ${phone || 'N/A'}), declare that I am the absolute legal owner of the metal described below and am selling it voluntarily to Bharti Jewellers:</p>
+                <table>
+                    <thead>
+                        <tr><th>Description</th><th>Purity</th><th>Net Weight</th><th>Amount Paid</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>${desc}</td><td>${purity}</td><td>${wt} g</td><td>Rs. ${amount.toLocaleString()}</td></tr>
+                    </tbody>
+                </table>
+                <p>I clarify that this metal is non-illegal, genuine, and purely owned by me. I accept full legal responsibility for its origin.</p>
+                <div class="footer">
+                    <div><br>_______________________<br>Authorized Signatory</div>
+                    <div><br>_______________________<br>Customer Signature</div>
                 </div>
             </body>
-            </html>
-            `;
-            
+            </html>`;
             const doc = printFrame.contentWindow.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
-            
-            // Wait slightly for browser to render the frame before printing
-            setTimeout(() => {
-                printFrame.contentWindow.focus();
-                printFrame.contentWindow.print();
-            }, 250);
+            doc.open(); doc.write(html); doc.close();
+            setTimeout(() => { printFrame.contentWindow.focus(); printFrame.contentWindow.print(); }, 250);
         }
     </script>
 </body>
