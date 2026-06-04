@@ -225,9 +225,18 @@
                 Estimated Max Loan (75%): <strong id="lblMaxLoan">₹0</strong>
             </div>
 
-            <div class="form-group">
-                <label>Loan Amount Provided (₹)</label>
-                <input type="number" id="loanAmount" style="font-weight:bold; border-color:#D32F2F; color:#D32F2F;">
+            <div style="display:flex; gap:10px; margin-bottom: 5px;">
+                <div style="flex:1;">
+                    <label>Cash Amount (₹)</label>
+                    <input type="number" id="loanCash" placeholder="0" oninput="calcTotalLoanAmount()" style="font-weight:bold; border-color:#D32F2F; color:#D32F2F;">
+                </div>
+                <div style="flex:1;">
+                    <label>Bank / UPI Amount (₹)</label>
+                    <input type="number" id="loanBank" placeholder="0" oninput="calcTotalLoanAmount()" style="font-weight:bold; border-color:#1976d2; color:#1976d2;">
+                </div>
+            </div>
+            <div style="text-align: right; margin-bottom: 15px; font-weight: bold; color: #333;">
+                Total Loan Amount: <span id="lblTotalLoanAmt" style="color:#D32F2F; font-size:1.2rem;">₹0</span>
             </div>
 
             <div class="form-grid">
@@ -242,7 +251,7 @@
             </div>
 
             <button class="btn-primary" onclick="saveLoan()">Create Loan Account</button>
-            <p style="font-size: 0.75rem; color: #666; text-align: center; margin-top: 10px;">*The loan amount will be instantly deducted from your Shop Cash Balance.</p>
+            <p style="font-size: 0.75rem; color: #666; text-align: center; margin-top: 10px;">*The loan amount will be instantly deducted from your Shop Cashbook.</p>
         </div>
     </div>
 
@@ -291,7 +300,6 @@
                             <input type="date" id="topUpDate" style="flex:1; padding:8px; border:1px solid #ef9a9a; border-radius:4px; font-size:0.85rem;">
                         </div>
                         
-                        <!-- NAYA: Cash/UPI/Bank Mode Selector -->
                         <div style="display:flex; gap:10px; margin-top:8px;">
                             <select id="topUpMode" style="flex:1; padding:8px; border:1px solid #ef9a9a; border-radius:4px; font-size:0.85rem;">
                                 <option value="Cash">Cash</option>
@@ -709,9 +717,15 @@
             document.getElementById('createModal').style.display = 'flex'; 
             document.getElementById('selectedCustomerId').value = '';
             document.getElementById('customerSearchInput').value = '';
-            document.getElementById('loanAmount').value = '';
+            
+            // Reset fields
+            document.getElementById('loanCash').value = '';
+            document.getElementById('loanBank').value = '';
+            document.getElementById('lblTotalLoanAmt').innerText = '₹0';
+            
             document.getElementById('loanWeight').value = '';
             document.getElementById('lblMaxLoan').innerText = '₹0';
+            
             const today = new Date();
             const istOffset = 5.5 * 60 * 60 * 1000;
             const istDate = new Date(today.getTime() + istOffset);
@@ -730,18 +744,33 @@
             const marketValue = wt * effectiveRate;
             const maxLoan = Math.round(marketValue * 0.75); 
             document.getElementById('lblMaxLoan').innerText = "₹" + maxLoan.toLocaleString();
-            if(!document.getElementById('loanAmount').value) document.getElementById('loanAmount').value = maxLoan;
+            
+            // Auto fill cash box if both are empty
+            if(!document.getElementById('loanCash').value && !document.getElementById('loanBank').value && maxLoan > 0) {
+                document.getElementById('loanCash').value = maxLoan;
+                calcTotalLoanAmount();
+            }
+        }
+
+        function calcTotalLoanAmount() {
+            const cash = parseFloat(document.getElementById('loanCash').value) || 0;
+            const bank = parseFloat(document.getElementById('loanBank').value) || 0;
+            const total = cash + bank;
+            document.getElementById('lblTotalLoanAmt').innerText = "₹" + total.toLocaleString();
         }
 
         async function saveLoan() {
             const custId = document.getElementById('selectedCustomerId').value;
-            const amount = parseFloat(document.getElementById('loanAmount').value);
+            const cashAmt = parseFloat(document.getElementById('loanCash').value) || 0;
+            const bankAmt = parseFloat(document.getElementById('loanBank').value) || 0;
+            const amount = cashAmt + bankAmt; // Total Loan Amount
+
             const interest = parseFloat(document.getElementById('loanInterest').value);
             const durVal = parseInt(document.getElementById('loanDurationVal').value);
             const startDateVal = document.getElementById('loanStartDate').value;
 
             if(!custId) return alert("Please select a customer");
-            if(!amount || amount <= 0) return alert("Enter Valid Loan Amount");
+            if(amount <= 0) return alert("Enter Valid Loan Amount in Cash or Bank");
             if(!startDateVal) return alert("Please select a Start Date");
 
             const startDate = new Date(startDateVal);
@@ -781,10 +810,20 @@
             syncLoanLedger(loan);
             const loanId = await addItem('loans', loan);
 
-            await addItem('cashflow', {
-                date: new Date().toISOString(), type: 'OUT', mode: 'Cash',
-                category: 'New Gold Loan', amount: amount, note: `Principal disbursed for Loan #${loanId}`
-            });
+            // Separate Cashbook Entries (Agar Cash diya)
+            if (cashAmt > 0) {
+                await addItem('cashflow', {
+                    date: new Date().toISOString(), type: 'OUT', mode: 'Cash',
+                    category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${loanId}`
+                });
+            }
+            // Separate Cashbook Entries (Agar Bank se diya)
+            if (bankAmt > 0) {
+                await addItem('cashflow', {
+                    date: new Date().toISOString(), type: 'OUT', mode: 'Bank',
+                    category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${loanId}`
+                });
+            }
 
             alert("Loan Created Successfully!");
             closeModal('createModal');
@@ -1017,6 +1056,7 @@
                 alert("Top-Up save karne mein error aayi. Console log check karein.");
             }
         }
+        
         // --- PAYMENT & AUTO-SPLIT LOGIC ---
         function calcTotalPay() {
             const cash = parseFloat(document.getElementById('payCash').value) || 0;
@@ -1052,7 +1092,7 @@
             alert("Settle amount auto-filled in 'Cash' box.\nYou can adjust Cash/Bank values if needed, then click 'Record Jama' to close the account.");
         }
 
-       async function processPayment() {
+        async function processPayment() {
             const cashAmt = parseFloat(document.getElementById('payCash').value) || 0;
             const bankAmt = parseFloat(document.getElementById('payBank').value) || 0;
             const payAmt = cashAmt + bankAmt;
@@ -1174,6 +1214,7 @@
                 alert("Error recording payment. Check console.");
             }
         }
+        
         function sendLoanWhatsApp() {
             const l = allLoans.find(x => String(x.id) === String(currentLoanId));
             if(!l || !l.custMobile) return alert("No valid mobile number found for this customer.");
