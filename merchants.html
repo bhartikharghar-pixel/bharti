@@ -428,6 +428,16 @@
     <script src="db.js?v=35"></script>
 
     <script>
+        // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────
+        function getPurityFactor(p) {
+            if (!p) return 1.0;
+            let up = String(p).toUpperCase();
+            if(up.includes('24K')) return 1.0;
+            if(up.includes('22K')) return 0.9166;
+            if(up.includes('18K')) return 0.750;
+            return 1.0; 
+        }
+
         // ─── SIDEBAR ───────────────────────────────────────────────────────────
         function toggleSidebar() {
             document.getElementById('app-sidebar').classList.toggle('open');
@@ -585,7 +595,7 @@
                     <div class="m-header">
                         <div style="display:flex; justify-content:space-between;">
                             <h4 class="m-name">${m.name} ${cat !== 'Both' ? `<span style="font-size:0.7rem; background:#f1f5f9; padding:2px 6px; border-radius:4px; color:#64748b; margin-left:5px;">${cat}</span>` : ''}</h4>
-                            <button class="btn-pay" onclick="openPay(${m.id})"><i class="fas fa-exchange-alt"></i></button>
+                            <button class="btn-pay" onclick="openPay('${m.id}')"><i class="fas fa-exchange-alt"></i></button>
                         </div>
                         <div class="m-contact"><i class="fas fa-phone-alt"></i> ${m.mobile || 'No Contact'}</div>
                         <div class="bal-grid">
@@ -603,9 +613,9 @@
                     <div class="m-actions">
                         <div style="font-size:0.75rem; color:#94a3b8;">ID: #${m.id}</div>
                         <div style="display:flex; gap:8px;">
-                            <button class="btn-icon c-history" onclick="generateReport(${m.id})" title="Full Ledger Report"><i class="fas fa-file-invoice"></i></button>
-                            <button class="btn-icon c-edit" onclick="editMerchant(${m.id})" title="Edit Details"><i class="fas fa-pen"></i></button>
-                            <button class="btn-icon c-delete" onclick="deleteMerchant(${m.id})" title="Delete Merchant"><i class="fas fa-trash"></i></button>
+                            <button class="btn-icon c-history" onclick="generateReport('${m.id}')" title="Full Ledger Report"><i class="fas fa-file-invoice"></i></button>
+                            <button class="btn-icon c-edit" onclick="editMerchant('${m.id}')" title="Edit Details"><i class="fas fa-pen"></i></button>
+                            <button class="btn-icon c-delete" onclick="deleteMerchant('${m.id}')" title="Delete Merchant"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                 `;
@@ -630,7 +640,7 @@
         }
 
         function editMerchant(id) {
-            const m = allMerchants.find(x => x.id == parseInt(id));
+            const m = allMerchants.find(x => x.id == id);
             if (!m) { showToast("Merchant data not found!", "error"); return; }
 
             document.getElementById('mId').value = m.id;
@@ -645,7 +655,7 @@
             document.getElementById('saveModal').style.display = 'flex';
         }
 
-        // ─── SAVE MERCHANT (BUG FIXED) ─────────────────────────────────────────
+        // ─── SAVE MERCHANT ─────────────────────────────────────────
         async function saveMerchant() {
             const id = document.getElementById('mId').value;
             const name = document.getElementById('mName').value.trim();
@@ -659,7 +669,6 @@
             if (!name) return showToast("Name is required", "error");
 
             if (id) {
-                // FIXED: Used Firebase updateItem instead of db.transaction
                 await updateItem('merchants', { 
                     id: id, 
                     name: name, 
@@ -682,29 +691,30 @@
             }
         }
 
-        // ─── DELETE MERCHANT (BUG FIXED) ───────────────────────────────────────
+        // ─── DELETE MERCHANT ───────────────────────────────────────
         async function deleteMerchant(id) {
-            const numId = parseInt(id) || id;
+            const numId = id; 
             const orders = await getAllItems('orders');
-            const activeOrder = orders.find(o => o.merchantId == numId && o.status === 'in_progress');
+            const activeOrder = orders.find(o => String(o.merchantId) === String(numId) && o.status === 'in_progress');
             if (activeOrder) return alert("Cannot delete! This merchant has active Custom Orders (Jobwork) pending.");
 
             if (confirm("DANGER: Are you sure you want to permanently delete this party?")) {
-                // FIXED: Used Firebase deleteItem instead of db.transaction
                 await deleteItem('merchants', numId);
                 showToast("Merchant Deleted", "success");
                 loadMerchants();
             }
         }
 
-        // ─── PAY / SETTLEMENT DIRECTION ───────────────────────────────────────
+        // ─── PAY / SETTLEMENT DIRECTION (BUG FIXED HERE) ──────────────────────
         function setPayType(type) {
             document.getElementById('payTypeOut').className = 'radio-btn';
             document.getElementById('payTypeIn').className = 'radio-btn';
             const key = type === 'OUT' ? 'payTypeOut' : 'payTypeIn';
             document.getElementById(key).className = `radio-btn active ${type.toLowerCase()}`;
             document.getElementById('payDirection').value = type;
-            toggleInventoryDropdown(type);
+            
+            // FIXED: Changed `toggleInventoryDropdown` to `populateInventorySelect`
+            populateInventorySelect();
         }
 
         function setPayMetal(metal) {
@@ -751,7 +761,6 @@
                 let displayWt = 0;
                 let wtLabel = 'Fine';
 
-                // Agar Tounch Pending hai, toh Gross weight dikhayega
                 if (isPending) {
                     displayWt = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
                     wtLabel = 'Gross (Tounch Pending)';
@@ -793,10 +802,9 @@
                 goldInput.readOnly = false;
                 goldInput.style.background = '#fff';
                 
-                // Agar pending hai, toh RED WARNING dikhayega
                 if (selectedOpt.dataset.ispending === 'true') {
                     maxLabel.innerText = `(Gross Wt: ${selectedOpt.dataset.weight}g) ⚠️ TOUNCH PENDING`;
-                    maxLabel.style.color = '#d32f2f'; // Red warning
+                    maxLabel.style.color = '#d32f2f';
                 } else {
                     maxLabel.innerText = `(Max Available Fine: ${selectedOpt.dataset.weight}g)`;
                     maxLabel.style.color = 'var(--active-red)';
@@ -813,10 +821,9 @@
             }
             toggleGoldOptions();
         }
-        
 
         async function openPay(id) {
-            const merchant = allMerchants.find(m => m.id == id);
+            const merchant = allMerchants.find(m => String(m.id) === String(id));
             if (!merchant) return;
 
             document.getElementById('payId').value = id;
@@ -825,7 +832,7 @@
             const cat = merchant.category || 'Both';
 
             const allPurchases = await getAllItems('purchases');
-            const merchPurchases = allPurchases.filter(p => p.merchantId == id && p.status !== 'cancelled');
+            const merchPurchases = allPurchases.filter(p => String(p.merchantId) === String(id) && p.status !== 'cancelled');
             const pSelect = document.getElementById('payPurchaseSelect');
             pSelect.innerHTML = '<option value="">-- On Account / General Ledger --</option>';
 
@@ -847,6 +854,7 @@
             document.getElementById('payGoldType').value = 'unfixed';
             document.getElementById('payGoldRate').value = '';
 
+            // Calling updated setPayType which correctly initiates inventory load
             setPayType('OUT');
 
             const mtogGold = document.getElementById('mtog-gold');
@@ -864,31 +872,6 @@
 
             toggleGoldOptions();
             document.getElementById('payModal').style.display = 'flex';
-        }
-
-        function handleInventorySelect() {
-            const select = document.getElementById('payInventorySelect');
-            const goldInput = document.getElementById('payGold');
-            const maxLabel = document.getElementById('maxWeightLabel');
-            if (select.value) {
-                const selectedOpt = select.options[select.selectedIndex];
-                goldInput.value = selectedOpt.dataset.weight;
-                goldInput.dataset.maxWeight = selectedOpt.dataset.weight;
-                goldInput.readOnly = false;
-                goldInput.style.background = '#fff';
-                maxLabel.innerText = `(Max Available: ${selectedOpt.dataset.weight}g)`;
-                maxLabel.style.color = 'var(--active-red)';
-                maxLabel.style.fontWeight = 'bold';
-            } else {
-                goldInput.value = '';
-                goldInput.dataset.maxWeight = '';
-                goldInput.readOnly = false;
-                goldInput.style.background = '#f8fafc';
-                maxLabel.innerText = `(Used for Ledger)`;
-                maxLabel.style.color = '#94a3b8';
-                maxLabel.style.fontWeight = 'normal';
-            }
-            toggleGoldOptions();
         }
 
         function validateMetalInput() {
@@ -923,7 +906,7 @@
             document.getElementById('payFixedTotal').innerText = "₹" + Math.round(gold * rate).toLocaleString();
         }
 
-        // ─── PAY MERCHANT (BUG FIXED) ──────────────────────────────────────────
+        // ─── PAY MERCHANT ──────────────────────────────────────────
         async function payMerchant() {
             const id = document.getElementById('payId').value;
             const amt = parseFloat(document.getElementById('payAmount').value) || 0;
@@ -969,9 +952,7 @@
                 });
             }
 
-            // FIXED: Replaced complex IndexedDB transaction with sequential Firebase updates
             try {
-                // 1. Update Inventory if applicable
                 if (inventoryId && direction === 'OUT') {
                     const item = await getItem('inventory', inventoryId);
                     if (item) {
@@ -993,11 +974,10 @@
                             item.grossWt = parseFloat((parseFloat(item.grossWt || 0) * ratio).toFixed(3));
                             item.note = item.note ? item.note + ' | Partial Transfer' : 'Partial Transfer';
                         }
-                        await updateItem('inventory', item);
+                        await updateItem('inventory', item.id, item);
                     }
                 }
 
-                // 2. Update Purchase if linked
                 if (selectedPurchaseId && actualCashImpact > 0) {
                     const pRec = await getItem('purchases', selectedPurchaseId);
                     if (pRec && pRec.type === 'Fixed') {
@@ -1008,11 +988,10 @@
                             pRec.paidAmount = Math.max(0, (parseFloat(pRec.paidAmount) || 0) - actualCashImpact);
                             pRec.dueAmount = parseFloat(pRec.totalAmount) - pRec.paidAmount;
                         }
-                        await updateItem('purchases', pRec);
+                        await updateItem('purchases', pRec.id, pRec);
                     }
                 }
 
-                // 3. Update Merchant Balances
                 const merchantData = await getItem('merchants', id);
                 if (merchantData) {
                     merchantData.balance = (parseFloat(merchantData.balance) || 0) + (actualCashImpact * mult);
@@ -1021,7 +1000,7 @@
                     } else {
                         merchantData.goldBalance = (parseFloat(merchantData.goldBalance) || 0) + (actualGoldImpact * mult);
                     }
-                    await updateItem('merchants', merchantData);
+                    await updateItem('merchants', merchantData.id, merchantData);
                 }
 
                 showToast("Settlement Recorded successfully!", "success");
@@ -1040,7 +1019,7 @@
             tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger & Syncing Live Tounch Data...</td></tr>';
             document.getElementById('reportModal').style.display = 'block';
 
-            const merchant = allMerchants.find(m => m.id == mId) || await getItem('merchants', mId);
+            const merchant = allMerchants.find(m => String(m.id) === String(mId)) || await getItem('merchants', mId);
             if (!merchant) return;
 
             const name = merchant.name;
@@ -1074,15 +1053,14 @@
             try { payments = await getAllItems('merchant_payments'); } catch (e) { }
             const orders = await getAllItems('orders');
             
-            // Inventory Database fetch kiya taaki Live Tounch report check ho sake
             const allInventory = await getAllItems('inventory'); 
 
-            const myPurchases = purchases.filter(p => p.merchantId == mId && p.status !== 'cancelled');
-            const myPayments = payments.filter(p => p.merchantId == mId && p.status !== 'cancelled');
-            const myOrders = orders.filter(o => o.merchantId == mId);
+            const myPurchases = purchases.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
+            const myPayments = payments.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
+            const myOrders = orders.filter(o => String(o.merchantId) === String(mId));
 
             let transactions = [];
-            let needsBalanceUpdate = false; // Flag to check if we auto-healed
+            let needsBalanceUpdate = false; 
 
             myPurchases.forEach(p => {
                 let desc = `${p.category} - Ref #${p.id}`;
@@ -1095,7 +1073,7 @@
                     desc += ` (Total Bill: ₹${p.totalAmount})`;
                     let currentPaid = parseFloat(p.paidAmount) || 0;
                     let laterNama = 0;
-                    myPayments.filter(pmt => pmt.purchaseId == p.id).forEach(pmt => {
+                    myPayments.filter(pmt => String(pmt.purchaseId) === String(p.id)).forEach(pmt => {
                         let pmtMult = pmt.paymentType === 'IN' ? -1 : 1;
                         let pmtAmt = parseFloat(pmt.amount || 0);
                         if (pmt.goldType === 'fixed' && pmt.gold > 0) pmtAmt += (parseFloat(pmt.gold) * parseFloat(pmt.rate));
@@ -1140,23 +1118,19 @@
                         let actualWt = parseFloat(p.gold || 0);
                         let displayPurity = "Fine";
 
-                        // --- AUTO HEAL LOGIC START ---
                         if (p.inventoryBarcode) {
                             const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
                             if (liveItem && liveItem.fineWt) {
                                 displayPurity = liveItem.purity;
                                 const liveFineWt = parseFloat(liveItem.fineWt);
                                 
-                                // Agar purani entry (Gross Wt) naye Tounch (Fine Wt) se alag hai
                                 if (Math.abs(actualWt - liveFineWt) > 0.001) {
                                     const diff = liveFineWt - actualWt;
                                     actualWt = liveFineWt;
                                     
-                                    // Payment Record ko chupchap theek kar do
                                     p.gold = liveFineWt;
                                     await updateItem('merchant_payments', p.id, p);
                                     
-                                    // Merchant ke hisaab (Balance) ko theek kar do
                                     if(metalName === 'Silver') merchant.silverBalance = (parseFloat(merchant.silverBalance)||0) + (diff * pmtMult);
                                     else merchant.goldBalance = (parseFloat(merchant.goldBalance)||0) + (diff * pmtMult);
                                     
@@ -1164,7 +1138,6 @@
                                 }
                             }
                         }
-                        // --- AUTO HEAL LOGIC END ---
 
                         if (metalName === 'Silver') silverChange = actualWt * pmtMult;
                         else goldChange = actualWt * pmtMult;
@@ -1174,7 +1147,6 @@
                 transactions.push({ date: p.date, type: `Settlement (${p.paymentType})`, desc: descParts.join(' & '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-pay' });
             }
 
-            // Agar Auto-Heal hua hai, toh merchant ki details wapas database me save karke cards refresh karo
             if (needsBalanceUpdate) {
                 await updateItem('merchants', merchant.id, merchant);
                 loadMerchants(); 
@@ -1250,6 +1222,7 @@
 
             currentReportMeta = { name: name, category: cat, cash: finalCash, gold: finalNetGold, silver: finalNetSilver };
         }
+        
         // ─── DOWNLOAD CSV ──────────────────────────────────────────────────────
         function downloadCSV() {
             if (currentReportData.length === 0) return showToast("No data to export", "error");
