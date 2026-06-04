@@ -232,11 +232,12 @@
 
     <div id="toast">Message Saved!</div>
 
+    <!-- Firebase & Database scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-
     <script src="db.js?v=35"></script>
+
     <script>
         function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
         function closeModal() { document.getElementById('cutModal').classList.remove('open'); }
@@ -369,18 +370,17 @@
 
         // --- SAVE LOGIC ---
         async function saveRateCut() {
-            const mId = document.getElementById('cutMerchant').value;
             const wt = parseFloat(document.getElementById('cutWeight').value);
             const rate = parseFloat(document.getElementById('cutRate').value);
             const purity = document.getElementById('cutPurity').value;
 
-            if(!mId || !wt || !rate) return showToast("Please fill all fields.", "error");
-            if(!selectedMerchant) return showToast("Merchant error.", "error");
+            if(!selectedMerchant) return showToast("Please select a merchant.", "error");
+            if(!wt || !rate) return showToast("Please fill all fields.", "error");
 
             const currentGold = selectedMerchant.goldBalance || 0;
             const absCurrentGold = Math.abs(currentGold);
 
-            // Use parseFloat with toFixed to avoid strict floating point precision errors
+            // Floating point checks ki wajah se issue na aaye, isliye toFixed check rakha hai
             if(wt > parseFloat(absCurrentGold.toFixed(3))) {
                 return alert(`Error: Ledger only has ${absCurrentGold.toFixed(3)}g unfixed gold available to cut. You entered ${wt}g.`);
             }
@@ -390,50 +390,57 @@
 
             if(!confirm(`Confirm Rate Cut?\n\nConvert ${wt}g Gold (${directionText})\nInto ₹${totalAmt} Cash?`)) return;
 
-            const db = await dbPromise;
-            const tx = db.transaction(['merchants', 'rate_cuts', 'purchases'], 'readwrite');
-            
-            // 1. Update Merchant Balances
-            // If currentGold is POSITIVE (We owe them): Deduct gold, Add cash
-            // If currentGold is NEGATIVE (They owe us): Add gold, Deduct cash
-            const mult = currentGold >= 0 ? 1 : -1; 
-            
-            let newGoldBalance = currentGold - (wt * mult);
-            // Snap to 0 if it's extremely close due to floating point residuals
-            if (Math.abs(newGoldBalance) < 0.001) {
-                newGoldBalance = 0;
-            }
+            try {
+                // 1. Update Merchant Balances
+                const mult = currentGold >= 0 ? 1 : -1; 
+                let newGoldBalance = currentGold - (wt * mult);
+                
+                // Snap to 0 to avoid floating point residues (e.g. 0.00000000001)
+                if (Math.abs(newGoldBalance) < 0.001) {
+                    newGoldBalance = 0;
+                }
 
-            const mStore = tx.objectStore('merchants');
-            selectedMerchant.goldBalance = newGoldBalance;
-            selectedMerchant.balance = (selectedMerchant.balance || 0) + (totalAmt * mult); 
-            mStore.put(selectedMerchant);
+                selectedMerchant.goldBalance = newGoldBalance;
+                selectedMerchant.balance = (selectedMerchant.balance || 0) + (totalAmt * mult); 
+                
+                // Firebase Database Helper call
+                await updateItem('merchants', selectedMerchant.id, selectedMerchant);
 
-            const now = new Date().toISOString();
+                const now = new Date().toISOString();
 
-            // 2. Log in Native Purchases Table (So Master Ledger & Cashbook see it)
-            tx.objectStore('purchases').add({
-                merchantId: parseInt(mId), date: now, type: 'Rate Cut (Settlement)', 
-                category: `Rate Cut (${purity})`,
-                totalFineWeight: -(wt * mult), 
-                dueAmount: totalAmt * mult,  
-                paidAmount: 0, totalAmount: totalAmt * mult, itemDetails: []
-            });
+                // 2. Log in Native Purchases Table (So Master Ledger & Cashbook see it)
+                await addItem('purchases', {
+                    merchantId: selectedMerchant.id, // Safely using object ID
+                    date: now, 
+                    type: 'Rate Cut (Settlement)', 
+                    category: `Rate Cut (${purity})`,
+                    totalFineWeight: -(wt * mult), 
+                    dueAmount: totalAmt * mult,  
+                    paidAmount: 0, 
+                    totalAmount: totalAmt * mult, 
+                    itemDetails: []
+                });
 
-            // 3. Log History in dedicated Rate Cuts table (for this specific UI page)
-            // Save absolute weights so the UI displays cleanly
-            const cStore = tx.objectStore('rate_cuts');
-            cStore.add({
-                merchantId: parseInt(mId), weight: wt * mult, purity: purity, rate: rate, amount: totalAmt * mult,
-                date: now, status: 'active'
-            });
+                // 3. Log History in dedicated Rate Cuts table (for UI)
+                await addItem('rate_cuts', {
+                    merchantId: selectedMerchant.id, 
+                    weight: wt * mult, 
+                    purity: purity, 
+                    rate: rate, 
+                    amount: totalAmt * mult,
+                    date: now, 
+                    status: 'active'
+                });
 
-            tx.oncomplete = () => {
                 showToast("Rate Cut Successful! Balances Updated.", "success");
                 closeModal();
                 loadMerchants(); 
                 loadHistory();
-            };
+
+            } catch (error) {
+                console.error("Firebase Save Error:", error);
+                showToast("Error saving rate cut! Check console.", "error");
+            }
         }
 
         // --- HISTORY & FILTERING ---
