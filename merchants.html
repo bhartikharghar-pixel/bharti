@@ -364,7 +364,7 @@
             </div>
 
             <div class="form-group">
-                <label>Fine Metal Weight (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Used for Ledger)</small></label>
+                <label>Metal Weight To Transfer (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Used for Ledger)</small></label>
                 <input type="number" id="payGold" placeholder="0.000" step="0.001" oninput="validateMetalInput()">
             </div>
 
@@ -422,6 +422,7 @@
 
     <div id="toast">Message Saved!</div>
 
+    <!-- FIREBASE AND DB.JS SCRIPTS -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -438,7 +439,6 @@
             return 1.0; 
         }
 
-        // ─── SIDEBAR ───────────────────────────────────────────────────────────
         function toggleSidebar() {
             document.getElementById('app-sidebar').classList.toggle('open');
             document.getElementById('sidebar-overlay').classList.toggle('show');
@@ -456,7 +456,6 @@
             setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
         }
 
-        // ─── STATE ─────────────────────────────────────────────────────────────
         let allMerchants = [];
         let currentReportData = [];
         let currentReportMeta = { name: '', category: 'Both', cash: 0, gold: 0, silver: 0 };
@@ -466,7 +465,66 @@
             const r = await getSetting('gold_rates');
             if (r) goldRates = r;
             await loadMerchants();
+            await syncPendingTounch(); // <--- SMART AUTO-HEAL CALL
         };
+
+        // ─── SMART AUTO-HEAL (Pending Tounch -> Fine Weight) ───────────────────
+        async function syncPendingTounch() {
+            try {
+                const payments = await getAllItems('merchant_payments');
+                // Only look for payments that were explicitly marked as "Pending" transfers
+                const pendingPayments = payments.filter(p => p.wasPending === true && p.inventoryBarcode);
+                if(pendingPayments.length === 0) return;
+                
+                const allInv = await getAllItems('inventory');
+                const merchantsToUpdate = {};
+                let updatedCount = 0;
+
+                for (let p of pendingPayments) {
+                    const liveItem = allInv.find(i => i.barcode === p.inventoryBarcode);
+                    // Check if purity is no longer pending
+                    if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
+                        const factor = getPurityFactor(liveItem.purity);
+                        // CALCULATE FINE WEIGHT BASED ON ORIGINAL GROSS WEIGHT TRANSFERRED!
+                        const newFineWt = parseFloat((p.originalGrossWt * factor).toFixed(3));
+                        
+                        if (Math.abs(p.gold - newFineWt) > 0.001) {
+                            // direction OUT means shop gave to merchant (Merchant Balance went down)
+                            // mult = -1 for OUT. So diff * mult
+                            const pmtMult = p.paymentType === 'OUT' ? -1 : 1; 
+                            
+                            const diff = newFineWt - p.gold; 
+                            
+                            // Update Payment Record
+                            p.gold = newFineWt;
+                            p.wasPending = false; // Mark as resolved!
+                            await updateItem('merchant_payments', p.id, p);
+                            
+                            // Prep Merchant Balance Update
+                            if (!merchantsToUpdate[p.merchantId]) {
+                                merchantsToUpdate[p.merchantId] = await getItem('merchants', p.merchantId);
+                            }
+                            const m = merchantsToUpdate[p.merchantId];
+                            if (m) {
+                                if (p.metal === 'Silver') m.silverBalance = (parseFloat(m.silverBalance)||0) + (diff * pmtMult);
+                                else m.goldBalance = (parseFloat(m.goldBalance)||0) + (diff * pmtMult);
+                            }
+                            updatedCount++;
+                        }
+                    }
+                }
+                
+                // Save updated merchants
+                for (let mId in merchantsToUpdate) {
+                    await updateItem('merchants', mId, merchantsToUpdate[mId]);
+                }
+                
+                if (updatedCount > 0) {
+                    loadMerchants(); // Refresh UI
+                    showToast(`${updatedCount} Pending Tounch entries updated automatically!`, 'success');
+                }
+            } catch(e) { console.error("Error in Tounch Sync:", e); }
+        }
 
         // ─── CATEGORY TOGGLE ───────────────────────────────────────────────────
         function setMCat(type) {
@@ -713,7 +771,6 @@
             document.getElementById(key).className = `radio-btn active ${type.toLowerCase()}`;
             document.getElementById('payDirection').value = type;
             
-            // FIXED: Using the correct function name here!
             populateInventorySelect();
         }
 
@@ -854,7 +911,6 @@
             document.getElementById('payGoldType').value = 'unfixed';
             document.getElementById('payGoldRate').value = '';
 
-            // This sets direction AND correctly populates inventory select now
             setPayType('OUT');
 
             const mtogGold = document.getElementById('mtog-gold');
@@ -906,7 +962,7 @@
             document.getElementById('payFixedTotal').innerText = "₹" + Math.round(gold * rate).toLocaleString();
         }
 
-        // ─── PAY MERCHANT ──────────────────────────────────────────
+        // ─── PAY MERCHANT (WITH SMART FLAG) ───────────────────────────────────
         async function payMerchant() {
             const id = document.getElementById('payId').value;
             const amt = parseFloat(document.getElementById('payAmount').value) || 0;
@@ -924,16 +980,21 @@
             if (goldType === 'fixed' && gold > 0 && rate <= 0) return showToast("Enter Rate for Fixed settlement", "error");
             if (amt <= 0 && gold <= 0) return showToast("Enter Amount or Metal weight", "error");
 
-            let inventoryId = null, inventoryBarcode = null;
+            let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
             if (direction === 'OUT' && inventorySelect.value) {
                 inventoryId = inventorySelect.value;
-                inventoryBarcode = inventorySelect.options[inventorySelect.selectedIndex].dataset.barcode;
+                const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
+                inventoryBarcode = selOpt.dataset.barcode;
+                isPendingTransfer = selOpt.dataset.ispending === 'true';
             }
 
+            // ADDED: wasPending and originalGrossWt flags
             await addItem('merchant_payments', {
                 merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
-                goldType: goldType, rate: rate, paymentType: direction, inventoryId: inventoryId,
-                inventoryBarcode: inventoryBarcode, date: new Date().toISOString(), mode: payMode
+                goldType: goldType, rate: rate, paymentType: direction, 
+                inventoryId: inventoryId, inventoryBarcode: inventoryBarcode, 
+                wasPending: isPendingTransfer, originalGrossWt: isPendingTransfer ? parseFloat(gold) : 0,
+                date: new Date().toISOString(), mode: payMode
             });
 
             const mult = direction === 'OUT' ? -1 : 1;
@@ -1013,7 +1074,7 @@
             }
         }
 
-    // ─── GENERATE LEDGER REPORT (NO AUTO HEAL) ───────────────────────────
+    // ─── GENERATE LEDGER REPORT (NO AUTO HEAL HERE ANYMORE) ───────────────
         async function generateReport(mId) {
             const tbody = document.getElementById('reportBody');
             tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger Data...</td></tr>';
@@ -1120,8 +1181,10 @@
                         // JUST DISPLAY PURITY, NO SILENT DB MODIFICATIONS!
                         if (p.inventoryBarcode) {
                             const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
-                            if (liveItem && liveItem.purity && liveItem.purity !== 'Pending') {
+                            if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
                                 displayPurity = liveItem.purity;
+                            } else if (p.wasPending) {
+                                displayPurity = "Tounch Pending";
                             }
                         }
 
