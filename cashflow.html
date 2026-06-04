@@ -126,6 +126,11 @@
         .fab:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);}
         .fab:active { transform: scale(0.95); }
 
+        /* Contra FAB */
+        .fab-contra { position: fixed; bottom: 105px; right: 30px; width: 64px; height: 64px; background: #2563eb; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; transition: transform 0.2s, box-shadow 0.2s; }
+        .fab-contra:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);}
+        .fab-contra:active { transform: scale(0.95); }
+
         /* --- MODALS --- */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.75); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: white; width: 95%; max-width: 480px; border-radius: 16px; padding: 30px; position: relative; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-height: 90vh; overflow-y:auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);}
@@ -221,7 +226,7 @@
         }
         
         @media print {
-            .app-header, .sidebar-drawer, .sidebar-overlay, .filter-bar, .fab, .btn-print, .r-card.clickable, #loadMoreContainer { display: none !important; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .filter-bar, .fab, .fab-contra, .btn-print, .r-card.clickable, #loadMoreContainer { display: none !important; }
             body { background: white; padding: 0; }
             .app-container { max-width: 100%; padding: 0; }
             .card { box-shadow: none; border: 1px solid #ccc; }
@@ -259,9 +264,7 @@
             <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
             <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
             <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
-
-<li><a href="esalary.html"><i class="fas fa-user-tie"></i> Employees</a></li>
-
+            <li><a href="esalary.html"><i class="fas fa-user-tie"></i> Employees</a></li>
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
     </aside>
@@ -432,10 +435,10 @@
             </div>
         </div>
 
+        <div class="fab-contra" onclick="openContraModal()" title="Add Contra Voucher (Bank/Cash Transfer)"><i class="fas fa-university"></i></div>
         <div class="fab" onclick="openManualEntry()" title="Add Petty Cash Entry"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- Modals -->
     <div id="manualModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('manualModal')">&times;</button>
@@ -482,6 +485,40 @@
 
             <button class="btn-primary" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save Transaction</button>
             <p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:15px;">*Use only for petty cash. Use specific modules for Sales, Purchases, and Loans.</p>
+        </div>
+    </div>
+
+    <div id="contraModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('contraModal')">&times;</button>
+            <h3 style="margin-top:0; color:#0f172a; margin-bottom: 20px; font-size: 1.3rem;">
+                <i class="fas fa-exchange-alt" style="color:#2563eb; margin-right:8px;"></i> Contra Voucher
+            </h3>
+
+            <div class="form-group">
+                <label>Transaction Type</label>
+                <select id="cType">
+                    <option value="deposit">Deposit to Bank (Cash OUT &rarr; Digital IN)</option>
+                    <option value="withdraw">Withdraw from Bank (Digital OUT &rarr; Cash IN)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Amount (₹)</label>
+                <input type="number" id="cAmt" placeholder="0">
+            </div>
+
+            <div class="form-group">
+                <label>Note / Reference (Optional)</label>
+                <input type="text" id="cNote" placeholder="e.g. Cash deposited by Rahul">
+            </div>
+
+            <button class="btn-primary" style="background: #2563eb; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);" onclick="saveContraEntry()">
+                <i class="fas fa-save"></i> Save Contra Entry
+            </button>
+            <p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:15px;">
+                *This will automatically create two offset entries to balance Cash and Bank ledgers.
+            </p>
         </div>
     </div>
 
@@ -589,8 +626,7 @@
                                 </tr>
                             </thead>
                             <tbody id="dsInventoryBody">
-                                <!-- Data injects here -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
 
@@ -680,8 +716,8 @@
     </div>
 
     <div id="toast"><i class="fas fa-check-circle"></i> Message Saved!</div>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="db.js?v=35"></script>
     <script>
@@ -2014,15 +2050,50 @@
             showToast("Entry Deleted", "success");
             loadMasterLedger();
         }
+
+        // --- CONTRA VOUCHER LOGIC ---
+        function openContraModal() {
+            document.getElementById('cAmt').value = '';
+            document.getElementById('cNote').value = '';
+            openModal('contraModal');
+        }
+
+        async function saveContraEntry() {
+            const type = document.getElementById('cType').value;
+            const amt = parseFloat(document.getElementById('cAmt').value);
+            const customNote = document.getElementById('cNote').value;
+
+            if (!amt || amt <= 0) return showToast("Enter a valid amount", "error");
+
+            const dateIso = new Date().toISOString();
+            // एक यूनिक रेफरेंस ID ताकि पता चले ये दोनों एंट्रीज एक ही Contra की हैं
+            const contraRef = "CONTRA-" + Math.floor(Math.random() * 10000); 
+            const baseNote = customNote ? customNote : (type === 'deposit' ? 'Cash Deposit to Bank' : 'Cash Withdrawal from Bank');
+            const finalNote = `${baseNote} [Ref: ${contraRef}]`;
+
+            try {
+                if (type === 'deposit') {
+                    // 1. Cash OUT (गल्ले से पैसा गया)
+                    await addItem('cashflow', { date: dateIso, type: 'OUT', mode: 'Cash', category: 'Contra (Transfer)', amount: amt, note: finalNote, isManual: true });
+                    // 2. Bank IN (बैंक में पैसा आया)
+                    await addItem('cashflow', { date: dateIso, type: 'IN', mode: 'Bank Transfer', category: 'Contra (Transfer)', amount: amt, note: finalNote, isManual: true });
+                } else {
+                    // 1. Bank OUT (बैंक से पैसा कटा)
+                    await addItem('cashflow', { date: dateIso, type: 'OUT', mode: 'Bank Transfer', category: 'Contra (Transfer)', amount: amt, note: finalNote, isManual: true });
+                    // 2. Cash IN (गल्ले में पैसा आया)
+                    await addItem('cashflow', { date: dateIso, type: 'IN', mode: 'Cash', category: 'Contra (Transfer)', amount: amt, note: finalNote, isManual: true });
+                }
+
+                showToast("Contra Voucher Saved!", "success");
+                closeModal('contraModal');
+                loadMasterLedger(); // लेजर रिफ्रेश करें
+                
+            } catch (error) {
+                console.error("Contra Error: ", error);
+                showToast("Error saving Contra Entry", "error");
+            }
+        }
     </script>
   
 </body>
 </html>
-
-
-
-
-
-<button onclick="window.location.href='quick2.html'" style="background: #C5A059; color: #000; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; font-family: 'Poppins'; cursor: pointer; margin-left: 10px;">
-    <i class="fas fa-book-open"></i> Open Rojmel
-</button>
