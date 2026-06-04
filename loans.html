@@ -1052,7 +1052,7 @@
             alert("Settle amount auto-filled in 'Cash' box.\nYou can adjust Cash/Bank values if needed, then click 'Record Jama' to close the account.");
         }
 
-        async function processPayment() {
+       async function processPayment() {
             const cashAmt = parseFloat(document.getElementById('payCash').value) || 0;
             const bankAmt = parseFloat(document.getElementById('payBank').value) || 0;
             const payAmt = cashAmt + bankAmt;
@@ -1060,120 +1060,120 @@
             if(payAmt <= 0) return alert("Please enter valid Cash or Bank amount.");
 
             try {
-                const db = await dbPromise;
-                const tx = db.transaction('loans', 'readwrite');
-                const store = tx.objectStore('loans');
+                // NAYA FIREBASE WALA LOGIC
+                let l = await getItem('loans', currentLoanId);
+                if (!l) return alert("Error: Loan record not found.");
 
-                store.get(currentLoanId).onsuccess = async (e) => {
-                    const l = e.target.result;
-                    syncLoanLedger(l); 
+                syncLoanLedger(l); 
 
-                    // 1. Calculate overall pending interest
-                    let pendingInt = 0;
-                    if (l.ledger) l.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
-                    if (l.topUps) l.topUps.forEach(t => {
-                        if(t.ledger) t.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
-                    });
+                // 1. Calculate overall pending interest
+                let pendingInt = 0;
+                if (l.ledger) l.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
+                if (l.topUps) l.topUps.forEach(t => {
+                    if(t.ledger) t.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
+                });
 
-                    let toInt = Math.min(payAmt, pendingInt);
-                    let toPrin = payAmt - toInt;
+                let toInt = Math.min(payAmt, pendingInt);
+                let toPrin = payAmt - toInt;
 
-                    // Record Payment Transaction
-                    if (!l.payments) l.payments = [];
-                    l.payments.push({ 
-                        date: new Date().toISOString(), 
-                        totalAmount: payAmt, 
-                        cashAmount: cashAmt, 
-                        bankAmount: bankAmt,
-                        interestPaid: toInt,
-                        principalPaid: toPrin
-                    });
+                // Record Payment Transaction
+                if (!l.payments) l.payments = [];
+                l.payments.push({ 
+                    date: new Date().toISOString(), 
+                    totalAmount: payAmt, 
+                    cashAmount: cashAmt, 
+                    bankAmount: bankAmt,
+                    interestPaid: toInt,
+                    principalPaid: toPrin
+                });
 
-                    // 2. Distribute to Interest
-                    let amountToDistribute = payAmt;
-                    if(l.ledger) {
-                        for (let i = 0; i < l.ledger.length; i++) {
-                            let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
-                            if (unpaidInt > 0) {
-                                let payThis = Math.min(amountToDistribute, unpaidInt);
-                                l.ledger[i].paidInterest += payThis;
-                                amountToDistribute -= payThis;
-                            }
+                // 2. Distribute to Interest
+                let amountToDistribute = payAmt;
+                if(l.ledger) {
+                    for (let i = 0; i < l.ledger.length; i++) {
+                        let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
+                        if (unpaidInt > 0) {
+                            let payThis = Math.min(amountToDistribute, unpaidInt);
+                            l.ledger[i].paidInterest += payThis;
+                            amountToDistribute -= payThis;
                         }
                     }
-                    if(l.topUps && amountToDistribute > 0) {
-                        for(let t=0; t<l.topUps.length; t++) {
-                            if(l.topUps[t].ledger) {
-                                for(let i=0; i<l.topUps[t].ledger.length; i++) {
-                                    let unpaidInt = l.topUps[t].ledger[i].interestCharged - l.topUps[t].ledger[i].paidInterest;
-                                    if(unpaidInt > 0) {
-                                        let payThis = Math.min(amountToDistribute, unpaidInt);
-                                        l.topUps[t].ledger[i].paidInterest += payThis;
-                                        amountToDistribute -= payThis;
-                                    }
+                }
+                if(l.topUps && amountToDistribute > 0) {
+                    for(let t=0; t<l.topUps.length; t++) {
+                        if(l.topUps[t].ledger) {
+                            for(let i=0; i<l.topUps[t].ledger.length; i++) {
+                                let unpaidInt = l.topUps[t].ledger[i].interestCharged - l.topUps[t].ledger[i].paidInterest;
+                                if(unpaidInt > 0) {
+                                    let payThis = Math.min(amountToDistribute, unpaidInt);
+                                    l.topUps[t].ledger[i].paidInterest += payThis;
+                                    amountToDistribute -= payThis;
                                 }
                             }
                         }
                     }
-                        
-                    // 3. Distribute to Principal
-                    if(amountToDistribute > 0 && l.ledger) {
-                        let lastEntry = l.ledger[l.ledger.length - 1];
-                        let unpaidMainPrin = lastEntry.closingPrincipal;
-                        if(unpaidMainPrin > 0) {
-                            let payThis = Math.min(amountToDistribute, unpaidMainPrin);
-                            lastEntry.paidPrincipal += payThis;
-                            lastEntry.closingPrincipal -= payThis;
+                }
+                    
+                // 3. Distribute to Principal
+                if(amountToDistribute > 0 && l.ledger) {
+                    let lastEntry = l.ledger[l.ledger.length - 1];
+                    let unpaidMainPrin = lastEntry.closingPrincipal;
+                    if(unpaidMainPrin > 0) {
+                        let payThis = Math.min(amountToDistribute, unpaidMainPrin);
+                        lastEntry.paidPrincipal += payThis;
+                        lastEntry.closingPrincipal -= payThis;
+                        amountToDistribute -= payThis;
+                    }
+                }
+                if(amountToDistribute > 0 && l.topUps) {
+                    for(let t=0; t<l.topUps.length; t++) {
+                        let unpaidTPrin = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
+                        if(unpaidTPrin > 0) {
+                            let payThis = Math.min(amountToDistribute, unpaidTPrin);
+                            l.topUps[t].paidPrincipal = (l.topUps[t].paidPrincipal || 0) + payThis;
                             amountToDistribute -= payThis;
                         }
                     }
-                    if(amountToDistribute > 0 && l.topUps) {
-                        for(let t=0; t<l.topUps.length; t++) {
-                            let unpaidTPrin = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
-                            if(unpaidTPrin > 0) {
-                                let payThis = Math.min(amountToDistribute, unpaidTPrin);
-                                l.topUps[t].paidPrincipal = (l.topUps[t].paidPrincipal || 0) + payThis;
-                                amountToDistribute -= payThis;
-                            }
-                        }
-                    }
+                }
 
-                    // 4. Check if fully closed
-                    let remainingMainPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
-                    let remainingTopUpPrin = 0;
-                    if (l.topUps) l.topUps.forEach(t => remainingTopUpPrin += (t.amount - (t.paidPrincipal || 0)));
-                    
-                    if (remainingMainPrin <= 0 && remainingTopUpPrin <= 0) {
-                        l.status = 'closed';
-                        l.closeDate = new Date().toISOString();
-                        if(l.ledger[l.ledger.length - 1].closingPrincipal < 0) l.ledger[l.ledger.length - 1].closingPrincipal = 0;
-                    }
+                // 4. Check if fully closed
+                let remainingMainPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
+                let remainingTopUpPrin = 0;
+                if (l.topUps) l.topUps.forEach(t => remainingTopUpPrin += (t.amount - (t.paidPrincipal || 0)));
+                
+                if (remainingMainPrin <= 0 && remainingTopUpPrin <= 0) {
+                    l.status = 'closed';
+                    l.closeDate = new Date().toISOString();
+                    if(l.ledger[l.ledger.length - 1].closingPrincipal < 0) l.ledger[l.ledger.length - 1].closingPrincipal = 0;
+                }
 
-                    store.put(l);
+                // Database Update
+                await updateItem('loans', l);
 
-                    if(cashAmt > 0) {
-                        await addItem('cashflow', {
-                            date: new Date().toISOString(), type: 'IN', mode: 'Cash',
-                            category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${currentLoanId}`
-                        });
-                    }
-                    if(bankAmt > 0) {
-                        await addItem('cashflow', {
-                            date: new Date().toISOString(), type: 'IN', mode: 'Bank',
-                            category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${currentLoanId}`
-                        });
-                    }
+                // Add to Cashbook
+                if(cashAmt > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(), type: 'IN', mode: 'Cash',
+                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${currentLoanId}`
+                    });
+                }
+                if(bankAmt > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(), type: 'IN', mode: 'Bank',
+                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${currentLoanId}`
+                    });
+                }
 
-                    alert("Payment Recorded & Cashbook Updated!");
-                    await loadCashBalance(); 
-                    await loadLoans(); 
-                    openLedger(currentLoanId); 
-                };
+                alert("Payment Recorded & Cashbook Updated!");
+                await loadCashBalance(); 
+                await loadLoans(); 
+                openLedger(currentLoanId); 
+                
             } catch (e) {
                 console.error("Payment Processing Error", e);
+                alert("Error recording payment. Check console.");
             }
         }
-
         function sendLoanWhatsApp() {
             const l = allLoans.find(x => String(x.id) === String(currentLoanId));
             if(!l || !l.custMobile) return alert("No valid mobile number found for this customer.");
