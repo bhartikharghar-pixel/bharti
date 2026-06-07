@@ -998,12 +998,42 @@
 
                 let advance = Math.abs(parseNum(s.advanceAmount || 0));
                 let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
+let cName = getCustName(s.customerId);
+                let currentUdhari = Math.abs(parseNum(s.pendingAmount));
+                
+                // --- नया स्मार्ट लॉजिक (Order Udhari Fix) ---
+                if (isOrderBill) {
+                    let udhariPaidToday = 0;
+                    
+                    cFlows.forEach(c => {
+                        if (c.date && c.date.startsWith(today) && c.type !== 'OUT') {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            let isUdhariFlow = cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding');
+                            
+                            let isMatch = false;
+                            if (c.saleId && String(c.saleId) === String(s.id)) isMatch = true;
+                            else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isMatch = true;
+                            else if (c.orderId && String(c.orderId) === String(s.orderId || s.id)) isMatch = true;
+                            
+                            if (isUdhariFlow && isMatch) {
+                                udhariPaidToday += Math.abs(parseNum(c.amount));
+                            }
+                        }
+                    });
 
-                let cName = getCustName(s.customerId);
-                let udhari = Math.abs(parseNum(s.pendingAmount));
+                    let originalUdhari = currentUdhari + udhariPaidToday;
+
+                    if (originalUdhari > 0) {
+                        pushLog('SaleDueGiven', originalUdhari, cName, 'Order Udhari', '', false);
+                    }
+                    return; 
+                }
+                // -------------------------
+
+                let udhari = currentUdhari;
                 let paid = Math.abs(parseNum(s.paidAmount));
                 let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
-
                 if (paid > 0) {
                     cFlows.forEach(c => {
                         if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
