@@ -595,6 +595,58 @@
                 }
             };
 
+            // ✅ ROJMEL LINKING PRE-PROCESSING
+            // Yeh block double counting rokta hai.
+            cFlows.forEach(c => { c.alreadyHandled = false; });
+
+            sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
+                let paid = Math.abs(parseNum(s.paidAmount));
+                let advance = Math.abs(parseNum(s.advanceAmount || 0));
+                let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
+
+                if (paid > 0) {
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            
+                            let isLinked = false;
+                            if (String(c.saleId) === String(s.id)) isLinked = true;
+                            else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isLinked = true;
+                            else if (note.includes(String(s.id)) && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri'))) isLinked = true;
+                            else if (isOrderBill && note.includes(String(s.id)) && (cat.includes('order') || note.includes('ord-'))) isLinked = true;
+
+                            if (isLinked) {
+                                c.alreadyHandled = true;
+                            }
+                        }
+                    });
+                }
+            });
+
+            purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
+                let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
+                if (paid > 0) {
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            
+                            let isLinked = false;
+                            if (String(c.purchaseId) === String(p.id)) isLinked = true;
+                            else if (note.includes(`pur-${p.id}`) || note.includes(`purchase #${p.id}`)) isLinked = true;
+                            else if (note.includes(String(p.id)) && (cat.includes('purchase') || cat.includes('khareedi') || cat.includes('vyapari'))) isLinked = true;
+
+                            if (isLinked) {
+                                c.alreadyHandled = true;
+                            }
+                        }
+                    });
+                }
+            });
+
+            // ----------------------------------------------------
+
             sales.forEach(s => {
                 if (s.status === 'cancelled') return;
                 let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
@@ -913,85 +965,7 @@
                 else sumNama += amt;
             };
 
-            orders.forEach(o => {
-                if (o.status === 'cancelled') return;
-                let oDate = (o.orderDate || o.date || '').split('T')[0];
-                let cName = getCustName(o.customerId);
-                
-                if (oDate === today) {
-                    let itemN = o.itemName || o.item || o.jobType || 'Order';
-                    let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
-                    let ogWt = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
-                    let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
-                    let totalIn = advCash + ogAmt;
-                    
-                    let matchedMode = 'Cash';
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            let cat = String(c.category || '').toLowerCase();
-                            let note = String(c.note || '').toLowerCase();
-                            if (cat.includes('order') || note.includes('ord-')) {
-                                let cAmt = Math.abs(parseNum(c.amount));
-                                if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || cAmt === advCash) {
-                                    c.alreadyHandled = true;
-                                    matchedMode = c.mode || matchedMode;
-                                }
-                            }
-                        }
-                    });
-
-                    if (totalIn > 0) {
-                        let spl = getSplitStr(o.payments, matchedMode, advCash, totalIn);
-                        pushLog('Order In', totalIn, `${cName} - ${itemN}`, 'Adv + OG', spl, true);
-                    }
-                    if (ogAmt > 0) {
-                        pushLog('OldGold', ogAmt, cName, 'Order OG Exch', '', false, [{val: ogWt, label: 'Old'}]);
-                    }
-                }
-                
-                let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
-                if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
-                let kName = kNameRaw + ' (Karigar)';
-
-                if (isGold(o)) {
-                    if (o.jobType === 'Repair') {
-                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
-                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
-                        let fIssue = getSafeFine(o.repairMeta) || parseNum(o.repairMeta?.fineIssued || o.repairMeta?.issuedFineWt);
-                        
-                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
-                        if (iDate === today && shopIssued > 0) {
-                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Diya', 0, kName, 'Repair Metal Issued', '', false, [{val: shopIssued, label: 'NET'}], customAmt);
-                        }
-                        
-                        let aDate = o.repairMeta?.auditDate || o.orderDate;
-                        if (aDate === today && returnedRaw > 0) {
-                            let fRet = parseNum(o.repairMeta?.fineReturned || o.repairMeta?.returnedFineWt); 
-                            let customAmt = `<span style="color:#000;">${(fRet > 0 ? fRet : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Aaya', 0, kName, 'Repair Metal Recv', '', true, [{val: returnedRaw, label: 'NET'}], customAmt);
-                        }
-                    } else {
-                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
-                        let issueCategory = 'NET'; 
-                        let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight || o.expectedFine);
-
-                        if (o.orderDate === today && karigarIssuedWt > 0) {
-                            let wtDesc = `${o.issuedGrossWt || karigarIssuedWt}g + Wst`;
-                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Diya', 0, kName, `Metal Issue (${wtDesc})`, '', false, [{val: karigarIssuedWt, label: issueCategory}], customAmt);
-                        }
-
-                        let receivedFromKarigarWt = parseNum(o.finalNet);
-                        let fRecv = getSafeFine(o) || parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
-                        if (o.orderDate === today && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                            let customAmt = `<span style="color:#000;">${(fRecv > 0 ? fRecv : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}], customAmt);
-                        }
-                    }
-                }
-            });
-
+            // ✅ MODIFIED SALES LOOP: Fix Double Counting Logic
             sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
                 let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
                 if (isRepairSale) return; 
@@ -1000,28 +974,11 @@
                 let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
 
                 let cName = getCustName(s.customerId);
-                let udhari = Math.abs(parseNum(s.pendingAmount));
+                
+                // Sirf jo paisa ACTUALLY aaya, use IN maane. Pending ko OUT maane.
                 let paid = Math.abs(parseNum(s.paidAmount));
+                let udhari = Math.abs(parseNum(s.pendingAmount));
                 let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
-
-                if (paid > 0) {
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            let cat = String(c.category || '').toLowerCase();
-                            let note = String(c.note || '').toLowerCase();
-                            let cAmt = Math.abs(parseNum(c.amount));
-                            
-                            if (cAmt === paid) {
-                                if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || String(c.saleId) === String(s.id)) {
-                                    c.alreadyHandled = true;
-                                }
-                                else if (isOrderBill && (cat.includes('order') || note.includes('ord-'))) {
-                                    c.alreadyHandled = true;
-                                }
-                            }
-                        }
-                    });
-                }
 
                 let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
                 let netWtSold = 0, oldWtRcv = 0;
@@ -1035,22 +992,20 @@
                 if (oldWtRcv === 0) oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet);
                 if (isOrderBill) oldWtRcv = 0; 
 
-                let jamaAmt = paid + udhari + og;
-
-                if(jamaAmt > 0) {
-                    let spl = getSplitStr(s.payments, s.mode, paid, jamaAmt);
-                    pushLog('Sale', jamaAmt, `${cName} - ${itemStr}`, '', spl, true, [{val: -netWtSold, label:'Net'}]);
+                // Sirf jo cash collect hua, uski hi sale maanege Taki duplicate entry na ho
+                if(paid > 0) {
+                    let spl = getSplitStr(s.payments, s.mode, paid, paid);
+                    pushLog('Sale', paid, `${cName} - ${itemStr}`, '', spl, true, [{val: -netWtSold, label:'Net'}]);
                 } else if (netWtSold > 0) {
                     pushLog('Sale', 0, `${cName} - ${itemStr}`, 'Delivered', '', true, [{val: -netWtSold, label:'Net'}], '₹0');
                 }
                 
-                if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
+                if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari Rahi', '', false);
                 if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false, [{val: oldWtRcv, label:'Old'}]);
             });
 
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                 let mName = getMerchName(p.merchantId);
-                let gross = Math.abs(parseNum(p.totalAmount || p.grandTotal)); 
                 let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
                 let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
                 let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
@@ -1064,24 +1019,9 @@
                 else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => netWtBought += getSafeNet(i));
                 else netWtBought = parseNum(p.totalWeight || p.weight);
 
-                if (paid > 0) {
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            let cat = String(c.category || '').toLowerCase();
-                            let note = String(c.note || '').toLowerCase();
-                            if (Math.abs(parseNum(c.amount)) === paid && (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi') || cat.includes('vyapari'))) {
-                                c.alreadyHandled = true;
-                            }
-                        }
-                    });
-                }
-
-                if(gross > 0) {
-                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
-                    pushLog('Purchase', gross, mName, itemStr, spl, false, [{val: netWtBought, label:'Net'}]);
-                } else if (paid > 0) { 
+                if(paid > 0) {
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
-                    pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv', spl, false, [{val: netWtBought, label:'Net'}]);
+                    pushLog('Purchase', paid, mName, itemStr, spl, false, [{val: netWtBought, label:'Net'}]);
                 } else {
                     let isDouble = false;
                     mPayments.forEach(mp => {
@@ -1138,8 +1078,8 @@
                                 let cType = c.type || 'OUT';
                                 if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
                                 
-                                if (cType === 'OUT' && cAmt === amt) {
-                                    if (cat.includes('loan') || cat.includes('girvi') || note.includes('loan') || note.includes('girvi') || note.includes(String(l.id))) {
+                                if (cType === 'OUT') {
+                                    if (String(c.loanId) === String(l.id) || note.includes(`l-${l.id}`) || (note.includes(String(l.id)) && (cat.includes('loan') || cat.includes('girvi')))) {
                                         c.alreadyHandled = true;
                                     }
                                 }
