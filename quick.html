@@ -815,12 +815,36 @@
                 let type = c.type || 'OUT';
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
 
+                let cat = String(c.category || '').toLowerCase();
+                let note = String(c.note || '').toLowerCase();
+                let isContra = cat.includes('contra') || note.includes('contra');
+
                 if (cDate < today) {
-                    if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
-                    else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
+                    if (isContra) {
+                        if (mType === 'bank') {
+                            if (type === 'IN') { openBank += amt; openCash -= amt; } 
+                            else { openBank -= amt; openCash += amt; } 
+                        } else { 
+                            if (type === 'IN') { openCash += amt; openBank -= amt; } 
+                            else { openCash -= amt; openBank += amt; } 
+                        }
+                    } else {
+                        if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
+                        else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
+                    }
                 } else if (cDate === today) {
-                    if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
-                    else { if(mType==='bank') todayBankOut+=amt; else todayCashOut+=amt; }
+                    if (isContra) {
+                        if (mType === 'bank') {
+                            if (type === 'IN') { todayBankIn += amt; todayCashOut += amt; } // Bank me jama, Cash se gaya
+                            else { todayBankOut += amt; todayCashIn += amt; } // Bank se gaya, Cash me aaya
+                        } else {
+                            if (type === 'IN') { todayCashIn += amt; todayBankOut += amt; } // Cash me jama, Bank se gaya
+                            else { todayCashOut += amt; todayBankIn += amt; } // Cash se gaya, Bank me aaya
+                        }
+                    } else {
+                        if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
+                        else { if(mType==='bank') todayBankOut+=amt; else todayCashOut+=amt; }
+                    }
                 }
             });
 
