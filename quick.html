@@ -926,16 +926,27 @@
                     let totalIn = advCash + ogAmt;
                     
                     let matchedMode = 'Cash';
+                    let remainingAdv = advCash;
+                    
+                    // --- 🔥 FIXED ORDER ADVANCE MATCHING LOGIC ---
                     cFlows.forEach(c => {
                         if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                             let cat = String(c.category || '').toLowerCase();
                             let note = String(c.note || '').toLowerCase();
-                            if (cat.includes('order') || note.includes('ord-')) {
-                                let cAmt = Math.abs(parseNum(c.amount));
-                                if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || cAmt === advCash) {
-                                    c.alreadyHandled = true;
-                                    matchedMode = c.mode || matchedMode;
-                                }
+                            let cAmt = Math.abs(parseNum(c.amount));
+                            
+                            let isMatch = false;
+                            if (String(c.orderId) === String(o.id) || note.includes(String(o.id))) {
+                                isMatch = true;
+                            } else if (remainingAdv >= cAmt - 2 && (cat.includes('order') || note.includes('ord-'))) {
+                                isMatch = true;
+                            }
+                            
+                            if (isMatch) {
+                                c.alreadyHandled = true;
+                                remainingAdv -= cAmt;
+                                if(remainingAdv < 0) remainingAdv = 0;
+                                matchedMode = c.mode || matchedMode;
                             }
                         }
                     });
@@ -1004,20 +1015,37 @@
                 let paid = Math.abs(parseNum(s.paidAmount));
                 let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
 
+                // --- 🔥 FIXED SALE CASHFLOW MATCHING LOGIC ---
                 if (paid > 0) {
+                    let remainingPaidToMatch = paid;
                     cFlows.forEach(c => {
                         if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                             let cat = String(c.category || '').toLowerCase();
                             let note = String(c.note || '').toLowerCase();
                             let cAmt = Math.abs(parseNum(c.amount));
                             
-                            if (cAmt === paid) {
-                                if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || String(c.saleId) === String(s.id)) {
-                                    c.alreadyHandled = true;
+                            let isMatch = false;
+                            
+                            if (c.saleId && String(c.saleId) === String(s.id)) {
+                                isMatch = true;
+                            } else if (s.invoiceNo && note.includes(String(s.invoiceNo))) {
+                                isMatch = true;
+                            } else if (remainingPaidToMatch >= cAmt - 2) {
+                                if (isOrderBill && (cat.includes('order') || note.includes('ord-'))) {
+                                    isMatch = true;
+                                } else if (!isOrderBill && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') || cat.includes('udhari') || note.includes('udhari') || cat.includes('due'))) {
+                                    let cNameFlow = c.customerName || getCustName(c.customerId);
+                                    let sName = getCustName(s.customerId);
+                                    if (cNameFlow === sName || cNameFlow === 'Walk-in' || sName === 'Walk-in') {
+                                        isMatch = true;
+                                    }
                                 }
-                                else if (isOrderBill && (cat.includes('order') || note.includes('ord-'))) {
-                                    c.alreadyHandled = true;
-                                }
+                            }
+
+                            if (isMatch) {
+                                c.alreadyHandled = true;
+                                remainingPaidToMatch -= cAmt;
+                                if (remainingPaidToMatch < 0) remainingPaidToMatch = 0;
                             }
                         }
                     });
@@ -1064,13 +1092,28 @@
                 else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => netWtBought += getSafeNet(i));
                 else netWtBought = parseNum(p.totalWeight || p.weight);
 
+                // --- 🔥 FIXED PURCHASE CASHFLOW MATCHING LOGIC ---
                 if (paid > 0) {
+                    let remainingPaidToMatch = paid;
                     cFlows.forEach(c => {
                         if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                             let cat = String(c.category || '').toLowerCase();
                             let note = String(c.note || '').toLowerCase();
-                            if (Math.abs(parseNum(c.amount)) === paid && (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi') || cat.includes('vyapari'))) {
+                            let cAmt = Math.abs(parseNum(c.amount));
+
+                            let isMatch = false;
+                            if (c.purchaseId && String(c.purchaseId) === String(p.id)) {
+                                isMatch = true;
+                            } else if (remainingPaidToMatch >= cAmt - 2 && (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi') || cat.includes('vyapari'))) {
+                                let mIdFlow = c.merchantId;
+                                if (mIdFlow && String(mIdFlow) === String(p.merchantId)) isMatch = true;
+                                else if (!mIdFlow) isMatch = true; 
+                            }
+
+                            if (isMatch) {
                                 c.alreadyHandled = true;
+                                remainingPaidToMatch -= cAmt;
+                                if(remainingPaidToMatch < 0) remainingPaidToMatch = 0;
                             }
                         }
                     });
@@ -1322,7 +1365,6 @@
                     if (parts.length > 1) cNameFromFlow = parts[1].trim();
                 }
 
-                // 🔥 NEW: Extract customer from Sale Array using Bill ID
                 if (!cNameFromFlow && (c.saleId || note.includes('bill'))) {
                     let sId = c.saleId;
                     if (!sId && c.note) {
