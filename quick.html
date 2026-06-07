@@ -375,7 +375,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="db.js?v=40"></script>
-
 <script>
     // --- SIDEBAR FUNCTION ---
     function toggleSidebar() { 
@@ -806,6 +805,7 @@
             let namaMix = todayMixOut + closingMix;
             let namaTotalMetal = namaNet + namaOld + namaMix;
 
+            // --- 🔥 CONTRA FIX - MATH BALANCE ---
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 let cDate = c.date ? c.date.split('T')[0] : '';
@@ -835,11 +835,11 @@
                 } else if (cDate === today) {
                     if (isContra) {
                         if (mType === 'bank') {
-                            if (type === 'IN') { todayBankIn += amt; todayCashOut += amt; } // Bank me jama, Cash se gaya
-                            else { todayBankOut += amt; todayCashIn += amt; } // Bank se gaya, Cash me aaya
+                            if (type === 'IN') { todayBankIn += amt; todayCashOut += amt; } 
+                            else { todayBankOut += amt; todayCashIn += amt; } 
                         } else {
-                            if (type === 'IN') { todayCashIn += amt; todayBankOut += amt; } // Cash me jama, Bank se gaya
-                            else { todayCashOut += amt; todayBankIn += amt; } // Cash se gaya, Bank me aaya
+                            if (type === 'IN') { todayCashIn += amt; todayBankOut += amt; } 
+                            else { todayCashOut += amt; todayBankIn += amt; } 
                         }
                     } else {
                         if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
@@ -847,6 +847,7 @@
                     }
                 }
             });
+
             let openingTotal = openCash + openBank;
             let closingCash = openCash + todayCashIn - todayCashOut;
             let closingBank = openBank + todayBankIn - todayBankOut;
@@ -1124,7 +1125,7 @@
                 let mName = getMerchName(p.merchantId);
                 let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
                 let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
-                let totalPurchaseValue = paid + due; // Gross instead of mathematical can cause discount bugs
+                let totalPurchaseValue = paid + due; 
                 let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
                 
                 let netWtBought = 0;
@@ -1136,7 +1137,6 @@
                 else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => netWtBought += getSafeNet(i));
                 else netWtBought = parseNum(p.totalWeight || p.weight);
 
-                // --- 🔥 MATHEMATICAL UDHARI FIX FOR PURCHASES ---
                 let absorbedPurCash = 0;
                 let remainingPaidToMatch = paid;
 
@@ -1512,7 +1512,8 @@
                 else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
                     if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
                     else pushLog('Vyapari Diya', amt, entityName, 'Paid', spl, false);
-            else {
+                }
+                else {
                     // --- ADVANCED CONTRA FIX ---
                     let isContra = cat.includes('contra') || note.includes('contra');
                     
@@ -1557,6 +1558,7 @@
                     }
                 }
             });
+
             sumNama += closingTotal; 
             
             document.getElementById('uiTotalJama').innerText = `₹${fmtNum(sumJama)}`;
@@ -1583,6 +1585,4 @@
 
         } catch(e) { console.error("Rojmel Error:", e); }
     }
-</script>   
-</body>
-</html>
+</script>
