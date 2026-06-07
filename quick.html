@@ -595,7 +595,7 @@
                 }
             };
 
-            // ✅ Reset alreadyHandled for all flows first to ensure a clean slate
+            // ✅ ROJMEL LINKING PRE-PROCESSING
             cFlows.forEach(c => { c.alreadyHandled = false; });
 
             // ----------------------------------------------------
@@ -671,7 +671,7 @@
                         else if (note.includes(String(s.id)) && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri'))) isLinked = true;
 
                         if (isLinked) {
-                            if (!advanceHandled && cAmt === initialAdvance) {
+                            if (!advanceHandled && cAmt === initialAdvance && initialAdvance > 0) {
                                 c.alreadyHandled = true;
                                 advanceHandled = true;
                             } else if (!advanceHandled && cAmt === paid && paid === initialAdvance) {
@@ -758,7 +758,7 @@
                         else if (note.includes(String(p.id)) && (cat.includes('purchase') || cat.includes('khareedi') || cat.includes('vyapari'))) isLinked = true;
 
                         if (isLinked) {
-                            if (!advanceHandled && cAmt === initialAdvance) {
+                            if (!advanceHandled && cAmt === initialAdvance && initialAdvance > 0) {
                                 c.alreadyHandled = true;
                                 advanceHandled = true;
                             } else if (!advanceHandled && cAmt === paid && paid === initialAdvance) {
@@ -1021,12 +1021,12 @@
                     entityName = c.note || c.category || 'Payment';
                 }
 
-                // 🔥 UDHARI FALLBACK CATCH (For later payments)
                 let isUdhariIn = (type === 'IN' && !isVyapariPayment && !cat.includes('purchase') && (
                     cat.includes('udhari') || note.includes('udhari') || 
                     cat.includes('outstanding') || note.includes('outstanding') ||
                     cat.includes('due') || note.includes('due') ||
-                    cat.includes('sale') || note.includes('bill') || cat.includes('bikri')
+                    cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
+                    c.saleId // Catches explicitly linked later payments
                 ));
                 
                 let isUdhariOut = (type === 'OUT' && !isVyapariPayment && !cat.includes('purchase') && (
