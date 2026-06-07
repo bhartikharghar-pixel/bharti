@@ -847,7 +847,6 @@
                     }
                 }
             });
-
             let openingTotal = openCash + openBank;
             let closingCash = openCash + todayCashIn - todayCashOut;
             let closingBank = openBank + todayBankIn - todayBankOut;
@@ -1513,25 +1512,51 @@
                 else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
                     if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
                     else pushLog('Vyapari Diya', amt, entityName, 'Paid', spl, false);
+            else {
+                    // --- ADVANCED CONTRA FIX ---
+                    let isContra = cat.includes('contra') || note.includes('contra');
+                    
+                    if (isContra) {
+                        let mTypeLog = getMoneyType(c.mode);
+                        let splIn = ''; let splOut = '';
+                        
+                        if (mTypeLog === 'bank') {
+                            if (type === 'IN') { 
+                                splIn = `(₹${fmtNum(amt)}#)`; // Bank got money
+                                splOut = `(₹${fmtNum(amt)}*)`; // Cash lost money
+                                pushLog('Other In', amt, entityName || 'Bank Deposit', 'Contra IN', splIn, true);
+                                pushLog('Other Out', amt, entityName || 'Cash Withdraw', 'Contra OUT', splOut, false);
+                            } else { 
+                                splIn = `(₹${fmtNum(amt)}*)`; // Cash got money
+                                splOut = `(₹${fmtNum(amt)}#)`; // Bank lost money
+                                pushLog('Other In', amt, entityName || 'Cash Deposit', 'Contra IN', splIn, true);
+                                pushLog('Other Out', amt, entityName || 'Bank Withdraw', 'Contra OUT', splOut, false);
+                            }
+                        } else { 
+                            if (type === 'IN') { 
+                                splIn = `(₹${fmtNum(amt)}*)`; 
+                                splOut = `(₹${fmtNum(amt)}#)`; 
+                                pushLog('Other In', amt, entityName || 'Cash Deposit', 'Contra IN', splIn, true);
+                                pushLog('Other Out', amt, entityName || 'Bank Withdraw', 'Contra OUT', splOut, false);
+                            } else { 
+                                splIn = `(₹${fmtNum(amt)}#)`; 
+                                splOut = `(₹${fmtNum(amt)}*)`; 
+                                pushLog('Other In', amt, entityName || 'Bank Deposit', 'Contra IN', splIn, true);
+                                pushLog('Other Out', amt, entityName || 'Cash Withdraw', 'Contra OUT', splOut, false);
+                            }
+                        }
+                    } 
+                    else if (type === 'IN') {
+                        pushLog('Other In', amt, entityName || 'Income', '', spl, true);
+                    } else {
+                        if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
+                            pushLog('Other Out', amt, entityName || 'Kharcha', 'Kharcha', spl, false);
+                        } else {
+                            pushLog('Other Out', amt, entityName || 'Paid', '', spl, false);
+                        }
+                    }
                 }
-               else {
-    // --- CONTRA FIX ---
-    if (cat.includes('contra') || note.includes('contra')) {
-        // Agar entry contra hai, toh dono side (Jama aur Nama) push karo
-        pushLog('Other In', amt, entityName || 'Contra Deposit', 'Contra IN', spl, true);
-        pushLog('Other Out', amt, entityName || 'Contra Withdraw', 'Contra OUT', spl, false);
-    } 
-    else if (type === 'IN') {
-        pushLog('Other In', amt, entityName || 'Income', '', spl, true);
-    } else {
-        if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
-            pushLog('Other Out', amt, entityName || 'Kharcha', 'Kharcha', spl, false);
-        } else {
-            pushLog('Other Out', amt, entityName || 'Paid', '', spl, false);
-        }
-    }
-}
-});
+            });
             sumNama += closingTotal; 
             
             document.getElementById('uiTotalJama').innerText = `₹${fmtNum(sumJama)}`;
