@@ -918,46 +918,61 @@
                 let oDate = (o.orderDate || o.date || '').split('T')[0];
                 let cName = getCustName(o.customerId);
                 
-                if (oDate === today) {
-                    let itemN = o.itemName || o.item || o.jobType || 'Order';
-                    let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
-                    let ogWt = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
-                    let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
-                    let totalIn = advCash + ogAmt;
-                    
-                    let matchedMode = 'Cash';
-                    let remainingAdv = advCash;
-                    
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            let cat = String(c.category || '').toLowerCase();
-                            let note = String(c.note || '').toLowerCase();
-                            let cAmt = Math.abs(parseNum(c.amount));
-                            
-                            let isMatch = false;
-                            if (String(c.orderId) === String(o.id) || note.includes(String(o.id))) {
-                                isMatch = true;
-                            } else if (remainingAdv >= cAmt - 2 && (cat.includes('order') || note.includes('ord-'))) {
-                                isMatch = true;
-                            }
-                            
-                            if (isMatch) {
-                                c.alreadyHandled = true;
-                                remainingAdv -= cAmt;
-                                if(remainingAdv < 0) remainingAdv = 0;
-                                matchedMode = c.mode || matchedMode;
-                            }
-                        }
-                    });
+              let itemN = o.category || o.description || o.jobType || 'Order';
+            let invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
 
-                    if (totalIn > 0) {
-                        let spl = getSplitStr(o.payments, matchedMode, advCash, totalIn);
-                        pushLog('Order In', totalIn, `${cName} - ${itemN}`, 'Adv + OG', spl, true);
+            // 1. सिर्फ आज के दिन हुए पेमेंट्स निकालें (चाहे एडवांस हो या फाइनल पेमेंट)
+            let paymentsToday = (o.payments || []).filter(p => p.date && p.date.startsWith(today));
+            let totalPaidToday = 0;
+            paymentsToday.forEach(p => totalPaidToday += Math.abs(parseNum(p.amount)));
+
+            // 2. Old Gold सिर्फ उसी दिन जुड़ेगा जिस दिन ऑर्डर बना था
+            let oDate = (o.orderDate || o.date || '').split('T')[0];
+            let ogAmtToday = 0;
+            let ogWtToday = 0;
+            if (oDate === today) {
+                ogAmtToday = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
+                ogWtToday = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
+            }
+
+            let totalInLog = totalPaidToday + ogAmtToday;
+
+            // 3. कैशफ्लो से मिलान करें (ताकि Cash / Bank का सही पता चले)
+            if (totalInLog > 0) {
+                let remainingToAbsorb = totalPaidToday;
+                let matchedMode = 'Cash';
+
+                cFlows.forEach(c => {
+                    if (!c.alreadyHandled && c.date && c.date.startsWith(today) && c.type !== 'OUT') {
+                        let cat = String(c.category || '').toLowerCase();
+                        let note = String(c.note || '').toLowerCase();
+                        let cAmt = Math.abs(parseNum(c.amount));
+                        
+                        let isMatch = false;
+                        if (String(c.orderId) === String(o.id) || note.includes(String(o.id)) || note.includes(invoiceNo.toLowerCase())) {
+                            isMatch = true;
+                        } else if (remainingToAbsorb >= cAmt - 2 && (cat.includes('order') || note.includes('ord-'))) {
+                            isMatch = true;
+                        }
+                        
+                        if (isMatch) {
+                            c.alreadyHandled = true;
+                            remainingToAbsorb -= cAmt;
+                            if(remainingToAbsorb < 0) remainingToAbsorb = 0;
+                            matchedMode = c.mode || matchedMode;
+                        }
                     }
-                    if (ogAmt > 0) {
-                        pushLog('OldGold', ogAmt, cName, 'Order OG Exch', '', false, [{val: ogWt, label: 'Old'}]);
-                    }
-                }
+                });
+
+                let spl = getSplitStr(paymentsToday, matchedMode, totalPaidToday, totalInLog);
+                let label = ogAmtToday > 0 ? (totalPaidToday > 0 ? 'Adv + OG' : 'OG Exch') : 'Payment';
+                pushLog('Order In', totalInLog, `${cName} - ${itemN}`, label, spl, true);
+            }
+
+            // 4. Old Gold की Out (Nama) एंट्री
+            if (ogAmtToday > 0) {
+                pushLog('OldGold', ogAmtToday, cName, 'Order OG Exch', '', false, [{val: ogWtToday, label: 'Old'}]);
+            }
                 
                 let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
                 if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
@@ -1002,9 +1017,28 @@
                 }
             });
 
-            sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
+           sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
                 let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
                 if (isRepairSale) return; 
+
+                let advance = Math.abs(parseNum(s.advanceAmount || 0));
+                let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
+
+                let cName = getCustName(s.customerId);
+                let udhari = Math.abs(parseNum(s.pendingAmount));
+                
+                // --- नया स्मार्ट लॉजिक ---
+                // अगर यह ऑर्डर का बिल है, तो इसका कैश और ओल्ड गोल्ड 'Order In' में जा चुका है। 
+                // हम यहाँ सिर्फ उधारी चेक करेंगे और बाकी कोड को स्किप कर देंगे।
+                if (isOrderBill) {
+                    if (udhari > 0) {
+                        pushLog('SaleDueGiven', udhari, cName, 'Order Udhari', '', false);
+                    }
+                    return; 
+                }
+                // -------------------------
+
+                let paid = Math.abs(parseNum(s.paidAmount)); 
 
                 let advance = Math.abs(parseNum(s.advanceAmount || 0));
                 let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
