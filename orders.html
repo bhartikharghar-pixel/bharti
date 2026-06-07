@@ -131,6 +131,12 @@
         #toast.success { background-color: var(--receive-green); }
         #toast.error { background-color: var(--active-red); }
 
+        /* Custom Box styling for better breakdown */
+        .breakdown-box { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
+        .breakdown-title { font-weight: 700; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 8px; color:#333; }
+        .breakdown-row { display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px; }
+        .breakdown-total { display:flex; justify-content:space-between; font-size:0.95rem; font-weight:bold; border-top:1px dashed #ccc; padding-top:6px; margin-top:4px; }
+
         #invoice-area, #challan-area { display: none; background: white; padding: 30px; font-family: 'Times New Roman', serif; color: #000; }
         @media print {
             .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .modal, .fab, #toast { display: none !important; }
@@ -209,7 +215,6 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- NEW JOB MODAL -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -417,7 +422,6 @@
         </div>
     </div>
 
-    <!-- VIEW JOB MODAL -->
     <div id="viewJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('viewJobModal')">&times;</button>
@@ -457,35 +461,41 @@
                     <img id="vImage" style="max-width:100%; max-height:250px; border-radius:4px; object-fit: contain;">
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.85rem; background:white; padding:10px; border-radius:6px; margin-bottom:10px;">
-                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Gross Wt</span><strong id="vGross"></strong></div>
-                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Rate</span><strong id="vRate" style="color:var(--active-red);"></strong></div>
-                    <div><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Making</span><strong id="vMaking"></strong></div>
-                    <div id="vFinalBarcodeDiv" style="display:none;"><span style="color:#888; display:block; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Barcode</span><strong id="vFinalBarcode" style="color:var(--receive-green); font-family:monospace;"></strong></div>
+                <div id="vFinalBarcodeDiv" style="display:none; background:white; padding:10px; border-radius:6px; margin-bottom:10px; border:1px dashed #2e7d32; text-align:center;">
+                    <span style="color:#888; font-size:0.75rem; font-weight:bold; text-transform:uppercase; margin-right:8px;">Barcode:</span>
+                    <strong id="vFinalBarcode" style="color:var(--receive-green); font-family:monospace; font-size:1.1rem;"></strong>
                 </div>
 
-                <div id="vOldGoldDetailsBox" style="display:none; background:#f3e5f5; padding:10px; border-radius:6px; margin-bottom:10px; font-size:0.85rem; border-left: 4px solid var(--old-gold);">
-                    <strong style="color:var(--old-gold); display:block; margin-bottom:5px;"><i class="fas fa-sync-alt"></i> Old Gold Exchanged Details:</strong>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
-                        <div><span style="color:#888; font-size:0.75rem; display:block;">Purity</span><strong id="vOldPurity"></strong></div>
-                        <div><span style="color:#888; font-size:0.75rem; display:block;">Fine Wt</span><strong id="vOldNet"></strong></div>
-                        <div><span style="color:#888; font-size:0.75rem; display:block;">Value</span><strong id="vOldValDetail" style="color:var(--old-gold);"></strong></div>
+                <div class="breakdown-box">
+                    <div class="breakdown-title" id="vBreakdownTitle">Item Breakdown (Est)</div>
+                    <div class="breakdown-row"><span>Gross Wt:</span> <strong id="vGrossWtBrk">0g</strong></div>
+                    <div class="breakdown-row"><span>Stone Wt:</span> <strong id="vStoneWtBrk">0g</strong></div>
+                    <div class="breakdown-row"><span>Net Wt:</span> <strong id="vNetWtBrk">0g</strong></div>
+                    <div class="breakdown-row" style="color:var(--active-red); border-top:1px dashed #eee; padding-top:4px; margin-top:4px;"><span>Gold Rate:</span> <strong id="vRateBrk">₹0/g</strong></div>
+                    <div class="breakdown-row"><span>Gold Value (Net × Rate):</span> <strong id="vGoldValueBrk">₹0</strong></div>
+                    <div class="breakdown-row"><span>Making Charges:</span> <strong id="vMakingBrk">₹0</strong></div>
+                    <div class="breakdown-row"><span>Other Charges:</span> <strong id="vOtherBrk">₹0</strong></div>
+                    <div class="breakdown-row" style="color:#1976d2;"><span>GST:</span> <strong id="vGSTBrk">₹0</strong></div>
+                    <div class="breakdown-total"><span>Gross Total:</span> <strong id="vGrossTotalBrk" style="color:var(--accent-gold);">₹0</strong></div>
+                </div>
+
+                <div id="vOldGoldDetailsBox" style="display:none; background:#f3e5f5; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem; border-left: 4px solid var(--old-gold);">
+                    <strong style="color:var(--old-gold); display:block; margin-bottom:5px;"><i class="fas fa-sync-alt"></i> Old Gold Exchanged:</strong>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span><span id="vOldNet"></span>g (<span id="vOldPurity"></span>)</span>
+                        <strong id="vOldValDetail" style="color:var(--old-gold);"></strong>
                     </div>
                 </div>
 
-                <div style="font-size:0.9rem; border-top:1px solid #ddd; padding-top:10px; background: white; padding:10px; border-radius:6px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold;">
-                        <span id="vTotalLabel">Est. Total:</span> <span id="vGrandTotal"></span>
-                    </div>
-                    <div id="vOldGoldWrapper" style="display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px dashed #eee; display:none;">
-                        <span style="color:var(--old-gold);">Less Old Gold Value:</span> <strong id="vOldGold" style="color:var(--old-gold);"></strong>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <span style="color:#2e7d32;">Advance Paid:</span> <strong id="vAdv" style="color:#2e7d32;"></strong>
+                <div style="background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+                    <div style="font-weight: 700; border-bottom: 1px solid #a5d6a7; padding-bottom: 5px; margin-bottom: 8px; color: #2e7d32;"><i class="fas fa-money-check-alt"></i> Advance Payment History</div>
+                    <div id="vPaymentHistoryList"></div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.95rem; font-weight:bold; border-top:1px solid #a5d6a7; padding-top:6px; margin-top:6px; color: #2e7d32;">
+                        <span>Total Advance Paid:</span> <strong id="vTotalAdvBrk">₹0</strong>
                     </div>
                 </div>
 
-                <div style="text-align:right; font-size:1.2rem; margin-top:10px; color:#d32f2f; font-weight:bold; background:#ffebee; padding:10px; border-radius:6px;">
+                <div style="text-align:right; font-size:1.3rem; margin-top:10px; color:#d32f2f; font-weight:bold; background:#ffebee; padding:12px; border-radius:8px;">
                     <span id="vDueLabel">Net Due:</span> <span id="vDue"></span>
                 </div>
             </div>
@@ -515,7 +525,6 @@
         </div>
     </div>
 
-    <!-- ASSIGN MODAL -->
     <div id="assignModal" class="modal">
         <div class="modal-content" style="max-width:450px;">
             <button class="close-btn" onclick="closeModal('assignModal')">&times;</button>
@@ -539,13 +548,100 @@
         </div>
     </div>
 
-    <!-- RECEIVE MODAL -->
     <div id="receiveModal" class="modal"><div class="modal-content" style="max-width:550px;"><button class="close-btn" onclick="closeModal('receiveModal')">&times;</button><h3 style="margin-top:0; color:var(--receive-green);"><i class="fas fa-box-open"></i> Receive & Finalize</h3><input type="hidden" id="rOrderId"><div style="background:#e8f5e9; padding:15px; border-radius:8px; border-left:4px solid var(--receive-green); margin-bottom:15px; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;"><div><div style="color:#2e7d32; font-weight:bold;">Issued to Karigar:</div><div id="rIssuedGrossDisplay">0.000 g</div></div><div style="text-align:right;"><div style="color:#2e7d32; font-weight:bold;">Total Issued:</div><strong id="rIssuedWtDisplay" style="font-size:1.1rem; color:#1b5e20;">0.000 g</strong></div></div><div class="form-section"><div class="form-section-title">Final Received Weights</div><div style="display:flex; justify-content:flex-end; margin-bottom:5px;"><button type="button" class="btn-outline" style="margin:0; padding:4px 8px; font-size:0.75rem; border-color:#ccc; color:#555;" onclick="autoFillFinalGross()"><i class="fas fa-copy"></i> Copy Est.</button></div><div class="form-grid"><div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rFinalGross" step="0.001" oninput="calcReceiveTotals()"></div><div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rFinalStone" step="0.001" value="0" oninput="calcReceiveTotals()"></div></div><div class="form-grid"><div class="form-group"><label>Final Net Wt (g)</label><input type="number" id="rFinalNet" readonly style="background:#f0f0f0; font-weight:bold;"></div><div class="form-group"><label>Actual Wastage</label><div class="input-group"><input type="number" id="rWastageVal" step="0.01" value="0" oninput="calcReceiveTotals()"><select id="rWastageMode" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="gm">+ g</option></select></div></div></div><div class="form-group"><label>Final Chargeable Fine Wt (24K Equivalent)</label><input type="number" id="rFinalFine" readonly style="background:#fffde7; color:#f57f17; font-weight:bold; border-color:#ffe0b2;"></div><div class="form-group" style="padding:10px; background:#fafafa; border:1px dashed #ccc;"><label>Karigar Ledger Diff</label><input type="text" id="rWtDiff" readonly style="font-weight:bold; background:transparent; border:none; padding:0;"></div></div><div class="form-section"><div class="form-section-title">Final Costing</div><div class="form-grid"><div class="form-group"><label>Actual Making Chg Logic</label><div class="input-group"><input type="number" id="rActualMakingInput" oninput="calcReceiveTotals()" placeholder="0"><select id="rActualMakingType" onchange="calcReceiveTotals()"><option value="pct">%</option><option value="per_gram">₹/g</option></select></div><input type="hidden" id="rActualMaking" value="0"><div style="font-size:0.8rem; color:var(--accent-gold); margin-top:4px; font-weight:bold; text-align:right;" id="rActualMakingDisplay">₹0</div></div><div class="form-group"><label>Other Charges (₹)</label><input type="number" id="rActualOther" value="0" oninput="calcReceiveTotals()"></div></div><div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9; margin-top:10px;"><input type="checkbox" id="rApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcReceiveTotals()"><label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Total</label></div><input type="hidden" id="rGstAmountVal" value="0"></div><div class="summary-highlight"><div class="summary-row"><span>New Final Order Total:</span><span class="summary-val" id="rNewGrandTotal" style="color:var(--accent-gold); font-size:1.2rem;">₹0</span></div></div><input type="hidden" id="rNewGrandTotalVal"><input type="hidden" id="rNewBaseVal"><button type="button" class="btn-primary" style="background:var(--receive-green); margin-top:20px;" onclick="confirmReceiveOrder()"><i class="fas fa-check-circle"></i> Mark Ready for Stock</button></div></div>
 
-    <!-- BILLING MODAL -->
-    <div id="billingModal" class="modal"><div class="modal-content" style="max-width: 650px;"><button class="close-btn" onclick="closeModal('billingModal')">&times;</button><h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3><input type="hidden" id="billOrderId"><input type="hidden" id="billCustId"><div id="billCustSearch" style="display:none;"></div><div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;"><div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-user-tag" style="font-size:1.1rem;"></i><span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span></div><span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span></div><div class="form-section" style="border-left: 4px solid var(--bill-blue); background: #e3f2fd;"><div class="form-section-title" style="color: #1565c0; border-color: #90caf9;">Final Adjustments (Modify Rate/Making at Delivery)</div><div class="form-grid"><div class="form-group"><label>Final Gold Rate (₹/g)</label><input type="number" id="billFinalRate" oninput="calcBillingAdjustment()" style="font-weight:bold; border-color:#64b5f6;"></div><div class="form-group"><label>Final Making Charge</label><div class="input-group"><input type="number" id="billMakingInput" oninput="calcBillingAdjustment()"><select id="billMakingType" onchange="calcBillingAdjustment()"><option value="pct">%</option><option value="per_gram">₹/g</option></select></div></div></div><div class="form-grid"><div class="form-group"><label>Other Charges (₹)</label><input type="number" id="billOtherCharge" oninput="calcBillingAdjustment()"></div><div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:20px;"><input type="checkbox" id="billApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcBillingAdjustment()"><label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST</label></div></div><input type="hidden" id="billUpdatedGrandTotal"><input type="hidden" id="billUpdatedBaseAmount"><input type="hidden" id="billUpdatedMaking"><input type="hidden" id="billUpdatedGST"></div><div style="background:#f4f6f9; padding:15px; border-radius:8px; margin-bottom:15px;"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Adjusted Gross Order Total:</span> <strong id="bOrdGross" style="font-size:1.1rem; color:#333;">₹0</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div><div style="display:flex; justify-content:space-between; margin-bottom:5px; color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div><div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.2rem;"><span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong></div></div><div class="form-section"><div class="form-section-title">Receive Final Payment</div><div class="form-grid"><div class="form-group" style="margin-bottom:0;"><label>Amount (₹)</label><input type="number" id="billPayAmt"></div><div class="form-group" style="margin-bottom:0;"><label>Mode</label><select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select></div></div><button type="button" class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button><div id="billPayList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div><div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong></div></div><button type="button" class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button></div></div>
+    <div id="billingModal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
+            <h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3>
+            <input type="hidden" id="billOrderId">
+            <input type="hidden" id="billCustId">
+            <div id="billCustSearch" style="display:none;"></div>
+            
+            <div id="billCustDisplay" style="background:#e3f2fd; padding:10px 15px; border-radius:8px; margin-bottom:15px; font-weight:600; color:#1565c0; display:flex; align-items:center; justify-content:space-between; border: 1px solid #90caf9;">
+                <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-user-tag" style="font-size:1.1rem;"></i><span>Customer: <span id="billCustNameText" style="font-weight:800;"></span></span></div>
+                <span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span>
+            </div>
+            
+            <div class="form-section" style="border-left: 4px solid var(--bill-blue); background: #e3f2fd;">
+                <div class="form-section-title" style="color: #1565c0; border-color: #90caf9;">Final Adjustments (Rate, Making, Discount)</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Final Gold Rate (₹/g)</label>
+                        <input type="number" id="billFinalRate" oninput="calcBillingAdjustment()" style="font-weight:bold; border-color:#64b5f6;">
+                    </div>
+                    <div class="form-group">
+                        <label>Final Making Charge</label>
+                        <div class="input-group">
+                            <input type="number" id="billMakingInput" oninput="calcBillingAdjustment()">
+                            <select id="billMakingType" onchange="calcBillingAdjustment()">
+                                <option value="pct">%</option>
+                                <option value="per_gram">₹/g</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Other Charges (₹)</label>
+                        <input type="number" id="billOtherCharge" oninput="calcBillingAdjustment()">
+                    </div>
+                    <div class="form-group">
+                        <label style="color:#d84315;">Discount Amount (₹)</label>
+                        <input type="number" id="billDiscount" oninput="calcBillingAdjustment()" placeholder="0" style="border-color:#ffab91;">
+                    </div>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                    <input type="checkbox" id="billApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcBillingAdjustment()">
+                    <label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST</label>
+                </div>
 
-    <!-- CANCEL MODAL -->
+                <input type="hidden" id="billUpdatedGrandTotal">
+                <input type="hidden" id="billUpdatedBaseAmount">
+                <input type="hidden" id="billUpdatedMaking">
+                <input type="hidden" id="billUpdatedGST">
+                <input type="hidden" id="billUpdatedDiscount">
+            </div>
+
+            <div class="breakdown-box">
+                <div class="breakdown-title">Final Bill Breakdown</div>
+                <div class="breakdown-row"><span>Gold Value (Net × Rate):</span> <strong id="bOrdGoldVal">₹0</strong></div>
+                <div class="breakdown-row"><span>Making Charges:</span> <strong id="bOrdMaking">₹0</strong></div>
+                <div class="breakdown-row"><span>Other Charges:</span> <strong id="bOrdOther">₹0</strong></div>
+                <div class="breakdown-row" style="color:#1976d2;"><span>GST:</span> <strong id="bOrdGST">₹0</strong></div>
+                <div class="breakdown-row" style="color:#d84315;"><span>Discount:</span> <strong id="bOrdDisc">-₹0</strong></div>
+                <div class="breakdown-total"><span>Adjusted Gross Order Total:</span> <strong id="bOrdGross" style="color:var(--accent-gold);">₹0</strong></div>
+                <div class="breakdown-row" style="margin-top:8px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div>
+                <div class="breakdown-row" style="color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.3rem;">
+                    <span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-section-title">Receive Final Payment</div>
+                <div class="form-grid">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="billPayAmt">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Mode</label>
+                        <select id="billPayMode"><option value="Cash">Cash</option><option value="UPI">UPI</option><option value="Card">Card</option></select>
+                    </div>
+                </div>
+                <button type="button" class="btn-primary" style="background:#333; margin-top:10px; padding:10px;" onclick="addBillPayment()"><i class="fas fa-plus"></i> Add Payment</button>
+                <div id="billAdvanceHistoryList" style="margin-top:15px; font-size: 0.85rem;"></div>
+                <div id="billPayList" style="margin-top:5px; display:flex; flex-direction:column; gap:5px;"></div>
+                
+                <div style="text-align:right; margin-top:15px; font-size:1.1rem; border-top: 1px solid #eee; padding-top: 10px;">
+                    Balance Remaining: <strong id="billRemainingDue" style="color:var(--active-red);">₹0</strong>
+                </div>
+            </div>
+            <button type="button" class="btn-primary" style="background:#1976d2;" onclick="confirmFinalBill()"><i class="fas fa-check-circle"></i> Generate Invoice & Complete</button>
+        </div>
+    </div>
+
     <div id="cancelModal" class="modal"><div class="modal-content"><button class="close-btn" onclick="closeModal('cancelModal')">&times;</button><h3 style="margin-top:0; color:#c62828;"><i class="fas fa-undo"></i> Cancel Order</h3><input type="hidden" id="cOrderId"><div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #eee;"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Advance Paid:</span> <strong id="cOrderAdv" style="color:#2e7d32;">₹0</strong></div><div id="cOrderOldGoldDiv" style="display:flex; justify-content:space-between; color:var(--old-gold); border-top:1px dashed #ccc; padding-top:5px; margin-top:5px;"><span>Old Gold Held:</span> <strong id="cOrderOldGold">0g</strong></div></div><div class="form-grid"><div class="form-group"><label>Refund via Cash (₹)</label><input type="number" id="cRefundCash" placeholder="0"></div><div class="form-group"><label>Refund via UPI/GPay (₹)</label><input type="number" id="cRefundUPI" placeholder="0"></div></div><div class="form-group" style="display:flex; align-items:center; gap:10px; background:#fff3e0; padding:10px; border-radius:6px; border:1px solid #ffe0b2;"><input type="checkbox" id="cReturnOldGold" checked style="width:20px; height:20px; accent-color:#ef6c00;"> <label for="cReturnOldGold" style="margin:0; color:#ef6c00; font-weight:bold; cursor:pointer;">Return Old Gold to Customer?</label></div><button type="button" class="btn btn-danger" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="confirmCancelOrder()"><i class="fas fa-ban"></i> Confirm Cancellation</button></div></div>
 
     <div id="invoice-area"></div>
@@ -625,7 +721,6 @@
             const now = new Date(); now.setHours(0,0,0,0);
 
             allOrders = orders.filter(o => o.jobType === 'Order').map(o => {
-                // ✅ Use loose equality (==) so string IDs work fine
                 const c = allCustomers.find(x => x.id == o.customerId);
                 if(o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar') {
                     pendingCount++; 
@@ -705,7 +800,6 @@
                 else if(o.status === 'completed' || o.status === 'ready') { badgeClass = 'b-completed'; badgeText = 'Ready'; } 
                 else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
                 else if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    // ✅ Use == for string ID comparison
                     const mId = o.merchantId; const m = allMerchants.find(x => x.id == mId);
                     badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`;
                 } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
@@ -726,7 +820,6 @@
                 const icon = o.itemImage ? '<i class="fas fa-image" style="color:var(--bill-blue);"></i>' : '<i class="fas fa-ring" style="color:var(--accent-gold);"></i>';
                 let displayWt = o.finalGross ? `${o.finalGross}g (Final)` : `${o.grossWt}g (Est)`;
 
-                // ✅ FIX: Add quotes around o.id in onclick
                 container.innerHTML += `
                     <div class="order-card ${cardClass}">
                         <div class="o-header">
@@ -948,7 +1041,6 @@
                         address: '',
                         dateAdded: new Date().toISOString()
                     };
-                    // ✅ No parseInt – Firebase returns string ID
                     custId = await addItem('customers', newCustObj);
                     newCustObj.id = custId;
                     allCustomers.push(newCustObj);
@@ -965,7 +1057,6 @@
                 const inputOrderDate = document.getElementById('oDate').value;
                 const finalOrderDate = inputOrderDate ? new Date(inputOrderDate).toISOString() : new Date().toISOString();
 
-                // ✅ customerId stored as STRING (no parseInt)
                 let jobObj = {
                     jobType: 'Order',
                     customerId: custId,
@@ -1019,7 +1110,6 @@
                         });
                     }
                     
-                    // ✅ Use == for string ID lookup
                     const c = allCustomers.find(x => x.id == jobObj.customerId);
                     o.custName = c ? c.name : 'Customer';
                     o.custMobile = c ? c.mobile : '';
@@ -1039,7 +1129,6 @@
         }
 
         function openViewModal(id) {
-            // ✅ id is already a string from Firestore, no parseInt needed
             const o = allOrders.find(x => x.id == id);
             if(!o) return;
             activeJobData = o;
@@ -1073,7 +1162,6 @@
                 } else if(o.status === 'cancelled') { 
                     badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
                 } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
-                    // ✅ String comparison
                     const m = allMerchants.find(x => x.id == o.merchantId); 
                     badge.className = 'badge b-assigned'; badge.innerHTML = `<i class="fas fa-truck"></i> Assigned: ${m ? m.name.substring(0,8) : '...'}`; 
                     document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('active');
@@ -1083,10 +1171,6 @@
                 }
             }
 
-            setText('vGross', o.finalGross ? `${o.finalGross}g (F)` : `${o.grossWt}g (E)`);
-            setText('vMaking', o.finalMaking ? `₹${o.finalMaking} (F)` : `₹${o.makingCharge} (E)`);
-            setText('vRate', `₹${o.lockedRate}/g`);
-
             if(o.barcode) {
                 toggleDisplay('vFinalBarcodeDiv', 'block');
                 setText('vFinalBarcode', o.barcode);
@@ -1094,23 +1178,54 @@
                 toggleDisplay('vFinalBarcodeDiv', 'none');
             }
 
+            // NEW BREAKDOWN UI DATA
+            const isFinalized = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered' || o.status === 'ready');
+            setText('vBreakdownTitle', isFinalized ? "Final Item Breakdown" : "Item Breakdown (Est)");
+            
+            const grossWt = isFinalized ? (o.finalGross || 0) : (o.grossWt || 0);
+            const stoneWt = isFinalized ? (o.finalStone || 0) : (o.stoneWt || 0);
+            const netWt = isFinalized ? (o.finalNet || 0) : (o.netWt || 0);
+            const rate = o.lockedRate || 0;
+            const goldVal = netWt * rate;
+            const making = isFinalized ? (o.finalMaking || 0) : (o.makingCharge || 0);
+            const other = o.otherCharge || 0;
+            const gst = o.gstAmount || 0;
             const grandTotal = o.grandTotal || o.estAmount || 0;
             const adv = o.advancePaid || 0;
             const oldVal = o.oldGoldValue || 0;
 
-            setText('vTotalLabel', (o.status === 'completed' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered') ? "Final Gross Total:" : "Est. Gross Total:");
-            setText('vGrandTotal', "₹" + grandTotal.toLocaleString());
-            setText('vAdv', "-₹" + adv.toLocaleString());
-            
+            setText('vGrossWtBrk', `${grossWt}g`);
+            setText('vStoneWtBrk', `${stoneWt}g`);
+            setText('vNetWtBrk', `${netWt}g`);
+            setText('vRateBrk', `₹${rate.toLocaleString()}/g`);
+            setText('vGoldValueBrk', `₹${Math.round(goldVal).toLocaleString()}`);
+            setText('vMakingBrk', `₹${Math.round(making).toLocaleString()}`);
+            setText('vOtherBrk', `₹${other.toLocaleString()}`);
+            setText('vGSTBrk', `₹${gst.toLocaleString()}`);
+            setText('vGrossTotalBrk', `₹${grandTotal.toLocaleString()}`);
+
+            // PAYMENT HISTORY
+            let paymentsHtml = '';
+            if(o.payments && o.payments.length > 0) {
+                o.payments.forEach((p, idx) => {
+                    const pDate = new Date(p.date).toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+                    paymentsHtml += `<div style="display:flex; justify-content:space-between; font-size:0.85rem; border-bottom:1px dashed #a5d6a7; padding:6px 0; color:#333;">
+                        <span><span style="color:#555; font-size:0.75rem;">${idx+1}.</span> ${pDate} <small>(${p.mode})</small></span>
+                        <strong style="color:#2e7d32;">₹${parseFloat(p.amount).toLocaleString()}</strong>
+                    </div>`;
+                });
+            } else {
+                paymentsHtml = `<div style="font-size:0.85rem; color:#888; padding:5px 0;">No advance paid yet.</div>`;
+            }
+            document.getElementById('vPaymentHistoryList').innerHTML = paymentsHtml;
+            setText('vTotalAdvBrk', `₹${adv.toLocaleString()}`);
+
             if (oldVal > 0) {
-                toggleDisplay('vOldGoldWrapper', 'flex');
-                setText('vOldGold', "-₹" + oldVal.toLocaleString());
                 toggleDisplay('vOldGoldDetailsBox', 'block');
                 setText('vOldPurity', o.oldGoldPurity);
-                setText('vOldNet', (o.oldGoldFine || o.oldGoldNet) + "g"); 
+                setText('vOldNet', (o.oldGoldFine || o.oldGoldNet)); 
                 setText('vOldValDetail', "₹" + oldVal.toLocaleString());
             } else {
-                toggleDisplay('vOldGoldWrapper', 'none');
                 toggleDisplay('vOldGoldDetailsBox', 'none');
             }
 
@@ -1167,7 +1282,6 @@
         }
 
         async function addAdvance() {
-            // ✅ No parseInt
             const id = document.getElementById('vId').value;
             const amt = parseFloat(document.getElementById('vNewPay').value);
             const mode = document.getElementById('vNewPayMode').value;
@@ -1290,7 +1404,6 @@
         }
 
         async function confirmAssignOrder() {
-            // ✅ No parseInt
             const oId = document.getElementById('aOrderId').value;
             const mId = document.getElementById('aMerchantSelect').value;
             
@@ -1320,7 +1433,6 @@
             o.status = 'in_progress';
 
             if (provideShopGold && stockId) {
-                // ✅ No parseInt on stockId
                 let item = await getItem('inventory', stockId);
                 if(!item || item.netWt < issuedGrossWt) {
                     showToast("Insufficient stock in the selected source!", "error");
@@ -1487,7 +1599,6 @@
             await updateItem('orders', o);
 
             if(o.merchantId && metalDiffToKarigar !== 0) {
-                // ✅ No parseInt
                 let m = await getItem('merchants', o.merchantId);
                 if (m) {
                     m.goldBalance = (parseFloat(m.goldBalance)||0) + metalDiffToKarigar;
@@ -1520,11 +1631,27 @@
             document.getElementById('billMakingInput').value = o.makingValInput || 0;
             document.getElementById('billMakingType').value = o.makingTypeInput || 'pct';
             document.getElementById('billOtherCharge').value = o.otherCharge || 0;
+            document.getElementById('billDiscount').value = o.discount || 0; // NEW
             document.getElementById('billApplyGST').checked = (o.gstAmount > 0);
+            
             const adv = o.advancePaid || 0;
             const oldVal = o.oldGoldValue || 0;
             document.getElementById('bOrdOld').innerText = "-₹" + oldVal.toLocaleString();
             document.getElementById('bOrdAdv').innerText = "-₹" + adv.toLocaleString();
+            
+            // Advance History list in billing
+            let advanceHtml = '';
+            if(o.payments && o.payments.length > 0) {
+                advanceHtml += `<div style="font-weight:bold; color:#2e7d32; margin-bottom:5px;">Advance History:</div>`;
+                o.payments.forEach((p, idx) => {
+                    const pDate = new Date(p.date).toLocaleDateString('en-IN');
+                    advanceHtml += `<div style="display:flex; justify-content:space-between; color:#555; padding:2px 0;"><span>${pDate} (${p.mode})</span><strong>₹${parseFloat(p.amount).toLocaleString()}</strong></div>`;
+                });
+            } else {
+                advanceHtml = `<div style="color:#888;">No advance payments found.</div>`;
+            }
+            document.getElementById('billAdvanceHistoryList').innerHTML = advanceHtml;
+
             billingPayments = []; 
             closeModal('viewJobModal'); openModal('billingModal');
             calcBillingAdjustment();
@@ -1540,17 +1667,32 @@
             const newMakingType = document.getElementById('billMakingType').value;
             let actualMaking = (newMakingType === 'pct') ? goldValue * (newMakingInput / 100) : finalWeightToUse * newMakingInput;
             const newOtherCharge = parseFloat(document.getElementById('billOtherCharge').value) || 0;
+            
             const newBaseTotal = Math.round(goldValue + actualMaking + newOtherCharge);
             const applyGST = document.getElementById('billApplyGST').checked;
             const newGSTAmount = applyGST ? Math.round(newBaseTotal * 0.03) : 0;
-            const newGrandTotal = newBaseTotal + newGSTAmount;
+            
+            // Apply Discount
+            const newDiscount = parseFloat(document.getElementById('billDiscount').value) || 0;
+            const newGrandTotal = newBaseTotal + newGSTAmount - newDiscount;
+            
             document.getElementById('billUpdatedGrandTotal').value = newGrandTotal;
             document.getElementById('billUpdatedBaseAmount').value = newBaseTotal;
             document.getElementById('billUpdatedMaking').value = actualMaking;
             document.getElementById('billUpdatedGST').value = newGSTAmount;
+            document.getElementById('billUpdatedDiscount').value = newDiscount; // Store it
+            
             const adv = o.advancePaid || 0;
             const oldVal = o.oldGoldValue || 0;
             const netDue = newGrandTotal - oldVal - adv;
+            
+            // Update UI Breakdown
+            document.getElementById('bOrdGoldVal').innerText = "₹" + Math.round(goldValue).toLocaleString();
+            document.getElementById('bOrdMaking').innerText = "₹" + Math.round(actualMaking).toLocaleString();
+            document.getElementById('bOrdOther').innerText = "₹" + Math.round(newOtherCharge).toLocaleString();
+            document.getElementById('bOrdGST').innerText = "₹" + Math.round(newGSTAmount).toLocaleString();
+            document.getElementById('bOrdDisc').innerText = "-₹" + Math.round(newDiscount).toLocaleString();
+            
             document.getElementById('bOrdGross').innerText = "₹" + newGrandTotal.toLocaleString();
             document.getElementById('bOrdNet').innerText = "₹" + Math.max(0, netDue).toLocaleString();
             renderBillPayments();
@@ -1583,7 +1725,6 @@
 
         async function confirmFinalBill() {
             const o = activeJobData;
-            // ✅ No parseInt
             const finalCustId = document.getElementById('billCustId').value;
             if(!finalCustId) return showToast("Select customer.", "error");
 
@@ -1594,6 +1735,7 @@
             o.finalMaking = parseFloat(document.getElementById('billUpdatedMaking').value) || 0;
             o.gstAmount = parseFloat(document.getElementById('billUpdatedGST').value) || 0;
             o.baseAmount = parseFloat(document.getElementById('billUpdatedBaseAmount').value) || 0;
+            o.discount = parseFloat(document.getElementById('billUpdatedDiscount').value) || 0; // Save discount
             o.grandTotal = parseFloat(document.getElementById('billUpdatedGrandTotal').value) || 0;
 
             const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
@@ -1616,9 +1758,9 @@
                     weight: o.finalNet || o.netWt || 0,
                     rate: o.lockedRate, 
                     makingAmount: o.finalMaking || 0, 
-                    total: o.grandTotal 
+                    total: (o.grandTotal + o.discount) // Item total before discount
                 }],
-                subTotal: o.baseAmount, discount: 0, gst: o.gstAmount, oldGoldDeduction: o.oldGoldValue, grandTotal: o.grandTotal,
+                subTotal: o.baseAmount, discount: o.discount, gst: o.gstAmount, oldGoldDeduction: o.oldGoldValue, grandTotal: o.grandTotal,
                 paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
             });
 
@@ -1687,7 +1829,6 @@
             }
             
             if(oldStatus === 'in_progress' && o.issuedFineWt > 0 && o.sourceStockId) {
-                // ✅ No parseInt
                 let item = await getItem('inventory', o.sourceStockId);
                 if(item) {
                     item.netWt += o.issuedGrossWt;
@@ -1714,7 +1855,6 @@
 
         // ==================== PRINT & WHATSAPP ====================
         function printReceiptEngine(targetId = null) {
-            // ✅ targetId is string, use == for comparison
             const o = targetId ? allOrders.find(x => x.id == targetId) : activeJobData;
             if(!o) return;
             const isFinal = (o.status === 'completed' || o.status === 'billed' || o.status === 'delivered');
@@ -1738,6 +1878,9 @@
             if(o.gstAmount > 0) {
                  html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
             }
+            if(o.discount > 0) {
+                 html += `<div style="display:flex; justify-content:space-between;"><span>Discount:</span><span>-₹${o.discount}</span></div>`;
+            }
             if(o.oldGoldValue > 0) {
                  html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
             }
@@ -1753,7 +1896,6 @@
         function printKarigarSlip() {
             const o = activeJobData;
             if(!o) return;
-            // ✅ String comparison
             const m = allMerchants.find(x => x.id == o.merchantId);
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
             let imgHtml = o.itemImage ? `<div style="text-align:center; margin-bottom:15px;"><img src="${o.itemImage}" style="max-width:100%; max-height:350px; border:2px solid #000; border-radius:4px; object-fit:contain;"></div>` : '';
