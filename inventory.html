@@ -56,7 +56,7 @@
         .filter-bar-new { display: flex; gap: 15px; align-items: flex-end; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; border: 1px solid #eee; flex-wrap: wrap;}
         .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;}
         .filter-group label { font-size: 0.8rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
-        .filter-group select { padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 0.95rem;}
+        .filter-group select, .filter-group input[type="date"] { padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 0.95rem; width: 100%; box-sizing: border-box;}
         
         .btn-manage-cats { background: #333; color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.2s; height: 45px;}
 
@@ -92,7 +92,7 @@
         .close-btn { position: absolute; top: 20px; right: 25px; font-size: 1.8rem; background: none; border: none; cursor: pointer; color: #94a3b8;}
         
         .form-group { margin-bottom: 18px; }
-        label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
+        .label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #475569; font-weight: 600;}
         input, select, textarea { width: 100%; padding: 12px 15px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; background: #f8fafc; font-family: inherit;}
         
         .btn-block { width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 1rem; margin-top: 15px;}
@@ -204,6 +204,18 @@
     </div>
 
     <div class="filter-bar-new">
+        <div class="filter-group">
+            <label><i class="fas fa-calendar-alt"></i> From Date:</label>
+            <input type="date" id="filterFromDate" onchange="applyFilters()">
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-calendar-check"></i> To Date:</label>
+            <input type="date" id="filterToDate" onchange="applyFilters()">
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+            <button class="btn-view" style="height: 45px; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 0px;" onclick="resetDates()"><i class="fas fa-sync"></i> Reset</button>
+        </div>
+
         <div class="filter-group">
             <label><i class="fas fa-layer-group"></i> Sub-View Filter:</label>
             <select id="filterType" onchange="applyFilters()">
@@ -718,6 +730,12 @@
         setupBarcodeScanner();
     };
 
+    function resetDates() {
+        document.getElementById('filterFromDate').value = '';
+        document.getElementById('filterToDate').value = '';
+        applyFilters();
+    }
+
     function isToday(dateStr) {
         if (!dateStr) return false;
         const d = new Date(dateStr);
@@ -735,7 +753,6 @@
         return 'individual';
     }
     
-    // UPDATED AND REFINED: Accurately checks if an item belongs to Silver tab
     function checkIsSilver(itemOrPurity) {
         if (!itemOrPurity) return false;
         let purity = '';
@@ -958,35 +975,48 @@
         const catType = document.getElementById('filterCategory').value;
         const subCatSelect = document.getElementById('filterSubCategory');
         const subCatType = subCatSelect ? subCatSelect.value : 'ALL';
+
+        const fdInput = document.getElementById('filterFromDate').value;
+        const tdInput = document.getElementById('filterToDate').value;
+        let fd = fdInput ? new Date(fdInput) : null;
+        if(fd) fd.setHours(0,0,0,0);
+        let td = tdInput ? new Date(tdInput) : null;
+        if(td) td.setHours(23,59,59,999);
         
         let filtered = allInventory.filter(i => {
             if (i.status === 'cancelled') return false; 
             
-            // Allow stock items to process into current
             if (i.status === 'stock') return true; 
             
-            // EXTRACTED allowed so it calculates Tagged Out accurately
             if (i.status === 'sold' || i.status === 'removed' || i.status === 'extracted') {
-                const outDate = i.removeDate || i.soldDate || i.date;
-                if (isToday(outDate)) return true;
+                const outDate = new Date(i.removeDate || i.soldDate || i.date || 0);
+                if (fd && td) {
+                    return outDate >= fd && outDate <= td;
+                } else if (fd) {
+                    return outDate >= fd;
+                } else if (td) {
+                    return outDate <= td;
+                } else {
+                    return isToday(outDate);
+                }
             }
             return false;
         });
 
         filtered = filtered.filter(i => {
-            const isSilv = checkIsSilver(i); // Now checks entire object securely
+            const isSilv = checkIsSilver(i); 
             if (currentMetalFilter === 'ALL') return true;
             if (currentMetalFilter === 'SILVER') return isSilv;
             if (isSilv) return false;
             
-          const isOrder = i.barcode?.startsWith('ORD-') || i.source?.startsWith('order_');
+            const isOrder = i.barcode?.startsWith('ORD-') || i.source?.startsWith('order_');
             
-            // YAHAN NAYA LOGIC ADD KIYA HAI TAki BARGLD AUR REFINERY ITEMS MELT TAB ME AAYEIN
             const isFineOrMelt = i.purity === '24K' || 
                                  i.category?.toUpperCase().includes('MELT') || 
                                  i.category?.toUpperCase().includes('FINE') || 
                                  i.barcode?.startsWith('BAR') || 
                                  i.source?.startsWith('melt_');
+                                 
             if (currentMetalFilter === 'GOLD_ORDER') return isOrder;
             if (currentMetalFilter === 'GOLD_FINE') return isFineOrMelt && !isOrder;
             if (currentMetalFilter === 'GOLD_TAGGED') return !isOrder && !isFineOrMelt;
@@ -1017,7 +1047,6 @@
         return 0;
     }
 
-    // ==================== NEW MAIN GROUPING LOGIC WITH TOTALS ====================
     function renderList(items) {
         const container = document.getElementById('inventory-list'); 
         container.innerHTML = ''; 
@@ -1028,6 +1057,22 @@
         let tOutQty = 0, tOutWt = 0;
         let tTaggedQty = 0, tTaggedWt = 0;
         let tCloseQty = 0, tCloseGross = 0, tCloseNet = 0, tCloseFine = 0;
+
+        const fdInput = document.getElementById('filterFromDate').value;
+        const tdInput = document.getElementById('filterToDate').value;
+        let fd = fdInput ? new Date(fdInput) : null;
+        if(fd) fd.setHours(0,0,0,0);
+        let td = tdInput ? new Date(tdInput) : null;
+        if(td) td.setHours(23,59,59,999);
+
+        const isActionInRange = (actionDateStr) => {
+            if (!actionDateStr) return false;
+            const d = new Date(actionDateStr);
+            if (fd && td) return d >= fd && d <= td;
+            if (fd) return d >= fd;
+            if (td) return d <= td;
+            return isToday(actionDateStr); 
+        };
 
         if (items.length === 0) { 
             container.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:40px; color:#888;">No items found.</td></tr>'; 
@@ -1040,8 +1085,8 @@
             const net = parseFloat(item.netWt || item.grossWt || item.weight || 0);
             const fine = calculateFineWeight(item);
 
-            const addedToday = isToday(item.addedDate);
-            const removedToday = (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') && isToday(item.removeDate || item.soldDate || item.date);
+            const addedInRange = isActionInRange(item.addedDate);
+            const removedInRange = (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') && isActionInRange(item.removeDate || item.soldDate || item.date);
 
             let key = item.category || 'Other'; 
             if (item.category === 'MIX') key = 'MIX';
@@ -1064,7 +1109,7 @@
             let g = groupedInventory[key];
             if (item.purity) g.purities.add(item.purity);
             
-            if (addedToday) {
+            if (addedInRange) {
                 g.addedQty += pcs;
                 g.addedWt += net;
             } else {
@@ -1073,17 +1118,15 @@
             }
 
             if (item.status === 'sold' || item.status === 'removed') {
-                if (removedToday) {
-                    // FIX: Prevent double counting of fully sold Loose items if they are already handled in Sales block below
+                if (removedInRange) {
                     if (item.status === 'sold' && item.barcode && item.barcode.startsWith('LOOSE')) {
-                        // Skip, let allSalesData handle exact sold weight
                     } else {
                         g.outQty += pcs;
                         g.outWt += net;
                     }
                 }
             } else if (item.status === 'extracted') {
-                if (removedToday) {
+                if (removedInRange) {
                     g.taggedOutQty += pcs;
                     g.taggedOutWt += net;
                 }
@@ -1096,11 +1139,10 @@
             }
         });
 
-        // FIX: ADJUST LOOSE ITEMS (OPENING & OUT) FOR TODAY'S SALES
         if (allSalesData && allSalesData.length > 0) {
             allSalesData.forEach(sale => {
                 let saleDate = sale.date || sale.timestamp || sale.soldDate;
-                if (sale.status !== 'cancelled' && isToday(saleDate)) {
+                if (sale.status !== 'cancelled' && isActionInRange(saleDate)) {
                     (sale.items || []).forEach(si => {
                         if (si.barcode && si.barcode.startsWith('LOOSE')) {
                             let key = si.category || 'Other';
@@ -1108,8 +1150,6 @@
                             
                             if (groupedInventory[key]) {
                                 let sQty = parseInt(si.sellQty || si.sellPieces || si.qty || 1);
-                                
-                                // FIX: strictly prioritize the exact sold weight, avoid using full item netWt unless it's the only option
                                 let sNet = parseFloat(si.sellWt || si.saleWt || si.soldWt);
                                 if (isNaN(sNet) || sNet <= 0) sNet = parseFloat(si.netWt || si.weight || si.grossWt || 0);
 
@@ -1452,7 +1492,6 @@
         document.getElementById('tagTotalWt').innerText = sum.toFixed(3) + " g";
     }
 
-    // UPDATED FUNCTION: Correctly updates extraction and pushes to the Tagged Out ledger tracking
     async function confirmTagging() {
         const sum = parseFloat(document.getElementById('tagTotalWt').innerText);
         if(sum<=0) return appAlert("Enter Valid Weights");
@@ -1475,7 +1514,6 @@
         const extractDocNo = 'EXT-' + Date.now();
         const inputs = document.querySelectorAll('.tag-gross');
         
-        // Add new unique tags
         for (let i = 0; i < inputs.length; i++) {
             const g = parseFloat(inputs[i].value) || 0;
             if (g > 0) {
@@ -1487,7 +1525,6 @@
             }
         }
 
-        // Generate dummy record strictly for tracking the -Tagged Out column
         const dummyExtractedItem = {
             barcode: item.barcode + '-EXT-' + Date.now(),
             category: item.category,
@@ -1499,7 +1536,7 @@
             fineWt: sum * getPurityFactor(item.purity),
             pieces: count,
             status: 'extracted',
-            addedDate: item.addedDate, // Inherit so opening stock calculates correctly
+            addedDate: item.addedDate, 
             removeDate: new Date().toISOString(),
             removeDocNo: extractDocNo,
             source: 'extraction'
@@ -1566,7 +1603,6 @@
             const strId = String(item.id);
             const isChecked = removeBatchList.includes(strId) ? 'checked' : '';
             
-            // FIX: Add weight input for LOOSE items to allow partial removal
             const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
             let weightInputHtml = '';
             if (isLoose) {
@@ -1636,16 +1672,13 @@
             const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
             let removeWt = parseFloat(item.grossWt || item.weight);
             
-            // FIX: Process partial weight remove for LOOSE items
             if (isLoose) {
                 const wtInput = document.getElementById(`rem_wt_${item.id}`);
                 if (wtInput && parseFloat(wtInput.value) > 0) {
                     removeWt = parseFloat(wtInput.value);
                 }
                 
-                // If user entered weight less than the total weight
                 if (removeWt < parseFloat(item.grossWt) - 0.005) {
-                    // Create dummy record for the removed portion so it shows in doc history and "Sale/Rem" column
                     const removedPortion = JSON.parse(JSON.stringify(item));
                     delete removedPortion.id;
                     removedPortion.barcode = item.barcode + '-REM-' + Date.now().toString().slice(-4);
@@ -1658,17 +1691,15 @@
                     removedPortion.source = 'partial_remove';
                     await addItem('inventory', removedPortion);
                     
-                    // Deduct from current active stock item
                     item.grossWt = Number((parseFloat(item.grossWt) - removeWt).toFixed(3));
                     item.netWt = Number((parseFloat(item.netWt) - removeWt).toFixed(3));
                     if (item.netWt < 0) item.netWt = 0;
                     item.fineWt = Number((item.netWt * getPurityFactor(item.purity)).toFixed(3));
                     await updateItem('inventory', item);
-                    continue; // Skip the standard full remove below
+                    continue; 
                 }
             }
             
-            // Standard full remove
             item.status = 'removed';
             item.removeDocNo = remDocNo;
             item.removeDate = dateStr;
