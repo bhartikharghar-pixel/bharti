@@ -269,9 +269,9 @@
                     <i class="fas fa-phone"></i> <span id="vCustPhoneDetail"></span>
                 </div>
                 <div style="text-align: right;">
-                    <strong>Item:</strong> <span id="vItemDesc"></span><br>
-                   <strong>Rate:</strong> <span id="vInterestRate"></span> 
-<button onclick="editInterestRate()" style="background:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; font-size:0.7rem; cursor:pointer; margin-left:5px; color:#1976d2;"><i class="fas fa-edit"></i> Edit</button>
+                    <strong>Item:</strong> <span id="vItemDesc"></span> | <span id="vItemWeight" style="font-weight:600; color:#d84315;"></span><br>
+                    <strong>Rate:</strong> <span id="vInterestRate"></span> 
+                    <button onclick="editInterestRate()" style="background:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; font-size:0.7rem; cursor:pointer; margin-left:5px; color:#1976d2;"><i class="fas fa-edit"></i> Edit</button>
                 </div>
             </div>
 
@@ -543,7 +543,7 @@
                         activeCount: 0,
                         closedCount: 0,
                         totalActivePrincipal: 0,
-                        totalActiveInterest: 0, // 🔥 NAYA: Interest store karne ke liye
+                        totalActiveInterest: 0,
                         loans: []
                     };
                 }
@@ -553,7 +553,6 @@
                     groups[l.customerId].activeCount++;
                     groups[l.customerId].totalActivePrincipal += l.currentPrincipal;
                     
-                    // 🔥 NAYA: Is loan ka pending interest calculate karna (Main + TopUps)
                     let pendingInt = 0;
                     if (l.ledger) {
                         l.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
@@ -587,7 +586,6 @@
                 let badgeClass = g.activeCount > 0 ? 'badge-active' : 'badge-closed';
                 let badgeText = g.activeCount > 0 ? `${g.activeCount} Active Loan(s)` : `All Closed`;
 
-                // 🔥 NAYA: Agar active interest 0 se jyada hai to dikhaye
                 let interestHtml = '';
                 if (g.activeCount > 0) {
                     interestHtml = `
@@ -646,7 +644,6 @@
                 let bClass = l.status === 'active' ? 'badge-active' : 'badge-closed';
                 let bText = l.status === 'active' ? 'Active' : 'Closed';
                 
-                // Calculate Net Payable Amount (Total Prin + Int)
                 let totalUdhar = l.amount;
                 if(l.ledger) l.ledger.forEach(row => totalUdhar += (row.interestCharged || 0));
                 if(l.topUps) {
@@ -661,10 +658,12 @@
                 let netPayable = totalUdhar - totalJama;
                 if(netPayable < 0) netPayable = 0;
 
+                let wText = l.weight ? ` (${l.weight}g)` : '';
+
                 container.innerHTML += `
                     <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #e0e0e0; border-left: 4px solid ${l.status === 'active' ? '#1976d2' : '#2e7d32'};">
                         <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <strong style="color:#333;">#${l.id} • ${l.description}</strong>
+                            <strong style="color:#333;">A/C #${l.loanNo || l.id} • ${l.description}${wText}</strong>
                             <span class="l-badge ${bClass}">${bText}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#555; margin-bottom:12px;">
@@ -718,7 +717,6 @@
             document.getElementById('selectedCustomerId').value = '';
             document.getElementById('customerSearchInput').value = '';
             
-            // Reset fields
             document.getElementById('loanCash').value = '';
             document.getElementById('loanBank').value = '';
             document.getElementById('lblTotalLoanAmt').innerText = '₹0';
@@ -745,7 +743,6 @@
             const maxLoan = Math.round(marketValue * 0.75); 
             document.getElementById('lblMaxLoan').innerText = "₹" + maxLoan.toLocaleString();
             
-            // Auto fill cash box if both are empty
             if(!document.getElementById('loanCash').value && !document.getElementById('loanBank').value && maxLoan > 0) {
                 document.getElementById('loanCash').value = maxLoan;
                 calcTotalLoanAmount();
@@ -763,7 +760,7 @@
             const custId = document.getElementById('selectedCustomerId').value;
             const cashAmt = parseFloat(document.getElementById('loanCash').value) || 0;
             const bankAmt = parseFloat(document.getElementById('loanBank').value) || 0;
-            const amount = cashAmt + bankAmt; // Total Loan Amount
+            const amount = cashAmt + bankAmt; 
 
             const interest = parseFloat(document.getElementById('loanInterest').value);
             const durVal = parseInt(document.getElementById('loanDurationVal').value);
@@ -790,7 +787,15 @@
                 status: 'active'
             }];
 
+            // Sequential Account Number Logic
+            let maxLoanNo = 0;
+            if(allLoans && allLoans.length > 0) {
+                maxLoanNo = Math.max(...allLoans.map(x => x.loanNo || 0));
+            }
+            const nextLoanNo = maxLoanNo + 1;
+
             const loan = {
+                loanNo: nextLoanNo,
                 customerId: custId,
                 description: document.getElementById('loanDesc').value,
                 weight: parseFloat(document.getElementById('loanWeight').value),
@@ -810,18 +815,16 @@
             syncLoanLedger(loan);
             const loanId = await addItem('loans', loan);
 
-            // Separate Cashbook Entries (Agar Cash diya)
             if (cashAmt > 0) {
                 await addItem('cashflow', {
                     date: new Date().toISOString(), type: 'OUT', mode: 'Cash',
-                    category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${loanId}`
+                    category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${nextLoanNo}`
                 });
             }
-            // Separate Cashbook Entries (Agar Bank se diya)
             if (bankAmt > 0) {
                 await addItem('cashflow', {
                     date: new Date().toISOString(), type: 'OUT', mode: 'Bank',
-                    category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${loanId}`
+                    category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${nextLoanNo}`
                 });
             }
 
@@ -831,7 +834,6 @@
             await loadLoans();
         }
 
-        // --- T-LEDGER VIEW LOGIC ---
         let currentLoanId = null;
 
         async function openLedger(passedLoanId) {
@@ -845,14 +847,14 @@
                 currentLoanId = l.id;
                 const c = allCustomers.find(x => String(x.id) === String(l.customerId)); 
                 
-                document.getElementById('vLoanIdHeader').innerText = l.id;
+                document.getElementById('vLoanIdHeader').innerText = l.loanNo || l.id;
                 document.getElementById('viewLoanId').value = l.id;
                 document.getElementById('vCustNameDetail').innerText = c ? c.name : 'Unknown Customer';
                 document.getElementById('vCustPhoneDetail').innerText = c ? c.mobile : 'No Number';
                 document.getElementById('vItemDesc').innerText = l.description || 'Gold Item';
+                document.getElementById('vItemWeight').innerText = l.weight ? l.weight + "g" : "N/A";
                 document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
 
-                // Top-Up Box Reset
                 document.getElementById('topUpBox').style.display = 'none';
                 document.getElementById('topUpAmount').value = '';
                 const today = new Date();
@@ -871,7 +873,6 @@
                 let totalUdhar = 0;
                 let totalJama = 0;
 
-                // --- UDHAR (Right Side) ---
                 const startDateStr = new Date(l.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
                 uiUdhar.innerHTML += `
                     <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
@@ -907,7 +908,6 @@
                     });
                 }
 
-                // Render Top-Ups if exist
                 if(l.topUps && l.topUps.length > 0) {
                     l.topUps.forEach((t, index) => {
                         const tDateStr = new Date(t.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
@@ -946,7 +946,6 @@
                 let pendingInt = totalIntCharged - totalIntPaid;
                 document.getElementById('uiPendingIntAmount').value = pendingInt;
 
-                // --- JAMA (Left Side) ---
                 let paymentsList = l.payments || [];
                 paymentsList.forEach(p => {
                     const pDateStr = new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
@@ -1002,17 +1001,15 @@
             }
         }
 
-      // --- ADD TOP-UP LOGIC ---
         async function saveTopUp() {
             const topUpAmt = parseFloat(document.getElementById('topUpAmount').value);
             const topUpDateVal = document.getElementById('topUpDate').value;
-            const topUpMode = document.getElementById('topUpMode').value; // NAYA: Payment mode yahan se read hoga
+            const topUpMode = document.getElementById('topUpMode').value; 
 
             if(!topUpAmt || topUpAmt <= 0) return alert("Enter Valid Top-Up Amount");
             if(!topUpDateVal) return alert("Select Top-Up Date");
 
             try {
-                // Error fix: Direct dbPromise ki jagah getItem use kiya gaya hai
                 let l = await getItem('loans', currentLoanId);
                 
                 if(!l) return alert("Loan not found in Database");
@@ -1022,12 +1019,11 @@
                 const monthStr = topUpDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                 const firstMonthInt = Math.round((topUpAmt * l.ratePercent) / 100);
 
-                // Naya TopUp record object generate
                 l.topUps.push({
                     date: topUpDateObj.toISOString(),
                     amount: topUpAmt,
                     paidPrincipal: 0,
-                    mode: topUpMode, // Top-up history mein mode save hoga
+                    mode: topUpMode, 
                     ledger: [{
                         month: monthStr,
                         interestCharged: firstMonthInt,
@@ -1035,21 +1031,19 @@
                     }]
                 });
 
-                // Database update call
                 await updateItem('loans', l);
 
-                // Add to cashbook (Cash Out) - yahan Top-Up Mode pass kiya jayega
                 await addItem('cashflow', {
                     date: new Date().toISOString(), type: 'OUT', mode: topUpMode,
-                    category: 'Loan Top-Up', amount: topUpAmt, note: `Extra money given for Loan #${currentLoanId}`
+                    category: 'Loan Top-Up', amount: topUpAmt, note: `Extra money given for Loan #${l.loanNo || currentLoanId}`
                 });
 
                 alert("Additional Money Added Successfully!");
                 document.getElementById('topUpBox').style.display = 'none';
                 
                 await loadCashBalance();
-                await loadLoans(); // This re-fetches into allLoans
-                openLedger(currentLoanId); // Re-open & refresh view using memory
+                await loadLoans(); 
+                openLedger(currentLoanId); 
                 
             } catch(e) { 
                 console.error("TopUp Error", e);
@@ -1057,7 +1051,6 @@
             }
         }
         
-        // --- PAYMENT & AUTO-SPLIT LOGIC ---
         function calcTotalPay() {
             const cash = parseFloat(document.getElementById('payCash').value) || 0;
             const bank = parseFloat(document.getElementById('payBank').value) || 0;
@@ -1100,13 +1093,11 @@
             if(payAmt <= 0) return alert("Please enter valid Cash or Bank amount.");
 
             try {
-                // NAYA FIREBASE WALA LOGIC
                 let l = await getItem('loans', currentLoanId);
                 if (!l) return alert("Error: Loan record not found.");
 
                 syncLoanLedger(l); 
 
-                // 1. Calculate overall pending interest
                 let pendingInt = 0;
                 if (l.ledger) l.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
                 if (l.topUps) l.topUps.forEach(t => {
@@ -1116,7 +1107,6 @@
                 let toInt = Math.min(payAmt, pendingInt);
                 let toPrin = payAmt - toInt;
 
-                // Record Payment Transaction
                 if (!l.payments) l.payments = [];
                 l.payments.push({ 
                     date: new Date().toISOString(), 
@@ -1127,7 +1117,6 @@
                     principalPaid: toPrin
                 });
 
-                // 2. Distribute to Interest
                 let amountToDistribute = payAmt;
                 if(l.ledger) {
                     for (let i = 0; i < l.ledger.length; i++) {
@@ -1154,7 +1143,6 @@
                     }
                 }
                     
-                // 3. Distribute to Principal
                 if(amountToDistribute > 0 && l.ledger) {
                     let lastEntry = l.ledger[l.ledger.length - 1];
                     let unpaidMainPrin = lastEntry.closingPrincipal;
@@ -1176,7 +1164,6 @@
                     }
                 }
 
-                // 4. Check if fully closed
                 let remainingMainPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
                 let remainingTopUpPrin = 0;
                 if (l.topUps) l.topUps.forEach(t => remainingTopUpPrin += (t.amount - (t.paidPrincipal || 0)));
@@ -1187,20 +1174,18 @@
                     if(l.ledger[l.ledger.length - 1].closingPrincipal < 0) l.ledger[l.ledger.length - 1].closingPrincipal = 0;
                 }
 
-                // Database Update
                 await updateItem('loans', l);
 
-                // Add to Cashbook
                 if(cashAmt > 0) {
                     await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'IN', mode: 'Cash',
-                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${currentLoanId}`
+                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${l.loanNo || currentLoanId}`
                     });
                 }
                 if(bankAmt > 0) {
                     await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'IN', mode: 'Bank',
-                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${currentLoanId}`
+                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${l.loanNo || currentLoanId}`
                     });
                 }
 
@@ -1223,7 +1208,7 @@
             const totalUdhar = document.getElementById('uiTotalUdhar').innerText;
             const totalJama = document.getElementById('uiTotalJama').innerText;
 
-            let msg = `Hello ${l.custName},\n\nThis is a summary of your Gold Loan (A/C #${l.id}) from *Bharti Jewellers*.\n\n`;
+            let msg = `Hello ${l.custName},\n\nThis is a summary of your Gold Loan (A/C #${l.loanNo || l.id}) from *Bharti Jewellers*.\n\n`;
             msg += `*Account Summary:*\n`;
             msg += `• Total Udhar (Prin + Int): ${totalUdhar}\n`;
             msg += `• Total Jama (Paid): ${totalJama}\n`;
@@ -1239,13 +1224,13 @@
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
-     async function editInterestRate() {
+        async function editInterestRate() {
             if (!currentLoanId) return;
             
             const l = allLoans.find(x => String(x.id) === String(currentLoanId));
             if (!l) return;
 
-            const newRate = prompt(`A/C #${l.id} ke liye naya Interest Rate (%) enter karein:\nYe naya rate SHURU SE (Day 1) sabhi mahino par apply hoga!\n(Current Rate: ${l.ratePercent}%)`, l.ratePercent);
+            const newRate = prompt(`A/C #${l.loanNo || l.id} ke liye naya Interest Rate (%) enter karein:\nYe naya rate SHURU SE (Day 1) sabhi mahino par apply hoga!\n(Current Rate: ${l.ratePercent}%)`, l.ratePercent);
             
             if (newRate !== null && newRate !== "") {
                 const parsedRate = parseFloat(newRate);
@@ -1255,10 +1240,9 @@
                         let loanData = await getItem('loans', currentLoanId);
                         
                         if (loanData) {
-                            let oldRate = loanData.ratePercent || 1; // Division by zero bachane ke liye
+                            let oldRate = loanData.ratePercent || 1; 
                             loanData.ratePercent = parsedRate;
                             
-                            // 1. Shuru se Main Principal ka saara interest recalculate karein
                             if (loanData.ledger && loanData.ledger.length > 0) {
                                 loanData.ledger.forEach(row => {
                                     if (row.openPrincipal !== undefined) {
@@ -1269,7 +1253,6 @@
                                 });
                             }
 
-                            // 2. Agar koi extra Top-Up liya gaya tha, toh uska bhi interest shuru se recalculate karein
                             if (loanData.topUps && loanData.topUps.length > 0) {
                                 loanData.topUps.forEach(t => {
                                     if (t.ledger && t.ledger.length > 0) {
@@ -1285,12 +1268,10 @@
                                 });
                             }
 
-                            // Update in database
                             await updateItem('loans', loanData); 
                             
                             alert(`Interest Rate successfully update ho kar ${parsedRate}% ho gaya hai!\n\nShuru se lekar ab tak ka saara udhar (due interest) naye rate ke hisaab se badal diya gaya hai.`);
                             
-                            // Data reload aur T-Ledger refresh karein
                             await loadLoans(); 
                             openLedger(currentLoanId); 
                         } else {
