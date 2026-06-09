@@ -170,7 +170,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="db.js?v=41"></script>
+<script src="db.js?v=42"></script>
 
 <script>
     function toggleSidebar() { 
@@ -332,10 +332,11 @@
                 if (isRepair) return; 
 
                 let cName = getCustName(s.customerId);
+                if (cName === 'Walk-in' && s.customerName) cName = s.customerName;
+
                 let currentUdhari = Math.abs(parseNum(s.pendingAmount));
                 
                 if (isOrderBill) {
-                    // Logic to avoid double udhari for order finalization
                     let udhariPaidToday = 0;
                     cFlows.forEach(c => {
                         if (c.date && c.date.startsWith(today) && c.type !== 'OUT') {
@@ -385,6 +386,8 @@
             // PURCHASES
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
                 let mName = getMerchName(p.merchantId);
+                if(mName === 'Merchant' && p.merchantName) mName = p.merchantName;
+
                 let gross = Math.abs(parseNum(p.totalAmount || p.grandTotal)); 
                 let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
                 let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
@@ -463,9 +466,12 @@
                 if(!isMelt) {
                     let amt = Math.abs(parseNum(o.amount || o.cash));
                     if(amt > 0) {
+                        let cName = getCustName(o.customerId);
+                        if (cName === 'Walk-in' && o.customerName) cName = o.customerName;
+
                         let wt = parseNum(o.netWt);
                         let spl = getSplitStr(null, o.mode, amt);
-                        pushLog('Old Gold Purchased', amt, getCustName(o.customerId), 'Bought OG', spl, false, [{val: wt, label: 'Old'}]);
+                        pushLog('Old Gold Purchased', amt, cName, 'Bought OG', spl, false, [{val: wt, label: 'Old'}]);
                     }
                 }
             });
@@ -491,6 +497,8 @@
             // ORDERS
             orders.filter(o => o.status !== 'cancelled' && (o.orderDate || '').startsWith(today)).forEach(o => {
                 let cName = getCustName(o.customerId);
+                if(cName === 'Walk-in' && o.custName) cName = o.custName;
+
                 let advCash = Math.abs(parseNum(o.advancePaid)); 
                 let ogAmt = Math.abs(parseNum(o.oldGoldValue));
                 let totalIn = advCash + ogAmt;
@@ -521,33 +529,72 @@
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
                 let spl = getSplitStr(null, c.mode, amt);
 
-                // Udhari Logic
+                // 🔥 SUPER STRONG CUSTOMER/PARTY NAME EXTRACTION 🔥
+                let displayTitle = '';
+                
+                // 1. If explicit ID exists
+                if (c.customerId) displayTitle = getCustName(c.customerId);
+                else if (c.merchantId || c.partyId) displayTitle = getMerchName(c.merchantId || c.partyId);
+                
+                // 2. Fallback to saved name fields
+                if (!displayTitle || displayTitle === 'Walk-in' || displayTitle === 'Merchant') {
+                    displayTitle = c.customerName || c.partyName || c.merchantName || c.name || '';
+                }
+                
+                // 3. Extract from associated Sale/Order Object using saleId/orderId
+                if (!displayTitle && c.saleId) {
+                    let sMatch = sales.find(x => String(x.id) === String(c.saleId));
+                    if(sMatch) displayTitle = getCustName(sMatch.customerId) !== 'Walk-in' ? getCustName(sMatch.customerId) : sMatch.customerName;
+                }
+                if (!displayTitle && c.orderId) {
+                    let oMatch = orders.find(x => String(x.id) === String(c.orderId));
+                    if(oMatch) displayTitle = getCustName(oMatch.customerId) !== 'Walk-in' ? getCustName(oMatch.customerId) : oMatch.custName;
+                }
+
+                // 4. Extract from Note (e.g., "Payment for Bill #123", "from Ramesh", "to Suresh")
+                if (!displayTitle && c.note) {
+                    let bMatch = c.note.match(/(?:bill|inv|ord|sch|loan)\s*(?:#|-)?\s*(\w+)/i);
+                    if (bMatch) {
+                        let ref = sales.find(x => String(x.id)===bMatch[1] || String(x.invoiceNo)===bMatch[1]) || 
+                                  orders.find(x => String(x.id)===bMatch[1]) || 
+                                  loans.find(x => String(x.id)===bMatch[1]) || 
+                                  schemes.find(x => String(x.id)===bMatch[1]);
+                        if (ref && ref.customerId) displayTitle = getCustName(ref.customerId);
+                    }
+                    if (!displayTitle || displayTitle === 'Walk-in') {
+                        let fromMatch = c.note.match(/from\s+([a-zA-Z\s]+)/i);
+                        let toMatch = c.note.match(/to\s+([a-zA-Z\s]+)/i);
+                        if (fromMatch && fromMatch[1]) displayTitle = fromMatch[1].trim();
+                        else if (toMatch && toMatch[1]) displayTitle = toMatch[1].trim();
+                        else displayTitle = c.note; // ultimate fallback to the note text itself
+                    }
+                }
+                
+                // Final Fallback
+                if (!displayTitle || displayTitle === 'Walk-in') displayTitle = c.category || 'Unknown Party';
+
+                // --- Udhari Logic ---
                 let isUdhariIn = (type === 'IN' && !cat.includes('merchant') && !cat.includes('purchase') && (cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding') || cat.includes('sale') || note.includes('bill')));
                 let isUdhariOut = (type === 'OUT' && !cat.includes('merchant') && !cat.includes('purchase') && (cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || cat.includes('outstanding')));
 
-                let displayTitle = c.name || c.partyName || c.customerName || 'Customer/Party';
-                if(c.customerId) displayTitle = getCustName(c.customerId);
+                if (isUdhariIn) { pushLog('Udhari Received', amt, displayTitle, 'Udhari Jama', spl, true); return; }
+                if (isUdhariOut) { pushLog('Udhari Given', amt, displayTitle, 'Udhari Out', spl, false); return; }
 
-                if (isUdhariIn) { pushLog('Udhari Received', amt, displayTitle, c.note || 'Udhari Jama', spl, true); return; }
-                if (isUdhariOut) { pushLog('Udhari Given', amt, displayTitle, c.note || 'Udhari Out', spl, false); return; }
-
-                // Repair
+                // --- Repair ---
                 if (cat.includes('repair') || note.includes('repair')) {
                     if (type === 'IN') pushLog('Repair Income', amt, displayTitle, 'In', spl, true);
                     else pushLog('Repair Refund', amt, displayTitle, 'Out', spl, false);
                     return;
                 }
 
-                // Merchant / Vyapari
+                // --- Merchant / Vyapari ---
                 if (cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement')) {
-                    let mId = c.merchantId || c.partyId;
-                    let mName = mId ? getMerchName(mId) : displayTitle;
-                    if (type === 'IN') pushLog('Payment from Merchant', amt, mName, 'Recv', spl, true);
-                    else pushLog('Payment to Merchant', amt, mName, 'Paid', spl, false);
+                    if (type === 'IN') pushLog('Payment from Merchant', amt, displayTitle, 'Recv', spl, true);
+                    else pushLog('Payment to Merchant', amt, displayTitle, 'Paid', spl, false);
                     return;
                 }
 
-                // Others
+                // --- Others ---
                 if (type === 'IN') {
                     pushLog('Other Income', amt, displayTitle, c.note || '', spl, true);
                 } else {
@@ -558,7 +605,6 @@
                     }
                 }
             });
-
 
             // --- RENDER HTML ---
             let openingTotal = openCash + openBank;
