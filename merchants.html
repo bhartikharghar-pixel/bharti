@@ -430,14 +430,28 @@
 
     <script>
         // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────
-        function getPurityFactor(p) {
-            if (!p) return 1.0;
-            let up = String(p).toUpperCase();
-            if(up.includes('24K')) return 1.0;
-            if(up.includes('22K')) return 0.9166;
-            if(up.includes('18K')) return 0.750;
-            return 1.0; 
+   function getPurityFactor(p) {
+    if (!p) return 1.0;
+    let up = String(p).toUpperCase().trim();
+    
+    // Check for standard K values first
+    if(up.includes('24K')) return 1.0;
+    if(up.includes('22K')) return 0.9166;
+    if(up.includes('18K')) return 0.750;
+
+    // Smartly extract numeric Tounch values (e.g., "82.5", "76%", "85.20 Tounch")
+    let numMatch = up.match(/[\d\.]+/);
+    if (numMatch && numMatch[0]) {
+        let num = parseFloat(numMatch[0]);
+        // If the number is a valid percentage (between 1 and 100)
+        if (num > 0 && num <= 100) {
+            return parseFloat((num / 100).toFixed(4));
         }
+    }
+
+    // Default fallback
+    return 1.0; 
+}
 
         function toggleSidebar() {
             document.getElementById('app-sidebar').classList.toggle('open');
