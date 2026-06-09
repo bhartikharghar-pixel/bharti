@@ -277,21 +277,21 @@
             </div>
             
             <div id="balanceField" style="background:#f8fafc; padding:20px; border-radius:12px; border:1px solid #e2e8f0; margin-top:20px;">
-                <div style="font-size:0.85rem; color:#333; font-weight:700; margin-bottom:15px; text-transform:uppercase;">Opening Balances</div>
+                <div style="font-size:0.85rem; color:#333; font-weight:700; margin-bottom:15px; text-transform:uppercase;">Fixed Opening Balances</div>
                 
                 <div class="form-group">
-                    <label>Cash Balance (₹)</label>
+                    <label>Opening Cash Balance (₹)</label>
                     <input type="number" id="mBalance" value="0">
                     <small style="color:#64748b; font-size:0.75rem;">Positive (+) = Party ko Dena Hai. Negative (-) = Party se Lena Hai.</small>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group" id="grpGoldBal">
-                        <label style="color:var(--accent-gold);">Gold Balance (g)</label>
+                        <label style="color:var(--accent-gold);">Opening Gold Balance (g)</label>
                         <input type="number" id="mGoldBalance" value="0" step="0.001">
                     </div>
                     <div class="form-group" id="grpSilverBal">
-                        <label style="color:var(--accent-silver);">Silver Balance (g)</label>
+                        <label style="color:var(--accent-silver);">Opening Silver Balance (g)</label>
                         <input type="number" id="mSilverBalance" value="0" step="0.001">
                     </div>
                 </div>
@@ -559,7 +559,7 @@
                 if (o.status === 'in_progress' && o.merchantId) {
                     const mId = o.merchantId;
                     const w = parseFloat(o.issuedFineWt) || 0;
-                    const isSilv = (o.issuedPurity && (o.issuedPurity.toUpperCase().includes('SIL') || o.issuedPurity.includes('92.5')));
+                    const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
                     if (isSilv) pendingSilver[mId] = (pendingSilver[mId] || 0) + w;
                     else pendingGold[mId] = (pendingGold[mId] || 0) + w;
                 }
@@ -705,36 +705,53 @@
             document.getElementById('mName').value = m.name || '';
             document.getElementById('mMobile').value = m.mobile || '';
             setMCat(m.category || 'Both');
-            document.getElementById('mBalance').value = m.balance || 0;
-            document.getElementById('mGoldBalance').value = m.goldBalance || 0;
-            document.getElementById('mSilverBalance').value = m.silverBalance || 0;
+            
+            // NOW SHOWING FIXED OPENING BALANCES IN EDIT MODAL
+            document.getElementById('mBalance').value = m.openingBalance !== undefined ? m.openingBalance : (m.balance || 0);
+            document.getElementById('mGoldBalance').value = m.openingGold !== undefined ? m.openingGold : (m.goldBalance || 0);
+            document.getElementById('mSilverBalance').value = m.openingSilver !== undefined ? m.openingSilver : (m.silverBalance || 0);
+            
             document.getElementById('balanceField').style.display = 'block';
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit"></i> Edit Party Info';
             document.getElementById('saveModal').style.display = 'flex';
         }
 
-        // ─── SAVE MERCHANT ─────────────────────────────────────────
+        // ─── EXPLICIT OPENING BALANCE SAVE (FORWARD MATH) ─────────────────────────
         async function saveMerchant() {
             const id = document.getElementById('mId').value;
             const name = document.getElementById('mName').value.trim();
             const mobile = document.getElementById('mMobile').value;
             const category = document.getElementById('mCategoryVal').value;
 
-            const balance = parseFloat(document.getElementById('mBalance').value) || 0;
-            const goldBalance = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
-            const silverBalance = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
+            // These are now explicitly the OPENING balances
+            const opBal = parseFloat(document.getElementById('mBalance').value) || 0;
+            const opGold = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
+            const opSilver = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
 
             if (!name) return showToast("Name is required", "error");
 
             if (id) {
-                // Yahan id ko bracket ke bahar alag se pass karna tha
+                const m = allMerchants.find(x => x.id == id);
+                
+                // Fetch the previous opening balances to calculate difference
+                const oldOpBal = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : parseFloat(m.balance || 0);
+                const oldOpGold = m.openingGold !== undefined ? parseFloat(m.openingGold) : parseFloat(m.goldBalance || 0);
+                const oldOpSilver = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : parseFloat(m.silverBalance || 0);
+
+                const diffBal = opBal - oldOpBal;
+                const diffGold = opGold - oldOpGold;
+                const diffSilver = opSilver - oldOpSilver;
+
                 await updateItem('merchants', id, { 
                     name: name, 
                     mobile: mobile, 
                     category: category, 
-                    balance: balance, 
-                    goldBalance: goldBalance, 
-                    silverBalance: silverBalance 
+                    openingBalance: opBal,
+                    openingGold: opGold,
+                    openingSilver: opSilver,
+                    balance: (parseFloat(m.balance) || 0) + diffBal, 
+                    goldBalance: (parseFloat(m.goldBalance) || 0) + diffGold, 
+                    silverBalance: (parseFloat(m.silverBalance) || 0) + diffSilver 
                 });
 
                 closeModal('saveModal');
@@ -742,7 +759,11 @@
                 showToast("Details Updated", "success");
 
             } else {
-                await addItem('merchants', { name, mobile, balance, goldBalance, silverBalance, category });
+                await addItem('merchants', { 
+                    name, mobile, category, 
+                    openingBalance: opBal, openingGold: opGold, openingSilver: opSilver,
+                    balance: opBal, goldBalance: opGold, silverBalance: opSilver 
+                });
                 closeModal('saveModal');
                 loadMerchants();
                 showToast("Merchant Added!", "success");
@@ -796,7 +817,7 @@
             const availableStock = inventory.filter(i => {
                 if (i.status !== 'stock') return false;
                 if (i.merchantId && String(i.merchantId) === String(mId)) return false;
-                const isSilv = (i.purity && (i.purity.toUpperCase().includes('SIL') || i.purity.includes('92.5')));
+                const isSilv = (i.metal === 'Silver') || (i.category && String(i.category).toUpperCase().includes('SILVER')) || (i.purity && (String(i.purity).toUpperCase().includes('SIL') || String(i.purity).includes('92.5')));
                 if (metal === 'Silver' && !isSilv) return false;
                 if (metal === 'Gold' && isSilv) return false;
                 
@@ -962,7 +983,7 @@
             document.getElementById('payFixedTotal').innerText = "₹" + Math.round(gold * rate).toLocaleString();
         }
 
-        // ─── PAY MERCHANT (WITH SMART FLAG) ───────────────────────────────────
+        // ─── PAY MERCHANT ───────────────────────────────────
         async function payMerchant() {
             const id = document.getElementById('payId').value;
             const amt = parseFloat(document.getElementById('payAmount').value) || 0;
@@ -988,7 +1009,6 @@
                 isPendingTransfer = selOpt.dataset.ispending === 'true';
             }
 
-            // ADDED: wasPending and originalGrossWt flags
             await addItem('merchant_payments', {
                 merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
                 goldType: goldType, rate: rate, paymentType: direction, 
@@ -1074,7 +1094,7 @@
             }
         }
 
-    // ─── GENERATE LEDGER REPORT (NO AUTO HEAL HERE ANYMORE) ───────────────
+    // ─── GENERATE LEDGER REPORT (FORWARD CALCULATION NOW) ───────────────
         async function generateReport(mId) {
             const tbody = document.getElementById('reportBody');
             tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger Data...</td></tr>';
@@ -1126,7 +1146,7 @@
                 let desc = `${p.category} - Ref #${p.id}`;
                 let goldChange = 0, silverChange = 0, cashChange = 0;
                 const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
-                const isSilv = (invItem.purity && (invItem.purity.toUpperCase().includes('SIL') || invItem.purity.includes('92.5')));
+                const isSilv = (p.metal === 'Silver') || (p.category && String(p.category).toUpperCase().includes('SILVER')) || (invItem.category && String(invItem.category).toUpperCase().includes('SILVER')) || (invItem.purity && (String(invItem.purity).toUpperCase().includes('SIL') || String(invItem.purity).includes('92.5')));
 
                 if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
                     cashChange = parseFloat(p.totalAmount) || 0;
@@ -1154,7 +1174,7 @@
             let pendingGoldAcc = 0, pendingSilverAcc = 0;
             myOrders.filter(o => o.status === 'in_progress').forEach(o => {
                 if (o.issuedFineWt > 0) {
-                    const isSilv = (o.issuedPurity && (o.issuedPurity.toUpperCase().includes('SIL') || o.issuedPurity.includes('92.5')));
+                    const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
                     if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
                     else pendingGoldAcc += parseFloat(o.issuedFineWt);
                     transactions.push({ date: o.orderDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id} (${o.issuedPurity})`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
@@ -1178,7 +1198,6 @@
                         let actualWt = parseFloat(p.gold || 0);
                         let displayPurity = "Fine";
 
-                        // JUST DISPLAY PURITY, NO SILENT DB MODIFICATIONS!
                         if (p.inventoryBarcode) {
                             const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
                             if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
@@ -1199,6 +1218,7 @@
             transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
             currentReportData = transactions;
 
+            // FORWARD CALCULATION: Now we use strictly defined opening balances
             let sumGold = 0, sumSilver = 0, sumCash = 0;
             transactions.forEach(t => { sumGold += t.gold; sumSilver += t.silver; sumCash += t.cash; });
 
@@ -1206,9 +1226,10 @@
             const finalNetSilver = (parseFloat(merchant.silverBalance) || 0) - pendingSilverAcc;
             const finalCash = parseFloat(merchant.balance) || 0;
 
-            let runGold = finalNetGold - sumGold;
-            let runSilver = finalNetSilver - sumSilver;
-            let runCash = finalCash - sumCash;
+            // Strict mathematical forward calculation from explicit opening balances
+            let runGold = merchant.openingGold !== undefined ? parseFloat(merchant.openingGold) : (finalNetGold - sumGold);
+            let runSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
+            let runCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
 
             const formatB = (val, isCash = false) => {
                 let v = Math.abs(val);
@@ -1236,6 +1257,8 @@
                     let gJ = t.gold > 0 ? t.gold : 0, gN = t.gold < 0 ? Math.abs(t.gold) : 0;
                     let sJ = t.silver > 0 ? t.silver : 0, sN = t.silver < 0 ? Math.abs(t.silver) : 0;
                     let cJ = t.cash > 0 ? t.cash : 0, cN = t.cash < 0 ? Math.abs(t.cash) : 0;
+                    
+                    // Add rows to the running total (Forward Math)
                     runGold += t.gold; runSilver += t.silver; runCash += t.cash;
 
                     let dateStr = new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
