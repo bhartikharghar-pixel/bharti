@@ -422,7 +422,6 @@
 
     <div id="toast">Message Saved!</div>
 
-    <!-- FIREBASE AND DB.JS SCRIPTS -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -573,7 +572,8 @@
                 if (o.status === 'in_progress' && o.merchantId) {
                     const mId = o.merchantId;
                     const w = parseFloat(o.issuedFineWt) || 0;
-                    const isSilv = (o.issuedPurity && (o.issuedPurity.toUpperCase().includes('SIL') || o.issuedPurity.includes('92.5')));
+                    // UPDATED: Better Silver Identification
+                    const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
                     if (isSilv) pendingSilver[mId] = (pendingSilver[mId] || 0) + w;
                     else pendingGold[mId] = (pendingGold[mId] || 0) + w;
                 }
@@ -810,7 +810,8 @@
             const availableStock = inventory.filter(i => {
                 if (i.status !== 'stock') return false;
                 if (i.merchantId && String(i.merchantId) === String(mId)) return false;
-                const isSilv = (i.purity && (i.purity.toUpperCase().includes('SIL') || i.purity.includes('92.5')));
+                // UPDATED: Better Silver Identification
+                const isSilv = (i.metal === 'Silver') || (i.category && String(i.category).toUpperCase().includes('SILVER')) || (i.purity && (String(i.purity).toUpperCase().includes('SIL') || String(i.purity).includes('92.5')));
                 if (metal === 'Silver' && !isSilv) return false;
                 if (metal === 'Gold' && isSilv) return false;
                 
@@ -1140,7 +1141,8 @@
                 let desc = `${p.category} - Ref #${p.id}`;
                 let goldChange = 0, silverChange = 0, cashChange = 0;
                 const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
-                const isSilv = (invItem.purity && (invItem.purity.toUpperCase().includes('SIL') || invItem.purity.includes('92.5')));
+                // UPDATED: Smart Silver Identification for Purchases
+                const isSilv = (p.metal === 'Silver') || (p.category && String(p.category).toUpperCase().includes('SILVER')) || (invItem.category && String(invItem.category).toUpperCase().includes('SILVER')) || (invItem.purity && (String(invItem.purity).toUpperCase().includes('SIL') || String(invItem.purity).includes('92.5')));
 
                 if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
                     cashChange = parseFloat(p.totalAmount) || 0;
@@ -1168,7 +1170,8 @@
             let pendingGoldAcc = 0, pendingSilverAcc = 0;
             myOrders.filter(o => o.status === 'in_progress').forEach(o => {
                 if (o.issuedFineWt > 0) {
-                    const isSilv = (o.issuedPurity && (o.issuedPurity.toUpperCase().includes('SIL') || o.issuedPurity.includes('92.5')));
+                    // UPDATED: Better Silver Identification for Orders
+                    const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
                     if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
                     else pendingGoldAcc += parseFloat(o.issuedFineWt);
                     transactions.push({ date: o.orderDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id} (${o.issuedPurity})`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
