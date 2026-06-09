@@ -132,6 +132,7 @@
     </div>
 
     <div class="bahi-khata">
+        <!-- JAMA SIDE (LEFT) -->
         <div class="jama-side">
             <div class="bahi-title title-jama">JAMA (IN)</div>
             
@@ -148,6 +149,7 @@
             </div>
         </div>
 
+        <!-- NAMA SIDE (RIGHT) -->
         <div class="nama-side">
             <div class="bahi-title title-nama">NAMA (OUT)</div>
             
@@ -170,7 +172,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="db.js?v=42"></script>
+<script src="db.js?v=43"></script>
 
 <script>
     function toggleSidebar() { 
@@ -551,16 +553,27 @@
                     if(oMatch) displayTitle = getCustName(oMatch.customerId) !== 'Walk-in' ? getCustName(oMatch.customerId) : oMatch.custName;
                 }
 
-                // 4. Extract from Note (e.g., "Payment for Bill #123", "from Ramesh", "to Suresh")
-                if (!displayTitle && c.note) {
-                    let bMatch = c.note.match(/(?:bill|inv|ord|sch|loan)\s*(?:#|-)?\s*(\w+)/i);
-                    if (bMatch) {
-                        let ref = sales.find(x => String(x.id)===bMatch[1] || String(x.invoiceNo)===bMatch[1]) || 
-                                  orders.find(x => String(x.id)===bMatch[1]) || 
-                                  loans.find(x => String(x.id)===bMatch[1]) || 
-                                  schemes.find(x => String(x.id)===bMatch[1]);
-                        if (ref && ref.customerId) displayTitle = getCustName(ref.customerId);
+                // 4. Extract from Note (e.g., "Ledger Settlement ID #123", "Payment for Bill #123", "from Ramesh")
+                if ((!displayTitle || displayTitle === 'Walk-in' || displayTitle === '') && c.note) {
+                    
+                    // NEW: Merchant Ledger Settlement Extraction
+                    let mMatch = c.note.match(/Settlement ID\s*#(\w+)/i);
+                    if (mMatch && mMatch[1]) {
+                        let foundM = getMerchName(mMatch[1]);
+                        if (foundM !== 'Merchant') displayTitle = foundM;
                     }
+
+                    if (!displayTitle) {
+                        let bMatch = c.note.match(/(?:bill|inv|ord|sch|loan)\s*(?:#|-)?\s*(\w+)/i);
+                        if (bMatch) {
+                            let ref = sales.find(x => String(x.id)===bMatch[1] || String(x.invoiceNo)===bMatch[1]) || 
+                                      orders.find(x => String(x.id)===bMatch[1]) || 
+                                      loans.find(x => String(x.id)===bMatch[1]) || 
+                                      schemes.find(x => String(x.id)===bMatch[1]);
+                            if (ref && ref.customerId) displayTitle = getCustName(ref.customerId);
+                        }
+                    }
+
                     if (!displayTitle || displayTitle === 'Walk-in') {
                         let fromMatch = c.note.match(/from\s+([a-zA-Z\s]+)/i);
                         let toMatch = c.note.match(/to\s+([a-zA-Z\s]+)/i);
@@ -571,7 +584,7 @@
                 }
                 
                 // Final Fallback
-                if (!displayTitle || displayTitle === 'Walk-in') displayTitle = c.category || 'Unknown Party';
+                if (!displayTitle || displayTitle === 'Walk-in' || displayTitle === '') displayTitle = c.category || 'Unknown Party';
 
                 // --- Udhari Logic ---
                 let isUdhariIn = (type === 'IN' && !cat.includes('merchant') && !cat.includes('purchase') && (cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding') || cat.includes('sale') || note.includes('bill')));
@@ -596,12 +609,12 @@
 
                 // --- Others ---
                 if (type === 'IN') {
-                    pushLog('Other Income', amt, displayTitle, c.note || '', spl, true);
+                    pushLog('Other Income', amt, displayTitle, '', spl, true);
                 } else {
                     if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
-                        pushLog('Expense / Kharcha', amt, displayTitle, c.note || '', spl, false);
+                        pushLog('Expense / Kharcha', amt, displayTitle, '', spl, false);
                     } else {
-                        pushLog('Other Out', amt, displayTitle, c.note || '', spl, false);
+                        pushLog('Other Out', amt, displayTitle, '', spl, false);
                     }
                 }
             });
