@@ -148,10 +148,10 @@
 
     <div class="app-container">
         <div class="stats-grid">
-            <div class="stat-card" style="border-left-color: #1976d2;">
-                <div class="stat-lbl">Total Shop Cash Balance</div>
-                <div class="stat-val" id="shopBalance" style="color: #1976d2;">₹0</div>
-            </div>
+           <div class="stat-card" style="border-left-color: #1976d2;">
+    <div class="stat-lbl">Total Principal + Interest</div>
+    <div class="stat-val" id="totalDueAmount" style="color: #1976d2;">₹0</div>
+</div>
             <div class="stat-card">
                 <div class="stat-lbl">Active Loan Customers</div>
                 <div class="stat-val" id="totalCustomers">0</div>
@@ -443,11 +443,10 @@
                         if (f.type === 'OUT') totalCash -= parseFloat(f.amount);
                     }
                 });
-                document.getElementById('shopBalance').innerText = "₹" + totalCash.toLocaleString();
-            } catch (e) {
-                console.error("Error loading cash flow:", e);
-                document.getElementById('shopBalance').innerText = "₹0";
-            }
+               // document.getElementById('shopBalance').innerText = "₹" + totalCash.toLocaleString(); // isko comment ya delete kar diya
+} catch (e) {
+    console.error("Error loading cash flow:", e);
+}
         }
 
         async function loadCustomers() {
@@ -529,53 +528,72 @@
             return updated;
         }
 
-        async function loadLoans() {
-            try {
-                const loans = await getAllItems('loans');
-                let totalPrin = 0;
-                let activeCustIds = new Set();
+       async function loadLoans() {
+    try {
+        const loans = await getAllItems('loans');
+        let totalPrin = 0;
+        let totalPendingInt = 0; // Naya variable interest ke liye
+        let activeCustIds = new Set();
 
-                allLoans = await Promise.all(loans.map(async (l) => {
-                    const c = allCustomers.find(x => String(x.id) === String(l.customerId));
-                    
-                    if (syncLoanLedger(l)) {
-                        await updateItem('loans', l); 
-                    }
-
-                    // Calculate total active principal (Main + Any Top-Ups)
-                    let currentPrin = l.amount;
-                    if(l.ledger && l.ledger.length > 0) {
-                        currentPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
-                    }
-                    if(l.topUps && l.topUps.length > 0) {
-                        l.topUps.forEach(t => {
-                            currentPrin += (t.amount - (t.paidPrincipal || 0));
-                        });
-                    }
-
-                    if(l.status === 'active') {
-                        totalPrin += currentPrin;
-                        activeCustIds.add(l.customerId);
-                    }
-
-                    return { 
-                        ...l, 
-                        custName: c ? c.name : 'Unknown', 
-                        custMobile: c ? c.mobile : '',
-                        currentPrincipal: currentPrin 
-                    };
-                }));
-
-                document.getElementById('totalOutstanding').innerText = "₹" + totalPrin.toLocaleString();
-                document.getElementById('totalCustomers').innerText = activeCustIds.size;
-                renderLoans();
-
-                if(currentCustomerViewId) openCustomerLoans(currentCustomerViewId);
-            } catch(e) {
-                console.error("Loans load issue", e);
+        allLoans = await Promise.all(loans.map(async (l) => {
+            const c = allCustomers.find(x => String(x.id) === String(l.customerId));
+            
+            if (syncLoanLedger(l)) {
+                await updateItem('loans', l); 
             }
+
+            // Calculate total active principal (Main + Any Top-Ups)
+            let currentPrin = l.amount;
+            if(l.ledger && l.ledger.length > 0) {
+                currentPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
+            }
+            if(l.topUps && l.topUps.length > 0) {
+                l.topUps.forEach(t => {
+                    currentPrin += (t.amount - (t.paidPrincipal || 0));
+                });
+            }
+
+            if(l.status === 'active') {
+                totalPrin += currentPrin;
+                activeCustIds.add(l.customerId);
+
+                // NAYA CODE: Sirf Active loans ka Pending Interest nikalna
+                let pInt = 0;
+                if (l.ledger) {
+                    l.ledger.forEach(r => pInt += (r.interestCharged - (r.paidInterest || 0)));
+                }
+                if (l.topUps) {
+                    l.topUps.forEach(t => {
+                        if (t.ledger) t.ledger.forEach(r => pInt += (r.interestCharged - (r.paidInterest || 0)));
+                    });
+                }
+                totalPendingInt += pInt;
+            }
+
+            return { 
+                ...l, 
+                custName: c ? c.name : 'Unknown', 
+                custMobile: c ? c.mobile : '',
+                currentPrincipal: currentPrin 
+            };
+        }));
+
+        // UI UPDATE KAREIN
+        let grandTotal = totalPrin + totalPendingInt;
+        const totalDueElement = document.getElementById('totalDueAmount');
+        if (totalDueElement) {
+            totalDueElement.innerText = "₹" + grandTotal.toLocaleString();
         }
 
+        document.getElementById('totalOutstanding').innerText = "₹" + totalPrin.toLocaleString();
+        document.getElementById('totalCustomers').innerText = activeCustIds.size;
+        renderLoans();
+
+        if(currentCustomerViewId) openCustomerLoans(currentCustomerViewId);
+    } catch(e) {
+        console.error("Loans load issue", e);
+    }
+}
       function renderLoans() {
             const container = document.getElementById('loans-list');
             container.innerHTML = '';
