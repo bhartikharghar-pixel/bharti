@@ -298,7 +298,7 @@
                 <small style="color:#64748b; font-size:0.75rem; display:block;">Positive (+) = Metal Dena Hai. Negative (-) = Metal Lena Hai.</small>
             </div>
 
-            <button class="btn-block btn-primary" onclick="saveMerchant()" style="margin-top: 25px;">Save Details</button>
+            <button id="btnSaveMerchant" class="btn-block btn-primary" onclick="saveMerchant()" style="margin-top: 25px;">Save Details</button>
         </div>
     </div>
 
@@ -385,7 +385,7 @@
                 </div>
             </div>
 
-            <button class="btn-block btn-primary" onclick="payMerchant()" style="margin-top:25px;"><i class="fas fa-save"></i> Confirm & Update Ledger</button>
+            <button id="btnConfirmPay" class="btn-block btn-primary" onclick="payMerchant()" style="margin-top:25px;"><i class="fas fa-save"></i> Confirm & Update Ledger</button>
         </div>
     </div>
 
@@ -422,7 +422,6 @@
 
     <div id="toast">Message Saved!</div>
 
-    <!-- FIREBASE AND DB.JS SCRIPTS -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -707,9 +706,9 @@
             setMCat(m.category || 'Both');
             
             // NOW SHOWING FIXED OPENING BALANCES IN EDIT MODAL
-            document.getElementById('mBalance').value = m.openingBalance !== undefined ? m.openingBalance : (m.balance || 0);
-            document.getElementById('mGoldBalance').value = m.openingGold !== undefined ? m.openingGold : (m.goldBalance || 0);
-            document.getElementById('mSilverBalance').value = m.openingSilver !== undefined ? m.openingSilver : (m.silverBalance || 0);
+            document.getElementById('mBalance').value = m.openingBalance !== undefined ? m.openingBalance : 0;
+            document.getElementById('mGoldBalance').value = m.openingGold !== undefined ? m.openingGold : 0;
+            document.getElementById('mSilverBalance').value = m.openingSilver !== undefined ? m.openingSilver : 0;
             
             document.getElementById('balanceField').style.display = 'block';
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-edit"></i> Edit Party Info';
@@ -718,55 +717,64 @@
 
         // ─── EXPLICIT OPENING BALANCE SAVE (FORWARD MATH) ─────────────────────────
         async function saveMerchant() {
-            const id = document.getElementById('mId').value;
-            const name = document.getElementById('mName').value.trim();
-            const mobile = document.getElementById('mMobile').value;
-            const category = document.getElementById('mCategoryVal').value;
+            const btn = document.getElementById('btnSaveMerchant');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
-            // These are now explicitly the OPENING balances
-            const opBal = parseFloat(document.getElementById('mBalance').value) || 0;
-            const opGold = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
-            const opSilver = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
+            try {
+                const id = document.getElementById('mId').value;
+                const name = document.getElementById('mName').value.trim();
+                const mobile = document.getElementById('mMobile').value;
+                const category = document.getElementById('mCategoryVal').value;
 
-            if (!name) return showToast("Name is required", "error");
+                // These are now explicitly the OPENING balances
+                const opBal = parseFloat(document.getElementById('mBalance').value) || 0;
+                const opGold = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
+                const opSilver = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
 
-            if (id) {
-                const m = allMerchants.find(x => x.id == id);
-                
-                // Fetch the previous opening balances to calculate difference
-                const oldOpBal = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : parseFloat(m.balance || 0);
-                const oldOpGold = m.openingGold !== undefined ? parseFloat(m.openingGold) : parseFloat(m.goldBalance || 0);
-                const oldOpSilver = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : parseFloat(m.silverBalance || 0);
+                if (!name) return showToast("Name is required", "error");
 
-                const diffBal = opBal - oldOpBal;
-                const diffGold = opGold - oldOpGold;
-                const diffSilver = opSilver - oldOpSilver;
+                if (id) {
+                    const m = allMerchants.find(x => x.id == id);
+                    
+                    // Fetch the previous opening balances to calculate difference
+                    const oldOpBal = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : 0;
+                    const oldOpGold = m.openingGold !== undefined ? parseFloat(m.openingGold) : 0;
+                    const oldOpSilver = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : 0;
 
-                await updateItem('merchants', id, { 
-                    name: name, 
-                    mobile: mobile, 
-                    category: category, 
-                    openingBalance: opBal,
-                    openingGold: opGold,
-                    openingSilver: opSilver,
-                    balance: (parseFloat(m.balance) || 0) + diffBal, 
-                    goldBalance: (parseFloat(m.goldBalance) || 0) + diffGold, 
-                    silverBalance: (parseFloat(m.silverBalance) || 0) + diffSilver 
-                });
+                    const diffBal = opBal - oldOpBal;
+                    const diffGold = opGold - oldOpGold;
+                    const diffSilver = opSilver - oldOpSilver;
 
-                closeModal('saveModal');
-                loadMerchants();
-                showToast("Details Updated", "success");
+                    await updateItem('merchants', id, { 
+                        name: name, 
+                        mobile: mobile, 
+                        category: category, 
+                        openingBalance: opBal,
+                        openingGold: opGold,
+                        openingSilver: opSilver,
+                        balance: (parseFloat(m.balance) || 0) + diffBal, 
+                        goldBalance: (parseFloat(m.goldBalance) || 0) + diffGold, 
+                        silverBalance: (parseFloat(m.silverBalance) || 0) + diffSilver 
+                    });
 
-            } else {
-                await addItem('merchants', { 
-                    name, mobile, category, 
-                    openingBalance: opBal, openingGold: opGold, openingSilver: opSilver,
-                    balance: opBal, goldBalance: opGold, silverBalance: opSilver 
-                });
-                closeModal('saveModal');
-                loadMerchants();
-                showToast("Merchant Added!", "success");
+                    closeModal('saveModal');
+                    loadMerchants();
+                    showToast("Details Updated", "success");
+
+                } else {
+                    await addItem('merchants', { 
+                        name, mobile, category, 
+                        openingBalance: opBal, openingGold: opGold, openingSilver: opSilver,
+                        balance: opBal, goldBalance: opGold, silverBalance: opSilver 
+                    });
+                    closeModal('saveModal');
+                    loadMerchants();
+                    showToast("Merchant Added!", "success");
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Details';
             }
         }
 
@@ -985,55 +993,65 @@
 
         // ─── PAY MERCHANT ───────────────────────────────────
         async function payMerchant() {
-            const id = document.getElementById('payId').value;
-            const amt = parseFloat(document.getElementById('payAmount').value) || 0;
-            const payMode = document.getElementById('payModeSelect').value || 'Cash';
-            const gold = parseFloat(document.getElementById('payGold').value) || 0;
-            const direction = document.getElementById('payDirection').value;
-            const metal = document.getElementById('payMetalType').value;
-            const inventorySelect = document.getElementById('payInventorySelect');
-            const selectedPurchaseId = document.getElementById('payPurchaseSelect').value;
-
-            const goldType = document.getElementById('goldTypeGroup').style.display === 'block' ? document.getElementById('payGoldType').value : 'unfixed';
-            const rate = parseFloat(document.getElementById('payGoldRate').value) || 0;
-            const fixedCashValue = Math.round(gold * rate);
-
-            if (goldType === 'fixed' && gold > 0 && rate <= 0) return showToast("Enter Rate for Fixed settlement", "error");
-            if (amt <= 0 && gold <= 0) return showToast("Enter Amount or Metal weight", "error");
-
-            let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
-            if (direction === 'OUT' && inventorySelect.value) {
-                inventoryId = inventorySelect.value;
-                const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
-                inventoryBarcode = selOpt.dataset.barcode;
-                isPendingTransfer = selOpt.dataset.ispending === 'true';
-            }
-
-            await addItem('merchant_payments', {
-                merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
-                goldType: goldType, rate: rate, paymentType: direction, 
-                inventoryId: inventoryId, inventoryBarcode: inventoryBarcode, 
-                wasPending: isPendingTransfer, originalGrossWt: isPendingTransfer ? parseFloat(gold) : 0,
-                date: new Date().toISOString(), mode: payMode
-            });
-
-            const mult = direction === 'OUT' ? -1 : 1;
-            let actualCashImpact = amt;
-            let actualGoldImpact = gold;
-
-            if (goldType === 'fixed' && gold > 0) {
-                actualCashImpact += fixedCashValue;
-                actualGoldImpact = 0;
-            }
-
-            if (amt > 0) {
-                await addItem('cashflow', {
-                    date: new Date().toISOString(), type: direction, mode: payMode,
-                    category: 'Merchant Settlement', amount: amt, note: `Ledger Settlement ID #${id}`
-                });
-            }
+            const btn = document.getElementById('btnConfirmPay');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
             try {
+                const id = document.getElementById('payId').value;
+                const amt = parseFloat(document.getElementById('payAmount').value) || 0;
+                const payMode = document.getElementById('payModeSelect').value || 'Cash';
+                const gold = parseFloat(document.getElementById('payGold').value) || 0;
+                const direction = document.getElementById('payDirection').value;
+                const metal = document.getElementById('payMetalType').value;
+                const inventorySelect = document.getElementById('payInventorySelect');
+                const selectedPurchaseId = document.getElementById('payPurchaseSelect').value;
+
+                const goldType = document.getElementById('goldTypeGroup').style.display === 'block' ? document.getElementById('payGoldType').value : 'unfixed';
+                const rate = parseFloat(document.getElementById('payGoldRate').value) || 0;
+                const fixedCashValue = Math.round(gold * rate);
+
+                if (goldType === 'fixed' && gold > 0 && rate <= 0) {
+                    showToast("Enter Rate for Fixed settlement", "error");
+                    return;
+                }
+                if (amt <= 0 && gold <= 0) {
+                    showToast("Enter Amount or Metal weight", "error");
+                    return;
+                }
+
+                let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
+                if (direction === 'OUT' && inventorySelect.value) {
+                    inventoryId = inventorySelect.value;
+                    const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
+                    inventoryBarcode = selOpt.dataset.barcode;
+                    isPendingTransfer = selOpt.dataset.ispending === 'true';
+                }
+
+                await addItem('merchant_payments', {
+                    merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
+                    goldType: goldType, rate: rate, paymentType: direction, 
+                    inventoryId: inventoryId, inventoryBarcode: inventoryBarcode, 
+                    wasPending: isPendingTransfer, originalGrossWt: isPendingTransfer ? parseFloat(gold) : 0,
+                    date: new Date().toISOString(), mode: payMode
+                });
+
+                const mult = direction === 'OUT' ? -1 : 1;
+                let actualCashImpact = amt;
+                let actualGoldImpact = gold;
+
+                if (goldType === 'fixed' && gold > 0) {
+                    actualCashImpact += fixedCashValue;
+                    actualGoldImpact = 0;
+                }
+
+                if (amt > 0) {
+                    await addItem('cashflow', {
+                        date: new Date().toISOString(), type: direction, mode: payMode,
+                        category: 'Merchant Settlement', amount: amt, note: `Ledger Settlement ID #${id}`
+                    });
+                }
+
                 if (inventoryId && direction === 'OUT') {
                     const item = await getItem('inventory', inventoryId);
                     if (item) {
@@ -1091,6 +1109,9 @@
             } catch (error) {
                 console.error("Error updating settlement records:", error);
                 showToast("Error updating records. Please try again.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Confirm & Update Ledger';
             }
         }
 
