@@ -136,7 +136,7 @@
         .jn-table th, .jn-table td { border: 1px solid #e2e8f0; padding: 12px 15px; text-align: right; vertical-align: middle; }
         .jn-table th { background: #f8fafc; text-align: center; color: #333; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;}
         .jn-table th.col-date { text-align: left; width: 10%; }
-        .jn-table th.col-desc { text-align: left; width: 25%; }
+        .jn-table th.col-desc { text-align: left; width: 30%; } /* Increased width for math breakdown */
         .jn-table td.text-left { text-align: left; }
         .jn-table tr:hover { background: #f8fafc; }
         
@@ -464,14 +464,13 @@
             const r = await getSetting('gold_rates');
             if (r) goldRates = r;
             await loadMerchants();
-            await syncPendingTounch(); // <--- SMART AUTO-HEAL CALL
+            await syncPendingTounch(); 
         };
 
         // ─── SMART AUTO-HEAL (Pending Tounch -> Fine Weight) ───────────────────
         async function syncPendingTounch() {
             try {
                 const payments = await getAllItems('merchant_payments');
-                // Only look for payments that were explicitly marked as "Pending" transfers
                 const pendingPayments = payments.filter(p => p.wasPending === true && p.inventoryBarcode);
                 if(pendingPayments.length === 0) return;
                 
@@ -481,25 +480,18 @@
 
                 for (let p of pendingPayments) {
                     const liveItem = allInv.find(i => i.barcode === p.inventoryBarcode);
-                    // Check if purity is no longer pending
                     if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
                         const factor = getPurityFactor(liveItem.purity);
-                        // CALCULATE FINE WEIGHT BASED ON ORIGINAL GROSS WEIGHT TRANSFERRED!
                         const newFineWt = parseFloat((p.originalGrossWt * factor).toFixed(3));
                         
                         if (Math.abs(p.gold - newFineWt) > 0.001) {
-                            // direction OUT means shop gave to merchant (Merchant Balance went down)
-                            // mult = -1 for OUT. So diff * mult
                             const pmtMult = p.paymentType === 'OUT' ? -1 : 1; 
-                            
                             const diff = newFineWt - p.gold; 
                             
-                            // Update Payment Record
                             p.gold = newFineWt;
-                            p.wasPending = false; // Mark as resolved!
+                            p.wasPending = false; 
                             await updateItem('merchant_payments', p.id, p);
                             
-                            // Prep Merchant Balance Update
                             if (!merchantsToUpdate[p.merchantId]) {
                                 merchantsToUpdate[p.merchantId] = await getItem('merchants', p.merchantId);
                             }
@@ -513,13 +505,12 @@
                     }
                 }
                 
-                // Save updated merchants
                 for (let mId in merchantsToUpdate) {
                     await updateItem('merchants', mId, merchantsToUpdate[mId]);
                 }
                 
                 if (updatedCount > 0) {
-                    loadMerchants(); // Refresh UI
+                    loadMerchants(); 
                     showToast(`${updatedCount} Pending Tounch entries updated automatically!`, 'success');
                 }
             } catch(e) { console.error("Error in Tounch Sync:", e); }
@@ -705,7 +696,6 @@
             document.getElementById('mMobile').value = m.mobile || '';
             setMCat(m.category || 'Both');
             
-            // NOW SHOWING FIXED OPENING BALANCES IN EDIT MODAL
             document.getElementById('mBalance').value = m.openingBalance !== undefined ? m.openingBalance : 0;
             document.getElementById('mGoldBalance').value = m.openingGold !== undefined ? m.openingGold : 0;
             document.getElementById('mSilverBalance').value = m.openingSilver !== undefined ? m.openingSilver : 0;
@@ -727,7 +717,6 @@
                 const mobile = document.getElementById('mMobile').value;
                 const category = document.getElementById('mCategoryVal').value;
 
-                // These are now explicitly the OPENING balances
                 const opBal = parseFloat(document.getElementById('mBalance').value) || 0;
                 const opGold = category === 'Silver' ? 0 : (parseFloat(document.getElementById('mGoldBalance').value) || 0);
                 const opSilver = category === 'Gold' ? 0 : (parseFloat(document.getElementById('mSilverBalance').value) || 0);
@@ -737,7 +726,6 @@
                 if (id) {
                     const m = allMerchants.find(x => x.id == id);
                     
-                    // Fetch the previous opening balances to calculate difference
                     const oldOpBal = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : 0;
                     const oldOpGold = m.openingGold !== undefined ? parseFloat(m.openingGold) : 0;
                     const oldOpSilver = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : 0;
@@ -1115,7 +1103,7 @@
             }
         }
 
-    // ─── GENERATE LEDGER REPORT (FORWARD CALCULATION NOW) ───────────────
+    // ─── GENERATE LEDGER REPORT (MATH ADDED HERE) ───────────────
         async function generateReport(mId) {
             const tbody = document.getElementById('reportBody');
             tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger Data...</td></tr>';
@@ -1154,7 +1142,6 @@
             let payments = [];
             try { payments = await getAllItems('merchant_payments'); } catch (e) { }
             const orders = await getAllItems('orders');
-            
             const allInventory = await getAllItems('inventory'); 
 
             const myPurchases = purchases.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
@@ -1163,6 +1150,7 @@
 
             let transactions = [];
 
+            // 1. Purchases Processing (With Math Calculation logic)
             myPurchases.forEach(p => {
                 let desc = `${p.category} - Ref #${p.id}`;
                 let goldChange = 0, silverChange = 0, cashChange = 0;
@@ -1188,20 +1176,33 @@
                 if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
                     if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
                     else goldChange = parseFloat(p.totalFineWeight) || 0;
+                    
+                    // Added math calculation display
+                    let grossWt = p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.totalFineWeight;
+                    let displayPurity = p.averagePurity || p.purity || "N/A";
+                    desc += `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(p.totalFineWeight).toFixed(3)}g</span>`;
                 }
                 transactions.push({ date: p.date, type: p.type, desc: desc, gold: goldChange, silver: silverChange, cash: cashChange, badge: p.type === 'Unfixed' ? 'b-unfix' : 'b-fix' });
             });
 
+            // 2. Orders/Jobwork Processing (With Math Calculation logic)
             let pendingGoldAcc = 0, pendingSilverAcc = 0;
             myOrders.filter(o => o.status === 'in_progress').forEach(o => {
                 if (o.issuedFineWt > 0) {
                     const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
                     if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
                     else pendingGoldAcc += parseFloat(o.issuedFineWt);
-                    transactions.push({ date: o.orderDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id} (${o.issuedPurity})`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
+                    
+                    // Added math calculation display
+                    let grossWt = o.issuedWt || o.issuedGrossWt || o.grossWt || o.issuedFineWt;
+                    let displayPurity = o.issuedPurity || "N/A";
+                    let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(o.issuedFineWt).toFixed(3)}g</span>`;
+
+                    transactions.push({ date: o.orderDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id}${mathDesc}`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
                 }
             });
 
+            // 3. Payments/Settlements Processing (With Math Calculation logic)
             for (let p of myPayments) {
                 let descParts = [];
                 let pmtMult = p.paymentType === 'IN' ? 1 : -1;
@@ -1209,6 +1210,7 @@
                 let goldChange = 0, silverChange = 0;
 
                 if (p.amount > 0) descParts.push(`Cash ₹${p.amount} (${p.mode})`);
+                
                 if (p.gold > 0) {
                     const metalName = p.metal || 'Gold';
                     if (p.goldType === 'fixed') {
@@ -1216,30 +1218,38 @@
                         cashChange += (fVal * pmtMult);
                         descParts.push(`Fixed ${metalName} ${p.gold}g @ ₹${p.rate}/g`);
                     } else {
-                        let actualWt = parseFloat(p.gold || 0);
+                        let actualFineWt = parseFloat(p.gold || 0);
                         let displayPurity = "Fine";
+                        let grossWt = p.originalGrossWt || actualFineWt;
 
+                        // Identify Purity and Gross from live inventory if applicable
                         if (p.inventoryBarcode) {
                             const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
-                            if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
-                                displayPurity = liveItem.purity;
-                            } else if (p.wasPending) {
-                                displayPurity = "Tounch Pending";
+                            if (liveItem) {
+                                if (liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
+                                    displayPurity = liveItem.purity;
+                                    grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || grossWt);
+                                } else if (p.wasPending || (liveItem.purity && liveItem.purity.toLowerCase() === 'pending')) {
+                                    displayPurity = "Tounch Pending";
+                                    grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || p.originalGrossWt || grossWt);
+                                }
                             }
                         }
 
-                        if (metalName === 'Silver') silverChange = actualWt * pmtMult;
-                        else goldChange = actualWt * pmtMult;
-                        descParts.push(`${metalName} ${actualWt.toFixed(3)}g (${displayPurity})`);
+                        if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
+                        else goldChange = actualFineWt * pmtMult;
+                        
+                        // Added math calculation display
+                        let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${actualFineWt.toFixed(3)}g</span>`;
+                        descParts.push(`${metalName} ${pmtMult === 1 ? 'Received' : 'Given'} ${mathDesc}`);
                     }
                 }
-                transactions.push({ date: p.date, type: `Settlement (${p.paymentType})`, desc: descParts.join(' & '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-pay' });
+                transactions.push({ date: p.date, type: `Settlement (${p.paymentType})`, desc: descParts.join(' <hr style="margin:5px 0; border:0; border-top:1px dashed #cbd5e1;"> '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-pay' });
             }
 
             transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
             currentReportData = transactions;
 
-            // FORWARD CALCULATION: Now we use strictly defined opening balances
             let sumGold = 0, sumSilver = 0, sumCash = 0;
             transactions.forEach(t => { sumGold += t.gold; sumSilver += t.silver; sumCash += t.cash; });
 
@@ -1247,7 +1257,6 @@
             const finalNetSilver = (parseFloat(merchant.silverBalance) || 0) - pendingSilverAcc;
             const finalCash = parseFloat(merchant.balance) || 0;
 
-            // Strict mathematical forward calculation from explicit opening balances
             let runGold = merchant.openingGold !== undefined ? parseFloat(merchant.openingGold) : (finalNetGold - sumGold);
             let runSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
             let runCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
@@ -1279,7 +1288,6 @@
                     let sJ = t.silver > 0 ? t.silver : 0, sN = t.silver < 0 ? Math.abs(t.silver) : 0;
                     let cJ = t.cash > 0 ? t.cash : 0, cN = t.cash < 0 ? Math.abs(t.cash) : 0;
                     
-                    // Add rows to the running total (Forward Math)
                     runGold += t.gold; runSilver += t.silver; runCash += t.cash;
 
                     let dateStr = new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1332,7 +1340,10 @@
                 let sJ = row.silver > 0 ? row.silver : 0, sN = row.silver < 0 ? Math.abs(row.silver) : 0;
                 let cJ = row.cash > 0 ? row.cash : 0, cN = row.cash < 0 ? Math.abs(row.cash) : 0;
 
-                let rowStr = `${new Date(row.date).toLocaleDateString()},${row.type},"${row.desc}"`;
+                // Stripping HTML tags so Excel/CSV looks clean
+                let cleanDesc = row.desc.replace(/<br\s*\/?>/gi, ' - ').replace(/<hr[^>]*>/gi, ' | ').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+
+                let rowStr = `${new Date(row.date).toLocaleDateString()},${row.type},"${cleanDesc}"`;
                 if (showGold) rowStr += `,${gJ},${gN}`;
                 if (showSilver) rowStr += `,${sJ},${sN}`;
                 rowStr += `,${cJ},${cN}`;
