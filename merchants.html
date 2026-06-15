@@ -364,7 +364,7 @@
             </div>
 
             <div class="form-group">
-                <label>Metal Weight To Transfer (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Used for Ledger)</small></label>
+                <label>Metal <span style="color:var(--active-red);">FINE</span> Weight To Transfer (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Used for Ledger)</small></label>
                 <input type="number" id="payGold" placeholder="0.000" step="0.001" oninput="validateMetalInput()">
             </div>
 
@@ -1031,19 +1031,32 @@
                     return;
                 }
 
+                // UPDATED: Proper Gross Weight Calculation logic
                 let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
+                let transferredGrossWt = gold; // Default to fine weight
+                
                 if (direction === 'OUT' && inventorySelect.value) {
                     inventoryId = inventorySelect.value;
                     const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
                     inventoryBarcode = selOpt.dataset.barcode;
                     isPendingTransfer = selOpt.dataset.ispending === 'true';
+                    
+                    if (!isPendingTransfer) {
+                        let purityText = selOpt.innerText.split('|')[1];
+                        if (purityText) {
+                            const factor = typeof getPurityFactor === 'function' ? getPurityFactor(purityText) : 1;
+                            if (factor > 0 && factor !== 1) {
+                                transferredGrossWt = parseFloat((gold / factor).toFixed(3));
+                            }
+                        }
+                    }
                 }
 
                 await addItem('merchant_payments', {
                     merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
-                    goldType: goldType, rate: rate, paymentType: direction, 
-                    inventoryId: inventoryId, inventoryBarcode: inventoryBarcode, 
-                    wasPending: isPendingTransfer, originalGrossWt: isPendingTransfer ? parseFloat(gold) : 0,
+                    goldType: goldType, rate: rate, paymentType: direction,
+                    inventoryId: inventoryId, inventoryBarcode: inventoryBarcode,
+                    wasPending: isPendingTransfer, originalGrossWt: transferredGrossWt, 
                     date: new Date().toISOString(), mode: payMode
                 });
 
@@ -1239,6 +1252,7 @@
                         cashChange += (fVal * pmtMult);
                         descParts.push(`Fixed ${metalName} ${p.gold}g @ ₹${p.rate}/g`);
                     } else {
+                        // UPDATED: Proper Gross Weight usage logic
                         let actualFineWt = parseFloat(p.gold || 0);
                         let displayPurity = "Fine";
                         let grossWt = p.originalGrossWt || actualFineWt;
@@ -1248,10 +1262,13 @@
                             if (liveItem) {
                                 if (liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
                                     displayPurity = liveItem.purity;
-                                    grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || grossWt);
                                 } else if (p.wasPending || (liveItem.purity && liveItem.purity.toLowerCase() === 'pending')) {
                                     displayPurity = "Tounch Pending";
                                     grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || p.originalGrossWt || grossWt);
+                                }
+                            } else {
+                                if (!p.wasPending && grossWt > actualFineWt) {
+                                    displayPurity = ((actualFineWt / grossWt) * 100).toFixed(1) + "%";
                                 }
                             }
                         }
