@@ -136,7 +136,7 @@
         .jn-table th, .jn-table td { border: 1px solid #e2e8f0; padding: 12px 15px; text-align: right; vertical-align: middle; }
         .jn-table th { background: #f8fafc; text-align: center; color: #333; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;}
         .jn-table th.col-date { text-align: left; width: 10%; }
-        .jn-table th.col-desc { text-align: left; width: 30%; } /* Increased width for math breakdown */
+        .jn-table th.col-desc { text-align: left; width: 30%; } 
         .jn-table td.text-left { text-align: left; }
         .jn-table tr:hover { background: #f8fafc; }
         
@@ -431,10 +431,20 @@
         // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────
         function getPurityFactor(p) {
             if (!p) return 1.0;
-            let up = String(p).toUpperCase();
+            let up = String(p).toUpperCase().trim();
+            
             if(up.includes('24K')) return 1.0;
             if(up.includes('22K')) return 0.9166;
             if(up.includes('18K')) return 0.750;
+            
+            let numStr = up.replace(/[^0-9.]/g, '');
+            if (numStr) {
+                let num = parseFloat(numStr);
+                if (!isNaN(num)) {
+                    if (num > 100) return num / 1000; 
+                    if (num <= 100 && num > 0) return num / 100; 
+                }
+            }
             return 1.0; 
         }
 
@@ -467,40 +477,53 @@
             await syncPendingTounch(); 
         };
 
-        // ─── SMART AUTO-HEAL (Pending Tounch -> Fine Weight) ───────────────────
+        // ─── SMART AUTO-HEAL (SAFE MODE) ───────────────────
         async function syncPendingTounch() {
             try {
                 const payments = await getAllItems('merchant_payments');
-                const pendingPayments = payments.filter(p => p.wasPending === true && p.inventoryBarcode);
-                if(pendingPayments.length === 0) return;
-                
                 const allInv = await getAllItems('inventory');
                 const merchantsToUpdate = {};
                 let updatedCount = 0;
 
-                for (let p of pendingPayments) {
+                const linkedPayments = payments.filter(p => p.inventoryBarcode);
+
+                for (let p of linkedPayments) {
                     const liveItem = allInv.find(i => i.barcode === p.inventoryBarcode);
                     if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
                         const factor = getPurityFactor(liveItem.purity);
-                        const newFineWt = parseFloat((p.originalGrossWt * factor).toFixed(3));
                         
-                        if (Math.abs(p.gold - newFineWt) > 0.001) {
-                            const pmtMult = p.paymentType === 'OUT' ? -1 : 1; 
-                            const diff = newFineWt - p.gold; 
+                        let gross = p.originalGrossWt;
+                        if (!gross) {
+                            const itemGross = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || 0);
+                            if (Math.abs(p.gold - itemGross) < 0.01) { gross = itemGross; } 
+                        }
+
+                        if (gross > 0) {
+                            const correctFine = parseFloat((gross * factor).toFixed(3));
                             
-                            p.gold = newFineWt;
-                            p.wasPending = false; 
-                            await updateItem('merchant_payments', p.id, p);
-                            
-                            if (!merchantsToUpdate[p.merchantId]) {
-                                merchantsToUpdate[p.merchantId] = await getItem('merchants', p.merchantId);
+                            // SAFE CHECK: Ya toh yeh Pending tha, ya iska factor galti se 1.0 (100%) save ho gaya tha.
+                            if (p.wasPending || (Math.abs(p.gold - gross) < 0.001 && factor < 1.0)) {
+                                
+                                if (Math.abs(p.gold - correctFine) > 0.001) {
+                                    const pmtMult = p.paymentType === 'OUT' ? -1 : 1; 
+                                    const diff = correctFine - p.gold; 
+                                    
+                                    p.originalGrossWt = gross;
+                                    p.gold = correctFine;
+                                    p.wasPending = false; 
+                                    await updateItem('merchant_payments', p.id, p);
+                                    
+                                    if (!merchantsToUpdate[p.merchantId]) {
+                                        merchantsToUpdate[p.merchantId] = await getItem('merchants', p.merchantId);
+                                    }
+                                    const m = merchantsToUpdate[p.merchantId];
+                                    if (m) {
+                                        if (p.metal === 'Silver') m.silverBalance = (parseFloat(m.silverBalance)||0) + (diff * pmtMult);
+                                        else m.goldBalance = (parseFloat(m.goldBalance)||0) + (diff * pmtMult);
+                                    }
+                                    updatedCount++;
+                                }
                             }
-                            const m = merchantsToUpdate[p.merchantId];
-                            if (m) {
-                                if (p.metal === 'Silver') m.silverBalance = (parseFloat(m.silverBalance)||0) + (diff * pmtMult);
-                                else m.goldBalance = (parseFloat(m.goldBalance)||0) + (diff * pmtMult);
-                            }
-                            updatedCount++;
                         }
                     }
                 }
@@ -511,9 +534,9 @@
                 
                 if (updatedCount > 0) {
                     loadMerchants(); 
-                    showToast(`${updatedCount} Pending Tounch entries updated automatically!`, 'success');
+                    showToast(`${updatedCount} old calculation errors auto-corrected!`, 'success');
                 }
-            } catch(e) { console.error("Error in Tounch Sync:", e); }
+            } catch(e) { console.error("Error in Auto-Heal:", e); }
         }
 
         // ─── CATEGORY TOGGLE ───────────────────────────────────────────────────
@@ -1150,7 +1173,7 @@
 
             let transactions = [];
 
-            // 1. Purchases Processing (With Math Calculation logic)
+            // 1. Purchases Processing
             myPurchases.forEach(p => {
                 let desc = `${p.category} - Ref #${p.id}`;
                 let goldChange = 0, silverChange = 0, cashChange = 0;
@@ -1177,7 +1200,6 @@
                     if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
                     else goldChange = parseFloat(p.totalFineWeight) || 0;
                     
-                    // Added math calculation display
                     let grossWt = p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.totalFineWeight;
                     let displayPurity = p.averagePurity || p.purity || "N/A";
                     desc += `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(p.totalFineWeight).toFixed(3)}g</span>`;
@@ -1185,7 +1207,7 @@
                 transactions.push({ date: p.date, type: p.type, desc: desc, gold: goldChange, silver: silverChange, cash: cashChange, badge: p.type === 'Unfixed' ? 'b-unfix' : 'b-fix' });
             });
 
-            // 2. Orders/Jobwork Processing (With Math Calculation logic)
+            // 2. Orders/Jobwork Processing 
             let pendingGoldAcc = 0, pendingSilverAcc = 0;
             myOrders.filter(o => o.status === 'in_progress').forEach(o => {
                 if (o.issuedFineWt > 0) {
@@ -1193,7 +1215,6 @@
                     if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
                     else pendingGoldAcc += parseFloat(o.issuedFineWt);
                     
-                    // Added math calculation display
                     let grossWt = o.issuedWt || o.issuedGrossWt || o.grossWt || o.issuedFineWt;
                     let displayPurity = o.issuedPurity || "N/A";
                     let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(o.issuedFineWt).toFixed(3)}g</span>`;
@@ -1202,7 +1223,7 @@
                 }
             });
 
-            // 3. Payments/Settlements Processing (With Math Calculation logic)
+            // 3. Payments/Settlements Processing
             for (let p of myPayments) {
                 let descParts = [];
                 let pmtMult = p.paymentType === 'IN' ? 1 : -1;
@@ -1222,7 +1243,6 @@
                         let displayPurity = "Fine";
                         let grossWt = p.originalGrossWt || actualFineWt;
 
-                        // Identify Purity and Gross from live inventory if applicable
                         if (p.inventoryBarcode) {
                             const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
                             if (liveItem) {
@@ -1239,7 +1259,6 @@
                         if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
                         else goldChange = actualFineWt * pmtMult;
                         
-                        // Added math calculation display
                         let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${actualFineWt.toFixed(3)}g</span>`;
                         descParts.push(`${metalName} ${pmtMult === 1 ? 'Received' : 'Given'} ${mathDesc}`);
                     }
@@ -1340,7 +1359,6 @@
                 let sJ = row.silver > 0 ? row.silver : 0, sN = row.silver < 0 ? Math.abs(row.silver) : 0;
                 let cJ = row.cash > 0 ? row.cash : 0, cN = row.cash < 0 ? Math.abs(row.cash) : 0;
 
-                // Stripping HTML tags so Excel/CSV looks clean
                 let cleanDesc = row.desc.replace(/<br\s*\/?>/gi, ' - ').replace(/<hr[^>]*>/gi, ' | ').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
 
                 let rowStr = `${new Date(row.date).toLocaleDateString()},${row.type},"${cleanDesc}"`;
