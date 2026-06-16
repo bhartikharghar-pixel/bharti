@@ -41,30 +41,33 @@
 
         .container { max-width: 1400px; margin: 0 auto; padding: 0 15px; }
 
-        /* MAIN LAYOUT (PASSBOOK + TODO) */
-        .main-layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start;}
-        @media (max-width: 992px) { .main-layout { grid-template-columns: 1fr; } }
-
         /* CURRENT BALANCES */
         .balance-strip { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
         .bal-box { padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; border: 1px solid #cbd5e1; background: white;}
         .bal-box.total { background: #1e293b; color: white; border-color: #1e293b; }
         .bal-val { margin-left: 8px; font-size: 1.1rem; }
 
-        /* TO-DO LIST COMPONENT */
-        .todo-card { background: white; border-radius: 12px; box-shadow: var(--card-shadow); padding: 20px; border: 1px solid var(--border-color); position: sticky; top: 80px;}
-        .todo-header { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 700; color: #334155; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;}
+        /* MAIN LAYOUT (PASSBOOK + RIGHT PANEL) */
+        .main-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start;}
+        @media (max-width: 992px) { .main-layout { grid-template-columns: 1fr; } }
+        
+        .right-panel { display: flex; flex-direction: column; gap: 20px; position: sticky; top: 80px; }
+
+        /* SIDE CARDS (Todo, Udhari, Expenses) */
+        .side-card { background: white; border-radius: 12px; box-shadow: var(--card-shadow); padding: 20px; border: 1px solid var(--border-color); }
+        .side-header { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 700; color: #334155; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;}
+        .side-list { list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto; }
+        .side-list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 5px; border-bottom: 1px solid #f8fafc; transition: 0.2s;}
+        .side-list-item:hover { background: #f8fafc; }
+        .side-list-item:last-child { border-bottom: none; }
+
+        /* TO-DO SPECIFIC */
         .todo-input-group { display: flex; gap: 10px; margin-bottom: 15px; }
         .todo-input-group input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'Poppins'; }
         .todo-input-group input:focus { border-color: var(--digital-blue); }
         .todo-input-group button { background: var(--digital-blue); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;}
-        .todo-input-group button:hover { background: #2563eb; }
-        
-        .todo-list { list-style: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto; }
-        .todo-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 8px; border-bottom: 1px solid #f8fafc; transition: 0.2s;}
-        .todo-item:hover { background: #f8fafc; }
         .todo-item.done .text { text-decoration: line-through; color: #94a3b8; }
-        .todo-item .text { flex: 1; margin: 0 12px; cursor: pointer; font-size: 0.95rem; font-weight: 500;}
+        .todo-item .text { flex: 1; margin: 0 12px; cursor: pointer; font-size: 0.9rem; font-weight: 500;}
         .todo-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--in-green);}
         .todo-del { color: #cbd5e1; background: none; border: none; cursor: pointer; font-size: 1.1rem; transition: 0.2s;}
         .todo-del:hover { color: var(--out-red); }
@@ -231,16 +234,32 @@
                 </div>
             </div>
 
-            <div>
-                <div class="todo-card">
-                    <div class="todo-header"><i class="fas fa-check-square" style="color: var(--in-green);"></i> Daily To-Do</div>
+            <div class="right-panel">
+                
+                <div class="side-card">
+                    <div class="side-header"><i class="fas fa-check-square" style="color: var(--in-green);"></i> Daily To-Do</div>
                     <div class="todo-input-group">
                         <input type="text" id="todoInput" placeholder="Add new task..." onkeypress="handleTodoKeyPress(event)" autocomplete="off">
                         <button onclick="addTodo()"><i class="fas fa-plus"></i></button>
                     </div>
-                    <ul class="todo-list" id="todoList">
-                        </ul>
+                    <ul class="side-list" id="todoList"></ul>
                 </div>
+
+                <div class="side-card">
+                    <div class="side-header"><i class="fas fa-hand-holding-usd" style="color: #f59e0b;"></i> Pending Udhari</div>
+                    <ul class="side-list" id="udhariList">
+                        <li style="text-align:center; padding:10px;"><i class="fas fa-spinner fa-spin"></i></li>
+                    </ul>
+                </div>
+
+                <div class="side-card">
+                    <div class="side-header" style="justify-content: space-between;">
+                        <span><i class="fas fa-chart-pie" style="color: var(--out-red);"></i> This Month's Expenses</span>
+                        <i class="fas fa-cog" style="cursor:pointer; color:#94a3b8; font-size:1.1rem;" onclick="openCatManager()" title="Manage Categories"></i>
+                    </div>
+                    <ul class="side-list" id="expenseSideList"></ul>
+                </div>
+
             </div>
 
         </div>
@@ -448,7 +467,6 @@
             return str.trim() + ' Only';
         }
 
-        // --- BACKGROUND AUTO-CLEANUP ---
         async function autoFixDatabase() {
             try {
                 const salesList = await getAllItems('sales') || [];
@@ -508,24 +526,63 @@
             renderTodos();
         }
 
+        // --- PENDING UDHARI LOGIC ---
+        async function loadPendingUdhari() {
+            try {
+                const sales = await getAllItems('sales') || [];
+                const custs = await getAllItems('customers') || [];
+                const listEl = document.getElementById('udhariList');
+                listEl.innerHTML = '';
+
+                // Filter only pending bills, not cancelled
+                let pending = sales.filter(s => s.pendingAmount > 0 && s.status !== 'cancelled');
+                
+                // Sort from oldest date to newest date
+                pending.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                if(pending.length === 0) {
+                    listEl.innerHTML = '<li style="text-align:center; color:#94a3b8; font-size:0.85rem; padding:10px;">No pending dues! 🎉</li>';
+                    return;
+                }
+
+                pending.forEach(s => {
+                    const c = custs.find(x => String(x.id) === String(s.customerId)) || {name: 'Walk-in'};
+                    const dateObj = new Date(s.date);
+                    const dateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-IN', {day:'numeric', month:'short'}) : s.date;
+                    const invNo = s.invoiceNo || formatInv(s.id);
+                    
+                    listEl.innerHTML += `
+                        <li class="side-list-item">
+                            <div style="flex:1;">
+                                <div style="font-weight:600; font-size:0.9rem; color:#1e293b;">${c.name}</div>
+                                <div style="font-size:0.75rem; color:#64748b;">${dateStr} • ${invNo}</div>
+                            </div>
+                            <div style="font-weight:700; color:#d97706; text-align:right;">
+                                ₹${s.pendingAmount.toLocaleString()}<br>
+                                <a href="sales.html" style="font-size:0.7rem; color:var(--digital-blue); text-decoration:underline;">Settle</a>
+                            </div>
+                        </li>
+                    `;
+                });
+            } catch(e) { 
+                console.error("Error loading udhari:", e);
+                document.getElementById('udhariList').innerHTML = '<li style="text-align:center; color:red; font-size:0.85rem;">Error loading dues</li>';
+            }
+        }
+
         // --- DELETE PASSBOOK ENTRY LOGIC ---
         async function deletePassbookEntry(id, refId, isManual) {
             if(!confirm("Are you sure you want to delete this entry? This action cannot be undone.")) return;
             
             try {
-                // 1. Delete from Cashbook
                 await deleteItem('cashflow', id);
 
-                // 2. If it is a Quick Sale (it has a refId linked to sales table)
                 if(!isManual && refId) {
-                    // Try to fetch the linked Sale document
                     const saleDoc = await getItem('sales', refId);
                     
                     if(saleDoc && saleDoc.isQuickSale) {
-                        // Restore Inventory Stock
                         if(saleDoc.items && saleDoc.items.length > 0) {
                             const itemToRestore = saleDoc.items[0];
-                            // Only restore if it was linked to an actual inventory item (not a blank QS item)
                             if(itemToRestore.barcode !== 'QS-ITEM') {
                                 const stockItem = await getItem('inventory', itemToRestore.id);
                                 if(stockItem) {
@@ -550,8 +607,6 @@
                                 }
                             }
                         }
-                        
-                        // Finally delete the sale record from sales collection
                         await deleteItem('sales', refId);
                     }
                 }
@@ -564,7 +619,6 @@
                 showToast("Error deleting entry", "error");
             }
         }
-
 
         // --- DATA LOADING & UI ---
         async function loadPassbookData() {
@@ -582,6 +636,7 @@
                 }
                 updateUI();
                 renderTodos(); 
+                loadPendingUdhari(); // Fetch Udhari List
             } catch(e) {
                 document.getElementById('passbookBody').innerHTML = `<tr><td colspan="9" style="text-align:center; color:red;">Failed to load data. Please check connection.</td></tr>`;
             }
@@ -591,11 +646,15 @@
             dbTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             let runningCash = 0, runningBank = 0;
+            let currentMonthExpenses = {};
+            const now = new Date();
+            const currMonth = now.getMonth(), currYear = now.getFullYear();
             const daysData = {};
 
             [...dbTransactions].forEach((t) => {
                 let amt = parseFloat(t.amount) || 0;
                 let mode = getSafeMode(t.mode);
+                let cat = t.category || 'Other';
                 let type = t.type || 'OUT';
 
                 if(amt < 0 && type === 'IN') { type = 'OUT'; amt = Math.abs(amt); }
@@ -617,17 +676,41 @@
                     if (mode === 'Cash') runningCash -= amt; else runningBank -= amt;
                 }
 
-                t.parsedType = type; t.parsedAmt = amt; t.parsedMode = mode; t.parsedCat = t.category || 'Other';
+                t.parsedType = type; t.parsedAmt = amt; t.parsedMode = mode; t.parsedCat = cat;
                 t.currentCashBal = runningCash; t.currentBankBal = runningBank;
 
                 daysData[dateKey].txs.push(t);
                 daysData[dateKey].closeCash = runningCash;
                 daysData[dateKey].closeBank = runningBank;
+
+                // Monthly Expenses Box calculation
+                if (!isInvalid && txDateObj.getMonth() === currMonth && txDateObj.getFullYear() === currYear) {
+                    if (type === 'OUT') {
+                        if(!cat.toLowerCase().includes('contra') && !cat.toLowerCase().includes('transfer') && !cat.toLowerCase().includes('purchase')) {
+                            currentMonthExpenses[cat] = (currentMonthExpenses[cat] || 0) + amt;
+                        }
+                    }
+                }
             });
 
             document.getElementById('totalBal').innerText = `₹${(runningCash + runningBank).toLocaleString()}`;
             document.getElementById('cashBal').innerText = `₹${runningCash.toLocaleString()}`;
             document.getElementById('bankBal').innerText = `₹${runningBank.toLocaleString()}`;
+
+            // Update Right Side Expenses Box
+            const expList = document.getElementById('expenseSideList');
+            expList.innerHTML = '';
+            let hasExpenses = false;
+            Object.entries(currentMonthExpenses).sort((a,b) => b[1] - a[1]).forEach(([catName, amt]) => {
+                hasExpenses = true;
+                expList.innerHTML += `
+                    <li class="side-list-item">
+                        <div style="font-weight:600; font-size:0.9rem; color:#1e293b;">${catName}</div>
+                        <div style="font-weight:700; color:var(--out-red);">₹${amt.toLocaleString()}</div>
+                    </li>
+                `;
+            });
+            if(!hasExpenses) expList.innerHTML = '<li style="text-align:center; color:#94a3b8; font-size:0.85rem; padding:10px;">No expenses this month.</li>';
 
             const tbody = document.getElementById('passbookBody');
             tbody.innerHTML = '';
@@ -657,8 +740,6 @@
                     const dr = t.parsedType === 'OUT' ? `₹${t.parsedAmt.toLocaleString()}` : '-';
                     const cr = t.parsedType === 'IN' ? `₹${t.parsedAmt.toLocaleString()}` : '-';
 
-                    // Check if entry is Deletable
-                    // Manual entry or Quick Sale (Note contains Inv: QS-) is deletable. Big main sales are locked.
                     const isManual = t.isManual === true;
                     const isQS = t.note && t.note.includes('[Inv: QS-');
                     let actionHtml = '';
