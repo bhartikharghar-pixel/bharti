@@ -1297,19 +1297,23 @@ let cName = getCustName(s.customerId);
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                let loanMatch = note.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || cat.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i);
+               let loanMatch = note.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || cat.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i);
                 if (type === 'OUT' && loanMatch) {
                     let lId = loanMatch[1];
                     let matchedLoan = loans.find(x => String(x.id) === String(lId));
-                    let displayTitle = '';
                     
-                    if (matchedLoan) {
-                        displayTitle = `${getCustName(matchedLoan.customerId)} [L-${lId}]`;
-                    } else if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
-                        displayTitle = `${getCustName(c.customerId)} [L-${lId}]`;
-                    } else {
-                        displayTitle = `Customer [L-${lId}]`;
+                    // 🔥 BETTER LOAN CUSTOMER NAME EXTRACTION
+                    let cNameForLoan = '';
+                    if (matchedLoan && matchedLoan.customerId) cNameForLoan = getCustName(matchedLoan.customerId);
+                    
+                    if (!cNameForLoan || cNameForLoan === 'Walk-in') {
+                        if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameForLoan = getCustName(c.customerId);
+                        else if (c.customerName) cNameForLoan = c.customerName;
+                        else if (c.partyName) cNameForLoan = c.partyName;
+                        else if (c.name) cNameForLoan = c.name;
                     }
+
+                    let displayTitle = (cNameForLoan && cNameForLoan !== 'Walk-in') ? `${cNameForLoan} [L-${lId}]` : `Customer [L-${lId}]`;
 
                     pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
                     return; 
