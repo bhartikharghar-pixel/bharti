@@ -800,19 +800,22 @@
             selectCust({id, name, mobile, bcBalance: 0});
         }
 
-        async function searchItem() {
+       async function searchItem() {
             const term = document.getElementById('itemSearch').value.toUpperCase();
             const box = document.getElementById('itemSuggestions');
             box.innerHTML = ''; box.style.display = 'none';
             if(term.length < 1) { document.getElementById('itemEntry').style.display = 'none'; return; }
             const list = await getAllItems('inventory');
-            const matches = list.filter(i => i.status === 'stock' && (i.barcode.includes(term) || i.category.toUpperCase().includes(term))).slice(0,5);
+            // Isme item.name se bhi search hoga
+            const matches = list.filter(i => i.status === 'stock' && (i.barcode.includes(term) || i.category.toUpperCase().includes(term) || (i.name && i.name.toUpperCase().includes(term)))).slice(0,5);
             if(matches.length > 0) {
                 box.style.display = 'block';
                 matches.forEach(i => {
                     const d = document.createElement('div'); d.className = 'suggestion-item';
                     const pcsStr = i.pieces > 1 ? `[${i.pieces} Pcs] ` : '';
-                    d.innerHTML = `<b>${i.barcode}</b> - ${i.category} <small style="color:#C5A059;">${pcsStr}[${i.purity} | ${getSafeNum(i.grossWt || i.netWt || i.weight).toFixed(3)}g]</small>`;
+                    // Yahan suggestion me box ka naam dikhega
+                    const displayName = i.name ? i.name : i.category;
+                    d.innerHTML = `<b>${i.barcode}</b> - ${displayName} <small style="color:#C5A059;">${pcsStr}[${i.purity} | ${getSafeNum(i.grossWt || i.netWt || i.weight).toFixed(3)}g]</small>`;
                     d.onclick = () => loadItem(i); box.appendChild(d);
                 });
             }
