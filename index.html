@@ -33,6 +33,7 @@
         .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
         .sidebar-menu li a { display: flex; align-items: center; padding: 16px 20px; color: #94a3b8; border-bottom: 1px solid #1e293b; font-size: 0.95rem; font-weight: 500;}
         .sidebar-menu li a i { width: 24px; margin-right: 10px; text-align: center; font-size: 1.1rem; }
+        .sidebar-menu li a:hover { background: #1e293b; color: #fff; padding-left: 25px; transition: 0.2s; }
         .sidebar-menu li a.active { background: linear-gradient(90deg, rgba(211,47,47,0.2), transparent); color: var(--accent-gold); border-left: 4px solid var(--accent-gold); }
         
         .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); z-index: 1500; display: none; opacity: 0; transition: opacity 0.3s;}
@@ -85,7 +86,7 @@
         .date-closing { background-color: #eff6ff !important; border-top: 2px solid #bfdbfe; border-bottom: 1px solid #dbeafe; }
         .date-opening { background-color: #f8fafc !important; border-bottom: 2px solid #e2e8f0; border-top: 1px dashed #cbd5e1; }
 
-        /* FLOATING ACTION BUTTONS (NEW LAYOUT) */
+        /* FLOATING ACTION BUTTONS (LEFT & RIGHT) */
         .fab-left { position: fixed; bottom: 30px; left: 20px; z-index: 1000; }
         .fab-right { position: fixed; bottom: 30px; right: 20px; display: flex; align-items: center; gap: 15px; z-index: 1000; }
         
@@ -115,6 +116,12 @@
         .btn-save.blue { background: var(--digital-blue); }
         .btn-save.gold { background: linear-gradient(135deg, #d97706, #f59e0b); }
 
+        /* CATEGORY MANAGER STYLES */
+        .cat-list { list-style: none; padding: 0; margin: 15px 0 0 0; border: 1px solid #e2e8f0; border-radius: 6px; max-height: 200px; overflow-y: auto;}
+        .cat-list li { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; font-weight: 500;}
+        .cat-list li:last-child { border-bottom: none; }
+        .btn-del-cat { background: none; border: none; color: var(--out-red); cursor: pointer; font-size: 1.1rem;}
+
         /* Toast Notifications */
         #toast {
             visibility: hidden; min-width: 280px; background-color: #1e293b; color: #fff;
@@ -130,6 +137,7 @@
 </head>
 <body>
 
+    <!-- SIDEBAR & HEADER -->
     <header class="app-header">
         <div class="header-title">
             <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
@@ -153,6 +161,7 @@
 
     <div class="container">
 
+        <!-- MONTHLY DASHBOARD -->
         <div class="month-dashboard">
             <div class="month-card sales-card">
                 <h3><i class="fas fa-chart-line"></i> This Month's Sales</h3>
@@ -171,6 +180,7 @@
             </div>
         </div>
 
+        <!-- CURRENT OVERALL BALANCES -->
         <div class="balance-strip">
             <div class="bal-box total">
                 Total Balance: <span class="bal-val" id="totalBal" style="color:var(--accent-gold);">₹0</span>
@@ -183,6 +193,7 @@
             </div>
         </div>
 
+        <!-- PASSBOOK TABLE WITH DATE GROUPING -->
         <div class="section-title"><i class="fas fa-list-alt" style="color: var(--digital-blue);"></i> Passbook Statement</div>
         <div class="passbook-container">
             <div class="table-wrapper">
@@ -207,6 +218,7 @@
         </div>
     </div>
 
+    <!-- FLOATING ACTION BUTTONS (LEFT & RIGHT) -->
     <div class="fab-left">
         <button class="fab fab-expense" onclick="openModal('txModal', 'OUT')" title="Add Expense"><i class="fas fa-minus-circle"></i> Add Expense</button>
     </div>
@@ -217,6 +229,7 @@
         <button class="fab fab-qs" onclick="openQuickSale()"><i class="fas fa-bolt"></i> Quick Sale</button>
     </div>
 
+    <!-- ⚡ Quick Sale Modal (Super Fast) ⚡ -->
     <div id="quickSaleModal" class="modal">
         <div class="modal-content" style="border: 2px solid #f59e0b;">
             <button class="close-btn" onclick="closeModal('quickSaleModal')">&times;</button>
@@ -246,6 +259,7 @@
         </div>
     </div>
 
+    <!-- Transaction Modal (Income/Expense) -->
     <div id="txModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('txModal')">&times;</button>
@@ -283,6 +297,7 @@
         </div>
     </div>
 
+    <!-- Manage Categories Modal -->
     <div id="manageCatModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('manageCatModal')">&times;</button>
@@ -296,6 +311,7 @@
         </div>
     </div>
 
+    <!-- Contra Modal -->
     <div id="contraModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('contraModal')">&times;</button>
@@ -325,6 +341,7 @@
 
     <div id="toast"><i class="fas fa-check-circle"></i> Message!</div>
 
+    <!-- Firebase Scripts & db.js Integration -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -581,6 +598,7 @@
             }
         }
 
+        // BULLETPROOF QUICK SALE FUNCTION
         async function saveQuickSale() {
             const amount = parseFloat(document.getElementById('qsAmt').value);
             const note = document.getElementById('qsNote').value.trim() || 'Quick Retail Sale';
@@ -597,34 +615,45 @@
                 const dateIso = new Date().toISOString();
                 const invoiceNo = "QS-" + Math.floor(Math.random() * 100000);
 
-                // 1. Save directly to Main Sales page database
+                // 1. BULLETPROOF SALE DATA (No Missing Fields)
                 const saleData = {
                     date: dateIso,
                     invoiceNo: invoiceNo,
-                    customerId: 'Walk-in',
+                    customerId: 'walk-in', 
                     customerName: 'Quick Sale Customer',
+                    customerPhone: '0000000000',
                     status: 'completed',
-                    totalAmount: amount,
-                    pendingAmount: 0,
-                    discount: 0,
+                    jobType: 'Sale',
                     mode: mode,
+                    subTotal: amount,
+                    discountAmount: 0,
+                    taxAmount: 0,
+                    laborTotal: 0,
+                    totalAmount: amount,
+                    receivedAmount: amount,
+                    pendingAmount: 0,
                     items: [{
+                        id: 'qs_item_' + Date.now(),
                         barcode: 'QS-ITEM',
                         name: note,
                         category: 'Quick Sale',
-                        purity: 'N/A',
+                        purity: '-',
                         grossWt: 0,
                         netWt: 0,
+                        stoneWt: 0,
                         sellQty: 1,
-                        price: amount
+                        price: amount,
+                        amount: amount,
+                        rate: 0,
+                        makingCharge: 0,
+                        isOldGold: false
                     }],
                     isQuickSale: true
                 };
                 
-                // Add to 'sales' collection so it reflects on Sales Page
                 const saleDoc = await addItem('sales', saleData);
 
-                // 2. Add to 'cashflow' so it updates Passbook balances instantly
+                // 2. Add to cashflow
                 await addItem('cashflow', {
                     date: dateIso,
                     type: 'IN',
@@ -639,7 +668,6 @@
                 showToast("Lightning Sale Done!", "success");
                 closeModal('quickSaleModal');
                 
-                // Refresh passbook instantly
                 await loadPassbookData();
                 
             } catch(e) {
