@@ -146,7 +146,7 @@
             #invoice-area { display: block !important; width: 100%; }
         }
 
-        #invoice-area { display: none; background: white; padding: 20px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #000; }
+        #invoice-area { display: none; background: white; padding: 10px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #000; }
         .print-page { width: 210mm; height: auto; min-height: auto; padding: 10mm; margin: 0 auto; box-sizing: border-box; background: white; position: relative; }
         .print-border-maroon { border: 1px solid #6c1122; }
         .text-maroon { color: #6c1122; }
@@ -161,11 +161,16 @@
         .inv-main-table th { border: 1px solid #6c1122; padding: 6px 2px; }
         .inv-main-table td { border-left: 1px solid #6c1122; border-right: 1px solid #6c1122; padding: 6px 2px; vertical-align: top; }
         .inv-items-container { height: auto; min-height: auto; border-bottom: 1px solid #6c1122; padding-bottom: 10px; }
-        .inv-footer-grid { display: grid; grid-template-columns: 1.8fr 1fr; font-size: 11px; font-weight: 600; }
+        .inv-footer-grid { display: grid; grid-template-columns: 1fr 1fr; font-size: 11px; font-weight: 600; }
         .inv-footer-left { border-right: 1px solid #6c1122; display: flex; flex-direction: column; justify-content: space-between; }
         .inv-footer-right { padding: 0; }
         .inv-summary-row { display: flex; justify-content: space-between; padding: 3px 8px; border-bottom: 1px solid #eee; }
         .inv-summary-row.bold { font-weight: 800; border-bottom: none; border-top: 1px solid #6c1122; padding-top: 5px; margin-top: auto;}
+        
+        /* NEW GST SUMMARY TABLE CSS */
+        .gst-summary-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; border-top: 1px solid #6c1122; border-bottom: 1px solid #6c1122; }
+        .gst-summary-table th { background: #6c1122; color: white; border: 1px solid #fff; padding: 4px; }
+        .gst-summary-table td { border: 1px solid #6c1122; padding: 4px; }
     </style>
 </head>
 <body>
@@ -279,8 +284,20 @@
             </div>
 
             <div class="form-group" style="margin-top:15px;">
-                <label>Sale Amount (₹)</label>
+                <label>Final Sale Amount (₹)</label>
                 <input type="number" id="qsAmt" placeholder="0.00" style="font-size:1.5rem; padding:15px; font-weight:700; border-color:#f59e0b;" onkeypress="handleQSKeyPress(event)">
+            </div>
+            
+            <!-- NEW: GST Control for Quick Sale -->
+            <div style="display:flex; gap:15px; margin-bottom: 15px; background: #fff8e1; padding: 12px; border: 1px solid #fde047; border-radius: 6px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="qsApplyGst" checked style="width:20px; height:20px; accent-color: var(--accent-gold); cursor:pointer;">
+                    <label for="qsApplyGst" style="margin:0; cursor:pointer; font-weight:bold; color:#b45309;">Apply GST</label>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                    <label style="margin:0; font-size:0.85rem; font-weight:bold; color:#b45309;">GST %</label>
+                    <input type="number" id="qsGstPct" value="3" style="width:60px; padding:6px; text-align:center; border:1px solid #fde047; border-radius:4px;">
+                </div>
             </div>
 
             <div style="display:flex; gap:10px;">
@@ -436,14 +453,14 @@
                     if (s.items && s.items.length > 0 && s.items[0].baseAmount === undefined) isBroken = true;
                     if (isBroken && s.isQuickSale) { await deleteItem('sales', s.id); fixedCount++; }
                 }
-                if(fixedCount > 0) console.log(`Auto-Fixed ${fixedCount} broken records.`);
+                if(fixedCount > 0) console.log(`Auto-Fixed ${fixedCount} broken Quick Sale records.`);
             } catch(e) {}
         }
 
         // --- DATA LOADING & UI ---
         async function loadPassbookData() {
             try {
-                await autoFixDatabase();
+                await autoFixDatabase(); 
                 const r = await getSetting('gold_rates'); 
                 if(r) goldRatesCache = r;
 
@@ -460,7 +477,7 @@
                 }
                 updateUI();
             } catch(e) {
-                document.getElementById('passbookBody').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Failed to load data.</td></tr>`;
+                document.getElementById('passbookBody').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Failed to load data. Please check connection.</td></tr>`;
             }
         }
 
@@ -583,7 +600,7 @@
             });
         }
 
-        // --- QUICK SALE LOGIC (SMART SEARCH) ---
+        // --- QUICK SALE LOGIC (SMART SEARCH & REVERSE GST) ---
         function openQuickSale() {
             document.getElementById('qsAmt').value = '';
             document.getElementById('qsMode').value = 'Cash';
@@ -699,16 +716,28 @@
             else if(i.purity === '18K') r = (goldRatesCache.rate18k || (goldRatesCache.rate22k * 0.82)) / 10;
             else if(i.purity && i.purity.toUpperCase().includes('SIL')) r = goldRatesCache.rateSilver / 1000;
             
-            let estVal = Math.round(inputWt * r);
-            if(estVal > 0) document.getElementById('qsAmt').value = estVal;
+            let baseVal = Math.round(inputWt * r);
+            
+            const applyGst = document.getElementById('qsApplyGst').checked;
+            const gstPct = parseFloat(document.getElementById('qsGstPct').value) || 0;
+
+            if(baseVal > 0) {
+                if(applyGst) {
+                    baseVal += Math.round(baseVal * (gstPct / 100));
+                }
+                document.getElementById('qsAmt').value = baseVal;
+            }
         }
 
         async function saveQuickSale() {
-            const amount = parseFloat(document.getElementById('qsAmt').value);
+            const finalAmount = parseFloat(document.getElementById('qsAmt').value);
             const mode = document.getElementById('qsMode').value || 'Cash';
             let note = document.getElementById('qsNote').value.trim() || 'Quick Retail Sale';
 
-            if(!amount || amount <= 0) return showToast("Enter a valid amount!", "error");
+            const applyGst = document.getElementById('qsApplyGst').checked;
+            const gstPct = parseFloat(document.getElementById('qsGstPct').value) || 3;
+
+            if(!finalAmount || finalAmount <= 0) return showToast("Enter a valid amount!", "error");
 
             const btn = document.getElementById('qsSaveBtn');
             const originalText = btn.innerHTML;
@@ -716,6 +745,15 @@
             btn.disabled = true;
 
             try {
+                // Reverse Calculate GST if needed
+                let baseAmount = finalAmount;
+                let gstAmount = 0;
+                
+                if (applyGst) {
+                    baseAmount = Math.round(finalAmount / (1 + (gstPct / 100)));
+                    gstAmount = finalAmount - baseAmount;
+                }
+
                 const dateIso = new Date().toISOString();
                 const dObj = new Date();
                 const prefix = String(dObj.getMonth() + 1).padStart(2, '0') + String(dObj.getFullYear()).slice(-2);
@@ -774,8 +812,13 @@
                         stoneWt: 0,
                         netWt: sellWt || 0,
                         fineWt: sellWt || 0,
-                        sellQty: 1, rate: amount || 0, makingType: 'flat', makingRate: 0, makingAmount: 0,
-                        baseAmount: amount || 0, gstPct: 0, gstAmount: 0, total: amount || 0
+                        sellQty: 1, 
+                        rate: baseAmount || 0, 
+                        makingType: 'flat', makingRate: 0, makingAmount: 0,
+                        baseAmount: baseAmount || 0, 
+                        gstPct: applyGst ? gstPct : 0, 
+                        gstAmount: gstAmount, 
+                        total: finalAmount || 0
                     };
 
                     const isBulk = checkIsSilver(invItem.purity) || (invItem.category && (invItem.category.toUpperCase().includes('LOOSE') || invItem.category.toUpperCase().includes('MIX'))) || (invItem.barcode && invItem.barcode.toUpperCase().startsWith('LOOSE')) || availPcs > 1;
@@ -798,8 +841,13 @@
                         id: 'qs_item_' + Date.now(), isOldGold: false, metal: 'Gold',
                         barcode: 'QS-ITEM', category: note || 'Item', purity: '22K',
                         weight: 0, grossWt: 0, stoneWt: 0, netWt: 0, fineWt: 0,
-                        sellQty: 1, rate: amount || 0, makingType: 'flat', makingRate: 0, makingAmount: 0,
-                        baseAmount: amount || 0, gstPct: 0, gstAmount: 0, total: amount || 0
+                        sellQty: 1, 
+                        rate: baseAmount || 0, 
+                        makingType: 'flat', makingRate: 0, makingAmount: 0,
+                        baseAmount: baseAmount || 0, 
+                        gstPct: applyGst ? gstPct : 0, 
+                        gstAmount: gstAmount, 
+                        total: finalAmount || 0
                     };
                 }
 
@@ -809,18 +857,18 @@
                     customerId: custId || 'Walk-in',
                     customerName: customerObj.name || 'Walk-in',
                     items: [finalItem],
-                    subTotal: amount || 0,
-                    gst: 0,
+                    subTotal: baseAmount || 0,
+                    gst: gstAmount,
                     oldGoldDeduction: 0,
                     totalExchWt: 0,
                     discountMode: 'flat',
                     discount: 0,
                     bcWalletDeduction: 0,
-                    grandTotal: amount || 0, 
-                    paidAmount: amount || 0, 
+                    grandTotal: finalAmount || 0, 
+                    paidAmount: finalAmount || 0, 
                     pendingAmount: 0, 
-                    payments: [{ mode: mode || 'Cash', amount: amount || 0, date: dateIso }],
-                    isGstBill: false,
+                    payments: [{ mode: mode || 'Cash', amount: finalAmount || 0, date: dateIso }],
+                    isGstBill: applyGst,
                     status: 'completed',
                     isQuickSale: true
                 };
@@ -829,7 +877,7 @@
                 saleData.id = saleDocId; 
 
                 await addItem('cashflow', {
-                    date: dateIso, type: 'IN', mode: mode, category: 'POS Sale', amount: amount,
+                    date: dateIso, type: 'IN', mode: mode, category: 'POS Sale', amount: finalAmount,
                     note: `${note} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
                 });
 
@@ -847,13 +895,20 @@
             }
         }
 
-        // --- PRINT INVOICE LOGIC ---
+        // --- PRINT INVOICE LOGIC (FULL GST FORMAT) ---
         function printInvoice(sale, cust) {
             if(!cust) cust = { name: 'Customer', mobile: '', city: '' };
-            const isGst = sale.isGstBill !== false; 
+            
+            const isGst = sale.isGstBill === true; 
             const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
-            const cgstAmt = (sale.gst / 2).toFixed(2);
-            const sgstAmt = (sale.gst / 2).toFixed(2);
+            
+            // Safe Calculate GST Splits
+            const totalGstAmt = getSafeNum(sale.gst);
+            const cgstAmt = (totalGstAmt / 2).toFixed(2);
+            const sgstAmt = (totalGstAmt / 2).toFixed(2);
+            const gstRate = sale.items && sale.items.length > 0 ? getSafeNum(sale.items[0].gstPct) : 0;
+            const halfGstRate = (gstRate / 2) + '%';
+
             let subTotalDisplay = sale.subTotal;
             if (isGst) subTotalDisplay = sale.subTotal + sale.gst;
             if (sale.discount > 0) subTotalDisplay -= sale.discount;
@@ -868,6 +923,7 @@
                         <div class="inv-logo-text">BHARTI</div><div class="inv-logo-sub">JEWELLERS</div>
                     </div>
                 </div>
+                
                 <div style="display:grid; grid-template-columns: 1fr 1.5fr 1fr; margin-bottom:10px;">
                     <div style="border:1px solid #6c1122; border-left:none; padding:5px; font-size:12px; font-weight:bold;">
                         <div style="border-bottom:1px solid #6c1122; padding-bottom:3px; margin-bottom:3px;">
@@ -882,6 +938,7 @@
                         GSTN No. : 27BGYPJ5125N1ZM<br>GST Type : SGST + CGST
                     </div>
                 </div>
+
                 <div style="border-top:1px solid #6c1122;">
                     <div class="inv-cust-grid">
                         <div>Name</div> <div>:</div> <div>${cust.name}</div>
@@ -889,12 +946,21 @@
                         <div>Mobile No.</div> <div>:</div> <div>${cust.mobile}</div>
                     </div>
                 </div>
+
                 <div class="inv-items-container">
                     <table class="inv-main-table">
                         <thead class="bg-maroon">
                             <tr>
-                                <th>HSN<br>Code</th><th>Particular</th><th>HUID</th><th>Purity</th><th>Pcs</th>
-                                <th>Gross<br>Wt</th><th>Net<br>Wt</th><th>Rate<br>Per Gm</th><th>Making</th><th style="border-right:none;">Amount</th>
+                                <th>HSN<br>Code</th>
+                                <th>Particular</th>
+                                <th>HUID</th>
+                                <th>Purity</th>
+                                <th>Pcs</th>
+                                <th>Gross<br>Wt</th>
+                                <th>Net<br>Wt</th>
+                                <th>Rate<br>Per Gm</th>
+                                <th>Making</th>
+                                <th style="border-right:none;">Taxable Amt</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -904,11 +970,18 @@
                 let mkDisplay = i.makingAmount ? i.makingAmount : '-';
                 let amtDisplay = i.baseAmount;
                 let hsnCode = i.hsn || '7113'; 
+
                 html += `
                             <tr>
-                                <td>${hsnCode}</td><td style="text-align:left;">${i.category}</td><td>${i.huid || ''}</td>
-                                <td>${i.purity}</td><td>${i.sellQty || 1}</td><td>${(i.grossWt || i.weight).toFixed(3)}</td>
-                                <td>${(i.netWt || i.weight).toFixed(3)}</td><td>${i.rate}</td><td>${mkDisplay}</td>
+                                <td>${hsnCode}</td>
+                                <td style="text-align:left;">${i.category}</td>
+                                <td>${i.huid || ''}</td>
+                                <td>${i.purity}</td>
+                                <td>${i.sellQty || 1}</td>
+                                <td>${(i.grossWt || i.weight).toFixed(3)}</td>
+                                <td>${(i.netWt || i.weight).toFixed(3)}</td>
+                                <td>${i.rate}</td>
+                                <td>${mkDisplay}</td>
                                 <td style="border-right:none;">${amtDisplay.toLocaleString()}</td>
                             </tr>`;
             });
@@ -922,7 +995,41 @@
             html += `
                         </tbody>
                     </table>
-                </div>
+                </div>`;
+
+            // NEW FULL GST FORMAT SUMMARY TABLE
+            if (isGst) {
+                html += `
+                <table class="gst-summary-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">HSN / SAC</th>
+                            <th rowspan="2">Taxable Value</th>
+                            <th colspan="2">CGST</th>
+                            <th colspan="2">SGST</th>
+                            <th colspan="2">IGST</th>
+                            <th rowspan="2">Total Tax</th>
+                        </tr>
+                        <tr>
+                            <th>Rate</th><th>Amount</th>
+                            <th>Rate</th><th>Amount</th>
+                            <th>Rate</th><th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>7113</td>
+                            <td>${sale.subTotal.toLocaleString()}</td>
+                            <td>${halfGstRate}</td><td>${cgstAmt}</td>
+                            <td>${halfGstRate}</td><td>${sgstAmt}</td>
+                            <td>0%</td><td>0</td>
+                            <td style="font-weight:bold;">${totalGstAmt.toLocaleString()}</td>
+                        </tr>
+                    </tbody>
+                </table>`;
+            }
+
+            html += `
                 <div class="inv-footer-grid">
                     <div class="inv-footer-left">
                         <div style="padding:5px;">
@@ -932,8 +1039,9 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="inv-footer-right">
-                        <div class="inv-summary-row"><span>Gross Amt</span> <span>${sale.subTotal.toLocaleString()}</span></div>
+                        <div class="inv-summary-row"><span>Taxable Base Amt</span> <span>${sale.subTotal.toLocaleString()}</span></div>
                         <div class="inv-summary-row"><span>Less Disc.</span> <span>${sale.discount > 0 ? sale.discount.toLocaleString() : ''}</span></div>
                         <div class="inv-summary-row"><span>Add CGST</span> <span>${isGst && sale.gst > 0 ? cgstAmt : ''}</span></div>
                         <div class="inv-summary-row"><span>Add SGST</span> <span>${isGst && sale.gst > 0 ? sgstAmt : ''}</span></div>
@@ -945,12 +1053,14 @@
                         <div class="inv-summary-row bold" style="color: ${sale.pendingAmount > 0 ? '#c62828' : '#333'}; border-bottom:none;"><span>Balance Due</span> <span>${sale.pendingAmount.toLocaleString()}</span></div>
                     </div>
                 </div>
+
                 <div style="border-top:1px solid #6c1122; text-align:right; padding:20px 10px 5px 10px; font-weight:bold; font-size:12px; color:#6c1122;">
                     For Bharti Jewellers
                 </div>
             </div>`;
 
             document.getElementById('invoice-area').innerHTML = html;
+            
             setTimeout(() => {
                 if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
                     AndroidInterface.printPage();
