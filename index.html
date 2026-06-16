@@ -1,652 +1,392 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Cash Rojmel - Bharti Jewellers</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Passbook & Expense Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root {
-            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
-            --active-red: #D32F2F; --border-color: #2a2a2a; --bg-light: #f4f6f9;
+            --accent-gold: #D4AF37; 
+            --bg-light: #f8fafc;
+            --border-color: #e2e8f0;
+            --in-green: #10b981; 
+            --out-red: #ef4444; 
+            --digital-blue: #3b82f6; 
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
 
-        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-light); margin: 0; padding: 0; padding-top: 70px; color: #333; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        a { text-decoration: none; color: inherit; }
+        body { margin: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); color: #1e293b; padding-bottom: 80px; }
+        * { box-sizing: border-box; outline: none; }
 
-        /* --- HEADER & SIDEBAR --- */
-        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
-        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; display: flex; align-items: center;}
-        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
-
-        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .sidebar-drawer.open { left: 0; }
-        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1;}
-        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
-        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
-        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 5px solid #fff; }
-        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
-        .sidebar-overlay.show { display: block; }
-        .sidebar-footer { padding: 20px; text-align: center; border-top: 1px solid var(--border-color); color: #666; font-size: 0.85rem; background: #0a0a0a; }
-
-        /* --- MASTER LAYOUT --- */
-        .master-container { padding: 15px; max-width: 950px; margin: auto; }
+        /* HEADER */
+        .header { background: #0a0a0a; color: var(--accent-gold); padding: 15px 20px; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); border-bottom: 2px solid var(--accent-gold);}
         
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;}
-        .dashboard-title { margin: 0; color: #111; font-size: 1.5rem; font-weight: 800; text-transform: uppercase;}
-        
-        .header-actions { display: flex; gap: 10px; align-items: center;}
-        .date-input { border: 2px solid #C5A059; padding: 8px 12px; border-radius: 6px; font-family: inherit; font-weight: 700; outline: none; background: #fff;}
-        .print-btn { background: #111; color: #fff; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 700; transition: 0.2s;}
-        .print-btn:hover { background: #333; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
 
-        /* --- BAHI KHATA (ROJMEL) TABLE --- */
-        .bahi-khata { display: flex; width: 100%; border: 2px solid #000; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        @media(max-width: 768px) { .bahi-khata { flex-direction: column; border: none; box-shadow: none; background: transparent; gap: 15px;} }
+        /* DASHBOARD CARDS */
+        .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .dash-card { background: white; padding: 20px; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); display: flex; flex-direction: column; }
+        .dash-card span { font-size: 0.85rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+        .dash-card h2 { margin: 10px 0 0 0; font-size: 1.8rem; color: #0f172a; }
         
-        .jama-side, .nama-side { width: 50%; display: flex; flex-direction: column; }
-        @media(max-width: 768px) { .jama-side, .nama-side { width: 100%; border: 2px solid #000; background: #fff; } }
-        
-        .jama-side { border-right: 2px solid #000; }
-        @media(max-width: 768px) { .jama-side { border-right: none; } }
+        /* EXPENSE TRACKER SECTION */
+        .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #334155; }
+        .expense-grid { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; margin-bottom: 20px; }
+        .exp-cat-card { min-width: 150px; background: white; padding: 15px; border-radius: 10px; border-left: 4px solid var(--out-red); box-shadow: var(--card-shadow); }
+        .exp-cat-card .cat-name { font-size: 0.8rem; color: #64748b; font-weight: 600; }
+        .exp-cat-card .cat-amt { font-size: 1.2rem; font-weight: 700; color: var(--out-red); margin-top: 5px; }
 
-        .bahi-title { text-align: center; font-weight: 800; padding: 12px; font-size: 1.15rem; color: #fff; letter-spacing: 1px; }
-        .title-jama { background: #2e7d32; border-bottom: 2px solid #000;}
-        .title-nama { background: #c62828; border-bottom: 2px solid #000;}
-
-        .bahi-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; font-size: 1rem; }
-        .bahi-open { border-bottom: 2px solid #000; font-weight: 800; background: #e8f5e9; color: #1b5e20; }
-        .bahi-close { border-top: 2px solid #000; font-weight: 800; background: #ffebee; color: #b71c1c; margin-top: auto; }
+        /* PASSBOOK TABLE */
+        .passbook-container { background: white; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; text-align: left; }
+        th { background: #f1f5f9; padding: 12px 15px; font-size: 0.85rem; color: #475569; text-transform: uppercase; border-bottom: 2px solid var(--border-color); }
+        td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: middle; }
+        tr:hover { background: #f8fafc; }
         
-        .split-txt { font-size: 0.75rem; color: #555; display: block; font-weight: 600; margin-top: 2px; }
+        .dr { color: var(--out-red); font-weight: 600; }
+        .cr { color: var(--in-green); font-weight: 600; }
+        .bal { font-weight: 700; color: #0f172a; }
+        .mode-badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .mode-cash { background: #dcfce7; color: #166534; }
+        .mode-bank { background: #dbeafe; color: #1e40af; }
+        .cat-badge { font-size: 0.75rem; background: #e2e8f0; padding: 3px 8px; border-radius: 4px; color: #475569; font-weight: 600; }
 
-        .cat-header { background: #f0f0f0; font-weight: 700; padding: 6px 15px; font-size: 0.85rem; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; color: #333; text-transform: uppercase;}
-        
-        .log-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 15px; border-bottom: 1px dashed #ddd; font-size: 0.85rem; }
-        .log-item:last-child { border-bottom: none; }
-        
-        .l-desc { flex: 1; color: #111; font-weight: 600; line-height: 1.3;}
-        .l-metal { margin: 0 10px; font-size: 0.75rem; text-align: right;}
-        .l-amt { font-weight: 800; min-width: 80px; text-align: right; font-size: 0.95rem; }
-        
-        .wt-tag { background: #fff3e0; border: 1px solid #ffcc80; padding: 2px 6px; border-radius: 4px; color: #e65100; font-size: 0.7rem; font-weight: 700; white-space: nowrap; display: inline-block; margin-left: 5px;}
+        /* FLOATING ACTION BUTTONS */
+        .fab-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 15px; z-index: 1000; }
+        .fab { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.2s; border: none;}
+        .fab:hover { transform: scale(1.05); }
+        .fab-expense { background: var(--out-red); }
+        .fab-income { background: var(--in-green); }
+        .fab-contra { background: var(--digital-blue); }
 
-        .empty-msg { text-align: center; color: #999; padding: 20px; font-size: 0.85rem; font-style: italic; }
+        /* MODALS */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(2px); padding: 15px;}
+        .modal-content { background: white; width: 100%; max-width: 450px; border-radius: 12px; padding: 25px; position: relative; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; background: none; border: none; cursor: pointer; color: #94a3b8; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.85rem; color: #475569; margin-bottom: 5px; font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; font-family: inherit;}
+        .form-group input:focus { border-color: var(--accent-gold); }
+        
+        .btn-save { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; color: white; cursor: pointer; margin-top: 10px; }
+        .btn-save.red { background: var(--out-red); }
+        .btn-save.green { background: var(--in-green); }
+        .btn-save.blue { background: var(--digital-blue); }
 
-        @media print {
-            @page { size: A4 portrait; margin: 10mm; }
-            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background-color: #fff !important; padding: 0 !important; margin: 0 !important; font-size: 10pt !important; }
-            .header-actions, .app-header, .sidebar-drawer, .sidebar-overlay, .menu-toggle { display: none !important; }
-            .master-container { box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
-            .bahi-khata { border: 2px solid #000 !important; box-shadow: none !important; page-break-inside: auto; flex-direction: row !important; gap: 0 !important;}
-            .jama-side, .nama-side { width: 50% !important; border: none !important; }
-            .jama-side { border-right: 2px solid #000 !important; }
-            .title-jama, .title-nama { color: #000 !important; background: #eee !important; }
-            .bahi-open, .bahi-close { background: #f9f9f9 !important; color: #000 !important; }
-            .log-item { break-inside: avoid; page-break-inside: avoid; }
-        }
     </style>
 </head>
 <body>
 
-    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
-
-    <header class="app-header">
-        <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-        <div class="header-title">Bharti Jewellers</div>
+    <header class="header">
+        <span>Bharti Jewellers</span>
+        <span style="font-size:0.9rem; color: #fff;"><i class="fas fa-book"></i> Digital Passbook</span>
     </header>
 
-    <aside id="app-sidebar" class="sidebar-drawer">
-       <ul class="sidebar-menu">
-            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
-            <li><a href="quick.html" class="active"><i class="fas fa-bolt"></i> Quick Entry (Rojmel)</a></li>
-            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
-            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
-            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
-            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
-            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
-            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
-            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
-            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
-            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
-            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
-            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Ledger)</a></li>
-            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
-            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
-            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
-            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
-            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
-        </ul>
-    </aside>
-
-<div class="master-container">
-    
-    <div class="dashboard-header">
-        <h2 class="dashboard-title"><i class="fas fa-book"></i> Cash Rojmel</h2>
-        <div class="header-actions">
-            <input type="date" id="selectedDate" class="date-input" onchange="generateRojmel()" title="Select Date">
-            <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print Rojmel</button>
-        </div>
-    </div>
-
-    <div class="bahi-khata">
-        <!-- JAMA SIDE (LEFT) -->
-        <div class="jama-side">
-            <div class="bahi-title title-jama">JAMA (IN)</div>
-            
-            <div class="bahi-row bahi-open">
-                <div>
-                    Opening Balance
-                    <span class="split-txt" id="openSplit"></span>
-                </div>
-                <strong id="openBalText">₹0</strong>
+    <div class="container">
+        <div class="dash-grid">
+            <div class="dash-card" style="border-left: 4px solid #0f172a;">
+                <span>Total Balance (Cash + Bank)</span>
+                <h2 id="totalBal">₹0</h2>
             </div>
-
-            <div id="jama-logs">
-                <div class="empty-msg">Loading...</div>
+            <div class="dash-card" style="border-left: 4px solid var(--in-green);">
+                <span>Cash in Hand (Galla)</span>
+                <h2 id="cashBal">₹0</h2>
+            </div>
+            <div class="dash-card" style="border-left: 4px solid var(--digital-blue);">
+                <span>Bank / Online Balance</span>
+                <h2 id="bankBal">₹0</h2>
             </div>
         </div>
 
-        <!-- NAMA SIDE (RIGHT) -->
-        <div class="nama-side">
-            <div class="bahi-title title-nama">NAMA (OUT)</div>
-            
-            <div id="nama-logs">
-                <div class="empty-msg">Loading...</div>
+        <div class="section-title"><i class="fas fa-chart-pie"></i> Expense Category Summary</div>
+        <div class="expense-grid" id="expenseSummaryGrid">
             </div>
 
-            <div class="bahi-row bahi-close">
-                <div>
-                    Closing Balance
-                    <span class="split-txt" id="closeSplit"></span>
-                </div>
-                <strong id="closeBalText">₹0</strong>
+        <div class="section-title"><i class="fas fa-list-alt"></i> Passbook Statement</div>
+        <div class="passbook-container">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Mode</th>
+                            <th>Particulars / Details</th>
+                            <th>Category</th>
+                            <th style="text-align: right;">Withdrawal (Dr)</th>
+                            <th style="text-align: right;">Deposit (Cr)</th>
+                            <th style="text-align: right;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="passbookBody">
+                        </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-</div>
+    <div class="fab-container">
+        <button class="fab fab-contra" onclick="openModal('contraModal')" title="Contra Voucher (Bank Transfer)"><i class="fas fa-exchange-alt"></i></button>
+        <button class="fab fab-expense" onclick="openModal('txModal', 'OUT')" title="Add Expense/Payment"><i class="fas fa-minus"></i></button>
+        <button class="fab fab-income" onclick="openModal('txModal', 'IN')" title="Add Income/Receipt"><i class="fas fa-plus"></i></button>
+    </div>
 
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="db.js?v=43"></script>
+    <div id="txModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('txModal')">&times;</button>
+            <h3 id="txTitle" style="margin-top:0;">Add Entry</h3>
+            
+            <input type="hidden" id="txType">
+            
+            <div class="form-group">
+                <label>Amount (₹)</label>
+                <input type="number" id="txAmt" placeholder="0.00">
+            </div>
 
-<script>
-    function toggleSidebar() { 
-        document.getElementById('app-sidebar').classList.toggle('open'); 
-        document.getElementById('sidebar-overlay').classList.toggle('show'); 
-    }
+            <div class="form-group">
+                <label>Category (Type new or select)</label>
+                <input type="text" id="txCat" list="categoryList" placeholder="e.g. Chai, Petrol, Salary, Sales">
+                <datalist id="categoryList">
+                    </datalist>
+            </div>
 
-    let allCustomers = [];
-    let allMerchants = [];
+            <div class="form-group">
+                <label>Mode</label>
+                <select id="txMode">
+                    <option value="Cash">Cash (Galla)</option>
+                    <option value="Bank">Bank / UPI / Online</option>
+                </select>
+            </div>
 
-    function parseNum(val) {
-        if (typeof val === 'number') return val;
-        if (!val) return 0;
-        return parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
-    }
+            <div class="form-group">
+                <label>Particulars / Details</label>
+                <input type="text" id="txNote" placeholder="e.g. Paid to Rahul">
+            </div>
 
-    function getSafeNet(item) {
-        if (!item) return 0;
-        let n = parseNum(item.netWt || item.netWeight || item.totalNetWeight || item.net_wt);
-        if(n > 0) return n;
-        let g = parseNum(item.grossWt || item.totalGrossWeight || item.grossWeight || item.weight || item.totalWeight);
-        let s = parseNum(item.stoneWt || item.totalStoneWeight || item.stoneWeight);
-        if(g > 0) return g - s;
-        return 0;
-    }
+            <button id="txSaveBtn" class="btn-save" onclick="saveTransaction()">Save Entry</button>
+        </div>
+    </div>
 
-    function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
+    <div id="contraModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('contraModal')">&times;</button>
+            <h3 style="margin-top:0; color:var(--digital-blue);"><i class="fas fa-exchange-alt"></i> Contra Voucher</h3>
+            
+            <div class="form-group">
+                <label>Transfer Type</label>
+                <select id="conType">
+                    <option value="deposit">Deposit to Bank (Cash OUT → Bank IN)</option>
+                    <option value="withdraw">Withdraw from Bank (Bank OUT → Cash IN)</option>
+                </select>
+            </div>
 
-    async function safeGetAll(storeName) {
-        try { return await getAllItems(storeName); } 
-        catch(e) { console.error("Error fetching " + storeName, e); return []; }
-    }
+            <div class="form-group">
+                <label>Amount (₹)</label>
+                <input type="number" id="conAmt" placeholder="0.00">
+            </div>
 
-    function getCustName(id) { let c = allCustomers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in'; }
-    function getMerchName(id) { let m = allMerchants.find(x => String(x.id) === String(id)); return m ? m.name : 'Merchant'; }
+            <div class="form-group">
+                <label>Reference / Note</label>
+                <input type="text" id="conNote" placeholder="e.g. Deposited by Ram">
+            </div>
 
-    function getMoneyType(modeStr) {
-        if(!modeStr) return 'cash';
-        let m = String(modeStr).toLowerCase();
-        if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online')) return 'bank';
-        if (m.includes('metal') || m.includes('-')) return 'none';
-        return 'cash'; 
-    }
+            <button class="btn-save blue" onclick="saveContra()">Save Contra Entry</button>
+        </div>
+    </div>
 
-    function getSplitStr(payments, defaultMode, paidAmt) {
-        let cAmt = 0, bAmt = 0;
-        paidAmt = Math.abs(parseNum(paidAmt));
+    <script>
+        // --- DATA MANAGEMENT (Mocked with LocalStorage for instant testing) ---
+        // In real app, replace fetching/saving logic with Firebase
+        
+        let transactions = JSON.parse(localStorage.getItem('pb_txs')) || [];
+        let savedCategories = JSON.parse(localStorage.getItem('pb_cats')) || ['Sales', 'Rent', 'Tea & Snacks', 'Salary', 'Petrol'];
 
-        if (paidAmt > 0) {
-            if (payments && payments.length > 0) {
-                payments.forEach(p => {
-                    let m = String(p.mode).toLowerCase();
-                    let a = Math.abs(parseNum(p.amount));
-                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
-                    else cAmt += a;
-                });
-            } else {
-                let m = String(defaultMode).toLowerCase();
-                if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt = paidAmt;
-                else cAmt = paidAmt;
+        // --- UI UPDATES ---
+        function updateUI() {
+            // Sort by Date Ascending for Passbook calculation
+            transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let totalBal = 0;
+            let cashBal = 0;
+            let bankBal = 0;
+            let expensesByCategory = {};
+
+            const tbody = document.getElementById('passbookBody');
+            tbody.innerHTML = '';
+
+            // Calculate Passbook
+            [...transactions].forEach((t) => {
+                // Calculate Balances
+                if (t.type === 'IN') {
+                    totalBal += t.amount;
+                    if (t.mode === 'Cash') cashBal += t.amount;
+                    if (t.mode === 'Bank') bankBal += t.amount;
+                } else {
+                    totalBal -= t.amount;
+                    if (t.mode === 'Cash') cashBal -= t.amount;
+                    if (t.mode === 'Bank') bankBal -= t.amount;
+
+                    // Track Expenses (Ignore Contra for Expense summary)
+                    if(t.category !== 'Contra') {
+                        expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+                    }
+                }
+
+                // Add to Table (Prepend so newest is on top in the view)
+                const dateStr = new Date(t.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+                const modeClass = t.mode === 'Cash' ? 'mode-cash' : 'mode-bank';
+                const dr = t.type === 'OUT' ? `₹${t.amount.toLocaleString()}` : '-';
+                const cr = t.type === 'IN' ? `₹${t.amount.toLocaleString()}` : '-';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-size:0.8rem; color:#64748b;">${dateStr}</td>
+                    <td><span class="mode-badge ${modeClass}">${t.mode}</span></td>
+                    <td style="font-weight:500;">${t.note || '-'}</td>
+                    <td><span class="cat-badge">${t.category}</span></td>
+                    <td class="dr" style="text-align: right;">${dr}</td>
+                    <td class="cr" style="text-align: right;">${cr}</td>
+                    <td class="bal" style="text-align: right;">₹${totalBal.toLocaleString()}</td>
+                `;
+                tbody.prepend(tr); // Insert at top
+            });
+
+            if(transactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#94a3b8;">No entries yet. Add your first transaction!</td></tr>';
+            }
+
+            // Update Top Cards
+            document.getElementById('totalBal').innerText = `₹${totalBal.toLocaleString()}`;
+            document.getElementById('cashBal').innerText = `₹${cashBal.toLocaleString()}`;
+            document.getElementById('bankBal').innerText = `₹${bankBal.toLocaleString()}`;
+
+            // Update Expense Summary Grid
+            const expGrid = document.getElementById('expenseSummaryGrid');
+            expGrid.innerHTML = '';
+            
+            let hasExpenses = false;
+            for (let cat in expensesByCategory) {
+                hasExpenses = true;
+                expGrid.innerHTML += `
+                    <div class="exp-cat-card">
+                        <div class="cat-name">${cat}</div>
+                        <div class="cat-amt">₹${expensesByCategory[cat].toLocaleString()}</div>
+                    </div>
+                `;
+            }
+            if(!hasExpenses) {
+                expGrid.innerHTML = '<div style="color:#94a3b8; padding:10px 0;">No expenses recorded yet.</div>';
+            }
+
+            // Update Datalist for categories
+            const catList = document.getElementById('categoryList');
+            catList.innerHTML = '';
+            savedCategories.forEach(c => {
+                catList.innerHTML += `<option value="${c}">`;
+            });
+        }
+
+        // --- MODAL LOGIC ---
+        function openModal(id, type = null) {
+            document.getElementById(id).style.display = 'flex';
+            
+            if(id === 'txModal') {
+                document.getElementById('txType').value = type;
+                document.getElementById('txAmt').value = '';
+                document.getElementById('txCat').value = '';
+                document.getElementById('txNote').value = '';
+                
+                const title = document.getElementById('txTitle');
+                const btn = document.getElementById('txSaveBtn');
+                
+                if(type === 'OUT') {
+                    title.innerHTML = '<i class="fas fa-minus-circle" style="color:var(--out-red);"></i> Add Expense / Payment';
+                    btn.className = 'btn-save red';
+                } else {
+                    title.innerHTML = '<i class="fas fa-plus-circle" style="color:var(--in-green);"></i> Add Income / Receipt';
+                    btn.className = 'btn-save green';
+                }
+            } else if (id === 'contraModal') {
+                document.getElementById('conAmt').value = '';
+                document.getElementById('conNote').value = '';
             }
         }
-        
-        if (cAmt === 0 && bAmt === 0) return ``; 
-        let parts = [];
-        if(cAmt > 0) parts.push(`Cash: ₹${fmtNum(cAmt)}`);
-        if(bAmt > 0) parts.push(`Bank: ₹${fmtNum(bAmt)}`);
-        return `${parts.join(' | ')}`;
-    }
 
-    window.onload = async function() {
-        let dateEl = document.getElementById('selectedDate');
-        if(!dateEl.value) dateEl.valueAsDate = new Date();
-        try {
-            allCustomers = await safeGetAll('customers');
-            allMerchants = await safeGetAll('merchants');
-        } catch(e) {}
-        await generateRojmel();
-    };
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
 
-    async function generateRojmel() {
-        try {
-            let dateEl = document.getElementById('selectedDate');
-            let today = dateEl.value || new Date().toISOString().split('T')[0];
+        // --- SAVE LOGIC ---
+        function saveTransaction() {
+            const type = document.getElementById('txType').value;
+            const amount = parseFloat(document.getElementById('txAmt').value);
+            const category = document.getElementById('txCat').value.trim();
+            const mode = document.getElementById('txMode').value;
+            const note = document.getElementById('txNote').value.trim();
 
-            let openCash = 0, openBank = 0;
-            let todayCashIn = 0, todayBankIn = 0;
-            let todayCashOut = 0, todayBankOut = 0;
+            if(!amount || amount <= 0) return alert("Please enter a valid amount");
+            if(!category) return alert("Please enter or select a category");
 
-            let jamaLogs = {};
-            let namaLogs = {};
+            // Dynamic Category Logic: Save new category if it doesn't exist
+            if(!savedCategories.includes(category)) {
+                savedCategories.push(category);
+                localStorage.setItem('pb_cats', JSON.stringify(savedCategories));
+            }
 
-            const pushLog = (category, amt, desc, secondaryDesc, splitStr, isIN, metalFlows = []) => {
-                amt = Math.abs(parseNum(amt));
-                if(amt <= 0) return; // STRICT RULE: IF NO CASH/BANK AMOUNT, DO NOT SHOW
-                
-                let metalHTML = secondaryDesc ? `<span style="color:#777;">(${secondaryDesc})</span><br>` : '';
-                metalFlows.forEach(m => {
-                    if(m.val !== 0) {
-                        let sign = m.val > 0 ? '+' : '';
-                        metalHTML += `<span class="wt-tag">${sign}${m.val.toFixed(3)}g ${m.label}</span> `;
-                    }
-                });
-
-                let html = `
-                <div class="log-item">
-                    <div class="l-desc">
-                        ${desc}
-                        ${splitStr ? `<br><small style="color:#666; font-size:0.7rem;">${splitStr}</small>` : ''}
-                    </div>
-                    <div class="l-metal">${metalHTML}</div>
-                    <div class="l-amt">₹${fmtNum(amt)}</div>
-                </div>`;
-
-                if(isIN) {
-                    if(!jamaLogs[category]) jamaLogs[category] = [];
-                    jamaLogs[category].push(html);
-                } else {
-                    if(!namaLogs[category]) namaLogs[category] = [];
-                    namaLogs[category].push(html);
-                }
+            const tx = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                type: type,
+                amount: amount,
+                category: category,
+                mode: mode,
+                note: note
             };
 
-            let cFlows = await safeGetAll('cashflow');
-            let sales = await safeGetAll('sales');
-            let purchases = await safeGetAll('purchases');
-            let loans = await safeGetAll('loans');
-            let oldGold = await safeGetAll('old_gold');
-            let orders = await safeGetAll('orders');
-            let schemes = await safeGetAll('schemes');
-
-            // 1. Process Cashflow for Opening/Closing Balances
-            cFlows.forEach(c => {
-                let amt = Math.abs(parseNum(c.amount));
-                let cDate = c.date ? c.date.split('T')[0] : '';
-                let mType = getMoneyType(c.mode);
-                if(mType === 'none') return; 
-
-                let type = c.type || 'OUT';
-                if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
-
-                if (cDate < today) {
-                    if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
-                    else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
-                } else if (cDate === today) {
-                    if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
-                    else { if(mType==='bank') todayBankOut+=amt; else todayCashOut+=amt; }
-                }
-            });
-
-            // 2. Map Transactions to Nama/Jama Categories
+            transactions.push(tx);
+            localStorage.setItem('pb_txs', JSON.stringify(transactions));
             
-            // SALES
-            sales.forEach(s => {
-                if (s.status === 'cancelled' || !s.date || !s.date.startsWith(today)) return;
-                
-                let isOrderBill = Math.abs(parseNum(s.advanceAmount)) > 0 || String(s.jobType || '').toLowerCase().includes('order');
-                let isRepair = String(s.jobType || '').toLowerCase().includes('repair');
-                if (isRepair) return; 
+            closeModal('txModal');
+            updateUI();
+        }
 
-                let cName = getCustName(s.customerId);
-                if (cName === 'Walk-in' && s.customerName) cName = s.customerName;
+        function saveContra() {
+            const type = document.getElementById('conType').value; // 'deposit' or 'withdraw'
+            const amount = parseFloat(document.getElementById('conAmt').value);
+            const note = document.getElementById('conNote').value.trim();
 
-                let currentUdhari = Math.abs(parseNum(s.pendingAmount));
-                
-                if (isOrderBill) {
-                    let udhariPaidToday = 0;
-                    cFlows.forEach(c => {
-                        if (c.date && c.date.startsWith(today) && c.type !== 'OUT') {
-                            let note = String(c.note || '').toLowerCase();
-                            if ((note.includes('udhari') || note.includes('due')) && (c.saleId === s.id || note.includes(String(s.invoiceNo).toLowerCase()))) {
-                                udhariPaidToday += Math.abs(parseNum(c.amount));
-                            }
-                        }
-                    });
-                    let originalUdhari = currentUdhari + udhariPaidToday;
-                    if (originalUdhari > 0) pushLog('Udhari Given', originalUdhari, cName, 'Order Udhari', '', false);
-                    return; 
-                }
+            if(!amount || amount <= 0) return alert("Please enter a valid amount");
 
-                let paid = Math.abs(parseNum(s.paidAmount));
-                let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
-                
-                if (paid > 0) {
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            if (Math.abs(parseNum(c.amount)) === paid && (String(c.category).toLowerCase().includes('sale') || String(c.saleId) === String(s.id))) {
-                                c.alreadyHandled = true;
-                            }
-                        }
-                    });
-                }
+            const dateStr = new Date().toISOString();
+            const ref = "CONTRA-" + Math.floor(Math.random() * 1000);
+            const baseNote = note ? note : (type === 'deposit' ? 'Cash Deposited to Bank' : 'Cash Withdrawn from Bank');
+            const finalNote = `${baseNote} [${ref}]`;
 
-                let itemStr = s.items && s.items.length > 0 ? s.items[0].category : 'Jewelry';
-                let netWtSold = 0, oldWtRcv = 0;
-                (s.items || []).forEach(i => {
-                    let net = getSafeNet(i);
-                    let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old');
-                    if (isItemOld) oldWtRcv += net; else netWtSold += net;
-                });
-                if (oldWtRcv === 0) oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldNet);
+            // Contra means 2 entries: One OUT from source, One IN to destination
+            if (type === 'deposit') {
+                // Cash OUT -> Bank IN
+                transactions.push({ id: Date.now()+'_1', date: dateStr, type: 'OUT', amount: amount, category: 'Contra', mode: 'Cash', note: finalNote });
+                transactions.push({ id: Date.now()+'_2', date: dateStr, type: 'IN', amount: amount, category: 'Contra', mode: 'Bank', note: finalNote });
+            } else {
+                // Bank OUT -> Cash IN
+                transactions.push({ id: Date.now()+'_1', date: dateStr, type: 'OUT', amount: amount, category: 'Contra', mode: 'Bank', note: finalNote });
+                transactions.push({ id: Date.now()+'_2', date: dateStr, type: 'IN', amount: amount, category: 'Contra', mode: 'Cash', note: finalNote });
+            }
 
-                let jamaAmt = paid + currentUdhari + og;
-                if(jamaAmt > 0) {
-                    let spl = getSplitStr(s.payments, s.mode, paid);
-                    pushLog('Sale (Bikri)', jamaAmt, `${cName}`, itemStr, spl, true, [{val: -netWtSold, label:'Net'}]);
-                }
-                
-                if(currentUdhari > 0) pushLog('Udhari Given', currentUdhari, cName, 'New Sale Udhari', '', false);
-                if(og > 0) pushLog('Old Gold Exchanged', og, cName, 'Bill Deduction', '', false, [{val: oldWtRcv, label:'Old'}]);
-            });
+            localStorage.setItem('pb_txs', JSON.stringify(transactions));
+            
+            closeModal('contraModal');
+            updateUI();
+        }
 
-            // PURCHASES
-            purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
-                let mName = getMerchName(p.merchantId);
-                if(mName === 'Merchant' && p.merchantName) mName = p.merchantName;
+        // Initialize on load
+        window.onload = updateUI;
 
-                let gross = Math.abs(parseNum(p.totalAmount || p.grandTotal)); 
-                let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
-                let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
-                let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
-                
-                let netWtBought = 0;
-                let rootNet = parseNum(p.totalNetWeight || p.netWt);
-                if (rootNet > 0) netWtBought = rootNet;
-                else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => netWtBought += getSafeNet(i));
-
-                if (paid > 0) {
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today) && Math.abs(parseNum(c.amount)) === paid && String(c.category).toLowerCase().includes('purchase')) {
-                            c.alreadyHandled = true;
-                        }
-                    });
-                }
-
-                if(gross > 0) {
-                    let spl = getSplitStr(p.payments, p.mode, paid);
-                    pushLog('Purchase (Khareedi)', gross, mName, itemStr, spl, false, [{val: netWtBought, label:'Net'}]);
-                } else if (paid > 0) { 
-                    let spl = getSplitStr(p.payments, p.mode, paid);
-                    pushLog('Payment to Merchant', paid, mName, 'Advance', spl, false, [{val: netWtBought, label:'Net'}]);
-                }
-                if(due > 0) pushLog('Vyapari Udhari (Credit)', due, mName, 'Purchase Due', '', true);
-            });
-
-            // LOANS
-            loans.forEach(l => {
-                let cName = `${getCustName(l.customerId)} [L-${l.id}]`; 
-                let itemN = l.item || 'Item';
-                
-                if (l.date && String(l.date).startsWith(today)) {
-                    let amt = Math.abs(parseNum(l.amount));
-                    if(amt > 0) {
-                        let wt = Math.abs(parseNum(l.weight));
-                        let spl = getSplitStr(null, 'cash', amt);
-                        pushLog('Girvi Diya (Loan Out)', amt, cName, `${wt.toFixed(3)}g ${itemN}`, spl, false);
-
-                        cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today) && c.type !== 'IN' && Math.abs(parseNum(c.amount)) === amt && String(c.category).toLowerCase().includes('loan')) {
-                                c.alreadyHandled = true;
-                            }
-                        });
-                    }
-                }
-                
-                if (l.payments && l.payments.length > 0) {
-                    l.payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
-                        let intAmt = Math.abs(parseNum(p.interestPaid));
-                        let prinAmt = Math.abs(parseNum(p.principalPaid));
-                        let totalAmt = Math.abs(parseNum(p.amount));
-                        if(totalAmt === 0) return;
-
-                        let spl = getSplitStr([p], 'cash', totalAmt);
-                        let isLast = (p === l.payments[l.payments.length - 1]);
-                        let prinLabel = (l.status === 'closed' && isLast) ? 'Closed' : 'Part Pay';
-
-                        if (intAmt > 0) pushLog('Byaaj Jama (Interest)', intAmt, cName, 'Interest', spl, true);
-                        if (prinAmt > 0) pushLog('Girvi Jama (Principal)', prinAmt, cName, prinLabel, spl, true);
-                        if (intAmt === 0 && prinAmt === 0 && totalAmt > 0) pushLog('Loan Payment In', totalAmt, cName, 'Payment', spl, true);
-
-                        cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today) && c.type === 'IN' && Math.abs(parseNum(c.amount)) === totalAmt && String(c.category).toLowerCase().includes('loan')) {
-                                c.alreadyHandled = true;
-                            }
-                        });
-                    });
-                }
-            });
-
-            // OLD GOLD (Cash Purchases Only)
-            oldGold.filter(o => o.date && o.date.startsWith(today) && o.mode !== 'POS Exchange').forEach(o => {
-                let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
-                if(!isMelt) {
-                    let amt = Math.abs(parseNum(o.amount || o.cash));
-                    if(amt > 0) {
-                        let cName = getCustName(o.customerId);
-                        if (cName === 'Walk-in' && o.customerName) cName = o.customerName;
-
-                        let wt = parseNum(o.netWt);
-                        let spl = getSplitStr(null, o.mode, amt);
-                        pushLog('Old Gold Purchased', amt, cName, 'Bought OG', spl, false, [{val: wt, label: 'Old'}]);
-                    }
-                }
-            });
-
-            // SCHEMES
-            schemes.forEach(sch => {
-                let cName = `${getCustName(sch.customerId)} [BC-${sch.id}]`;
-                let payments = sch.payments || sch.installments || [];
-                payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
-                    let pAmt = Math.abs(parseNum(p.amount || p.totalAmount));
-                    if (pAmt > 0) {
-                        let spl = getSplitStr([p], p.mode || 'Cash', pAmt);
-                        pushLog('BC Scheme Jama', pAmt, cName, 'Installment', spl, true);
-                        cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today) && String(c.category).toLowerCase().includes('scheme') && Math.abs(parseNum(c.amount)) === pAmt) {
-                                c.alreadyHandled = true;
-                            }
-                        });
-                    }
-                });
-            });
-
-            // ORDERS
-            orders.filter(o => o.status !== 'cancelled' && (o.orderDate || '').startsWith(today)).forEach(o => {
-                let cName = getCustName(o.customerId);
-                if(cName === 'Walk-in' && o.custName) cName = o.custName;
-
-                let advCash = Math.abs(parseNum(o.advancePaid)); 
-                let ogAmt = Math.abs(parseNum(o.oldGoldValue));
-                let totalIn = advCash + ogAmt;
-                
-                if (totalIn > 0) {
-                    let spl = getSplitStr(o.payments, 'Cash', advCash);
-                    pushLog('Order Advance In', totalIn, `${cName}`, 'Advance + OG', spl, true);
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today) && String(c.category).toLowerCase().includes('order') && Math.abs(parseNum(c.amount)) === advCash) {
-                            c.alreadyHandled = true;
-                        }
-                    });
-                }
-                if (ogAmt > 0) {
-                    let ogWt = Math.abs(parseNum(o.oldGoldNet));
-                    pushLog('Old Gold Exchanged', ogAmt, cName, 'Order Exch', '', false, [{val: ogWt, label: 'Old'}]);
-                }
-            });
-
-            // REMAINING CASHFLOWS (UDHARI, REPAIR, EXPENSE, MERCHANT)
-            cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
-                let amt = Math.abs(parseNum(c.amount));
-                if(amt === 0 || getMoneyType(c.mode) === 'none') return;
-                
-                let cat = String(c.category || '').toLowerCase();
-                let note = String(c.note || '').toLowerCase();
-                let type = c.type || 'OUT';
-                if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
-                let spl = getSplitStr(null, c.mode, amt);
-
-                // 🔥 SUPER STRONG CUSTOMER/PARTY NAME EXTRACTION 🔥
-                let displayTitle = '';
-                
-                // 1. If explicit ID exists
-                if (c.customerId) displayTitle = getCustName(c.customerId);
-                else if (c.merchantId || c.partyId) displayTitle = getMerchName(c.merchantId || c.partyId);
-                
-                // 2. Fallback to saved name fields
-                if (!displayTitle || displayTitle === 'Walk-in' || displayTitle === 'Merchant') {
-                    displayTitle = c.customerName || c.partyName || c.merchantName || c.name || '';
-                }
-                
-                // 3. Extract from associated Sale/Order Object using saleId/orderId
-                if (!displayTitle && c.saleId) {
-                    let sMatch = sales.find(x => String(x.id) === String(c.saleId));
-                    if(sMatch) displayTitle = getCustName(sMatch.customerId) !== 'Walk-in' ? getCustName(sMatch.customerId) : sMatch.customerName;
-                }
-                if (!displayTitle && c.orderId) {
-                    let oMatch = orders.find(x => String(x.id) === String(c.orderId));
-                    if(oMatch) displayTitle = getCustName(oMatch.customerId) !== 'Walk-in' ? getCustName(oMatch.customerId) : oMatch.custName;
-                }
-
-                // 4. Extract from Note (e.g., "Ledger Settlement ID #123", "Payment for Bill #123", "from Ramesh")
-                if ((!displayTitle || displayTitle === 'Walk-in' || displayTitle === '') && c.note) {
-                    
-                    // NEW: Merchant Ledger Settlement Extraction
-                    let mMatch = c.note.match(/Settlement ID\s*#(\w+)/i);
-                    if (mMatch && mMatch[1]) {
-                        let foundM = getMerchName(mMatch[1]);
-                        if (foundM !== 'Merchant') displayTitle = foundM;
-                    }
-
-                    if (!displayTitle) {
-                        let bMatch = c.note.match(/(?:bill|inv|ord|sch|loan)\s*(?:#|-)?\s*(\w+)/i);
-                        if (bMatch) {
-                            let ref = sales.find(x => String(x.id)===bMatch[1] || String(x.invoiceNo)===bMatch[1]) || 
-                                      orders.find(x => String(x.id)===bMatch[1]) || 
-                                      loans.find(x => String(x.id)===bMatch[1]) || 
-                                      schemes.find(x => String(x.id)===bMatch[1]);
-                            if (ref && ref.customerId) displayTitle = getCustName(ref.customerId);
-                        }
-                    }
-
-                    if (!displayTitle || displayTitle === 'Walk-in') {
-                        let fromMatch = c.note.match(/from\s+([a-zA-Z\s]+)/i);
-                        let toMatch = c.note.match(/to\s+([a-zA-Z\s]+)/i);
-                        if (fromMatch && fromMatch[1]) displayTitle = fromMatch[1].trim();
-                        else if (toMatch && toMatch[1]) displayTitle = toMatch[1].trim();
-                        else displayTitle = c.note; // ultimate fallback to the note text itself
-                    }
-                }
-                
-                // Final Fallback
-                if (!displayTitle || displayTitle === 'Walk-in' || displayTitle === '') displayTitle = c.category || 'Unknown Party';
-
-                // --- Udhari Logic ---
-                let isUdhariIn = (type === 'IN' && !cat.includes('merchant') && !cat.includes('purchase') && (cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding') || cat.includes('sale') || note.includes('bill')));
-                let isUdhariOut = (type === 'OUT' && !cat.includes('merchant') && !cat.includes('purchase') && (cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || cat.includes('outstanding')));
-
-                if (isUdhariIn) { pushLog('Udhari Received', amt, displayTitle, 'Udhari Jama', spl, true); return; }
-                if (isUdhariOut) { pushLog('Udhari Given', amt, displayTitle, 'Udhari Out', spl, false); return; }
-
-                // --- Repair ---
-                if (cat.includes('repair') || note.includes('repair')) {
-                    if (type === 'IN') pushLog('Repair Income', amt, displayTitle, 'In', spl, true);
-                    else pushLog('Repair Refund', amt, displayTitle, 'Out', spl, false);
-                    return;
-                }
-
-                // --- Merchant / Vyapari ---
-                if (cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement')) {
-                    if (type === 'IN') pushLog('Payment from Merchant', amt, displayTitle, 'Recv', spl, true);
-                    else pushLog('Payment to Merchant', amt, displayTitle, 'Paid', spl, false);
-                    return;
-                }
-
-                // --- Others ---
-                if (type === 'IN') {
-                    pushLog('Other Income', amt, displayTitle, '', spl, true);
-                } else {
-                    if(cat.includes('expense') || cat.includes('salary') || cat.includes('rent')) {
-                        pushLog('Expense / Kharcha', amt, displayTitle, '', spl, false);
-                    } else {
-                        pushLog('Other Out', amt, displayTitle, '', spl, false);
-                    }
-                }
-            });
-
-            // --- RENDER HTML ---
-            let openingTotal = openCash + openBank;
-            let closingCash = openCash + todayCashIn - todayCashOut;
-            let closingBank = openBank + todayBankIn - todayBankOut;
-            let closingTotal = closingCash + closingBank;
-
-            document.getElementById('openBalText').innerText = "₹" + fmtNum(openingTotal);
-            document.getElementById('openSplit').innerText = `(Cash: ₹${fmtNum(openCash)} | Bank: ₹${fmtNum(openBank)})`;
-
-            document.getElementById('closeBalText').innerText = "₹" + fmtNum(closingTotal);
-            document.getElementById('closeSplit').innerText = `(Cash: ₹${fmtNum(closingCash)} | Bank: ₹${fmtNum(closingBank)})`;
-
-            const renderLogs = (logObj, containerId) => {
-                let html = '';
-                for(let key in logObj) {
-                    if(logObj[key].length > 0) {
-                        html += `<div class="cat-header">${key}</div>`;
-                        html += logObj[key].join('');
-                    }
-                }
-                document.getElementById(containerId).innerHTML = html || '<div class="empty-msg">No transactions today</div>';
-            };
-
-            renderLogs(jamaLogs, 'jama-logs');
-            renderLogs(namaLogs, 'nama-logs');
-
-        } catch(e) { console.error("Rojmel Error:", e); }
-    }
-</script>   
+    </script>
 </body>
 </html>
