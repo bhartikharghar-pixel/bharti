@@ -538,6 +538,12 @@
             <label>Category</label>
             <select id="editCategory"></select>
         </div>
+        <!-- NAYA BOX NAME FIELD YAHAN ADD HUA HAI -->
+        <div class="form-group">
+            <label>Item / Box Name (Tag)</label>
+            <input type="text" id="editItemName" placeholder="e.g. Payal - Box 1">
+        </div>
+        <!-- ==================================== -->
         <div class="grid-2">
             <div class="form-group">
                 <label>Gross Wt (g)</label>
@@ -1780,10 +1786,12 @@
         }
     }
 
-    async function editItem(id) { 
+   async function editItem(id) { 
         const item = allInventory.find(i=>String(i.id)===String(id)); 
         document.getElementById('editId').value = id; 
         document.getElementById('editCategory').value = item.category; 
+        // Pehle ka naam set karne ke liye
+        document.getElementById('editItemName').value = item.name || item.subFolder || ''; 
         document.getElementById('editGross').value = item.grossWt || item.weight || 0; 
         document.getElementById('editStone').value = item.stoneWt || 0; 
         openModal('editModal'); 
@@ -1793,6 +1801,16 @@
         const item = await getItem('inventory', id); 
         if(item){ 
             item.category = document.getElementById('editCategory').value; 
+            
+            // Box ka naya naam aur folder update karne ke liye
+            const newName = document.getElementById('editItemName').value.trim();
+            if (newName) {
+                item.name = newName;
+                if(item.barcode && item.barcode.startsWith('LOOSE')) {
+                    item.subFolder = newName;
+                }
+            }
+
             item.grossWt = parseFloat(document.getElementById('editGross').value) || 0; 
             item.stoneWt = parseFloat(document.getElementById('editStone').value) || 0; 
             item.netWt = Math.max(0, item.grossWt - item.stoneWt); 
@@ -1800,7 +1818,7 @@
             await updateItem('inventory', item); 
             closeModal('editModal'); 
             loadInventory(); 
-            showToast("Item Updated!", "success"); 
+            showToast("Box Tagged & Updated!", "success"); 
         } 
     }
     function calcEditNet() {}
