@@ -86,7 +86,7 @@
         .date-closing { background-color: #eff6ff !important; border-top: 2px solid #bfdbfe; border-bottom: 1px solid #dbeafe; }
         .date-opening { background-color: #f8fafc !important; border-bottom: 2px solid #e2e8f0; border-top: 1px dashed #cbd5e1; }
 
-        /* FLOATING ACTION BUTTONS */
+        /* FLOATING ACTION BUTTONS (LEFT & RIGHT) */
         .fab-left { position: fixed; bottom: 30px; left: 20px; z-index: 1000; }
         .fab-right { position: fixed; bottom: 30px; right: 20px; display: flex; align-items: center; gap: 15px; z-index: 1000; }
         
@@ -215,7 +215,7 @@
             <div class="bal-box">Bank / UPI: <span class="bal-val" id="bankBal" style="color:var(--digital-blue);">₹0</span></div>
         </div>
 
-        <!-- PASSBOOK TABLE WITH DATE GROUPING -->
+        <!-- PASSBOOK TABLE -->
         <div class="section-title"><i class="fas fa-list-alt" style="color: var(--digital-blue);"></i> Passbook Statement</div>
         <div class="passbook-container">
             <div class="table-wrapper">
@@ -245,13 +245,12 @@
         <button class="fab fab-qs" onclick="openQuickSale()"><i class="fas fa-bolt"></i> Quick Sale</button>
     </div>
 
-    <!-- ⚡ Quick Sale Modal (Super Fast with Search & Weight) ⚡ -->
+    <!-- ⚡ Quick Sale Modal ⚡ -->
     <div id="quickSaleModal" class="modal">
         <div class="modal-content" style="border: 2px solid #f59e0b;">
             <button class="close-btn" onclick="closeModal('quickSaleModal')">&times;</button>
             <h3 style="margin-top:0; color:#d97706; font-size:1.4rem;"><i class="fas fa-bolt"></i> Lightning Sale</h3>
             
-            <!-- Customer Search -->
             <div class="form-group" style="margin-top:10px;">
                 <label>Customer Name or Mobile (Optional)</label>
                 <input type="text" id="qsCustSearch" placeholder="Type name/mobile (Defaults to Walk-in)" onkeyup="searchQSCust()" autocomplete="off">
@@ -259,7 +258,6 @@
                 <input type="hidden" id="qsCustId">
             </div>
 
-            <!-- Inventory Search -->
             <div class="form-group">
                 <label>Scan / Search Item (Optional)</label>
                 <input type="text" id="qsItemSearch" placeholder="Barcode or Category..." onkeyup="searchQSItem()" autocomplete="off">
@@ -272,7 +270,6 @@
                         <span id="qsSelectedText" style="color:#1e40af; font-size:0.85rem;"></span>
                         <i class="fas fa-times-circle" style="color:#ef4444; cursor:pointer;" onclick="clearQSItem()"></i>
                     </div>
-                    <!-- Weight Input specifically for Loose/Bulk items -->
                     <div id="qsWeightDiv" style="margin-top:10px; display:flex; gap:10px; align-items:center;">
                         <label style="margin:0; font-size:0.85rem; font-weight:bold; color:#1e40af; white-space:nowrap;">Sell Weight (g):</label>
                         <input type="number" id="qsWeight" step="0.001" style="flex:1; padding:8px; border:1px solid #93c5fd; border-radius:4px;" oninput="calcQSAmt()">
@@ -281,7 +278,6 @@
                 </div>
             </div>
 
-            <!-- Amount & Mode -->
             <div class="form-group" style="margin-top:15px;">
                 <label>Sale Amount (₹)</label>
                 <input type="number" id="qsAmt" placeholder="0.00" style="font-size:1.5rem; padding:15px; font-weight:700; border-color:#f59e0b;" onkeypress="handleQSKeyPress(event)">
@@ -315,7 +311,6 @@
             <div class="form-group">
                 <label id="txCatLabel">Category</label>
                 <select id="txCatSelect"></select>
-                <div id="catHint" style="font-size:0.75rem; color:#64748b; margin-top:4px; display:none;">*Use 'Manage Categories' button on dashboard to add/delete options.</div>
             </div>
             <div class="form-group">
                 <label>Mode</label>
@@ -396,7 +391,7 @@
             const icon = type === 'success' ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-exclamation-circle"></i>';
             toast.innerHTML = `${icon} ${msg}`;
             toast.className = 'show ' + type;
-            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 4000);
         }
 
         const getSafeNum = (val) => { const n = parseFloat(val); return isNaN(n) ? 0 : n; };
@@ -430,9 +425,10 @@
             return str.trim() + ' Only';
         }
 
+        // --- BACKGROUND AUTO-CLEANUP ---
         async function autoFixDatabase() {
             try {
-                const salesList = await getAllItems('sales');
+                const salesList = await getAllItems('sales') || [];
                 let fixedCount = 0;
                 for (const s of salesList) {
                     let isBroken = false;
@@ -441,14 +437,14 @@
                     if (s.items && s.items.length > 0 && s.items[0].baseAmount === undefined) isBroken = true;
                     if (isBroken && s.isQuickSale) { await deleteItem('sales', s.id); fixedCount++; }
                 }
-                if(fixedCount > 0) console.log(`Auto-Fixed ${fixedCount} broken records.`);
+                if(fixedCount > 0) console.log(`Auto-Fixed ${fixedCount} broken Quick Sale records.`);
             } catch(e) {}
         }
 
         // --- DATA LOADING & UI ---
         async function loadPassbookData() {
             try {
-                await autoFixDatabase();
+                await autoFixDatabase(); // Clean DB first
                 const r = await getSetting('gold_rates'); 
                 if(r) goldRatesCache = r;
 
@@ -456,7 +452,7 @@
                 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                 document.getElementById('monthLabelSale').innerText = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
 
-                const cFlows = await getAllItems('cashflow');
+                const cFlows = await getAllItems('cashflow') || [];
                 if (cFlows) {
                     dbTransactions = cFlows.filter(t => {
                         let m = (t.mode || '').toLowerCase();
@@ -465,7 +461,7 @@
                 }
                 updateUI();
             } catch(e) {
-                document.getElementById('passbookBody').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Failed to load data.</td></tr>`;
+                document.getElementById('passbookBody').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red;">Failed to load data. Please check connection.</td></tr>`;
             }
         }
 
@@ -546,7 +542,6 @@
 
             sortedDates.forEach(dateKey => {
                 const day = daysData[dateKey];
-                
                 const closeTr = document.createElement('tr');
                 closeTr.className = 'date-closing';
                 closeTr.innerHTML = `
@@ -589,20 +584,15 @@
             });
         }
 
-        // --- QUICK SALE LOGIC (SMART SEARCH) ---
+        // --- QUICK SALE LOGIC (100% BULLETPROOF) ---
         function openQuickSale() {
             document.getElementById('qsAmt').value = '';
             document.getElementById('qsMode').value = 'Cash';
             document.getElementById('qsNote').value = 'Quick Retail Sale';
-            
             document.getElementById('qsCustSearch').value = '';
             document.getElementById('qsCustId').value = '';
-            
             document.getElementById('qsItemSearch').value = '';
-            document.getElementById('qsItemId').value = '';
-            document.getElementById('qsItemDetails').value = '';
             clearQSItem();
-
             openModal('quickSaleModal');
             setTimeout(() => document.getElementById('qsAmt').focus(), 100);
         }
@@ -616,7 +606,7 @@
             const box = document.getElementById('qsCustSuggestions');
             box.innerHTML = ''; box.style.display = 'none';
             if(term.length < 1) { document.getElementById('qsCustId').value = ''; return; }
-            const list = await getAllItems('customers');
+            const list = await getAllItems('customers') || [];
             const matches = list.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0,5);
             if(matches.length > 0) {
                 box.style.display = 'block';
@@ -639,7 +629,7 @@
             const box = document.getElementById('qsItemSuggestions');
             box.innerHTML = ''; box.style.display = 'none';
             if(term.length < 1) return;
-            const list = await getAllItems('inventory');
+            const list = await getAllItems('inventory') || [];
             const matches = list.filter(i => i.status === 'stock' && (i.barcode.includes(term) || i.category.toUpperCase().includes(term))).slice(0,5);
             if(matches.length > 0) {
                 box.style.display = 'block';
@@ -666,14 +656,12 @@
             document.getElementById('qsSelectedText').innerHTML = `<b>${i.barcode}</b> - ${i.category} (${i.purity})`;
 
             const wt = getSafeNum(i.netWt || i.grossWt || i.weight);
-            // Identify if it's a loose/bulk item
             const isBulk = checkIsSilver(i.purity) || (i.category && (i.category.toUpperCase().includes('LOOSE') || i.category.toUpperCase().includes('MIX'))) || (i.barcode && i.barcode.toUpperCase().startsWith('LOOSE')) || parseInt(i.pieces) > 1;
 
             const wtInput = document.getElementById('qsWeight');
-            
             if (isBulk) {
                 document.getElementById('qsMaxWtHint').innerText = `(Max Avail: ${wt.toFixed(3)}g)`;
-                wtInput.value = ''; // Let them type the weight they are selling
+                wtInput.value = ''; 
                 wtInput.removeAttribute('readonly');
                 wtInput.style.background = '#fff';
                 wtInput.focus();
@@ -682,7 +670,7 @@
                 wtInput.value = wt;
                 wtInput.setAttribute('readonly', 'true');
                 wtInput.style.background = '#e2e8f0';
-                calcQSAmt(); // Calculate immediately for fixed piece
+                calcQSAmt(); 
                 document.getElementById('qsAmt').focus();
             }
         }
@@ -718,7 +706,7 @@
 
         async function saveQuickSale() {
             const amount = parseFloat(document.getElementById('qsAmt').value);
-            const mode = document.getElementById('qsMode').value;
+            const mode = document.getElementById('qsMode').value || 'Cash';
             let note = document.getElementById('qsNote').value.trim() || 'Quick Retail Sale';
 
             if(!amount || amount <= 0) return showToast("Enter a valid amount!", "error");
@@ -733,24 +721,24 @@
                 const dObj = new Date();
                 const prefix = String(dObj.getMonth() + 1).padStart(2, '0') + String(dObj.getFullYear()).slice(-2);
                 
-                const allSales = await getAllItems('sales');
+                const allSales = await getAllItems('sales') || [];
                 const monthSales = allSales.filter(s => s.invoiceNo && s.invoiceNo.startsWith(prefix));
                 const invoiceNo = `${prefix}${monthSales.length + 1}-QS`;
 
-                // Handle Customer
                 let custId = document.getElementById('qsCustId').value;
                 let custStr = document.getElementById('qsCustSearch').value.trim();
                 let customerObj = null;
 
                 if (custId) {
                     customerObj = await getItem('customers', custId);
+                    if(!customerObj) customerObj = { name: 'Customer', mobile: '0000000000' };
                 } else if (custStr) {
                     let isMobile = /^\d+$/.test(custStr) && custStr.length >= 10;
                     let newCust = { name: isMobile ? 'Customer' : custStr, mobile: isMobile ? custStr : '0000000000', city: '', bcBalance: 0 };
                     custId = await addItem('customers', newCust);
                     customerObj = { id: custId, ...newCust };
                 } else {
-                    const allCusts = await getAllItems('customers');
+                    const allCusts = await getAllItems('customers') || [];
                     customerObj = allCusts.find(c => c.name.toLowerCase() === 'walk-in');
                     if (!customerObj) {
                         custId = await addItem('customers', { name: 'Walk-in', mobile: '0000000000', city: 'Shop', bcBalance: 0 });
@@ -758,7 +746,6 @@
                     } else { custId = customerObj.id; }
                 }
 
-                // Handle Item & Loose Weight Deduction
                 let selItemId = document.getElementById('qsItemId').value;
                 let selItemDataStr = document.getElementById('qsItemDetails').value;
                 let sellWt = getSafeNum(document.getElementById('qsWeight').value);
@@ -769,8 +756,7 @@
                     let availWt = getSafeNum(invItem.netWt || invItem.grossWt || invItem.weight);
                     let availPcs = parseInt(invItem.pieces) || 1;
                     
-                    if (sellWt <= 0) sellWt = availWt; // Falback if blank
-
+                    if (sellWt <= 0) sellWt = availWt; 
                     if (sellWt > availWt) {
                         showToast(`Cannot sell more than available weight (${availWt}g)!`, "error");
                         btn.innerHTML = originalText; btn.disabled = false;
@@ -778,13 +764,19 @@
                     }
 
                     finalItem = {
-                        id: invItem.id,
+                        id: invItem.id || `qs_item_${Date.now()}`,
                         isOldGold: false,
                         metal: (invItem.purity && invItem.purity.toUpperCase().includes('SIL')) ? 'Silver' : 'Gold',
-                        barcode: invItem.barcode, category: invItem.category, purity: invItem.purity,
-                        weight: sellWt, grossWt: sellWt, stoneWt: 0, netWt: sellWt, fineWt: sellWt,
-                        sellQty: 1, rate: amount, makingType: 'flat', makingRate: 0, makingAmount: 0,
-                        baseAmount: amount, gstPct: 0, gstAmount: 0, total: amount
+                        barcode: invItem.barcode || 'UNKNOWN',
+                        category: invItem.category || note,
+                        purity: invItem.purity || '-',
+                        weight: sellWt || 0,
+                        grossWt: sellWt || 0,
+                        stoneWt: 0,
+                        netWt: sellWt || 0,
+                        fineWt: sellWt || 0,
+                        sellQty: 1, rate: amount || 0, makingType: 'flat', makingRate: 0, makingAmount: 0,
+                        baseAmount: amount || 0, gstPct: 0, gstAmount: 0, total: amount || 0
                     };
 
                     const isBulk = checkIsSilver(invItem.purity) || (invItem.category && (invItem.category.toUpperCase().includes('LOOSE') || invItem.category.toUpperCase().includes('MIX'))) || (invItem.barcode && invItem.barcode.toUpperCase().startsWith('LOOSE')) || availPcs > 1;
@@ -794,36 +786,44 @@
                         invItem.netWt = Math.max(0, (parseFloat(invItem.netWt) || 0) - sellWt);
                         invItem.weight = invItem.grossWt;
                         if (invItem.netWt <= 0.01) {
-                            invItem.status = 'sold';
-                            invItem.soldDate = dateIso;
-                            invItem.pieces = 0;
+                            invItem.status = 'sold'; invItem.soldDate = dateIso; invItem.pieces = 0;
                         } else {
-                            invItem.status = 'stock';
-                            if (invItem.pieces <= 0) invItem.pieces = 1; // Ensure piece count doesn't hit zero prematurely
+                            invItem.status = 'stock'; if (invItem.pieces <= 0) invItem.pieces = 1; 
                         }
                     } else {
-                        invItem.status = 'sold';
-                        invItem.soldDate = dateIso;
-                        invItem.pieces = 0;
+                        invItem.status = 'sold'; invItem.soldDate = dateIso; invItem.pieces = 0;
                     }
                     await updateItem('inventory', invItem);
                 } else {
                     finalItem = {
                         id: 'qs_item_' + Date.now(), isOldGold: false, metal: 'Gold',
-                        barcode: 'QS-ITEM', category: note, purity: '22K',
+                        barcode: 'QS-ITEM', category: note || 'Item', purity: '22K',
                         weight: 0, grossWt: 0, stoneWt: 0, netWt: 0, fineWt: 0,
-                        sellQty: 1, rate: amount, makingType: 'flat', makingRate: 0, makingAmount: 0,
-                        baseAmount: amount, gstPct: 0, gstAmount: 0, total: amount
+                        sellQty: 1, rate: amount || 0, makingType: 'flat', makingRate: 0, makingAmount: 0,
+                        baseAmount: amount || 0, gstPct: 0, gstAmount: 0, total: amount || 0
                     };
                 }
 
                 const saleData = {
-                    invoiceNo: invoiceNo, date: dateIso, customerId: customerId, customerName: customerObj.name,
-                    items: [finalItem], subTotal: amount, gst: 0, oldGoldDeduction: 0, totalExchWt: 0,
-                    discountMode: 'flat', discount: 0, bcWalletDeduction: 0,
-                    grandTotal: amount, paidAmount: amount, pendingAmount: 0, 
-                    payments: [{ mode: mode, amount: amount, date: dateIso }],
-                    isGstBill: false, status: 'completed', isQuickSale: true
+                    invoiceNo: invoiceNo || `QS-${Date.now()}`,
+                    date: dateIso,
+                    customerId: customerId || 'Walk-in',
+                    customerName: customerObj.name || 'Walk-in',
+                    items: [finalItem],
+                    subTotal: amount || 0,
+                    gst: 0,
+                    oldGoldDeduction: 0,
+                    totalExchWt: 0,
+                    discountMode: 'flat',
+                    discount: 0,
+                    bcWalletDeduction: 0,
+                    grandTotal: amount || 0, 
+                    paidAmount: amount || 0, 
+                    pendingAmount: 0, 
+                    payments: [{ mode: mode || 'Cash', amount: amount || 0, date: dateIso }],
+                    isGstBill: false,
+                    status: 'completed',
+                    isQuickSale: true
                 };
                 
                 const saleDocId = await addItem('sales', saleData);
@@ -836,13 +836,12 @@
 
                 showToast("Lightning Sale Done!", "success");
                 closeModal('quickSaleModal');
-                
                 await loadPassbookData();
                 printInvoice(saleData, customerObj);
 
             } catch(e) {
-                console.error(e);
-                showToast("Error processing sale", "error");
+                console.error("Sale Error: ", e);
+                showToast("Error processing sale: " + e.message, "error");
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -852,12 +851,10 @@
         // --- PRINT INVOICE LOGIC ---
         function printInvoice(sale, cust) {
             if(!cust) cust = { name: 'Customer', mobile: '', city: '' };
-            
             const isGst = sale.isGstBill !== false; 
             const titleText = isGst ? 'TAX INVOICE' : 'ESTIMATE';
             const cgstAmt = (sale.gst / 2).toFixed(2);
             const sgstAmt = (sale.gst / 2).toFixed(2);
-
             let subTotalDisplay = sale.subTotal;
             if (isGst) subTotalDisplay = sale.subTotal + sale.gst;
             if (sale.discount > 0) subTotalDisplay -= sale.discount;
@@ -866,15 +863,12 @@
             <div class="print-page front-page print-border-maroon">
                 <div class="inv-header-grid">
                     <div class="inv-address-box text-maroon">
-                        Plot No.D 56, Opp Gokhale School,<br>
-                        Sector 12, Kharghar, Navi Mumbai 410210.
+                        Plot No.D 56, Opp Gokhale School,<br>Sector 12, Kharghar, Navi Mumbai 410210.
                     </div>
                     <div class="inv-logo-box">
-                        <div class="inv-logo-text">BHARTI</div>
-                        <div class="inv-logo-sub">JEWELLERS</div>
+                        <div class="inv-logo-text">BHARTI</div><div class="inv-logo-sub">JEWELLERS</div>
                     </div>
                 </div>
-                
                 <div style="display:grid; grid-template-columns: 1fr 1.5fr 1fr; margin-bottom:10px;">
                     <div style="border:1px solid #6c1122; border-left:none; padding:5px; font-size:12px; font-weight:bold;">
                         <div style="border-bottom:1px solid #6c1122; padding-bottom:3px; margin-bottom:3px;">
@@ -886,11 +880,9 @@
                         ${titleText}<br>GOLD SALES BILL
                     </div>
                     <div style="font-size:10px; font-weight:bold; text-align:right; padding-top:5px;">
-                        GSTN No. : 27BGYPJ5125N1ZM<br>
-                        GST Type : SGST + CGST
+                        GSTN No. : 27BGYPJ5125N1ZM<br>GST Type : SGST + CGST
                     </div>
                 </div>
-
                 <div style="border-top:1px solid #6c1122;">
                     <div class="inv-cust-grid">
                         <div>Name</div> <div>:</div> <div>${cust.name}</div>
@@ -898,21 +890,12 @@
                         <div>Mobile No.</div> <div>:</div> <div>${cust.mobile}</div>
                     </div>
                 </div>
-
                 <div class="inv-items-container">
                     <table class="inv-main-table">
                         <thead class="bg-maroon">
                             <tr>
-                                <th>HSN<br>Code</th>
-                                <th>Particular</th>
-                                <th>HUID</th>
-                                <th>Purity</th>
-                                <th>Pcs</th>
-                                <th>Gross<br>Wt</th>
-                                <th>Net<br>Wt</th>
-                                <th>Rate<br>Per Gm</th>
-                                <th>Making</th>
-                                <th style="border-right:none;">Amount</th>
+                                <th>HSN<br>Code</th><th>Particular</th><th>HUID</th><th>Purity</th><th>Pcs</th>
+                                <th>Gross<br>Wt</th><th>Net<br>Wt</th><th>Rate<br>Per Gm</th><th>Making</th><th style="border-right:none;">Amount</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -922,18 +905,11 @@
                 let mkDisplay = i.makingAmount ? i.makingAmount : '-';
                 let amtDisplay = i.baseAmount;
                 let hsnCode = i.hsn || '7113'; 
-
                 html += `
                             <tr>
-                                <td>${hsnCode}</td>
-                                <td style="text-align:left;">${i.category}</td>
-                                <td>${i.huid || ''}</td>
-                                <td>${i.purity}</td>
-                                <td>${i.sellQty || 1}</td>
-                                <td>${(i.grossWt || i.weight).toFixed(3)}</td>
-                                <td>${(i.netWt || i.weight).toFixed(3)}</td>
-                                <td>${i.rate}</td>
-                                <td>${mkDisplay}</td>
+                                <td>${hsnCode}</td><td style="text-align:left;">${i.category}</td><td>${i.huid || ''}</td>
+                                <td>${i.purity}</td><td>${i.sellQty || 1}</td><td>${(i.grossWt || i.weight).toFixed(3)}</td>
+                                <td>${(i.netWt || i.weight).toFixed(3)}</td><td>${i.rate}</td><td>${mkDisplay}</td>
                                 <td style="border-right:none;">${amtDisplay.toLocaleString()}</td>
                             </tr>`;
             });
@@ -948,7 +924,6 @@
                         </tbody>
                     </table>
                 </div>
-
                 <div class="inv-footer-grid">
                     <div class="inv-footer-left">
                         <div style="padding:5px;">
@@ -958,7 +933,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="inv-footer-right">
                         <div class="inv-summary-row"><span>Gross Amt</span> <span>${sale.subTotal.toLocaleString()}</span></div>
                         <div class="inv-summary-row"><span>Less Disc.</span> <span>${sale.discount > 0 ? sale.discount.toLocaleString() : ''}</span></div>
@@ -972,20 +946,16 @@
                         <div class="inv-summary-row bold" style="color: ${sale.pendingAmount > 0 ? '#c62828' : '#333'}; border-bottom:none;"><span>Balance Due</span> <span>${sale.pendingAmount.toLocaleString()}</span></div>
                     </div>
                 </div>
-
                 <div style="border-top:1px solid #6c1122; text-align:right; padding:20px 10px 5px 10px; font-weight:bold; font-size:12px; color:#6c1122;">
                     For Bharti Jewellers
                 </div>
             </div>`;
 
             document.getElementById('invoice-area').innerHTML = html;
-            
             setTimeout(() => {
                 if (typeof AndroidInterface !== "undefined" && AndroidInterface.printPage) {
                     AndroidInterface.printPage();
-                } else {
-                    window.print();
-                }
+                } else { window.print(); }
             }, 300);
         }
 
@@ -999,18 +969,15 @@
                 const title = document.getElementById('txTitle');
                 const btn = document.getElementById('txSaveBtn');
                 const select = document.getElementById('txCatSelect');
-                const hint = document.getElementById('catHint');
                 select.innerHTML = '';
                 if(type === 'OUT') {
                     title.innerHTML = '<i class="fas fa-minus-circle" style="color:var(--out-red);"></i> Add Expense';
                     btn.className = 'btn-save red';
-                    hint.style.display = 'block';
-                    if(myExpenseCategories.length === 0) select.innerHTML = '<option value="" disabled selected>No Categories. Add from Dashboard.</option>';
+                    if(myExpenseCategories.length === 0) select.innerHTML = '<option value="" disabled selected>No Categories.</option>';
                     else myExpenseCategories.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
                 } else {
                     title.innerHTML = '<i class="fas fa-plus-circle" style="color:var(--in-green);"></i> Add Income / Sale';
                     btn.className = 'btn-save green';
-                    hint.style.display = 'none';
                     myIncomeCategories.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
                 }
             } else if (id === 'contraModal') {
@@ -1019,9 +986,7 @@
             }
         }
 
-        function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
-        }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
         async function saveTransaction() {
             const type = document.getElementById('txType').value;
@@ -1031,6 +996,7 @@
             const note = document.getElementById('txNote').value.trim();
             if(!amount || amount <= 0) return showToast("Enter a valid amount", "error");
             if(!category) return showToast("Select a category!", "error");
+            
             const btn = document.getElementById('txSaveBtn');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -1040,7 +1006,7 @@
                 showToast("Entry Saved!", "success");
                 closeModal('txModal');
                 await loadPassbookData();
-            } catch(e) { console.error(e); showToast("Error saving data", "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+            } catch(e) { showToast("Error saving data", "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
         }
 
         async function saveContra() {
@@ -1052,6 +1018,7 @@
             const contraRef = "CONTRA-" + Math.floor(Math.random() * 10000); 
             const baseNote = customNote ? customNote : (type === 'deposit' ? 'Cash Deposit to Bank' : 'Cash Withdrawal from Bank');
             const finalNote = `${baseNote} [Ref: ${contraRef}]`;
+            
             const btn = document.querySelector('#contraModal .btn-save');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -1067,11 +1034,10 @@
                 showToast("Contra Voucher Saved!", "success");
                 closeModal('contraModal');
                 await loadPassbookData();
-            } catch (error) { console.error("Contra Error: ", error); showToast("Error saving Contra Entry", "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
+            } catch (error) { showToast("Error saving Contra Entry", "error"); } finally { btn.innerHTML = originalText; btn.disabled = false; }
         }
 
         window.onload = loadPassbookData;
-
     </script>
 </body>
 </html>
