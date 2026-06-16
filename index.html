@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Passbook & Expense Tracker</title>
+    <title>Smart Passbook & Expense Tracker - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -74,10 +74,22 @@
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; font-family: inherit;}
         .form-group input:focus { border-color: var(--accent-gold); }
         
-        .btn-save { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; color: white; cursor: pointer; margin-top: 10px; }
+        .btn-save { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; color: white; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 8px;}
         .btn-save.red { background: var(--out-red); }
         .btn-save.green { background: var(--in-green); }
         .btn-save.blue { background: var(--digital-blue); }
+
+        /* Toast Notifications */
+        #toast {
+            visibility: hidden; min-width: 280px; background-color: #1e293b; color: #fff;
+            text-align: center; border-radius: 8px; padding: 16px; position: fixed;
+            z-index: 4000; left: 50%; bottom: 30px; transform: translateX(-50%);
+            font-size: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 40px; }
+        #toast.success { border-left: 4px solid var(--in-green); }
+        #toast.error { border-left: 4px solid var(--out-red); }
 
     </style>
 </head>
@@ -89,6 +101,7 @@
     </header>
 
     <div class="container">
+        <!-- Dashboard Balances -->
         <div class="dash-grid">
             <div class="dash-card" style="border-left: 4px solid #0f172a;">
                 <span>Total Balance (Cash + Bank)</span>
@@ -104,11 +117,14 @@
             </div>
         </div>
 
-        <div class="section-title"><i class="fas fa-chart-pie"></i> Expense Category Summary</div>
+        <!-- Dynamic Expense Tracker -->
+        <div class="section-title"><i class="fas fa-chart-pie" style="color: var(--out-red);"></i> Expense Category Summary</div>
         <div class="expense-grid" id="expenseSummaryGrid">
-            </div>
+            <div style="color:#94a3b8; padding:10px 0;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+        </div>
 
-        <div class="section-title"><i class="fas fa-list-alt"></i> Passbook Statement</div>
+        <!-- Passbook Table -->
+        <div class="section-title"><i class="fas fa-list-alt" style="color: var(--digital-blue);"></i> Passbook Statement</div>
         <div class="passbook-container">
             <div class="table-wrapper">
                 <table>
@@ -124,18 +140,21 @@
                         </tr>
                     </thead>
                     <tbody id="passbookBody">
-                        </tbody>
+                        <tr><td colspan="7" style="text-align:center; padding:40px; color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Fetching records from database...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
 
+    <!-- Floating Buttons -->
     <div class="fab-container">
         <button class="fab fab-contra" onclick="openModal('contraModal')" title="Contra Voucher (Bank Transfer)"><i class="fas fa-exchange-alt"></i></button>
         <button class="fab fab-expense" onclick="openModal('txModal', 'OUT')" title="Add Expense/Payment"><i class="fas fa-minus"></i></button>
         <button class="fab fab-income" onclick="openModal('txModal', 'IN')" title="Add Income/Receipt"><i class="fas fa-plus"></i></button>
     </div>
 
+    <!-- Transaction Modal (Income/Expense) -->
     <div id="txModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('txModal')">&times;</button>
@@ -152,26 +171,28 @@
                 <label>Category (Type new or select)</label>
                 <input type="text" id="txCat" list="categoryList" placeholder="e.g. Chai, Petrol, Salary, Sales">
                 <datalist id="categoryList">
-                    </datalist>
+                    <!-- Populated by JS -->
+                </datalist>
             </div>
 
             <div class="form-group">
                 <label>Mode</label>
                 <select id="txMode">
                     <option value="Cash">Cash (Galla)</option>
-                    <option value="Bank">Bank / UPI / Online</option>
+                    <option value="Bank Transfer">Bank / UPI / Online</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Particulars / Details</label>
+                <label>Particulars / Details (Optional)</label>
                 <input type="text" id="txNote" placeholder="e.g. Paid to Rahul">
             </div>
 
-            <button id="txSaveBtn" class="btn-save" onclick="saveTransaction()">Save Entry</button>
+            <button id="txSaveBtn" class="btn-save" onclick="saveTransaction()"><i class="fas fa-save"></i> Save Entry</button>
         </div>
     </div>
 
+    <!-- Contra Modal -->
     <div id="contraModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('contraModal')">&times;</button>
@@ -195,21 +216,60 @@
                 <input type="text" id="conNote" placeholder="e.g. Deposited by Ram">
             </div>
 
-            <button class="btn-save blue" onclick="saveContra()">Save Contra Entry</button>
+            <button class="btn-save blue" onclick="saveContra()"><i class="fas fa-save"></i> Save Contra Entry</button>
         </div>
     </div>
 
-    <script>
-        // --- DATA MANAGEMENT (Mocked with LocalStorage for instant testing) ---
-        // In real app, replace fetching/saving logic with Firebase
-        
-        let transactions = JSON.parse(localStorage.getItem('pb_txs')) || [];
-        let savedCategories = JSON.parse(localStorage.getItem('pb_cats')) || ['Sales', 'Rent', 'Tea & Snacks', 'Salary', 'Petrol'];
+    <div id="toast"><i class="fas fa-check-circle"></i> Message Saved!</div>
 
-        // --- UI UPDATES ---
+    <!-- Firebase Scripts & db.js Integration -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="db.js?v=35"></script>
+
+    <script>
+        // Store unique categories dynamically extracted from database
+        let savedCategories = new Set(['Shop Expense', 'Salary', 'Owner Withdrawal', 'Tea & Snacks', 'Petrol']);
+        let dbTransactions = [];
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            if(!toast) return;
+            const icon = type === 'success' ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-exclamation-circle"></i>';
+            toast.innerHTML = `${icon} ${msg}`;
+            toast.className = 'show ' + type;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+        }
+
+        function getSafeMode(modeStr) {
+            if(!modeStr) return 'Cash';
+            let m = modeStr.toLowerCase();
+            if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online')) return 'Bank';
+            return 'Cash'; 
+        }
+
+        async function loadPassbookData() {
+            try {
+                // Fetch actual data using your db.js
+                const cFlows = await getAllItems('cashflow');
+                if (cFlows) {
+                    dbTransactions = cFlows.filter(t => {
+                        let m = (t.mode || '').toLowerCase();
+                        // Ignore non-monetary system transactions if any
+                        return !m.includes('system') && !m.includes('metal') && parseFloat(t.amount) > 0; 
+                    });
+                }
+                updateUI();
+            } catch(e) {
+                console.error("Error loading data from DB: ", e);
+                document.getElementById('passbookBody').innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Failed to load data. Ensure db.js is correctly configured.</td></tr>`;
+            }
+        }
+
         function updateUI() {
             // Sort by Date Ascending for Passbook calculation
-            transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+            dbTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             let totalBal = 0;
             let cashBal = 0;
@@ -220,35 +280,47 @@
             tbody.innerHTML = '';
 
             // Calculate Passbook
-            [...transactions].forEach((t) => {
-                // Calculate Balances
-                if (t.type === 'IN') {
-                    totalBal += t.amount;
-                    if (t.mode === 'Cash') cashBal += t.amount;
-                    if (t.mode === 'Bank') bankBal += t.amount;
-                } else {
-                    totalBal -= t.amount;
-                    if (t.mode === 'Cash') cashBal -= t.amount;
-                    if (t.mode === 'Bank') bankBal -= t.amount;
+            [...dbTransactions].forEach((t) => {
+                let amt = parseFloat(t.amount) || 0;
+                let mode = getSafeMode(t.mode);
+                let cat = t.category || 'Uncategorized';
+                savedCategories.add(cat); // Collect unique categories
 
-                    // Track Expenses (Ignore Contra for Expense summary)
-                    if(t.category !== 'Contra') {
-                        expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+                // Treat refunds correctly
+                let type = t.type || 'OUT';
+                if(amt < 0 && type === 'IN') {
+                    type = 'OUT';
+                    amt = Math.abs(amt);
+                }
+
+                if (type === 'IN') {
+                    totalBal += amt;
+                    if (mode === 'Cash') cashBal += amt;
+                    else bankBal += amt;
+                } else {
+                    totalBal -= amt;
+                    if (mode === 'Cash') cashBal -= amt;
+                    else bankBal -= amt;
+
+                    // Track Expenses (Ignore Contra / Transfers)
+                    if(!cat.toLowerCase().includes('contra') && !cat.toLowerCase().includes('transfer')) {
+                        expensesByCategory[cat] = (expensesByCategory[cat] || 0) + amt;
                     }
                 }
 
-                // Add to Table (Prepend so newest is on top in the view)
-                const dateStr = new Date(t.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
-                const modeClass = t.mode === 'Cash' ? 'mode-cash' : 'mode-bank';
-                const dr = t.type === 'OUT' ? `₹${t.amount.toLocaleString()}` : '-';
-                const cr = t.type === 'IN' ? `₹${t.amount.toLocaleString()}` : '-';
+                // Add to Table (Prepend so newest is on top)
+                const dateObj = new Date(t.date);
+                const dateStr = !isNaN(dateObj) ? dateObj.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : t.date;
+                const modeClass = mode === 'Cash' ? 'mode-cash' : 'mode-bank';
+                const dr = type === 'OUT' ? `₹${amt.toLocaleString()}` : '-';
+                const cr = type === 'IN' ? `₹${amt.toLocaleString()}` : '-';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="font-size:0.8rem; color:#64748b;">${dateStr}</td>
-                    <td><span class="mode-badge ${modeClass}">${t.mode}</span></td>
+                    <td><span class="mode-badge ${modeClass}">${mode}</span></td>
                     <td style="font-weight:500;">${t.note || '-'}</td>
-                    <td><span class="cat-badge">${t.category}</span></td>
+                    <td><span class="cat-badge">${cat}</span></td>
                     <td class="dr" style="text-align: right;">${dr}</td>
                     <td class="cr" style="text-align: right;">${cr}</td>
                     <td class="bal" style="text-align: right;">₹${totalBal.toLocaleString()}</td>
@@ -256,8 +328,8 @@
                 tbody.prepend(tr); // Insert at top
             });
 
-            if(transactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#94a3b8;">No entries yet. Add your first transaction!</td></tr>';
+            if(dbTransactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#94a3b8;">No entries found in database. Add your first transaction!</td></tr>';
             }
 
             // Update Top Cards
@@ -270,23 +342,26 @@
             expGrid.innerHTML = '';
             
             let hasExpenses = false;
-            for (let cat in expensesByCategory) {
+            // Sort expenses by highest amount
+            const sortedExpenses = Object.entries(expensesByCategory).sort((a,b) => b[1] - a[1]);
+            
+            sortedExpenses.forEach(([catName, amt]) => {
                 hasExpenses = true;
                 expGrid.innerHTML += `
                     <div class="exp-cat-card">
-                        <div class="cat-name">${cat}</div>
-                        <div class="cat-amt">₹${expensesByCategory[cat].toLocaleString()}</div>
+                        <div class="cat-name">${catName}</div>
+                        <div class="cat-amt">₹${amt.toLocaleString()}</div>
                     </div>
                 `;
-            }
+            });
             if(!hasExpenses) {
                 expGrid.innerHTML = '<div style="color:#94a3b8; padding:10px 0;">No expenses recorded yet.</div>';
             }
 
-            // Update Datalist for categories
+            // Update Datalist for forms
             const catList = document.getElementById('categoryList');
             catList.innerHTML = '';
-            savedCategories.forEach(c => {
+            Array.from(savedCategories).sort().forEach(c => {
                 catList.innerHTML += `<option value="${c}">`;
             });
         }
@@ -321,71 +396,95 @@
             document.getElementById(id).style.display = 'none';
         }
 
-        // --- SAVE LOGIC ---
-        function saveTransaction() {
+        // --- DB SAVE LOGIC ---
+        async function saveTransaction() {
             const type = document.getElementById('txType').value;
             const amount = parseFloat(document.getElementById('txAmt').value);
             const category = document.getElementById('txCat').value.trim();
             const mode = document.getElementById('txMode').value;
             const note = document.getElementById('txNote').value.trim();
 
-            if(!amount || amount <= 0) return alert("Please enter a valid amount");
-            if(!category) return alert("Please enter or select a category");
+            if(!amount || amount <= 0) return showToast("Enter a valid amount", "error");
+            if(!category) return showToast("Enter a category/reason", "error");
 
-            // Dynamic Category Logic: Save new category if it doesn't exist
-            if(!savedCategories.includes(category)) {
-                savedCategories.push(category);
-                localStorage.setItem('pb_cats', JSON.stringify(savedCategories));
+            // Show loading on button
+            const btn = document.getElementById('txSaveBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            try {
+                // Save to database using db.js addItem function
+                await addItem('cashflow', {
+                    date: new Date().toISOString(),
+                    type: type,
+                    mode: mode,
+                    category: category,
+                    amount: amount,
+                    note: note,
+                    isManual: true
+                });
+
+                showToast("Transaction Saved!", "success");
+                closeModal('txModal');
+                
+                // Refresh data
+                await loadPassbookData();
+                
+            } catch(e) {
+                console.error(e);
+                showToast("Error saving data", "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-
-            const tx = {
-                id: Date.now(),
-                date: new Date().toISOString(),
-                type: type,
-                amount: amount,
-                category: category,
-                mode: mode,
-                note: note
-            };
-
-            transactions.push(tx);
-            localStorage.setItem('pb_txs', JSON.stringify(transactions));
-            
-            closeModal('txModal');
-            updateUI();
         }
 
-        function saveContra() {
-            const type = document.getElementById('conType').value; // 'deposit' or 'withdraw'
+        async function saveContra() {
+            const type = document.getElementById('conType').value; 
             const amount = parseFloat(document.getElementById('conAmt').value);
-            const note = document.getElementById('conNote').value.trim();
+            const customNote = document.getElementById('conNote').value.trim();
 
-            if(!amount || amount <= 0) return alert("Please enter a valid amount");
+            if(!amount || amount <= 0) return showToast("Enter a valid amount", "error");
 
-            const dateStr = new Date().toISOString();
-            const ref = "CONTRA-" + Math.floor(Math.random() * 1000);
-            const baseNote = note ? note : (type === 'deposit' ? 'Cash Deposited to Bank' : 'Cash Withdrawn from Bank');
-            const finalNote = `${baseNote} [${ref}]`;
+            const dateIso = new Date().toISOString();
+            const contraRef = "CONTRA-" + Math.floor(Math.random() * 10000); 
+            const baseNote = customNote ? customNote : (type === 'deposit' ? 'Cash Deposit to Bank' : 'Cash Withdrawal from Bank');
+            const finalNote = `${baseNote} [Ref: ${contraRef}]`;
 
-            // Contra means 2 entries: One OUT from source, One IN to destination
-            if (type === 'deposit') {
-                // Cash OUT -> Bank IN
-                transactions.push({ id: Date.now()+'_1', date: dateStr, type: 'OUT', amount: amount, category: 'Contra', mode: 'Cash', note: finalNote });
-                transactions.push({ id: Date.now()+'_2', date: dateStr, type: 'IN', amount: amount, category: 'Contra', mode: 'Bank', note: finalNote });
-            } else {
-                // Bank OUT -> Cash IN
-                transactions.push({ id: Date.now()+'_1', date: dateStr, type: 'OUT', amount: amount, category: 'Contra', mode: 'Bank', note: finalNote });
-                transactions.push({ id: Date.now()+'_2', date: dateStr, type: 'IN', amount: amount, category: 'Contra', mode: 'Cash', note: finalNote });
+            const btn = document.querySelector('#contraModal .btn-save');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            try {
+                if (type === 'deposit') {
+                    // Cash OUT -> Bank IN
+                    await addItem('cashflow', { date: dateIso, type: 'OUT', mode: 'Cash', category: 'Contra (Transfer)', amount: amount, note: finalNote, isManual: true });
+                    await addItem('cashflow', { date: dateIso, type: 'IN', mode: 'Bank Transfer', category: 'Contra (Transfer)', amount: amount, note: finalNote, isManual: true });
+                } else {
+                    // Bank OUT -> Cash IN
+                    await addItem('cashflow', { date: dateIso, type: 'OUT', mode: 'Bank Transfer', category: 'Contra (Transfer)', amount: amount, note: finalNote, isManual: true });
+                    await addItem('cashflow', { date: dateIso, type: 'IN', mode: 'Cash', category: 'Contra (Transfer)', amount: amount, note: finalNote, isManual: true });
+                }
+
+                showToast("Contra Voucher Saved!", "success");
+                closeModal('contraModal');
+                
+                // Refresh data
+                await loadPassbookData();
+                
+            } catch (error) {
+                console.error("Contra Error: ", error);
+                showToast("Error saving Contra Entry", "error");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-
-            localStorage.setItem('pb_txs', JSON.stringify(transactions));
-            
-            closeModal('contraModal');
-            updateUI();
         }
 
-        // Initialize on load
-        window.onload = updateUI;
+        // Initialize and fetch data on load
+        window.onload = loadPassbookData;
 
     </script>
 </body>
