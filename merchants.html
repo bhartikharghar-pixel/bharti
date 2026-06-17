@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -425,10 +425,17 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="db.js?v=35"></script>
+    <script src="db.js?v=42"></script>
 
     <script>
         // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────
+        function getSafeDateISO(dateStr, offsetMs = 0) {
+            let d = new Date(dateStr);
+            if (isNaN(d.getTime())) d = new Date();
+            if (offsetMs) d = new Date(d.getTime() + offsetMs);
+            return d.toISOString();
+        }
+
         function getPurityFactor(p) {
             if (!p) return 1.0;
             let up = String(p).toUpperCase().trim();
@@ -465,6 +472,12 @@
             setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
         }
 
+        function parseNum(val) {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            return parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
+        }
+
         let allMerchants = [];
         let currentReportData = [];
         let currentReportMeta = { name: '', category: 'Both', cash: 0, gold: 0, silver: 0 };
@@ -480,8 +493,12 @@
         // ─── SMART AUTO-HEAL (SAFE MODE) ───────────────────
         async function syncPendingTounch() {
             try {
-                const payments = await getAllItems('merchant_payments');
-                const allInv = await getAllItems('inventory');
+                let payments = [];
+                try { payments = await getAllItems('merchant_payments'); } catch(e) {}
+                
+                let allInv = [];
+                try { allInv = await getAllItems('inventory'); } catch(e) {}
+                
                 const merchantsToUpdate = {};
                 let updatedCount = 0;
 
@@ -501,7 +518,6 @@
                         if (gross > 0) {
                             const correctFine = parseFloat((gross * factor).toFixed(3));
                             
-                            // SAFE CHECK: Ya toh yeh Pending tha, ya iska factor galti se 1.0 (100%) save ho gaya tha.
                             if (p.wasPending || (Math.abs(p.gold - gross) < 0.001 && factor < 1.0)) {
                                 
                                 if (Math.abs(p.gold - correctFine) > 0.001) {
@@ -562,8 +578,10 @@
 
         // ─── LOAD MERCHANTS ────────────────────────────────────────────────────
         async function loadMerchants() {
-            const list = await getAllItems('merchants');
-            const orders = await getAllItems('orders');
+            let list = [];
+            try { list = await getAllItems('merchants'); } catch(e) {}
+            let orders = [];
+            try { orders = await getAllItems('orders'); } catch(e) {}
 
             const pendingGold = {};
             const pendingSilver = {};
@@ -792,7 +810,9 @@
         // ─── DELETE MERCHANT ───────────────────────────────────────
         async function deleteMerchant(id) {
             const numId = id; 
-            const orders = await getAllItems('orders');
+            let orders = [];
+            try { orders = await getAllItems('orders'); } catch(e) {}
+            
             const activeOrder = orders.find(o => String(o.merchantId) === String(numId) && o.status === 'in_progress');
             if (activeOrder) return alert("Cannot delete! This merchant has active Custom Orders (Jobwork) pending.");
 
@@ -832,7 +852,9 @@
             if (type !== 'OUT') { group.style.display = 'none'; return; }
             group.style.display = 'block';
 
-            const inventory = await getAllItems('inventory');
+            let inventory = [];
+            try { inventory = await getAllItems('inventory'); } catch(e) {}
+            
             const availableStock = inventory.filter(i => {
                 if (i.status !== 'stock') return false;
                 if (i.merchantId && String(i.merchantId) === String(mId)) return false;
@@ -928,7 +950,9 @@
 
             const cat = merchant.category || 'Both';
 
-            const allPurchases = await getAllItems('purchases');
+            let allPurchases = [];
+            try { allPurchases = await getAllItems('purchases'); } catch(e) {}
+            
             const merchPurchases = allPurchases.filter(p => String(p.merchantId) === String(id) && p.status !== 'cancelled');
             const pSelect = document.getElementById('payPurchaseSelect');
             pSelect.innerHTML = '<option value="">-- On Account / General Ledger --</option>';
@@ -1033,7 +1057,7 @@
 
                 // UPDATED: Proper Gross Weight Calculation logic
                 let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
-                let transferredGrossWt = gold; // Default to fine weight
+                let transferredGrossWt = gold; 
                 let transferPurity = ''; 
                 
                 if (direction === 'OUT' && inventorySelect.value) {
@@ -1142,221 +1166,244 @@
             }
         }
 
-    // ─── GENERATE LEDGER REPORT (MATH ADDED HERE) ───────────────
+    // ─── GENERATE LEDGER REPORT (SAFE ERROR HANDLING) ───────────────
         async function generateReport(mId) {
-            const tbody = document.getElementById('reportBody');
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger Data...</td></tr>';
-            document.getElementById('reportModal').style.display = 'block';
+            try {
+                const tbody = document.getElementById('reportBody');
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Loading Ledger Data...</td></tr>';
+                document.getElementById('reportModal').style.display = 'block';
 
-            const merchant = allMerchants.find(m => String(m.id) === String(mId)) || await getItem('merchants', mId);
-            if (!merchant) return;
-
-            const name = merchant.name;
-            const cat = merchant.category || 'Both';
-            const showGold = cat !== 'Silver';
-            const showSilver = cat !== 'Gold';
-
-            document.getElementById('reportMerchantName').innerText = name;
-
-            document.getElementById('reportTable').innerHTML = `
-                <thead>
-                    <tr>
-                        <th rowspan="2" class="col-date">Date</th>
-                        <th rowspan="2" class="col-desc">Particulars</th>
-                        ${showGold ? '<th colspan="3" style="color:var(--accent-gold); border-bottom:2px solid var(--accent-gold);">Gold (g)</th>' : ''}
-                        ${showSilver ? '<th colspan="3" style="color:#64748b; border-bottom:2px solid #64748b;">Silver (g)</th>' : ''}
-                        <th colspan="3" style="color:#1976d2; border-bottom:2px solid #1976d2;">Cash (₹)</th>
-                    </tr>
-                    <tr>
-                        ${showGold ? '<th>Jama (In)</th><th>Nama (Out)</th><th>Balance</th>' : ''}
-                        ${showSilver ? '<th>Jama (In)</th><th>Nama (Out)</th><th>Balance</th>' : ''}
-                        <th>Jama (In)</th><th>Nama (Out)</th><th>Balance</th>
-                    </tr>
-                </thead>
-                <tbody id="reportBody"></tbody>
-            `;
-            const newTbody = document.getElementById('reportBody');
-
-            const purchases = await getAllItems('purchases');
-            let payments = [];
-            try { payments = await getAllItems('merchant_payments'); } catch (e) { }
-            const orders = await getAllItems('orders');
-            const allInventory = await getAllItems('inventory'); 
-
-            const myPurchases = purchases.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
-            const myPayments = payments.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
-            const myOrders = orders.filter(o => String(o.merchantId) === String(mId));
-
-            let transactions = [];
-
-            // 1. Purchases Processing
-            myPurchases.forEach(p => {
-                let desc = `${p.category} - Ref #${p.id}`;
-                let goldChange = 0, silverChange = 0, cashChange = 0;
-                const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
-                const isSilv = (p.metal === 'Silver') || (p.category && String(p.category).toUpperCase().includes('SILVER')) || (invItem.category && String(invItem.category).toUpperCase().includes('SILVER')) || (invItem.purity && (String(invItem.purity).toUpperCase().includes('SIL') || String(invItem.purity).includes('92.5')));
-
-                if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
-                    cashChange = parseFloat(p.totalAmount) || 0;
-                    desc += ` (Total Bill: ₹${p.totalAmount})`;
-                    let currentPaid = parseFloat(p.paidAmount) || 0;
-                    let laterNama = 0;
-                    myPayments.filter(pmt => String(pmt.purchaseId) === String(p.id)).forEach(pmt => {
-                        let pmtMult = pmt.paymentType === 'IN' ? -1 : 1;
-                        let pmtAmt = parseFloat(pmt.amount || 0);
-                        if (pmt.goldType === 'fixed' && pmt.gold > 0) pmtAmt += (parseFloat(pmt.gold) * parseFloat(pmt.rate));
-                        laterNama += (pmtAmt * pmtMult);
-                    });
-                    let instantPayment = Math.round(currentPaid - laterNama);
-                    if (instantPayment > 0) {
-                        transactions.push({ date: new Date(new Date(p.date).getTime() + 1000).toISOString(), type: 'Advance Paid', desc: `Cash Paid instantly for PUR-${p.id}`, gold: 0, silver: 0, cash: -instantPayment, badge: 'b-pay' });
-                    }
+                let merchant = allMerchants.find(m => String(m.id) === String(mId));
+                if(!merchant) {
+                    merchant = await getItem('merchants', mId);
                 }
-                if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
-                    if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
-                    else goldChange = parseFloat(p.totalFineWeight) || 0;
-                    
-                    let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
-                    if (actualWt === 0) actualWt = parseFloat(p.totalFineWeight);
-                    let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+                if (!merchant) return;
 
-                    desc += `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt: ${parseFloat(actualWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Added: ${parseFloat(p.totalFineWeight).toFixed(3)}g</span>`;
-                }
-                transactions.push({ date: p.date, type: p.type, desc: desc, gold: goldChange, silver: silverChange, cash: cashChange, badge: p.type === 'Unfixed' ? 'b-unfix' : 'b-fix' });
-            });
+                const name = merchant.name;
+                const cat = merchant.category || 'Both';
+                const showGold = cat !== 'Silver';
+                const showSilver = cat !== 'Gold';
 
-            // 2. Orders/Jobwork Processing 
-            let pendingGoldAcc = 0, pendingSilverAcc = 0;
-            myOrders.filter(o => o.status === 'in_progress').forEach(o => {
-                if (o.issuedFineWt > 0) {
-                    const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
-                    if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
-                    else pendingGoldAcc += parseFloat(o.issuedFineWt);
-                    
-                    let grossWt = o.issuedWt || o.issuedGrossWt || o.grossWt || o.issuedFineWt;
-                    let displayPurity = o.issuedPurity || "N/A";
-                    let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(o.issuedFineWt).toFixed(3)}g</span>`;
+                document.getElementById('reportMerchantName').innerText = name;
 
-                    transactions.push({ date: o.orderDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id}${mathDesc}`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
-                }
-            });
+                document.getElementById('reportTable').innerHTML = `
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="col-date">Date</th>
+                            <th rowspan="2" class="col-desc">Particulars</th>
+                            ${showGold ? '<th colspan="3" style="color:var(--accent-gold); border-bottom:2px solid var(--accent-gold);">Gold (g)</th>' : ''}
+                            ${showSilver ? '<th colspan="3" style="color:#64748b; border-bottom:2px solid #64748b;">Silver (g)</th>' : ''}
+                            <th colspan="3" style="color:#1976d2; border-bottom:2px solid #1976d2;">Cash (₹)</th>
+                        </tr>
+                        <tr>
+                            ${showGold ? '<th>Jama (In)</th><th>Nama (Out)</th><th>Balance</th>' : ''}
+                            ${showSilver ? '<th>Jama (In)</th><th>Nama (Out)</th><th>Balance</th>' : ''}
+                            <th>Jama (In)</th><th>Nama (Out)</th><th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportBody"></tbody>
+                `;
+                const newTbody = document.getElementById('reportBody');
 
-            // 3. Payments/Settlements Processing
-            for (let p of myPayments) {
-                let descParts = [];
-                let pmtMult = p.paymentType === 'IN' ? 1 : -1;
-                let cashChange = parseFloat(p.amount || 0) * pmtMult;
-                let goldChange = 0, silverChange = 0;
-
-                if (p.amount > 0) descParts.push(`Cash ₹${p.amount} (${p.mode})`);
+                let purchases = [];
+                try { purchases = await getAllItems('purchases'); } catch(e){}
                 
-                if (p.gold > 0) {
-                    const metalName = p.metal || 'Gold';
-                    if (p.goldType === 'fixed') {
-                        let fVal = p.gold * p.rate;
-                        cashChange += (fVal * pmtMult);
-                        descParts.push(`Fixed ${metalName} ${p.gold}g @ ₹${p.rate}/g`);
-                    } else {
-                        // UPDATED: Proper Gross Weight usage logic
-                        let actualFineWt = parseFloat(p.gold || 0);
-                        let displayPurity = p.purity || "Fine";
-                        let grossWt = p.originalGrossWt || actualFineWt;
+                let payments = [];
+                try { payments = await getAllItems('merchant_payments'); } catch (e) {}
+                
+                let orders = [];
+                try { orders = await getAllItems('orders'); } catch(e){}
+                
+                let allInventory = [];
+                try { allInventory = await getAllItems('inventory'); } catch(e){}
 
-                        if (p.inventoryBarcode) {
-                            const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
-                            if (liveItem) {
-                                if (liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
-                                    displayPurity = liveItem.purity;
-                                } else if (p.wasPending || (liveItem.purity && liveItem.purity.toLowerCase() === 'pending')) {
-                                    displayPurity = "Tounch Pending";
-                                    grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || p.originalGrossWt || grossWt);
-                                }
-                            } else {
-                                if (!p.wasPending && grossWt > actualFineWt) {
-                                    displayPurity = ((actualFineWt / grossWt) * 100).toFixed(1) + "%";
+                const myPurchases = purchases.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
+                const myPayments = payments.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
+                const myOrders = orders.filter(o => String(o.merchantId) === String(mId));
+
+                let transactions = [];
+
+                // 1. Purchases Processing
+                myPurchases.forEach(p => {
+                    let desc = `${p.category || 'Purchase'} - Ref #${p.id}`;
+                    let goldChange = 0, silverChange = 0, cashChange = 0;
+                    const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
+                    const isSilv = (p.metal === 'Silver') || (p.category && String(p.category).toUpperCase().includes('SILVER')) || (invItem.category && String(invItem.category).toUpperCase().includes('SILVER')) || (invItem.purity && (String(invItem.purity).toUpperCase().includes('SIL') || String(invItem.purity).includes('92.5')));
+
+                    if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
+                        cashChange = parseFloat(p.totalAmount) || 0;
+                        desc += ` (Total Bill: ₹${p.totalAmount})`;
+                        let currentPaid = parseFloat(p.paidAmount) || 0;
+                        let laterNama = 0;
+                        myPayments.filter(pmt => String(pmt.purchaseId) === String(p.id)).forEach(pmt => {
+                            let pmtMult = pmt.paymentType === 'IN' ? -1 : 1;
+                            let pmtAmt = parseFloat(pmt.amount || 0);
+                            if (pmt.goldType === 'fixed' && pmt.gold > 0) pmtAmt += (parseFloat(pmt.gold) * parseFloat(pmt.rate));
+                            laterNama += (pmtAmt * pmtMult);
+                        });
+                        let instantPayment = Math.round(currentPaid - laterNama);
+                        if (instantPayment > 0) {
+                            let instantDate = getSafeDateISO(p.date, 1000);
+                            transactions.push({ date: instantDate, type: 'Advance Paid', desc: `Cash Paid instantly for PUR-${p.id}`, gold: 0, silver: 0, cash: -instantPayment, badge: 'b-pay' });
+                        }
+                    }
+                    if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
+                        if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
+                        else goldChange = parseFloat(p.totalFineWeight) || 0;
+                        
+                        let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                        if (actualWt === 0) actualWt = parseFloat(p.totalFineWeight) || 0;
+                        let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                        desc += `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt: ${parseFloat(actualWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Added: ${parseFloat(p.totalFineWeight || 0).toFixed(3)}g</span>`;
+                    }
+                    
+                    let pSafeDate = getSafeDateISO(p.date);
+                    transactions.push({ date: pSafeDate, type: p.type, desc: desc, gold: goldChange, silver: silverChange, cash: cashChange, badge: p.type === 'Unfixed' ? 'b-unfix' : 'b-fix' });
+                });
+
+                // 2. Orders/Jobwork Processing 
+                let pendingGoldAcc = 0, pendingSilverAcc = 0;
+                myOrders.filter(o => o.status === 'in_progress').forEach(o => {
+                    if (o.issuedFineWt > 0) {
+                        const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
+                        if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
+                        else pendingGoldAcc += parseFloat(o.issuedFineWt);
+                        
+                        let grossWt = o.issuedWt || o.issuedGrossWt || o.grossWt || o.issuedFineWt;
+                        let displayPurity = o.issuedPurity || "N/A";
+                        let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(o.issuedFineWt).toFixed(3)}g</span>`;
+
+                        let oSafeDate = getSafeDateISO(o.orderDate);
+                        transactions.push({ date: oSafeDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id}${mathDesc}`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
+                    }
+                });
+
+                // 3. Payments/Settlements Processing
+                for (let p of myPayments) {
+                    let descParts = [];
+                    let pmtMult = p.paymentType === 'IN' ? 1 : -1;
+                    let cashChange = parseFloat(p.amount || 0) * pmtMult;
+                    let goldChange = 0, silverChange = 0;
+
+                    if (p.amount > 0) descParts.push(`Cash ₹${p.amount} (${p.mode})`);
+                    
+                    if (p.gold > 0) {
+                        const metalName = p.metal || 'Gold';
+                        if (p.goldType === 'fixed') {
+                            let fVal = p.gold * p.rate;
+                            cashChange += (fVal * pmtMult);
+                            descParts.push(`Fixed ${metalName} ${p.gold}g @ ₹${p.rate}/g`);
+                        } else {
+                            let actualFineWt = parseFloat(p.gold || 0);
+                            let displayPurity = p.purity || "Fine";
+                            let grossWt = parseNum(p.originalGrossWt) || actualFineWt;
+
+                            if (p.inventoryBarcode) {
+                                const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
+                                if (liveItem) {
+                                    if (liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
+                                        displayPurity = liveItem.purity;
+                                    } else if (p.wasPending || (liveItem.purity && liveItem.purity.toLowerCase() === 'pending')) {
+                                        displayPurity = "Tounch Pending";
+                                        grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || p.originalGrossWt || grossWt);
+                                    }
+                                } else {
+                                    if (!p.wasPending && grossWt > actualFineWt) {
+                                        displayPurity = ((actualFineWt / grossWt) * 100).toFixed(1) + "%";
+                                    }
                                 }
                             }
+
+                            if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
+                            else goldChange = actualFineWt * pmtMult;
+                            
+                            let mathDesc = `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt Given: ${parseFloat(grossWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Settled: ${actualFineWt.toFixed(3)}g</span>`;
+                            descParts.push(`${metalName} ${pmtMult === 1 ? 'Received' : 'Given'} ${mathDesc}`);
+                        }
+                    }
+                    let pSafeDate = getSafeDateISO(p.date);
+                    transactions.push({ date: pSafeDate, type: `Settlement (${p.paymentType})`, desc: descParts.join(' <hr style="margin:5px 0; border:0; border-top:1px dashed #cbd5e1;"> '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-pay' });
+                }
+
+                transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+                currentReportData = transactions;
+
+                let sumGold = 0, sumSilver = 0, sumCash = 0;
+                transactions.forEach(t => { sumGold += t.gold; sumSilver += t.silver; sumCash += t.cash; });
+
+                const finalNetGold = (parseFloat(merchant.goldBalance) || 0) - pendingGoldAcc;
+                const finalNetSilver = (parseFloat(merchant.silverBalance) || 0) - pendingSilverAcc;
+                const finalCash = parseFloat(merchant.balance) || 0;
+
+                let runGold = merchant.openingGold !== undefined ? parseFloat(merchant.openingGold) : (finalNetGold - sumGold);
+                let runSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
+                let runCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
+
+                const formatB = (val, isCash = false) => {
+                    let v = Math.abs(val) || 0;
+                    let s = val > 0 ? ' Dena' : (val < 0 ? ' Lena' : '');
+                    let sCol = val > 0 ? 'var(--active-red)' : (val < 0 ? 'var(--success-green)' : '#94a3b8');
+                    let t = val !== 0 ? `<small style="color:${sCol}; font-size:0.75rem; display:block; line-height:1; margin-top:2px; font-weight:700;">${s}</small>` : '';
+                    if (isCash) return `₹${v.toLocaleString()}${t}`;
+                    return `${v.toFixed(3)}${t}`;
+                };
+
+                const trOp = document.createElement('tr');
+                trOp.style.background = '#e2e8f0';
+                trOp.innerHTML = `
+                    <td class="text-left" colspan="2" style="font-weight:700; color:#333;">OPENING BALANCE</td>
+                    ${showGold ? `<td colspan="2" style="border-left:2px solid #cbd5e1;"></td><td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runGold)}</td>` : ''}
+                    ${showSilver ? `<td colspan="2" ${!showGold ? 'style="border-left:2px solid #cbd5e1;"' : ''}></td><td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runSilver)}</td>` : ''}
+                    <td colspan="2"></td><td class="val-bal">${formatB(runCash, true)}</td>
+                `;
+                newTbody.appendChild(trOp);
+
+                if (transactions.length === 0) {
+                    newTbody.innerHTML += '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;">No transaction history found for this party.</td></tr>';
+                } else {
+                    transactions.forEach(t => {
+                        let gJ = t.gold > 0 ? t.gold : 0, gN = t.gold < 0 ? Math.abs(t.gold) : 0;
+                        let sJ = t.silver > 0 ? t.silver : 0, sN = t.silver < 0 ? Math.abs(t.silver) : 0;
+                        let cJ = t.cash > 0 ? t.cash : 0, cN = t.cash < 0 ? Math.abs(t.cash) : 0;
+                        
+                        runGold += t.gold; runSilver += t.silver; runCash += t.cash;
+
+                        let dateObj = new Date(t.date);
+                        let dateStr = "N/A";
+                        if(!isNaN(dateObj.getTime())) {
+                            dateStr = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                         }
 
-                        if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
-                        else goldChange = actualFineWt * pmtMult;
-                        
-                        let mathDesc = `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt Given: ${parseFloat(grossWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Settled: ${actualFineWt.toFixed(3)}g</span>`;
-                        descParts.push(`${metalName} ${pmtMult === 1 ? 'Received' : 'Given'} ${mathDesc}`);
-                    }
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="text-left" style="color:#64748b; font-size:0.8rem; white-space:nowrap;">${dateStr}</td>
+                            <td class="text-left">
+                                <div style="font-weight:600; color:#333; margin-bottom:4px;">${t.desc}</div>
+                                <span class="badge ${t.badge}">${t.type}</span>
+                            </td>
+                            ${showGold ? `
+                            <td class="val-jama" style="border-left:2px solid #cbd5e1;">${gJ > 0 ? gJ.toFixed(3) : '-'}</td>
+                            <td class="val-nama">${gN > 0 ? gN.toFixed(3) : '-'}</td>
+                            <td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runGold)}</td>` : ''}
+                            ${showSilver ? `
+                            <td class="val-jama" ${!showGold ? 'style="border-left:2px solid #cbd5e1;"' : ''}>${sJ > 0 ? sJ.toFixed(3) : '-'}</td>
+                            <td class="val-nama">${sN > 0 ? sN.toFixed(3) : '-'}</td>
+                            <td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runSilver)}</td>` : ''}
+                            <td class="val-jama">${cJ > 0 ? '₹' + cJ.toLocaleString() : '-'}</td>
+                            <td class="val-nama">${cN > 0 ? '₹' + cN.toLocaleString() : '-'}</td>
+                            <td class="val-bal">${formatB(runCash, true)}</td>
+                        `;
+                        newTbody.appendChild(tr);
+                    });
                 }
-                transactions.push({ date: p.date, type: `Settlement (${p.paymentType})`, desc: descParts.join(' <hr style="margin:5px 0; border:0; border-top:1px dashed #cbd5e1;"> '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-pay' });
+
+                currentReportMeta = { name: name, category: cat, cash: finalCash, gold: finalNetGold, silver: finalNetSilver };
+            } catch(error) {
+                console.error("Report Generation Crash:", error);
+                alert("Ledger report load karne mein problem aayi hai. Kuch entries ki date galat ho sakti hai. (Check console)");
+                document.getElementById('reportModal').style.display = 'none';
             }
-
-            transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
-            currentReportData = transactions;
-
-            let sumGold = 0, sumSilver = 0, sumCash = 0;
-            transactions.forEach(t => { sumGold += t.gold; sumSilver += t.silver; sumCash += t.cash; });
-
-            const finalNetGold = (parseFloat(merchant.goldBalance) || 0) - pendingGoldAcc;
-            const finalNetSilver = (parseFloat(merchant.silverBalance) || 0) - pendingSilverAcc;
-            const finalCash = parseFloat(merchant.balance) || 0;
-
-            let runGold = merchant.openingGold !== undefined ? parseFloat(merchant.openingGold) : (finalNetGold - sumGold);
-            let runSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
-            let runCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
-
-            const formatB = (val, isCash = false) => {
-                let v = Math.abs(val);
-                let s = val > 0 ? ' Dena' : (val < 0 ? ' Lena' : '');
-                let sCol = val > 0 ? 'var(--active-red)' : (val < 0 ? 'var(--success-green)' : '#94a3b8');
-                let t = val !== 0 ? `<small style="color:${sCol}; font-size:0.75rem; display:block; line-height:1; margin-top:2px; font-weight:700;">${s}</small>` : '';
-                if (isCash) return `₹${v.toLocaleString()}${t}`;
-                return `${v.toFixed(3)}${t}`;
-            };
-
-            const trOp = document.createElement('tr');
-            trOp.style.background = '#e2e8f0';
-            trOp.innerHTML = `
-                <td class="text-left" colspan="2" style="font-weight:700; color:#333;">OPENING BALANCE</td>
-                ${showGold ? `<td colspan="2" style="border-left:2px solid #cbd5e1;"></td><td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runGold)}</td>` : ''}
-                ${showSilver ? `<td colspan="2" ${!showGold ? 'style="border-left:2px solid #cbd5e1;"' : ''}></td><td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runSilver)}</td>` : ''}
-                <td colspan="2"></td><td class="val-bal">${formatB(runCash, true)}</td>
-            `;
-            newTbody.appendChild(trOp);
-
-            if (transactions.length === 0) {
-                newTbody.innerHTML += '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;">No transaction history found for this party.</td></tr>';
-            } else {
-                transactions.forEach(t => {
-                    let gJ = t.gold > 0 ? t.gold : 0, gN = t.gold < 0 ? Math.abs(t.gold) : 0;
-                    let sJ = t.silver > 0 ? t.silver : 0, sN = t.silver < 0 ? Math.abs(t.silver) : 0;
-                    let cJ = t.cash > 0 ? t.cash : 0, cN = t.cash < 0 ? Math.abs(t.cash) : 0;
-                    
-                    runGold += t.gold; runSilver += t.silver; runCash += t.cash;
-
-                    let dateStr = new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="text-left" style="color:#64748b; font-size:0.8rem; white-space:nowrap;">${dateStr}</td>
-                        <td class="text-left">
-                            <div style="font-weight:600; color:#333; margin-bottom:4px;">${t.desc}</div>
-                            <span class="badge ${t.badge}">${t.type}</span>
-                        </td>
-                        ${showGold ? `
-                        <td class="val-jama" style="border-left:2px solid #cbd5e1;">${gJ > 0 ? gJ.toFixed(3) : '-'}</td>
-                        <td class="val-nama">${gN > 0 ? gN.toFixed(3) : '-'}</td>
-                        <td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runGold)}</td>` : ''}
-                        ${showSilver ? `
-                        <td class="val-jama" ${!showGold ? 'style="border-left:2px solid #cbd5e1;"' : ''}>${sJ > 0 ? sJ.toFixed(3) : '-'}</td>
-                        <td class="val-nama">${sN > 0 ? sN.toFixed(3) : '-'}</td>
-                        <td class="val-bal" style="border-right:2px solid #cbd5e1;">${formatB(runSilver)}</td>` : ''}
-                        <td class="val-jama">${cJ > 0 ? '₹' + cJ.toLocaleString() : '-'}</td>
-                        <td class="val-nama">${cN > 0 ? '₹' + cN.toLocaleString() : '-'}</td>
-                        <td class="val-bal">${formatB(runCash, true)}</td>
-                    `;
-                    newTbody.appendChild(tr);
-                });
-            }
-
-            currentReportMeta = { name: name, category: cat, cash: finalCash, gold: finalNetGold, silver: finalNetSilver };
         }
         
         // ─── DOWNLOAD CSV ──────────────────────────────────────────────────────
@@ -1382,8 +1429,11 @@
                 let cJ = row.cash > 0 ? row.cash : 0, cN = row.cash < 0 ? Math.abs(row.cash) : 0;
 
                 let cleanDesc = row.desc.replace(/<br\s*\/?>/gi, ' - ').replace(/<hr[^>]*>/gi, ' | ').replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+                
+                let dObj = new Date(row.date);
+                let safeDateStr = isNaN(dObj.getTime()) ? 'N/A' : dObj.toLocaleDateString();
 
-                let rowStr = `${new Date(row.date).toLocaleDateString()},${row.type},"${cleanDesc}"`;
+                let rowStr = `${safeDateStr},${row.type},"${cleanDesc}"`;
                 if (showGold) rowStr += `,${gJ},${gN}`;
                 if (showSilver) rowStr += `,${sJ},${sN}`;
                 rowStr += `,${cJ},${cN}`;
