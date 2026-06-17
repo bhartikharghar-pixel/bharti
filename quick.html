@@ -1031,28 +1031,29 @@ let cName = getCustName(s.customerId);
                 }
                 // -------------------------
 
-                let udhari = currentUdhari;
+               let udhari = currentUdhari;
                 let paid = Math.abs(parseNum(s.paidAmount));
                 let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
-                if (paid > 0) {
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            let cat = String(c.category || '').toLowerCase();
-                            let note = String(c.note || '').toLowerCase();
-                            let cAmt = Math.abs(parseNum(c.amount));
-                            
-                            if (cAmt === paid) {
-                                if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || String(c.saleId) === String(s.id)) {
-                                    c.alreadyHandled = true;
-                                }
-                                else if (isOrderBill && (cat.includes('order') || note.includes('ord-'))) {
-                                    c.alreadyHandled = true;
-                                }
+                
+                // 🔥 NAYA SMART LOGIC: Edit kiye hue bills ki double entry rokne ke liye
+                cFlows.forEach(c => {
+                    if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                        let cat = String(c.category || '').toLowerCase();
+                        let note = String(c.note || '').toLowerCase();
+                        
+                        let isMatch = false;
+                        if (c.saleId && String(c.saleId) === String(s.id)) isMatch = true;
+                        else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isMatch = true;
+                        else if (note.includes(String(s.id).toLowerCase())) isMatch = true;
+
+                        if (isMatch) {
+                            // Reversal aur naye payment dono ko ek hi bill ka hissa manega
+                            if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || cat.includes('reversal') || cat.includes('due payment')) {
+                                c.alreadyHandled = true;
                             }
                         }
-                    });
-                }
-
+                    }
+                });
                 let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
                 let netWtSold = 0, oldWtRcv = 0;
                 
