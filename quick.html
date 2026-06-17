@@ -377,7 +377,26 @@
 <script src="db.js?v=40"></script>
 
 <script>
-    // --- SIDEBAR FUNCTION ---
+    // --- HELPER FUNCTIONS ---
+    function getPurityFactor(p) {
+        if (!p) return 1.0;
+        let up = String(p).toUpperCase().trim();
+        
+        if(up.includes('24K')) return 1.0;
+        if(up.includes('22K')) return 0.9166;
+        if(up.includes('18K')) return 0.750;
+        
+        let numStr = up.replace(/[^0-9.]/g, '');
+        if (numStr) {
+            let num = parseFloat(numStr);
+            if (!isNaN(num)) {
+                if (num > 100) return num / 1000; 
+                if (num <= 100 && num > 0) return num / 100; 
+            }
+        }
+        return 1.0; 
+    }
+
     function toggleSidebar() { 
         document.getElementById('app-sidebar').classList.toggle('open'); 
         document.getElementById('sidebar-overlay').classList.toggle('show'); 
@@ -386,7 +405,6 @@
     let allCustomers = [];
     let allMerchants = [];
     
-    // Default categories
     let goldCategories = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
     let silverCategories = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
 
@@ -545,7 +563,7 @@
                     <div style="padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 0.75rem;">
                         <div style="color: ${color}; font-weight: 800; margin-bottom: 2px;">${sign}${val.toFixed(3)}g</div>
                         <div style="color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${entity}">${entity}</div>
-                        <div style="color: #777; font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${desc}">${desc}</div>
+                        <div style="color: #777; font-size: 0.7rem;">${desc}</div>
                     </div>
                 `;
                 if(isIN) dMetal[cType].in.push(html);
@@ -668,8 +686,11 @@
                 if (mIn > 0 && !isDouble) {
                     logMetal(p.date, mIn, true, 'NET');
                     if (p.date && p.date.startsWith(today)) {
-                        let pPurity = p.purity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : '');
-                        let pDesc = pPurity ? `Purchase Stock (${pPurity})` : 'Purchase Stock';
+                        let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                        if (actualWt === 0) actualWt = mIn;
+                        let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                        let pDesc = `Purchase Stock <br><span style="font-size:0.7rem; color:#666;">Wt: ${parseFloat(actualWt).toFixed(3)}g | Tounch: ${displayPurity}</span>`;
                         pushMetalLog(mIn, 'Net', getMerchName(p.merchantId), pDesc, true);
                     }
                 }
@@ -678,15 +699,21 @@
             mPayments.forEach(mp => {
                 if (!isGold(mp)) return; 
                 if (mp.goldType !== 'fixed') {
-                    let net = parseNum(mp.gold);
-                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'NET');
-                    else logMetal(mp.date, net, true, 'NET');
+                    let fineWt = parseNum(mp.gold);
+                    if (mp.paymentType === 'OUT') logMetal(mp.date, fineWt, false, 'NET');
+                    else logMetal(mp.date, fineWt, true, 'NET');
 
-                    if (mp.date && mp.date.startsWith(today) && net > 0) {
-                        let mpPurity = mp.purity || '';
-                        let mpDesc = mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv';
-                        if (mpPurity) mpDesc += ` (${mpPurity})`;
-                        pushMetalLog(net, 'Net', getMerchName(mp.merchantId), mpDesc, mp.paymentType !== 'OUT');
+                    if (mp.date && mp.date.startsWith(today) && fineWt > 0) {
+                        let actualWt = parseNum(mp.originalGrossWt) || fineWt;
+                        let displayPurity = mp.purity || "Fine";
+                        if (!mp.purity && actualWt > fineWt) {
+                            displayPurity = ((fineWt / actualWt) * 100).toFixed(1) + "%";
+                        }
+
+                        let actionStr = mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv';
+                        let mpDesc = `${actionStr} <br><span style="font-size:0.7rem; color:#666;">Wt: ${parseFloat(actualWt).toFixed(3)}g | Tounch: ${displayPurity}</span>`;
+                        
+                        pushMetalLog(fineWt, 'Net', getMerchName(mp.merchantId), mpDesc, mp.paymentType !== 'OUT');
                     }
                 }
             });
@@ -1018,7 +1045,6 @@
                 let cName = getCustName(s.customerId);
                 let currentUdhari = Math.abs(parseNum(s.pendingAmount));
                 
-                // --- नया स्मार्ट लॉजिक (Order Udhari Fix) ---
                 if (isOrderBill) {
                     let udhariPaidToday = 0;
                     
@@ -1046,13 +1072,11 @@
                     }
                     return; 
                 }
-                // -------------------------
-
+                
                 let udhari = currentUdhari;
                 let paid = Math.abs(parseNum(s.paidAmount));
                 let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
                 
-                // 🔥 NAYA SMART LOGIC: Edit kiye hue bills ki double entry rokne ke liye
                 cFlows.forEach(c => {
                     if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                         let cat = String(c.category || '').toLowerCase();
@@ -1064,7 +1088,6 @@
                         else if (note.includes(String(s.id).toLowerCase())) isMatch = true;
 
                         if (isMatch) {
-                            // Reversal aur naye payment dono ko ek hi bill ka hissa manega
                             if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || cat.includes('reversal') || cat.includes('due payment')) {
                                 c.alreadyHandled = true;
                             }
@@ -1120,8 +1143,13 @@
                     else netWtBought = parseNum(p.weight || p.netWt || p.netWeight);
                 }
 
-                let pPurity = p.purity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : '');
-                let pLabel = pPurity ? `Net (${pPurity})` : 'Net';
+                let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                if(actualWt === 0) actualWt = netWtBought;
+                let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                let mathDesc = `<br><span style="font-size:0.7rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Act Wt: ${parseFloat(actualWt).toFixed(3)}g × Purity: ${displayPurity}</span>`;
+                
+                itemStr += mathDesc;
 
                 if (paid > 0) {
                     cFlows.forEach(c => {
@@ -1137,10 +1165,10 @@
 
                 if(gross > 0) {
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
-                    pushLog('Purchase', gross, mName, itemStr, spl, false, [{val: netWtBought, label: pLabel}]);
+                    pushLog('Purchase', gross, mName, itemStr, spl, false, [{val: netWtBought, label:'Net'}]);
                 } else if (paid > 0) { 
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
-                    pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv', spl, false, [{val: netWtBought, label: pLabel}]);
+                    pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv' + mathDesc, spl, false, [{val: netWtBought, label:'Net'}]);
                 } else {
                     let isDouble = false;
                     mPayments.forEach(mp => {
@@ -1151,7 +1179,7 @@
                     if (!isDouble && netWtBought > 0) {
                         let f = getSafeFine(p);
                         let customAmt = `<span style="color:#000;">${(f > 0 ? f : 0).toFixed(3)}gF</span>`;
-                        pushLog('Vyapari Aaya', 0, mName, 'Unfixed Metal Recv', '', true, [{val: netWtBought, label: pLabel}], customAmt);
+                        pushLog('Vyapari Aaya', 0, mName, 'Unfixed Metal Recv' + mathDesc, '', true, [{val: netWtBought, label:'Net'}], customAmt);
                     }
                 }
                 if(due > 0) pushLog('PurchaseDue', due, mName, 'Credit', '', true);
@@ -1159,22 +1187,24 @@
 
             mPayments.forEach(mp => {
                 if (!isGold(mp)) return;
-                
-                let net = parseNum(mp.gold);
+                let net = parseNum(mp.gold); 
                 if (mp.goldType !== 'fixed' && mp.date.startsWith(today) && net > 0) {
-                    let fine = getSafeFine(mp);
-                    if (fine === 0) fine = net; 
-                    
                     let mName = getMerchName(mp.merchantId);
                     
-                    let mpPurity = mp.purity || '';
-                    let mpLabel = mpPurity ? `Net (${mpPurity})` : 'Net';
-                    let customAmt = `<span style="color:#000;">${(fine > 0 ? fine : 0).toFixed(3)}gF</span>`;
+                    let actualWt = parseNum(mp.originalGrossWt) || net;
+                    let displayPurity = mp.purity || "Fine";
+                    if (!mp.purity && actualWt > net) {
+                        displayPurity = ((net / actualWt) * 100).toFixed(1) + "%";
+                    }
+
+                    let mathDesc = `<br><span style="font-size:0.7rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Act Wt: ${parseFloat(actualWt).toFixed(3)}g × Purity: ${displayPurity}</span>`;
+
+                    let customAmt = `<span style="color:#000;">${net.toFixed(3)}gF</span>`;
 
                     if (mp.paymentType === 'OUT') {
-                        pushLog('Vyapari Diya', 0, mName, `Paid Unfixed`, '', false, [{val: net, label: mpLabel}], customAmt);
+                        pushLog('Vyapari Diya', 0, mName, `Paid Unfixed` + mathDesc, '', false, [{val: net, label: 'NET'}], customAmt);
                     } else {
-                        pushLog('Vyapari Aaya', 0, mName, `Recv Unfixed`, '', true, [{val: net, label: mpLabel}], customAmt);
+                        pushLog('Vyapari Aaya', 0, mName, `Recv Unfixed` + mathDesc, '', true, [{val: net, label: 'NET'}], customAmt);
                     }
                 }
             });
@@ -1333,7 +1363,6 @@
                     let lId = loanMatch[1];
                     let matchedLoan = loans.find(x => String(x.id) === String(lId));
                     
-                    // 🔥 BETTER LOAN CUSTOMER NAME EXTRACTION
                     let cNameForLoan = '';
                     if (matchedLoan && matchedLoan.customerId) cNameForLoan = getCustName(matchedLoan.customerId);
                     
@@ -1383,20 +1412,17 @@
                     vyapariName = c.merchantName || c.merchant_name || c.partyName || c.party_name || c.party || c.ledgerName || c.name || '';
                 }
 
-                // 🔥 BETTER CUSTOMER NAME EXTRACTION
                 let cNameFromFlow = '';
                 if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameFromFlow = getCustName(c.customerId);
                 else if (c.customerName) cNameFromFlow = c.customerName;
                 else if (c.partyName && !isVyapariPayment) cNameFromFlow = c.partyName;
                 else if (c.name && !isVyapariPayment) cNameFromFlow = c.name;
                 
-                // Extract name from note if it says "from [Name]"
                 if (!cNameFromFlow && note.includes('from ')) {
                     let parts = c.note.split(/from\s+/i);
                     if (parts.length > 1) cNameFromFlow = parts[1].trim();
                 }
 
-                // 🔥 NEW: Extract customer from Sale Array using Bill ID
                 if (!cNameFromFlow && (c.saleId || note.includes('bill'))) {
                     let sId = c.saleId;
                     if (!sId && c.note) {
@@ -1421,7 +1447,6 @@
                     entityName = c.note || c.category || 'Payment';
                 }
 
-                // 🔥 NEW UDHARI LOGIC HERE WITH OUTSTANDING AND DUE KEYWORDS
                 let isUdhariIn = (type === 'IN' && !isVyapariPayment && !cat.includes('purchase') && (
                     cat.includes('udhari') || note.includes('udhari') || 
                     cat.includes('outstanding') || note.includes('outstanding') ||
@@ -1437,7 +1462,6 @@
 
                 if (isUdhariIn) {
                     let displayTitle = cNameFromFlow || 'Customer';
-                    // Agar naam nahi mila aur note me 'Payment for Bill' likha hai, to usko main title mat banao
                     if (!cNameFromFlow && c.note && !c.note.toLowerCase().includes('payment for bill')) {
                         displayTitle = c.note;
                     }
