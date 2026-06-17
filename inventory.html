@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -45,6 +45,10 @@
         .metal-toggle-container { display: flex; background: #e0e0e0; padding: 5px; border-radius: 12px; width: fit-content; gap: 5px; flex-wrap: wrap;}
         .metal-tab { padding: 10px 15px; font-weight: 600; font-size: 0.85rem; color: #555; cursor: pointer; border-radius: 8px; transition: 0.3s; display: flex; align-items: center; gap: 6px;}
         .metal-tab.active-gold { background: white; color: var(--accent-gold); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-gold);}
+        
+        /* 🔥 NAYA TAB KA STYLE */
+        .metal-tab.active-gold-loose { background: white; color: #d84315; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #d84315;}
+        
         .metal-tab.active-gold-fine { background: white; color: #fbc02d; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid #fbc02d;}
         .metal-tab.active-gold-order { background: white; color: var(--info-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--info-blue);}
         .metal-tab.active-silver { background: white; color: #455a64; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-bottom: 3px solid var(--accent-silver);}
@@ -127,9 +131,16 @@
         @media (max-width: 768px) {
             .app-container { padding: 15px; }
             .header-top-row { flex-direction: column; align-items: stretch; gap: 10px;}
-            .metal-toggle-container { width: 100%; border-radius: 12px; background: transparent; box-shadow: none; gap: 8px; padding: 0; }
-            .metal-tab { width: calc(50% - 4px); justify-content: center; background: #e0e0e0; border-radius: 8px; border-bottom: none; border-left: 5px solid transparent; }
-            .metal-tab.active-gold { border-left-color: var(--accent-gold); }
+            .metal-toggle-container { width: 100%; border-radius: 12px; background: transparent; box-shadow: none; gap: 8px; padding: 0; justify-content: center; }
+            /* Mobile adjustment for 5 tabs */
+            .metal-tab { flex: 1; min-width: calc(33% - 10px); justify-content: center; background: #e0e0e0; border-radius: 8px; border-bottom: none; border-left: 5px solid transparent; text-align: center; padding: 8px 5px;}
+            .metal-tab.active-gold { border-left-color: var(--accent-gold); border-bottom: none; }
+            .metal-tab.active-gold-loose { border-left-color: #d84315; border-bottom: none; }
+            .metal-tab.active-gold-fine { border-left-color: #fbc02d; border-bottom: none;}
+            .metal-tab.active-gold-order { border-left-color: var(--info-blue); border-bottom: none;}
+            .metal-tab.active-silver { border-left-color: var(--accent-silver); border-bottom: none;}
+            .metal-tab.active-all { border-left-color: #333; border-bottom: none;}
+            
             .filter-bar-new { flex-direction: column; align-items: stretch; padding: 15px;}
             .grid-2, .grid-3 { grid-template-columns: 1fr !important; gap: 15px; }
             .modal-content { padding: 20px; width: 95%; max-height: 90vh; }
@@ -189,6 +200,9 @@
         <div class="header-top-row">
             <div class="metal-toggle-container">
                 <div class="metal-tab active-gold" id="metal-tab-gold-tagged" onclick="setMetalFilter('GOLD_TAGGED')"><i class="fas fa-tags"></i> Gold (Tagged)</div>
+                <!-- 🔥 NAYA TAB YAHAN HAI -->
+                <div class="metal-tab" id="metal-tab-gold-loose" onclick="setMetalFilter('GOLD_LOOSE')"><i class="fas fa-layer-group"></i> Bulk/Loose Stock</div>
+                
                 <div class="metal-tab" id="metal-tab-gold-fine" onclick="setMetalFilter('GOLD_FINE')"><i class="fas fa-cubes"></i> Gold (Fine/Melt)</div>
                 <div class="metal-tab" id="metal-tab-gold-order" onclick="setMetalFilter('GOLD_ORDER')"><i class="fas fa-hammer"></i> Gold (Orders)</div>
                 <div class="metal-tab" id="metal-tab-silver" onclick="setMetalFilter('SILVER')"><i class="fas fa-ring"></i> Silver Stock</div>
@@ -216,7 +230,7 @@
             <button class="btn-view" style="height: 45px; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 0px;" onclick="resetDates()"><i class="fas fa-sync"></i> Reset</button>
         </div>
 
-        <div class="filter-group">
+        <div class="filter-group" style="display:none;"> <!-- Sub-view filter is mostly irrelevant now but keeping hidden to avoid JS errors if referenced -->
             <label><i class="fas fa-layer-group"></i> Sub-View Filter:</label>
             <select id="filterType" onchange="applyFilters()">
                 <option value="ALL">All Active Stock in this Tab</option>
@@ -538,12 +552,14 @@
             <label>Category</label>
             <select id="editCategory"></select>
         </div>
-        <!-- NAYA BOX NAME FIELD YAHAN ADD HUA HAI -->
         <div class="form-group">
             <label>Item / Box Name (Tag)</label>
             <input type="text" id="editItemName" placeholder="e.g. Payal - Box 1">
         </div>
-        <!-- ==================================== -->
+        <div class="form-group">
+            <label>Photo Link (Catalog ke liye)</label>
+            <input type="text" id="editItemImage" placeholder="Paste Imgur / Google Drive Image Link here">
+        </div>
         <div class="grid-2">
             <div class="form-group">
                 <label>Gross Wt (g)</label>
@@ -573,7 +589,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="db.js?v=38"></script>
+<script src="db.js?v=40"></script>
 <script>
     function toggleSidebar() { document.getElementById('app-sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('show'); }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -764,6 +780,7 @@
         let purity = '';
         let cat = '';
         let metal = '';
+        let barcode = '';
 
         if (typeof itemOrPurity === 'string') {
             purity = itemOrPurity;
@@ -771,9 +788,11 @@
             purity = itemOrPurity.purity || '';
             cat = itemOrPurity.category || '';
             metal = itemOrPurity.metal || '';
+            barcode = itemOrPurity.barcode || '';
         }
 
         let p = purity.toUpperCase();
+        if (barcode && barcode.toUpperCase().includes('SIL')) return true;
         
         if (metal.toUpperCase() === 'SILVER') return true;
         if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
@@ -966,12 +985,16 @@
         if(subCatGroup) subCatGroup.style.display = 'none';
         const subCatSelect = document.getElementById('filterSubCategory');
         if(subCatSelect) subCatSelect.value = 'ALL';
-        document.querySelectorAll('.metal-tab').forEach(btn => btn.classList.remove('active-gold', 'active-gold-fine', 'active-gold-order', 'active-silver', 'active-all'));
+        
+        document.querySelectorAll('.metal-tab').forEach(btn => btn.classList.remove('active-gold', 'active-gold-fine', 'active-gold-order', 'active-silver', 'active-all', 'active-gold-loose'));
+        
         if(metalFilter === 'GOLD_TAGGED') document.getElementById('metal-tab-gold-tagged').classList.add('active-gold');
+        else if(metalFilter === 'GOLD_LOOSE') document.getElementById('metal-tab-gold-loose').classList.add('active-gold-loose'); // 🔥 NAYA TAB LOGIC
         else if(metalFilter === 'GOLD_FINE') document.getElementById('metal-tab-gold-fine').classList.add('active-gold-fine');
         else if(metalFilter === 'GOLD_ORDER') document.getElementById('metal-tab-gold-order').classList.add('active-gold-order');
         else if(metalFilter === 'SILVER') document.getElementById('metal-tab-silver').classList.add('active-silver');
         else document.getElementById('metal-tab-all').classList.add('active-all');
+        
         buildFilterBar(); applyFilters();
     }
 
@@ -1016,6 +1039,7 @@
             if (isSilv) return false;
             
             const isOrder = i.barcode?.startsWith('ORD-') || i.source?.startsWith('order_');
+            const isUntagged = i.category === 'MIX' || (i.barcode && i.barcode.startsWith('LOOSE-'));
             
             const isFineOrMelt = i.purity === '24K' || 
                                  i.category?.toUpperCase().includes('MELT') || 
@@ -1024,8 +1048,9 @@
                                  i.source?.startsWith('melt_');
                                  
             if (currentMetalFilter === 'GOLD_ORDER') return isOrder;
-            if (currentMetalFilter === 'GOLD_FINE') return isFineOrMelt && !isOrder;
-            if (currentMetalFilter === 'GOLD_TAGGED') return !isOrder && !isFineOrMelt;
+            if (currentMetalFilter === 'GOLD_LOOSE') return isUntagged && !isOrder; // 🔥 NAYA FILTER LOGIC
+            if (currentMetalFilter === 'GOLD_FINE') return isFineOrMelt && !isOrder && !isUntagged;
+            if (currentMetalFilter === 'GOLD_TAGGED') return !isOrder && !isFineOrMelt && !isUntagged;
             return true;
         });
 
@@ -1792,6 +1817,7 @@
         document.getElementById('editCategory').value = item.category; 
         // Pehle ka naam set karne ke liye
         document.getElementById('editItemName').value = item.name || item.subFolder || ''; 
+        document.getElementById('editItemImage').value = item.imageUrl || item.imageLink || ''; 
         document.getElementById('editGross').value = item.grossWt || item.weight || 0; 
         document.getElementById('editStone').value = item.stoneWt || 0; 
         openModal('editModal'); 
@@ -1810,6 +1836,7 @@
                     item.subFolder = newName;
                 }
             }
+            item.imageUrl = document.getElementById('editItemImage').value.trim();
 
             item.grossWt = parseFloat(document.getElementById('editGross').value) || 0; 
             item.stoneWt = parseFloat(document.getElementById('editStone').value) || 0; 
