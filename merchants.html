@@ -648,14 +648,14 @@
 
                 let goldHtml = cat !== 'Silver' ? `
                     <div class="bal-item">
-                        <span class="bal-lbl" style="color:var(--accent-gold);">Net Gold</span>
+                        <span class="bal-lbl" style="color:var(--accent-gold);">Fine Gold (Pure)</span>
                         <span class="bal-val ${gs.cClass}">${Math.abs(netGold).toFixed(3)}g</span>
                         <span class="bal-sub ${gs.bgClass}">${gs.text}</span>
                     </div>` : '';
 
                 let silverHtml = cat !== 'Gold' ? `
                     <div class="bal-item">
-                        <span class="bal-lbl" style="color:var(--accent-silver);">Net Silver</span>
+                        <span class="bal-lbl" style="color:var(--accent-silver);">Fine Silver</span>
                         <span class="bal-val ${ss.cClass}">${Math.abs(netSilver).toFixed(3)}g</span>
                         <span class="bal-sub ${ss.bgClass}">${ss.text}</span>
                     </div>` : '';
@@ -1034,6 +1034,7 @@
                 // UPDATED: Proper Gross Weight Calculation logic
                 let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
                 let transferredGrossWt = gold; // Default to fine weight
+                let transferPurity = ''; 
                 
                 if (direction === 'OUT' && inventorySelect.value) {
                     inventoryId = inventorySelect.value;
@@ -1041,10 +1042,11 @@
                     inventoryBarcode = selOpt.dataset.barcode;
                     isPendingTransfer = selOpt.dataset.ispending === 'true';
                     
-                    if (!isPendingTransfer) {
-                        let purityText = selOpt.innerText.split('|')[1];
-                        if (purityText) {
-                            const factor = typeof getPurityFactor === 'function' ? getPurityFactor(purityText) : 1;
+                    let purityText = selOpt.innerText.split('|')[1];
+                    if (purityText) {
+                        transferPurity = purityText.trim();
+                        if (!isPendingTransfer) {
+                            const factor = typeof getPurityFactor === 'function' ? getPurityFactor(transferPurity) : 1;
                             if (factor > 0 && factor !== 1) {
                                 transferredGrossWt = parseFloat((gold / factor).toFixed(3));
                             }
@@ -1056,6 +1058,7 @@
                     merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
                     goldType: goldType, rate: rate, paymentType: direction,
                     inventoryId: inventoryId, inventoryBarcode: inventoryBarcode,
+                    purity: transferPurity,
                     wasPending: isPendingTransfer, originalGrossWt: transferredGrossWt, 
                     date: new Date().toISOString(), mode: payMode
                 });
@@ -1209,11 +1212,10 @@
                         transactions.push({ date: new Date(new Date(p.date).getTime() + 1000).toISOString(), type: 'Advance Paid', desc: `Cash Paid instantly for PUR-${p.id}`, gold: 0, silver: 0, cash: -instantPayment, badge: 'b-pay' });
                     }
                 }
-               if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
+                if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
                     if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
                     else goldChange = parseFloat(p.totalFineWeight) || 0;
                     
-                    // NAYA LOGIC: Sahi Actual Weight aur Purity extract karne ke liye
                     let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
                     if (actualWt === 0) actualWt = parseFloat(p.totalFineWeight);
                     let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
@@ -1257,7 +1259,7 @@
                     } else {
                         // UPDATED: Proper Gross Weight usage logic
                         let actualFineWt = parseFloat(p.gold || 0);
-                        let displayPurity = "Fine";
+                        let displayPurity = p.purity || "Fine";
                         let grossWt = p.originalGrossWt || actualFineWt;
 
                         if (p.inventoryBarcode) {
@@ -1279,7 +1281,7 @@
                         if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
                         else goldChange = actualFineWt * pmtMult;
                         
-                       let mathDesc = `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt Given: ${parseFloat(grossWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Settled: ${actualFineWt.toFixed(3)}g</span>`;
+                        let mathDesc = `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt Given: ${parseFloat(grossWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Settled: ${actualFineWt.toFixed(3)}g</span>`;
                         descParts.push(`${metalName} ${pmtMult === 1 ? 'Received' : 'Given'} ${mathDesc}`);
                     }
                 }
