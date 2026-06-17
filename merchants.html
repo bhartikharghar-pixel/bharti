@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -364,8 +364,9 @@
             </div>
 
             <div class="form-group">
-                <label>Metal <span style="color:var(--active-red);">FINE</span> Weight To Transfer (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Used for Ledger)</small></label>
+                <label>Actual Metal Weight Given/Recv (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Physical Wt)</small></label>
                 <input type="number" id="payGold" placeholder="0.000" step="0.001" oninput="validateMetalInput()">
+                <div id="calculatedFineLabel" style="font-size:0.85rem; color:var(--receive-blue); margin-top:6px; font-weight:bold; display:none; background:#e0f2fe; padding:8px; border-radius:6px;">Fine Settled: <span id="lblPayFine">0.000g</span></div>
             </div>
 
             <div class="form-group" id="goldTypeGroup" style="display:none; background:#eff6ff; padding:15px; border-radius:10px; border:1px solid #bfdbfe; margin-top:15px;">
@@ -425,7 +426,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="db.js?v=42"></script>
+    <script src="db.js?v=43"></script>
 
     <script>
         // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────
@@ -487,73 +488,7 @@
             const r = await getSetting('gold_rates');
             if (r) goldRates = r;
             await loadMerchants();
-            await syncPendingTounch(); 
         };
-
-        // ─── SMART AUTO-HEAL (SAFE MODE) ───────────────────
-        async function syncPendingTounch() {
-            try {
-                let payments = [];
-                try { payments = await getAllItems('merchant_payments'); } catch(e) {}
-                
-                let allInv = [];
-                try { allInv = await getAllItems('inventory'); } catch(e) {}
-                
-                const merchantsToUpdate = {};
-                let updatedCount = 0;
-
-                const linkedPayments = payments.filter(p => p.inventoryBarcode);
-
-                for (let p of linkedPayments) {
-                    const liveItem = allInv.find(i => i.barcode === p.inventoryBarcode);
-                    if (liveItem && liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
-                        const factor = getPurityFactor(liveItem.purity);
-                        
-                        let gross = p.originalGrossWt;
-                        if (!gross) {
-                            const itemGross = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || 0);
-                            if (Math.abs(p.gold - itemGross) < 0.01) { gross = itemGross; } 
-                        }
-
-                        if (gross > 0) {
-                            const correctFine = parseFloat((gross * factor).toFixed(3));
-                            
-                            if (p.wasPending || (Math.abs(p.gold - gross) < 0.001 && factor < 1.0)) {
-                                
-                                if (Math.abs(p.gold - correctFine) > 0.001) {
-                                    const pmtMult = p.paymentType === 'OUT' ? -1 : 1; 
-                                    const diff = correctFine - p.gold; 
-                                    
-                                    p.originalGrossWt = gross;
-                                    p.gold = correctFine;
-                                    p.wasPending = false; 
-                                    await updateItem('merchant_payments', p.id, p);
-                                    
-                                    if (!merchantsToUpdate[p.merchantId]) {
-                                        merchantsToUpdate[p.merchantId] = await getItem('merchants', p.merchantId);
-                                    }
-                                    const m = merchantsToUpdate[p.merchantId];
-                                    if (m) {
-                                        if (p.metal === 'Silver') m.silverBalance = (parseFloat(m.silverBalance)||0) + (diff * pmtMult);
-                                        else m.goldBalance = (parseFloat(m.goldBalance)||0) + (diff * pmtMult);
-                                    }
-                                    updatedCount++;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                for (let mId in merchantsToUpdate) {
-                    await updateItem('merchants', mId, merchantsToUpdate[mId]);
-                }
-                
-                if (updatedCount > 0) {
-                    loadMerchants(); 
-                    showToast(`${updatedCount} old calculation errors auto-corrected!`, 'success');
-                }
-            } catch(e) { console.error("Error in Auto-Heal:", e); }
-        }
 
         // ─── CATEGORY TOGGLE ───────────────────────────────────────────────────
         function setMCat(type) {
@@ -877,21 +812,14 @@
             
             availableStock.forEach(item => {
               const isPending = !item.purity || item.purity === 'Pending' || String(item.purity).trim() === '' || String(item.purity).toLowerCase().includes('pending');
-                let displayWt = 0;
-                let wtLabel = 'Fine';
+                
+                let grossWt = parseFloat(item.grossWt || item.netWt || item.weight) || 0;
+                let factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
+                let fineWt = item.fineWt || (grossWt * factor);
 
-                if (isPending) {
-                    displayWt = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
-                    wtLabel = 'Gross (Tounch Pending)';
-                } else {
-                    let fineWt = item.fineWt;
-                    if (!fineWt) {
-                        const n = parseFloat(item.netWt || item.grossWt || item.weight) || 0;
-                        const factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
-                        fineWt = n * factor;
-                    }
-                    displayWt = fineWt;
-                }
+                let displayWt = grossWt; 
+                let wtLabel = 'Gross';
+                if (isPending) wtLabel = 'Gross (Pending)';
 
                 let origin = "Shop Stock";
                 if (item.merchantId) {
@@ -901,6 +829,7 @@
                 const opt = document.createElement('option');
                 opt.value = item.id;
                 opt.dataset.weight = parseFloat(displayWt).toFixed(3);
+                opt.dataset.factor = factor;
                 opt.dataset.barcode = item.barcode;
                 opt.dataset.ispending = isPending ? 'true' : 'false';
                 opt.innerText = `${item.barcode} | ${item.purity} | ${parseFloat(displayWt).toFixed(3)}g ${wtLabel} [From: ${origin}]`;
@@ -922,10 +851,10 @@
                 goldInput.style.background = '#fff';
                 
                 if (selectedOpt.dataset.ispending === 'true') {
-                    maxLabel.innerText = `(Gross Wt: ${selectedOpt.dataset.weight}g) ⚠️ TOUNCH PENDING`;
+                    maxLabel.innerText = `(Max Gross: ${selectedOpt.dataset.weight}g) ⚠️ PENDING`;
                     maxLabel.style.color = '#d32f2f';
                 } else {
-                    maxLabel.innerText = `(Max Available Fine: ${selectedOpt.dataset.weight}g)`;
+                    maxLabel.innerText = `(Max Gross Available: ${selectedOpt.dataset.weight}g)`;
                     maxLabel.style.color = 'var(--active-red)';
                 }
                 maxLabel.style.fontWeight = 'bold';
@@ -934,11 +863,11 @@
                 goldInput.dataset.maxWeight = '';
                 goldInput.readOnly = false;
                 goldInput.style.background = '#f8fafc';
-                maxLabel.innerText = `(Used for Ledger)`;
+                maxLabel.innerText = `(Physical Wt)`;
                 maxLabel.style.color = '#94a3b8';
                 maxLabel.style.fontWeight = 'normal';
             }
-            toggleGoldOptions();
+            validateMetalInput(); 
         }
 
         async function openPay(id) {
@@ -996,15 +925,33 @@
 
         function validateMetalInput() {
             const goldInput = document.getElementById('payGold');
+            const select = document.getElementById('payInventorySelect');
             const maxWtStr = goldInput.dataset.maxWeight;
-            if (maxWtStr) {
+            
+            let currentWt = parseFloat(goldInput.value) || 0;
+            
+            if (maxWtStr && select.value) {
                 const maxWt = parseFloat(maxWtStr);
-                let currentWt = parseFloat(goldInput.value);
-                if (!isNaN(maxWt) && !isNaN(currentWt) && currentWt > maxWt) {
+                if (!isNaN(maxWt) && currentWt > maxWt) {
                     showToast(`Cannot exceed available stock weight (${maxWt}g)`, 'error');
                     goldInput.value = maxWt;
+                    currentWt = maxWt;
                 }
             }
+            
+            let factor = 1.0;
+            if (select.value) {
+                factor = parseFloat(select.options[select.selectedIndex].dataset.factor) || 1.0;
+            }
+            
+            let fine = currentWt * factor;
+            if (currentWt > 0 && factor !== 1.0) {
+                document.getElementById('lblPayFine').innerText = fine.toFixed(3) + 'g';
+                document.getElementById('calculatedFineLabel').style.display = 'block';
+            } else {
+                document.getElementById('calculatedFineLabel').style.display = 'none';
+            }
+            
             toggleGoldOptions();
         }
 
@@ -1021,9 +968,16 @@
         }
 
         function calcFixedValue() {
-            const gold = parseFloat(document.getElementById('payGold').value) || 0;
+            const inputWt = parseFloat(document.getElementById('payGold').value) || 0;
+            const select = document.getElementById('payInventorySelect');
+            let factor = 1.0;
+            if (select.value) {
+                factor = parseFloat(select.options[select.selectedIndex].dataset.factor) || 1.0;
+            }
+            const fineWt = inputWt * factor;
+            
             const rate = parseFloat(document.getElementById('payGoldRate').value) || 0;
-            document.getElementById('payFixedTotal').innerText = "₹" + Math.round(gold * rate).toLocaleString();
+            document.getElementById('payFixedTotal').innerText = "₹" + Math.round(fineWt * rate).toLocaleString();
         }
 
         // ─── PAY MERCHANT ───────────────────────────────────
@@ -1036,7 +990,6 @@
                 const id = document.getElementById('payId').value;
                 const amt = parseFloat(document.getElementById('payAmount').value) || 0;
                 const payMode = document.getElementById('payModeSelect').value || 'Cash';
-                const gold = parseFloat(document.getElementById('payGold').value) || 0;
                 const direction = document.getElementById('payDirection').value;
                 const metal = document.getElementById('payMetalType').value;
                 const inventorySelect = document.getElementById('payInventorySelect');
@@ -1044,7 +997,30 @@
 
                 const goldType = document.getElementById('goldTypeGroup').style.display === 'block' ? document.getElementById('payGoldType').value : 'unfixed';
                 const rate = parseFloat(document.getElementById('payGoldRate').value) || 0;
-                const fixedCashValue = Math.round(gold * rate);
+                
+                const inputWt = parseFloat(document.getElementById('payGold').value) || 0; 
+                let factor = 1.0;
+                let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
+                let transferredGrossWt = inputWt; 
+                let transferPurity = ''; 
+                
+                if (direction === 'OUT' && inventorySelect.value) {
+                    inventoryId = inventorySelect.value;
+                    const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
+                    inventoryBarcode = selOpt.dataset.barcode;
+                    isPendingTransfer = selOpt.dataset.ispending === 'true';
+                    factor = parseFloat(selOpt.dataset.factor) || 1.0;
+                    
+                    let purityText = selOpt.innerText.split('|')[1];
+                    if (purityText) {
+                        transferPurity = purityText.trim();
+                    }
+                }
+
+                let actualFineWt = parseFloat((inputWt * factor).toFixed(3));
+                let gold = actualFineWt; 
+
+                const fixedCashValue = Math.round(gold * rate); 
 
                 if (goldType === 'fixed' && gold > 0 && rate <= 0) {
                     showToast("Enter Rate for Fixed settlement", "error");
@@ -1053,29 +1029,6 @@
                 if (amt <= 0 && gold <= 0) {
                     showToast("Enter Amount or Metal weight", "error");
                     return;
-                }
-
-                // UPDATED: Proper Gross Weight Calculation logic
-                let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
-                let transferredGrossWt = gold; 
-                let transferPurity = ''; 
-                
-                if (direction === 'OUT' && inventorySelect.value) {
-                    inventoryId = inventorySelect.value;
-                    const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
-                    inventoryBarcode = selOpt.dataset.barcode;
-                    isPendingTransfer = selOpt.dataset.ispending === 'true';
-                    
-                    let purityText = selOpt.innerText.split('|')[1];
-                    if (purityText) {
-                        transferPurity = purityText.trim();
-                        if (!isPendingTransfer) {
-                            const factor = typeof getPurityFactor === 'function' ? getPurityFactor(transferPurity) : 1;
-                            if (factor > 0 && factor !== 1) {
-                                transferredGrossWt = parseFloat((gold / factor).toFixed(3));
-                            }
-                        }
-                    }
                 }
 
                 await addItem('merchant_payments', {
@@ -1106,20 +1059,17 @@
                 if (inventoryId && direction === 'OUT') {
                     const item = await getItem('inventory', inventoryId);
                     if (item) {
-                        let itemFine = parseFloat(item.fineWt);
-                        if (isNaN(itemFine)) {
-                            const factor = typeof getPurityFactor === 'function' ? getPurityFactor(item.purity) : 1;
-                            itemFine = (parseFloat(item.netWt || item.weight) || 0) * factor;
-                        }
-                        const transferWt = parseFloat(gold);
+                        let itemGross = parseFloat(item.grossWt || item.netWt || item.weight) || 0;
+                        const transferGross = parseFloat(transferredGrossWt);
+                        const transferFine = parseFloat(actualFineWt);
                         
-                        if (transferWt >= itemFine - 0.005) {
+                        if (transferGross >= itemGross - 0.005) {
                             item.status = 'sold';
                             item.soldDate = new Date().toISOString();
                             item.note = `Transferred to Merchant (ID #${id})`;
                         } else {
-                            const ratio = (itemFine - transferWt) / itemFine;
-                            item.fineWt = itemFine - transferWt;
+                            const ratio = (itemGross - transferGross) / itemGross;
+                            item.fineWt = parseFloat((parseFloat(item.fineWt || 0) * ratio).toFixed(3));
                             item.netWt = parseFloat((parseFloat(item.netWt || 0) * ratio).toFixed(3));
                             item.grossWt = parseFloat((parseFloat(item.grossWt || 0) * ratio).toFixed(3));
                             item.note = item.note ? item.note + ' | Partial Transfer' : 'Partial Transfer';
