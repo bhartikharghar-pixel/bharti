@@ -1209,13 +1209,16 @@
                         transactions.push({ date: new Date(new Date(p.date).getTime() + 1000).toISOString(), type: 'Advance Paid', desc: `Cash Paid instantly for PUR-${p.id}`, gold: 0, silver: 0, cash: -instantPayment, badge: 'b-pay' });
                     }
                 }
-                if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
+               if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
                     if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
                     else goldChange = parseFloat(p.totalFineWeight) || 0;
                     
-                    let grossWt = p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.totalFineWeight;
-                    let displayPurity = p.averagePurity || p.purity || "N/A";
-                    desc += `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(p.totalFineWeight).toFixed(3)}g</span>`;
+                    // NAYA LOGIC: Sahi Actual Weight aur Purity extract karne ke liye
+                    let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                    if (actualWt === 0) actualWt = parseFloat(p.totalFineWeight);
+                    let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                    desc += `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt: ${parseFloat(actualWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Added: ${parseFloat(p.totalFineWeight).toFixed(3)}g</span>`;
                 }
                 transactions.push({ date: p.date, type: p.type, desc: desc, gold: goldChange, silver: silverChange, cash: cashChange, badge: p.type === 'Unfixed' ? 'b-unfix' : 'b-fix' });
             });
@@ -1276,7 +1279,7 @@
                         if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
                         else goldChange = actualFineWt * pmtMult;
                         
-                        let mathDesc = `<br><span style="font-size:0.75rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${actualFineWt.toFixed(3)}g</span>`;
+                       let mathDesc = `<br><span style="font-size:0.75rem; color:#0f172a; background:#f1f5f9; padding:4px 8px; border-radius:6px; margin-top:5px; display:inline-block; border:1px solid #cbd5e1; font-weight:700;">Actual Wt Given: ${parseFloat(grossWt).toFixed(3)}g &nbsp;|&nbsp; Purity: ${displayPurity} &nbsp;➔&nbsp; Fine Settled: ${actualFineWt.toFixed(3)}g</span>`;
                         descParts.push(`${metalName} ${pmtMult === 1 ? 'Received' : 'Given'} ${mathDesc}`);
                     }
                 }
