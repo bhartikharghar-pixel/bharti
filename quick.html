@@ -637,20 +637,26 @@
                 }
             });
 
+
+
             purchases.forEach(p => {
                 let mIn = 0;
-                if (p.itemDetails && p.itemDetails.length > 0) {
+                
+                // 🔥 NAYA SMART LOGIC: Ye wahi weight uthayega jo Merchant ke account mein jata hai
+                let directTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                
+                if (directTotal > 0) {
+                    mIn = directTotal;
+                } else if (p.itemDetails && p.itemDetails.length > 0) {
                     p.itemDetails.forEach(i => { 
                         if(isGold(i)) mIn += getSafeNet(i); 
                     });
                 } else {
                     if (isGold(p)) {
-                        let rootNet = parseNum(p.totalNetWeight || p.netWt || p.netWeight);
-                        let rootGross = parseNum(p.totalGrossWeight || p.grossWt);
-                        let rootStone = parseNum(p.totalStoneWeight || p.stoneWt);
-                        if (rootNet > 0) mIn = rootNet;
-                        else if (rootGross > 0) mIn = rootGross - rootStone;
-                        else mIn = parseNum(p.totalWeight || p.weight);
+                        let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                        let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                        if (rootGross > 0) mIn = rootGross - rootStone;
+                        else mIn = parseNum(p.weight || p.netWt || p.netWeight);
                     }
                 }
                 
@@ -1085,15 +1091,23 @@ let cName = getCustName(s.customerId);
                 let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
                 let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
                 let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
-                
+
+
                 let netWtBought = 0;
-                let rootNet = parseNum(p.totalNetWeight || p.netWt || p.netWeight);
-                let rootGross = parseNum(p.totalGrossWeight || p.grossWt);
-                let rootStone = parseNum(p.totalStoneWeight || p.stoneWt);
-                if (rootNet > 0) netWtBought = rootNet;
-                else if (rootGross > 0) netWtBought = rootGross - rootStone;
-                else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => netWtBought += getSafeNet(i));
-                else netWtBought = parseNum(p.totalWeight || p.weight);
+                let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                
+                if (explicitTotal > 0) {
+                    netWtBought = explicitTotal;
+                } else if (p.itemDetails && p.itemDetails.length > 0) {
+                    p.itemDetails.forEach(i => { 
+                        if(isGold(i)) netWtBought += getSafeNet(i); 
+                    });
+                } else {
+                    let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                    let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                    if (rootGross > 0) netWtBought = rootGross - rootStone;
+                    else netWtBought = parseNum(p.weight || p.netWt || p.netWeight);
+                }
 
                 if (paid > 0) {
                     cFlows.forEach(c => {
