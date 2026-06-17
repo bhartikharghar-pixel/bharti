@@ -639,14 +639,12 @@
 
 
 
-            purchases.forEach(p => {
+           purchases.forEach(p => {
                 let mIn = 0;
+                let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
                 
-                // 🔥 NAYA SMART LOGIC: Ye wahi weight uthayega jo Merchant ke account mein jata hai
-                let directTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
-                
-                if (directTotal > 0) {
-                    mIn = directTotal;
+                if (explicitTotal > 0) {
+                    mIn = explicitTotal;
                 } else if (p.itemDetails && p.itemDetails.length > 0) {
                     p.itemDetails.forEach(i => { 
                         if(isGold(i)) mIn += getSafeNet(i); 
@@ -660,10 +658,37 @@
                     }
                 }
                 
-                if (mIn > 0) {
+                let isDouble = false;
+                mPayments.forEach(mp => {
+                    let mpDate = mp.date ? mp.date.split('T')[0] : '';
+                    let pDate = p.date ? p.date.split('T')[0] : '';
+                    if (mp.goldType !== 'fixed' && mpDate === pDate && parseNum(mp.gold) === mIn && String(mp.merchantId) === String(p.merchantId)) {
+                        isDouble = true;
+                    }
+                });
+                
+                if (mIn > 0 && !isDouble) {
                     logMetal(p.date, mIn, true, 'NET');
                     if (p.date && p.date.startsWith(today)) {
-                        pushMetalLog(mIn, 'Net', getMerchName(p.merchantId), 'Purchase Stock', true);
+                        let pPurity = p.purity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : '');
+                        let pDesc = pPurity ? `Purchase Stock (${pPurity})` : 'Purchase Stock';
+                        pushMetalLog(mIn, 'Net', getMerchName(p.merchantId), pDesc, true);
+                    }
+                }
+            });
+
+            mPayments.forEach(mp => {
+                if (!isGold(mp)) return; 
+                if (mp.goldType !== 'fixed') {
+                    let net = parseNum(mp.gold);
+                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'NET');
+                    else logMetal(mp.date, net, true, 'NET');
+
+                    if (mp.date && mp.date.startsWith(today) && net > 0) {
+                        let mpPurity = mp.purity || '';
+                        let mpDesc = mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv';
+                        if (mpPurity) mpDesc += ` (${mpPurity})`;
+                        pushMetalLog(net, 'Net', getMerchName(mp.merchantId), mpDesc, mp.paymentType !== 'OUT');
                     }
                 }
             });
@@ -1093,7 +1118,7 @@ let cName = getCustName(s.customerId);
                 let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
 
 
-                let netWtBought = 0;
+              let netWtBought = 0;
                 let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
                 
                 if (explicitTotal > 0) {
@@ -1109,6 +1134,9 @@ let cName = getCustName(s.customerId);
                     else netWtBought = parseNum(p.weight || p.netWt || p.netWeight);
                 }
 
+                let pPurity = p.purity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : '');
+                let pLabel = pPurity ? `Net (${pPurity})` : 'Net';
+
                 if (paid > 0) {
                     cFlows.forEach(c => {
                         if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
@@ -1120,6 +1148,50 @@ let cName = getCustName(s.customerId);
                         }
                     });
                 }
+
+                if(gross > 0) {
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
+                    pushLog('Purchase', gross, mName, itemStr, spl, false, [{val: netWtBought, label: pLabel}]);
+                } else if (paid > 0) { 
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
+                    pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv', spl, false, [{val: netWtBought, label: pLabel}]);
+                } else {
+                    let isDouble = false;
+                    mPayments.forEach(mp => {
+                        if (mp.goldType !== 'fixed' && mp.date.startsWith(today) && parseNum(mp.gold) === netWtBought && String(mp.merchantId) === String(p.merchantId)) {
+                            isDouble = true;
+                        }
+                    });
+                    if (!isDouble && netWtBought > 0) {
+                        let f = getSafeFine(p);
+                        let customAmt = `<span style="color:#000;">${(f > 0 ? f : 0).toFixed(3)}gF</span>`;
+                        pushLog('Vyapari Aaya', 0, mName, 'Unfixed Metal Recv', '', true, [{val: netWtBought, label: pLabel}], customAmt);
+                    }
+                }
+                if(due > 0) pushLog('PurchaseDue', due, mName, 'Credit', '', true);
+            });
+
+            mPayments.forEach(mp => {
+                if (!isGold(mp)) return;
+                
+                let net = parseNum(mp.gold);
+                if (mp.goldType !== 'fixed' && mp.date.startsWith(today) && net > 0) {
+                    let fine = getSafeFine(mp);
+                    if (fine === 0) fine = net; 
+                    
+                    let mName = getMerchName(mp.merchantId);
+                    
+                    let mpPurity = mp.purity || '';
+                    let mpLabel = mpPurity ? `Net (${mpPurity})` : 'Net';
+                    let customAmt = `<span style="color:#000;">${(fine > 0 ? fine : 0).toFixed(3)}gF</span>`;
+
+                    if (mp.paymentType === 'OUT') {
+                        pushLog('Vyapari Diya', 0, mName, `Paid Unfixed`, '', false, [{val: net, label: mpLabel}], customAmt);
+                    } else {
+                        pushLog('Vyapari Aaya', 0, mName, `Recv Unfixed`, '', true, [{val: net, label: mpLabel}], customAmt);
+                    }
+                }
+            });
 
                 if(gross > 0) {
                     let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
