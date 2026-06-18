@@ -203,7 +203,6 @@
                 <div class="metal-tab active-gold" id="metal-tab-gold-tagged" onclick="setMetalFilter('GOLD_TAGGED')"><i class="fas fa-tags"></i> Gold (Tagged)</div>
                 <div class="metal-tab" id="metal-tab-gold-loose" onclick="setMetalFilter('GOLD_LOOSE')"><i class="fas fa-layer-group"></i> Bulk/Loose Stock</div>
                 
-                <!-- 🔥 NAYA TAB: TOTAL GOLD -->
                 <div class="metal-tab" id="metal-tab-gold-total" onclick="setMetalFilter('GOLD_TOTAL')"><i class="fas fa-coins"></i> Total Gold (Tag+Loose)</div>
                 
                 <div class="metal-tab" id="metal-tab-gold-fine" onclick="setMetalFilter('GOLD_FINE')"><i class="fas fa-cubes"></i> Gold (Fine/Melt)</div>
@@ -394,6 +393,7 @@
         <div class="item-detail-row"><span class="item-detail-lbl">Sub-Category:</span><span class="item-detail-val" id="idmSubCat">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Purity:</span><span class="item-detail-val" id="idmPurity">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Barcode:</span><span class="item-detail-val" id="idmBarcode">...</span></div>
+        <div class="item-detail-row"><span class="item-detail-lbl">HUID:</span><span class="item-detail-val" id="idmHuid">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Gross Weight:</span><span class="item-detail-val" id="idmGross">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Stone Weight:</span><span class="item-detail-val" id="idmStone">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Net Weight:</span><span class="item-detail-val" id="idmNet">0.000 g</span></div>
@@ -558,6 +558,10 @@
         <div class="form-group">
             <label>Item / Box Name (Tag)</label>
             <input type="text" id="editItemName" placeholder="e.g. Payal - Box 1">
+        </div>
+        <div class="form-group">
+            <label>HUID (Hallmark Unique ID)</label>
+            <input type="text" id="editHuid" placeholder="Enter HUID here">
         </div>
         <div class="form-group">
             <label>Photo Link (Catalog ke liye)</label>
@@ -1070,7 +1074,14 @@
                 }
             }
         }
-        if (searchTerm) filtered = filtered.filter(i => i.barcode?.toUpperCase().includes(searchTerm) || i.category?.toUpperCase().includes(searchTerm) || (i.name && i.name.toUpperCase().includes(searchTerm)));
+        if (searchTerm) {
+            filtered = filtered.filter(i => 
+                (i.barcode?.toUpperCase().includes(searchTerm)) || 
+                (i.category?.toUpperCase().includes(searchTerm)) || 
+                (i.name && i.name.toUpperCase().includes(searchTerm)) ||
+                (i.huid && i.huid.toUpperCase().includes(searchTerm))
+            );
+        }
         
         renderList(filtered);
     }
@@ -1385,7 +1396,7 @@
                 existingItem.subFolder = finalFolderName;
                 await updateItem('inventory', existingItem);
             } else {
-                const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo };
+                const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
                 await addItem('inventory', item); 
                 allInventory.push(item);
             }
@@ -1393,7 +1404,7 @@
             const isSilv = checkIsSilver({category: cat, purity: purity});
             if(pieces <= 1) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
-                const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo };
+                const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
                 await addItem('inventory', item); newlyAddedItems.push(item);
             } else {
                 const gi = document.querySelectorAll('.man-piece-gross'); const si = document.querySelectorAll('.man-piece-stone');
@@ -1401,7 +1412,7 @@
                     const gp = parseFloat(gi[i].value)||0; const sp = parseFloat(si[i].value)||0;
                     if(gp>0) {
                         const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo };
+                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
                         await addItem('inventory', item); newlyAddedItems.push(item);
                     }
                 }
@@ -1420,6 +1431,10 @@
         if (!rawSub && item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) rawSub = item.name.replace(/\s+\d+$/, '').trim();
         document.getElementById('idmSubCat').innerText = rawSub || '-';
         document.getElementById('idmPurity').innerText = item.purity;
+        
+        // HUID Show
+        document.getElementById('idmHuid').innerText = item.huid || '-';
+        
         document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmStatus').innerText = item.status.toUpperCase();
@@ -1822,6 +1837,10 @@
         document.getElementById('editCategory').value = item.category; 
         // Pehle ka naam set karne ke liye
         document.getElementById('editItemName').value = item.name || item.subFolder || ''; 
+        
+        // HUID Set
+        document.getElementById('editHuid').value = item.huid || '';
+
         document.getElementById('editItemImage').value = item.imageUrl || item.imageLink || ''; 
         document.getElementById('editGross').value = item.grossWt || item.weight || 0; 
         document.getElementById('editStone').value = item.stoneWt || 0; 
@@ -1841,6 +1860,10 @@
                     item.subFolder = newName;
                 }
             }
+
+            // HUID Save
+            item.huid = document.getElementById('editHuid').value.trim();
+
             item.imageUrl = document.getElementById('editItemImage').value.trim();
 
             item.grossWt = parseFloat(document.getElementById('editGross').value) || 0; 
@@ -1859,10 +1882,10 @@
     function exportInventoryCSV() {
         if (allInventory.length === 0) return showToast("No data to export", "error");
         let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Barcode,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
+        csvContent += "Barcode,HUID,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
         allInventory.forEach(row => {
             let rDate = row.addedDate ? new Date(row.addedDate).toLocaleDateString() : '';
-            let rowStr = `${row.barcode||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
+            let rowStr = `${row.barcode||''},${row.huid||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
             csvContent += rowStr + "\n";
         });
         const encodedUri = encodeURI(csvContent);
