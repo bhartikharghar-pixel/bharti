@@ -1358,36 +1358,35 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                let loanMatch = note.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || cat.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i);
-                if (type === 'OUT' && loanMatch) {
-                    let lId = loanMatch[1];
-                    let matchedLoan = loans.find(x => String(x.id) === String(lId));
-                    
-                    let cNameForLoan = '';
-                    if (matchedLoan && matchedLoan.customerId) cNameForLoan = getCustName(matchedLoan.customerId);
-                    
-                    if (!cNameForLoan || cNameForLoan === 'Walk-in') {
-                        if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameForLoan = getCustName(c.customerId);
-                        else if (c.customerName) cNameForLoan = c.customerName;
-                        else if (c.partyName) cNameForLoan = c.partyName;
-                        else if (c.name) cNameForLoan = c.name;
-                    }
+               let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
+let loanMatch = note.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i) || cat.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i);
 
-                    let displayTitle = '';
-                    if (cNameForLoan && cNameForLoan !== 'Walk-in') {
-                        displayTitle = `${cNameForLoan} [L-${lId}]`;
-                    } else if (c.note && c.note.trim() !== '') {
-                        displayTitle = c.note;
-                    } else if (c.category && c.category.trim() !== '') {
-                        displayTitle = c.category;
-                    } else {
-                        displayTitle = `Customer [L-${lId}]`;
-                    }
+if (type === 'OUT' && (loanMatch || isTopUp)) {
+    let lId = loanMatch ? loanMatch[1] : '';
+    
+    let cNameForLoan = '';
+    
+    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+        cNameForLoan = getCustName(c.customerId);
+    } 
+    else if (c.customerName || c.partyName || c.name) {
+        cNameForLoan = c.customerName || c.partyName || c.name;
+    }
 
-                    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
-                    return; 
-                }
+    if (!cNameForLoan && lId) {
+        let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
+        if (matchedLoan && matchedLoan.customerId) {
+            cNameForLoan = getCustName(matchedLoan.customerId);
+        }
+    }
 
+    if (!cNameForLoan) cNameForLoan = 'Customer';
+
+    let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
+
+    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
+    return; 
+}
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
                 let vyapariName = '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
