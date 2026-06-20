@@ -74,7 +74,7 @@
         .filter-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: 1;}
         .filter-group.right { justify-content: flex-end; }
         .date-input { border: 1px solid #e0e0e0; padding: 12px 15px; border-radius: 10px; font-size: 0.95rem; background: #fafafa; outline: none; transition: 0.2s; font-family: inherit; color:#333; min-width: 150px; height: 45px;}
-        .date-input:focus { border-color: var(--accent-gold); background: white; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);}
+        .date-input:focus { border-color: var(--accent-gold); background: white; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);}
         .btn-filter { background: #333; color: white; border: none; padding: 0 25px; height: 45px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;}
         .btn-filter:hover { background: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.2);}
 
@@ -174,6 +174,10 @@
         #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
         #toast.success { border-left: 5px solid var(--success-green); }
         #toast.error { border-left: 5px solid var(--active-red); }
+
+        /* Photo Thumbnail & Preview CSS */
+        .thumb-img { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; cursor: pointer; transition: 0.2s; margin-right: 8px;}
+        .thumb-img:hover { transform: scale(1.1); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
         /* --- RESPONSIVENESS --- */
         @media (max-width: 768px) {
@@ -290,13 +294,13 @@
                 <table class="r-table">
                     <thead>
                         <tr>
-                            <th style="width: 15%;">Time & Ref</th>
-                            <th style="width: 10%;">Type</th>
-                            <th style="width: 30%;">Merchant & Item Details</th>
+                            <th style="width: 12%;">Time & Ref</th>
+                            <th style="width: 8%;">Type</th>
+                            <th style="width: 32%;">Merchant & Item Details</th>
                             <th style="width: 10%;">Fine Wt</th>
-                            <th class="text-right" style="width: 15%;">Total Cost (₹)</th>
-                            <th class="text-right" style="width: 10%;">Paid / Due</th>
-                            <th style="text-align:center; width: 10%;">Action</th>
+                            <th class="text-right" style="width: 14%;">Total Cost (₹)</th>
+                            <th class="text-right" style="width: 12%;">Paid / Due</th>
+                            <th style="text-align:center; width: 12%;">Action</th>
                         </tr>
                     </thead>
                     <tbody id="historyBody">
@@ -329,13 +333,10 @@
                     <div class="grid-2">
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label>Merchant <span style="float:right; color:var(--info-blue); font-weight:bold; cursor:pointer;" onclick="promptNewMerchant()">+ Add New</span></label>
-                            <!-- UPDATED: Added onchange to trigger the balance display logic -->
                             <select id="merchantSelect" onchange="displayMerchantBalance()"><option value="">Select Merchant</option></select>
                             
-                            <!-- NEW: This div will show the old due/metal balance when a merchant is selected -->
                             <div id="merchantBalanceDisplay" style="margin-top: 8px; font-size: 0.85rem; display: none; padding: 8px 12px; border-radius: 8px; background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; font-weight: 600;">
-                                <!-- Balance will be injected here -->
-                            </div>
+                                </div>
                         </div>
                         <div class="form-group">
                             <label>Date</label>
@@ -422,9 +423,19 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="form-group" style="margin-bottom:0;">
+                        <div class="form-group">
                             <label>Batch HUID / Mark (Optional)</label>
                             <input type="text" id="itemMark" placeholder="e.g., HUID12345">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:0; margin-top:10px;">
+                        <label><i class="fas fa-camera"></i> Upload Item / Merchant Slip Photo</label>
+                        <input type="file" id="purchasePhoto" accept="image/*" onchange="handlePhotoSelect(event)" style="padding: 8px 12px; height:auto;">
+                        <input type="hidden" id="photoBase64">
+                        <div id="photoPreviewBox" style="display:none; margin-top:10px; position:relative; width:fit-content;">
+                            <img id="imgPreview" src="" style="max-width:150px; border-radius:8px; border:2px solid var(--accent-gold);">
+                            <button type="button" onclick="clearSelectedPhoto()" style="position:absolute; top:-10px; right:-10px; background:var(--active-red); color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; font-weight:bold;">&times;</button>
                         </div>
                     </div>
                 </div>
@@ -453,8 +464,16 @@
                         <span id="dispPureWt">0.000 g</span>
                     </div>
                     <div class="sum-row">
-                        <span><i class="fas fa-weight"></i> Fine Weight (Payable):</span>
-                        <span id="dispTotalFineWt" style="color:var(--accent-gold); font-weight:bold; font-size:1.2rem;">0.000 g</span>
+                        <span><i class="fas fa-weight"></i> System Fine Weight:</span>
+                        <span id="dispTotalFineWt" style="color:var(--accent-gold); font-weight:bold; font-size:1.1rem;">0.000 g</span>
+                    </div>
+
+                    <div class="sum-row" style="background: rgba(255,255,255,0.06); padding: 12px; border-radius: 8px; margin: 10px 0; border: 1px dashed rgba(197, 160, 89, 0.4);">
+                        <div style="width: 100%;">
+                            <label style="color:var(--accent-gold); font-weight:600; margin-bottom:6px;"><i class="fas fa-file-invoice"></i> Merchant Slip Fine Wt (Final Account Entry):</label>
+                            <input type="number" id="merchantSlipFineWt" step="0.001" placeholder="अगर मर्चेंट की पर्ची का Fine अलग है तो यहाँ डालें" class="dark-input" oninput="calcTotals()" style="height:40px; font-size:0.95rem;">
+                            <small style="color:#aaa; display:block; margin-top:4px; font-size:0.75rem;">* नोट: यहाँ डाला गया फ़ाइन ही मर्चेंट के खाते (Ledger Account) में जमा होगा।</small>
+                        </div>
                     </div>
                     
                     <div id="bill-amount-row" class="sum-row sum-total">
@@ -488,6 +507,13 @@
 
                 <button id="btnSavePurchase" class="btn-main" onclick="savePurchase()"><i class="fas fa-save"></i> Save Purchase</button>
             </div>
+        </div>
+    </div>
+
+    <div id="imageViewerModal" class="modal" onclick="closeImageViewer()">
+        <div class="modal-content" style="max-width:550px; text-align:center; padding:15px; background:transparent; box-shadow:none;">
+            <img id="viewerImgSrc" src="" style="width:100%; max-height:80vh; border-radius:12px; object-fit:contain; border:3px solid var(--accent-gold); background:#000;">
+            <div style="color:white; font-weight:600; margin-top:10px;"><i class="fas fa-times"></i> Click anywhere to close</div>
         </div>
     </div>
 
@@ -533,7 +559,7 @@
             populatePurityDropdowns();
 
             document.getElementById('merchantSelect').value = "";
-            document.getElementById('merchantBalanceDisplay').style.display = "none"; // Hide balance display initially
+            document.getElementById('merchantBalanceDisplay').style.display = "none"; 
             document.getElementById('itemPieces').value = 1;
             document.getElementById('itemSubCat').value = '';
             document.getElementById('itemMark').value = '';
@@ -547,6 +573,9 @@
             document.getElementById('billPaid').value = '';
             document.getElementById('billPayMode').value = 'Cash';
             
+            document.getElementById('merchantSlipFineWt').value = '';
+            clearSelectedPhoto();
+
             toggleTypeUI();
             handlePurchaseCategoryChange(); 
             calcTotals();
@@ -557,7 +586,38 @@
             document.getElementById(modalId).style.display = 'none'; 
         }
 
-        // NEW FEATURE: Display Merchant Balance dynamically
+        // Photo Upload Functionality
+        function handlePhotoSelect(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('photoBase64').value = e.target.result;
+                document.getElementById('imgPreview').src = e.target.result;
+                document.getElementById('photoPreviewBox').style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function clearSelectedPhoto() {
+            document.getElementById('purchasePhoto').value = '';
+            document.getElementById('photoBase64').value = '';
+            document.getElementById('imgPreview').src = '';
+            document.getElementById('photoPreviewBox').style.display = 'none';
+        }
+
+        function viewLargeImage(base64Data) {
+            if(!base64Data) return;
+            document.getElementById('viewerImgSrc').src = base64Data;
+            document.getElementById('imageViewerModal').style.display = 'flex';
+        }
+
+        function closeImageViewer() {
+            document.getElementById('imageViewerModal').style.display = 'none';
+        }
+
+        // Display Merchant Balance dynamically
         async function displayMerchantBalance() {
             const mId = document.getElementById('merchantSelect').value;
             const displayDiv = document.getElementById('merchantBalanceDisplay');
@@ -614,7 +674,6 @@
             rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] 
         };
         
-        // Split Categories for Gold & Silver
         let goldCategories = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
         let silverCategories = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
 
@@ -652,14 +711,12 @@
         };
 
         window.onload = async function() {
-            // Setup Dates
             const today = new Date();
             document.getElementById('purchaseDate').valueAsDate = today;
             document.getElementById('filterTo').valueAsDate = today;
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
             document.getElementById('filterFrom').value = firstDay.toISOString().split('T')[0];
 
-            // Load Rates & Categories
             const r = await getSetting('gold_rates');
             if(r) currentGoldRates = r;
 
@@ -681,7 +738,6 @@
             
             allInventoryData = await getAllItems('inventory');
 
-            // Initialize UI
             document.getElementById('itemMetal').value = 'Gold';
             populateCategoryDropdown();
             populatePurityDropdowns();
@@ -706,11 +762,10 @@
             const modeEl = document.getElementById('stockMode');
             if (modeEl) {
                 modeEl.value = getCategoryMode(cat);
-                modeEl.disabled = true; // Automatically lock Stock Mode based on Category Settings
+                modeEl.disabled = true; 
                 generatePieceInputs();
             }
             
-            // Populate Sub-Category Datalist based on inventory data
             const datalist = document.getElementById('subCatList');
             if(datalist) {
                 datalist.innerHTML = '';
@@ -733,7 +788,6 @@
             if(!catSelect) return;
             
             catSelect.innerHTML = '';
-            
             const catsToUse = metal === 'Silver' ? silverCategories : goldCategories;
             
             catsToUse.forEach(cat => {
@@ -774,6 +828,7 @@
             
             autoFillRate();
         }
+
         function generatePieceInputs() {
             const mode = document.getElementById('stockMode').value;
             const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
@@ -790,7 +845,6 @@
                 grossMain.style.background = '#fff';
                 stoneMain.style.background = '#fff';
                 
-                // Restore direct input calculation
                 grossMain.oninput = calcTotals;
                 stoneMain.oninput = calcTotals;
                 calcTotals();
@@ -803,7 +857,6 @@
             grossMain.style.background = '#f0f4f8';
             stoneMain.style.background = '#f0f4f8';
             
-            // Remove direct input calculations for the master fields
             grossMain.oninput = null; 
             stoneMain.oninput = null;
 
@@ -842,12 +895,10 @@
 
         function calcTotals() {
             const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
-            
             const totalGross = parseFloat(document.getElementById('totalGrossWt').value) || 0;
             const totalStone = parseFloat(document.getElementById('totalStoneWt').value) || 0;
             
             const physicalNet = Math.max(0, totalGross - totalStone);
-            
             document.getElementById('totalNet').value = physicalNet.toFixed(3);
 
             const purityKey = document.getElementById('itemPurity').value;
@@ -860,11 +911,15 @@
             const mode = document.getElementById('wastageMode').value;
             
             let totalWastage = mode === 'pct' ? (physicalNet * wastVal) / 100 : wastVal;
-            
             const fineWt = pureNet + totalWastage;
             
             document.getElementById('dispTotalFineWt').innerText = fineWt.toFixed(3) + " g";
-            document.getElementById('finalFineWeight').value = fineWt;
+            
+            // Override using Merchant Slip Fine Weight if entered
+            const slipFineInput = parseFloat(document.getElementById('merchantSlipFineWt').value) || 0;
+            const effectiveFineWt = slipFineInput > 0 ? slipFineInput : fineWt;
+            
+            document.getElementById('finalFineWeight').value = effectiveFineWt;
 
             const isUnfixed = (document.getElementById('purchaseType').value === 'Unfixed');
 
@@ -873,7 +928,8 @@
                 const totalMaking = parseFloat(document.getElementById('totalMakingChg').value) || 0;
                 const totalOther = parseFloat(document.getElementById('totalOtherChg').value) || 0;
                 
-                const metalCost = fineWt * rate; 
+                // Final Costing calculates automatically on effective fine weight
+                const metalCost = effectiveFineWt * rate; 
                 const totalCost = Math.round(metalCost + totalMaking + totalOther);
 
                 document.getElementById('dispTotalCost').innerText = "₹" + totalCost.toLocaleString();
@@ -898,9 +954,7 @@
             
             document.getElementById('financials-section').style.display = isUnfixed ? 'none' : 'block';
             document.getElementById('bill-amount-row').style.display = isUnfixed ? 'none' : 'flex';
-            
             document.getElementById('paid-amount-label').innerText = isUnfixed ? 'Advance Cash Paid (₹)' : 'Amount Paid Now (₹)';
-
             document.getElementById('balance-due-row').style.display = isUnfixed ? 'none' : 'block';
             
             calcTotals();
@@ -913,12 +967,10 @@
             if(!selectedOpt) return;
 
             const isSilver = checkIsSilver(selectEl.value);
-
             let ratePerGram = 0;
             
             if(isSilver) {
-                const baseSilverGram = currentGoldRates.rateSilver / 1000;
-                ratePerGram = baseSilverGram; 
+                ratePerGram = currentGoldRates.rateSilver / 1000; 
                 document.getElementById('rateLabel').innerText = 'Silver Rate (₹/g)';
             } else {
                 ratePerGram = currentGoldRates.rate24k / 10;
@@ -949,7 +1001,6 @@
             }
         }
 
-        // Custom Sequential Barcode Generator for strict sequencing (0001)
         async function generateCustomBarcode(prefix) {
             const list = await getAllItems('inventory');
             let maxCount = 0;
@@ -968,12 +1019,10 @@
 
         async function savePurchase() {
             try {
-                // Prevent Double Clicks
                 document.getElementById('btnSavePurchase').disabled = true;
 
                 const mId = document.getElementById('merchantSelect').value;
                 const pieces = parseInt(document.getElementById('itemPieces').value) || 1;
-                
                 const totalGross = parseFloat(document.getElementById('totalGrossWt').value) || 0;
                 const totalStone = parseFloat(document.getElementById('totalStoneWt').value) || 0;
                 const totalMaking = parseFloat(document.getElementById('totalMakingChg').value) || 0;
@@ -990,6 +1039,8 @@
                 const purity = document.getElementById('itemPurity').value;
                 const mark = document.getElementById('itemMark').value;
                 const rateVal = parseFloat(document.getElementById('metalRate').value) || 0;
+                const photoData = document.getElementById('photoBase64').value || "";
+                const slipFineWtInput = parseFloat(document.getElementById('merchantSlipFineWt').value) || 0;
                 
                 let finalName = subCat ? subCat : cat;
                 
@@ -1014,7 +1065,6 @@
 
                 const finalMode = document.getElementById('stockMode').value;
 
-                // --- VALIDATION: Prevent Bulk Entry if Item is already tracking as Individual ---
                 if (finalMode === 'bulk' || cat === 'MIX') {
                     const currentInv = await getAllItems('inventory');
                     const hasIndividual = currentInv.some(inv => 
@@ -1028,7 +1078,6 @@
                     }
                 }
 
-                // 1. Clean up old records for Edit Mode
                 if(editId) {
                     const safeToEdit = await checkInventoryStatus(document.getElementById('oldInvId').value);
                     if(!safeToEdit) {
@@ -1037,7 +1086,6 @@
                     }
                     await deletePurchaseInternal(editId, true); 
                     
-                    // Cleanup old cashflow entries for this purchase
                     const allCfs = await getAllItems('cashflow');
                     const cfsToDelete = allCfs.filter(f => f.note && (f.note.includes(`PUR-${editId}`) || f.note.includes(`Purchase #${editId}`)));
                     for(let f of cfsToDelete) {
@@ -1064,6 +1112,7 @@
                         existingItem.netWt = parseFloat((parseFloat(existingItem.netWt) + totalNet).toFixed(3));
                         existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + fineWt).toFixed(3));
                         existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
+                        if(photoData) existingItem.image = photoData; // Update photo if provided
                         await updateItem('inventory', existingItem);
                         invId = existingItem.id;
                         itemDetailsArray.push(existingItem);
@@ -1088,6 +1137,7 @@
                             other: totalOther,
                             status: 'stock',
                             source: 'purchase',
+                            image: photoData,
                             addedDate: new Date().toISOString()
                         };
                         invId = await addItem('inventory', itemData);
@@ -1095,11 +1145,10 @@
                         itemDetailsArray.push(itemData);
                     }
                 } 
-                // INDIVIDUAL PIECE GENERATION (Unique Tags)
+                // INDIVIDUAL PIECE GENERATION
                 else {
                     const makingPP = totalMaking / pieces;
                     const otherPP = totalOther / pieces;
-                    
                     const wastMode = document.getElementById('wastageMode').value;
                     const wastValInput = parseFloat(document.getElementById('wastageVal').value) || 0;
                     const wastValPP = wastMode === 'pct' ? wastValInput : (wastValInput / pieces);
@@ -1125,12 +1174,10 @@
                         if (isSilv) {
                              barcode = await generateCustomBarcode('S' + catPrefix);
                         } else {
-                             // Safest approach using custom generation logic so it never fails
                              barcode = await generateCustomBarcode(catPrefix);
                         }
 
                         const npp = Math.max(0, grossPP - stonePP);
-                        
                         const singleWastage = wastMode === 'pct' ? (npp * wastValInput / 100) : wastValPP;
                         const singleFine = (npp * getPurityFactor(purity)) + singleWastage;
 
@@ -1154,6 +1201,7 @@
                             other: otherPP,
                             status: 'stock',
                             source: 'purchase',
+                            image: photoData,
                             addedDate: new Date().toISOString()
                         };
                         const invId = await addItem('inventory', itemData);
@@ -1171,6 +1219,7 @@
                     totalWeight: totalGross,
                     totalStoneWeight: totalStone,
                     totalFineWeight: fineWt,
+                    merchantSlipFineWt: slipFineWtInput, // Saves the custom slip fine weight override
                     totalAmount: totalBill,
                     paidAmount: paid,
                     paymentMode: payMode, 
@@ -1179,10 +1228,10 @@
                     totalOther: totalOther,
                     wastageVal: parseFloat(document.getElementById('wastageVal').value) || 0,
                     wastageMode: document.getElementById('wastageMode').value,
+                    image: photoData, // Saves image string globally with ledger record
                     itemDetails: itemDetailsArray 
                 };
 
-                // 2. Save Purchase
                 let actualId = editId ? parseInt(editId) : null;
                 if (actualId) {
                     purchaseData.id = actualId;
@@ -1191,11 +1240,11 @@
                     actualId = await addItem('purchases', purchaseData);
                 }
 
-                // 3. Update Merchant Balances using Helper Wrapper
+                // Update Merchant Balances using the final effective fine weight
                 let mData = await getItem('merchants', mId);
                 if(mData) {
                     if (isUnfixed) {
-                        mData.goldBalance = (mData.goldBalance || 0) + fineWt;
+                        mData.goldBalance = (mData.goldBalance || 0) + fineWt; // fineWt variable already contains slip override value from calcTotals()
                         mData.balance = (mData.balance || 0) - paid;
                     } else {
                         mData.balance = (mData.balance || 0) + due;
@@ -1203,7 +1252,7 @@
                     await updateItem('merchants', mData);
                 }
 
-                // 4. Cashbook Integration
+                // Cashbook Integration
                 if(paid > 0) {
                      const mName = document.getElementById('merchantSelect').options[document.getElementById('merchantSelect').selectedIndex].text;
                      await addItem('cashflow', {
@@ -1213,7 +1262,7 @@
                      });
                 }
 
-                allInventoryData = await getAllItems('inventory'); // Reload inventory cache after save
+                allInventoryData = await getAllItems('inventory'); 
                 
                 showToast(editId ? "Purchase Updated Successfully!" : "Purchase Saved & Stock Updated!", "success");
                 closeModal('entryModal');
@@ -1231,7 +1280,6 @@
         function setMetalFilter(metal) {
             currentMetalFilter = metal;
             
-            // UI Toggle Colors
             document.querySelectorAll('.metal-tab').forEach(btn => {
                 btn.classList.remove('active-gold', 'active-silver', 'active-all');
             });
@@ -1241,7 +1289,6 @@
             else if(metal === 'SILVER') activeBtn.classList.add('active-silver');
             else activeBtn.classList.add('active-all');
 
-            // Stats Colors
             const cardToday = document.getElementById('card-today');
             const cardMonth = document.getElementById('card-month');
             
@@ -1280,7 +1327,6 @@
             const todayStr = new Date().toISOString().split('T')[0];
             const currentMonthPrefix = todayStr.substring(0, 7);
 
-            // Pre-filter entire list based on Master Metal Toggle
             let metalFilteredList = list;
             if (currentMetalFilter !== 'ALL') {
                 metalFilteredList = list.filter(p => {
@@ -1294,7 +1340,6 @@
 
             allPurchasesData = metalFilteredList;
 
-            // Recalculate Stats based on Metal Filter
             metalFilteredList.forEach(p => {
                 const pDate = p.date.split('T')[0];
                 const wt = p.totalFineWeight || 0;
@@ -1352,7 +1397,6 @@
                 if(isSilv) metalBadge = `<span class="badge b-metal-silver" style="margin-right:5px;">Silver</span>`;
                 else metalBadge = `<span class="badge b-metal-gold" style="margin-right:5px;">Gold</span>`;
 
-                // Fetch Sub-Category display logic
                 let itemDesc = p.category;
                 let rawSub = "";
                 if (invItem.name && invItem.name.trim() !== '' && invItem.name !== invItem.category && !invItem.name.toLowerCase().includes('loose') && !invItem.name.toLowerCase().includes('mix')) {
@@ -1361,8 +1405,6 @@
                 if (rawSub) itemDesc = `${p.category} <span style="color:#888;">(${rawSub})</span>`;
 
                 const pcsText = p.totalPieces > 1 ? ` (${p.totalPieces} Pcs)` : '';
-                
-                // Show Mode if paid
                 const modeStr = (p.paidAmount > 0 && p.paymentMode) ? ` <span style="font-size:0.75rem; color:#888;">(${p.paymentMode})</span>` : '';
                 const amtDisplay = p.type === 'Unfixed' ? (p.paidAmount > 0 ? `Adv: ₹${p.paidAmount.toLocaleString()}${modeStr}` : '-') : `₹${p.totalAmount.toLocaleString()}`;
                 
@@ -1374,8 +1416,6 @@
                 }
 
                 const barcodeText = invItem.barcode || '';
-                
-                // CHECK IF BULK: Bina barcode waali entries, purani BL entries, ya LOOSE/MIX/BULK categories
                 const isBulkEntry = !invItem.barcode || barcodeText === '' || barcodeText.toUpperCase().startsWith('BL') || barcodeText.toUpperCase().startsWith('LOOSE') || barcodeText.toUpperCase().includes('MIX') || barcodeText.toUpperCase().includes('BULK') || (invItem.name && invItem.name.includes('Loose'));
                 const rowTextColor = isBulkEntry ? 'color: var(--active-red);' : 'color: #111;';
                 const descTextColor = isBulkEntry ? 'color: #D32F2F;' : '';
@@ -1387,14 +1427,26 @@
                     printAction = `<button class="btn-action print" onclick="viewBarcode('${barcodeText}', '${(p.totalWeight / (p.totalPieces||1)).toFixed(3)}', '${purityText}')" title="Print Tag"><i class="fas fa-barcode"></i></button>`;
                 }
 
+                // Append small clickable photo thumbnail inside item details row if photo data exists
+                let photoHtmlElement = "";
+                if(p.image && p.image.trim() !== "") {
+                    photoHtmlElement = `<img src="${p.image}" class="thumb-img" onclick="viewLargeImage('${p.image}')" title="View Purchase Photo">`;
+                }
+
                 tbody.innerHTML += `
                     <tr>
                         <td style="color:#666; font-size:0.8rem;">${timeStr}<br>#${p.id}</td>
                         <td><span class="badge ${badge}">${p.type}</span></td>
                         <td>
-                            <span class="party-name" style="${rowTextColor}">${mName}</span>
-                            <span class="tx-desc" style="${descTextColor}">${metalBadge} ${itemDesc} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem; color:#333;">${purityText}</span></span>
-                            ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> LOOSE ENTRY (No Barcode)</span>` : ''}
+                            <div style="display:flex; align-items:center;">
+                                ${photoHtmlElement}
+                                <div>
+                                    <span class="party-name" style="${rowTextColor}">${mName}</span>
+                                    <span class="tx-desc" style="${descTextColor}">${metalBadge} ${itemDesc} ${pcsText} - ${p.totalWeight}g <span style="background:#eee; padding:1px 4px; border-radius:3px; font-size:0.7rem; color:#333;">${purityText}</span></span>
+                                    ${p.merchantSlipFineWt > 0 ? `<span style="font-size:0.75rem; color:var(--accent-gold); font-weight:600; display:block; margin-top:2px;"><i class="fas fa-file-invoice"></i> Slip Fine: ${p.merchantSlipFineWt.toFixed(3)}g (Overridden)</span>` : ''}
+                                    ${isBulkEntry ? `<span style="font-size:0.75rem; color:#D32F2F; font-weight:bold; display:block; margin-top:3px;"><i class="fas fa-layer-group"></i> LOOSE ENTRY (No Barcode)</span>` : ''}
+                                </div>
+                            </div>
                         </td>
                         <td style="font-weight:600; color:#c5a059;">${(p.totalFineWeight||0).toFixed(3)}g</td>
                         <td class="text-right" style="font-weight:bold;">${amtDisplay}</td>
@@ -1411,7 +1463,88 @@
             });
         }
 
-        // --- EDIT / DELETE LOGIC (WITH INVENTORY SAFEGUARD) ---
+        // --- EDIT LOGIC IMPLEMENTATION ---
+        async function editPurchase(id) {
+            const p = await getItem('purchases', parseInt(id));
+            if(!p) return showToast("Purchase record not found", "error");
+            
+            let safe = true;
+            if (p.itemDetails && Array.isArray(p.itemDetails)) {
+                for (let i of p.itemDetails) {
+                    const isBulkMode = !i.barcode || i.barcode === '' || (i.barcode && (i.barcode.toUpperCase().startsWith('BL') || i.barcode.toUpperCase().startsWith('LOOSE') || i.barcode.toUpperCase().includes('MIX') || i.barcode.toUpperCase().includes('BULK'))) || i.category === 'MIX' || (i.name && i.name.includes('Loose'));
+                    if (!isBulkMode) {
+                        const isSafe = await checkInventoryStatus(i.id);
+                        if (!isSafe) { safe = false; break; }
+                    }
+                }
+            }
+            if(!safe) return showToast("Cannot Edit: Items from this batch are already sold.", "error");
+
+            openModal();
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-pen"></i> Edit Purchase #' + p.id;
+            document.getElementById('editPurchaseId').value = p.id;
+            
+            document.getElementById('merchantSelect').value = p.merchantId;
+            displayMerchantBalance();
+            
+            document.getElementById('purchaseDate').value = p.date;
+            document.getElementById('purchaseType').value = p.type;
+            
+            const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
+            document.getElementById('itemMetal').value = checkIsSilver(invItem.purity) ? 'Silver' : 'Gold';
+            populateCategoryDropdown();
+            populatePurityDropdowns();
+            
+            document.getElementById('itemCategory').value = p.category;
+            if(invItem.name && invItem.name !== invItem.category) {
+                document.getElementById('itemSubCat').value = invItem.name.replace(/\s+\d+$/, '').trim();
+            }
+            
+            document.getElementById('itemPieces').value = p.totalPieces || 1;
+            document.getElementById('itemPurity').value = invItem.purity || '';
+            document.getElementById('totalGrossWt').value = p.totalWeight || '';
+            document.getElementById('totalStoneWt').value = p.totalStoneWeight || 0;
+            document.getElementById('itemMark').value = invItem.mark || '';
+            document.getElementById('wastageVal').value = p.wastageVal || 0;
+            document.getElementById('wastageMode').value = p.wastageMode || 'pct';
+            
+            document.getElementById('metalRate').value = invItem.rate || '';
+            document.getElementById('totalMakingChg').value = p.totalMaking || 0;
+            document.getElementById('totalOtherChg').value = p.totalOther || 0;
+            
+            document.getElementById('billPaid').value = p.paidAmount || '';
+            document.getElementById('billPayMode').value = p.paymentMode || 'Cash';
+            
+            if(p.merchantSlipFineWt > 0) {
+                document.getElementById('merchantSlipFineWt').value = p.merchantSlipFineWt;
+            }
+            if(p.image) {
+                document.getElementById('photoBase64').value = p.image;
+                document.getElementById('imgPreview').src = p.image;
+                document.getElementById('photoPreviewBox').style.display = 'block';
+            }
+            
+            document.getElementById('oldDueAmount').value = p.dueAmount || 0;
+            document.getElementById('oldFineWeight').value = p.totalFineWeight || 0;
+            document.getElementById('oldType').value = p.type;
+            document.getElementById('oldPaid').value = p.paidAmount || 0;
+            document.getElementById('oldInvId').value = invItem.id || "";
+            
+            toggleTypeUI();
+            generatePieceInputs();
+            
+            if(p.totalPieces > 1 && p.itemDetails && p.itemDetails.length === p.totalPieces) {
+                const grossInputs = document.querySelectorAll('.piece-gross');
+                const stoneInputs = document.querySelectorAll('.piece-stone');
+                p.itemDetails.forEach((item, index) => {
+                    if(grossInputs[index]) grossInputs[index].value = item.grossWt;
+                    if(stoneInputs[index]) stoneInputs[index].value = item.stoneWt || 0;
+                });
+            }
+            calcTotals();
+        }
+
+        // --- DELETE WORKFLOW ---
         async function checkInventoryStatus(invId) {
             if(!invId) return true; 
             const item = await getItem('inventory', parseInt(invId));
@@ -1429,7 +1562,6 @@
              const oldType = document.getElementById('oldType').value || p.type;
              const oldPaid = parseFloat(document.getElementById('oldPaid').value) || p.paidAmount || 0;
              
-             // 1. Clean up cashflow FIRST sequentially
              if (!isSilent) {
                  const allFlows = await getAllItems('cashflow');
                  const relatedFlows = allFlows.filter(f => f.note && (f.note.includes(`PUR-${id}`) || f.note.includes(`Purchase #${id}`)));
@@ -1447,16 +1579,13 @@
                  }
              }
 
-             // 2. Main Transaction
              await deleteItem('purchases', parseInt(id));
              
-             // Safely delete all inventory items associated with this purchase
              if (p.itemDetails && Array.isArray(p.itemDetails)) {
                  for (let i of p.itemDetails) {
                      const isBulkMode = !i.barcode || i.barcode === '' || (i.barcode && (i.barcode.toUpperCase().startsWith('BL') || i.barcode.toUpperCase().startsWith('LOOSE') || i.barcode.toUpperCase().includes('MIX') || i.barcode.toUpperCase().includes('BULK'))) || i.category === 'MIX' || (i.name && i.name.includes('Loose'));
                      
                      if (isBulkMode) {
-                         // Find the existing bulk item and subtract
                          const existingItem = await getItem('inventory', parseInt(i.id));
                          if (existingItem) {
                              existingItem.grossWt = parseFloat((parseFloat(existingItem.grossWt) - (i.grossWt || i.weight || 0)).toFixed(3));
@@ -1488,7 +1617,7 @@
              }
 
              if(!isSilent) {
-                 allInventoryData = await getAllItems('inventory'); // update cache 
+                 allInventoryData = await getAllItems('inventory'); 
                  showToast("Purchase Deleted & Ledger Reversed.", "success"); 
                  loadHistory(); 
              }
@@ -1498,7 +1627,6 @@
             const p = await getItem('purchases', id);
             if(!p) return;
             
-            // Check safety of ALL items in this purchase
             let safe = true;
             if (p.itemDetails && Array.isArray(p.itemDetails)) {
                 for (let i of p.itemDetails) {
@@ -1526,7 +1654,6 @@
             document.getElementById('printCode').innerText = code;
             document.getElementById('printWt').innerText = parseFloat(wt).toFixed(3) + "g";
             document.getElementById('printPurity').innerText = purity;
-            
             document.getElementById('barcodeModal').style.display = 'flex';
         }
     </script>
