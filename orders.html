@@ -697,15 +697,50 @@
                 </div>
             </div>
 
-            <div class="form-section" style="border-left: 4px solid #4caf50; background: #e8f5e9;">
-                <div class="form-section-title" style="color: #2e7d32; border-color: #a5d6a7;">Add Extra Items From Stock (Optional)</div>
-                <div style="display:flex; gap:10px;">
-                    <select id="billExtraSelect" style="flex:1; border-color:#a5d6a7;">
-                        <option value="">-- Select from Inventory --</option>
-                    </select>
-                    <button type="button" class="btn-primary" style="width:auto; margin:0; background:#2e7d32; padding: 0 20px;" onclick="addExtraItemToBill()"><i class="fas fa-plus"></i> Add</button>
+            <div class="form-section" style="border-left: 4px solid #4caf50; background: #e8f5e9; overflow: visible;">
+                <div class="form-section-title" style="color: #2e7d32; border-color: #a5d6a7;">Add Extra Items (Optional)</div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="cursor:pointer; color:#2e7d32; font-weight:bold; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="billManualExtraToggle" style="width:16px; height:16px; accent-color:#2e7d32;" onchange="toggleExtraItemMode()"> 
+                        Enter Manually (Without Inventory)
+                    </label>
                 </div>
-                <div id="billExtraItemsList" style="margin-top:10px; display:flex; flex-direction:column; gap:5px;"></div>
+
+                <div id="billExtraSearchMode" style="position:relative;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="billExtraSearchInput" placeholder="Search Barcode, Category or Name..." style="flex:1; padding:10px; border:1px solid #a5d6a7; border-radius:6px;" autocomplete="off" onkeyup="searchInventoryForBill()">
+                        <button type="button" class="btn-primary" style="width:auto; margin:0; background:#2e7d32; padding: 0 20px;" onclick="addExtraItemFromSearch()"><i class="fas fa-plus"></i> Add</button>
+                    </div>
+                    <input type="hidden" id="selectedBillExtraInvId">
+                    <div id="billExtraSearchResults" class="search-results" style="top: 100%;"></div>
+                </div>
+
+                <div id="billExtraManualMode" style="display:none; background:#fff; padding:10px; border:1px dashed #a5d6a7; border-radius:6px;">
+                    <div class="form-grid">
+                        <div class="form-group" style="margin:0;">
+                            <label>Item Name / Category</label>
+                            <input type="text" id="manExtraCat" placeholder="e.g. Silver Coin, Ring">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>Purity</label>
+                            <select id="manExtraPurity"></select>
+                        </div>
+                    </div>
+                    <div class="form-grid" style="margin-top:8px;">
+                        <div class="form-group" style="margin:0;">
+                            <label>Weight (g)</label>
+                            <input type="number" id="manExtraWt" step="0.001">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>Making Charge (₹)</label>
+                            <input type="number" id="manExtraMaking" value="0">
+                        </div>
+                    </div>
+                    <button type="button" class="btn-primary" style="margin-top:10px; background:#2e7d32; padding:8px;" onclick="addManualExtraItem()"><i class="fas fa-plus"></i> Add Manual Item</button>
+                </div>
+
+                <div id="billExtraItemsList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div>
             </div>
 
             <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:10px; padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
@@ -724,7 +759,7 @@
                 <div class="breakdown-title">Final Bill Breakdown</div>
                 <div class="breakdown-row"><span>Main Order Gold Value:</span> <strong id="bOrdGoldVal">₹0</strong></div>
                 <div class="breakdown-row"><span>Main Order Making:</span> <strong id="bOrdMaking">₹0</strong></div>
-                <div class="breakdown-row" style="color:var(--receive-green);" id="bExtraRow"><span>Extra Stock Items (Total):</span> <strong id="bExtraTotal">+₹0</strong></div>
+                <div class="breakdown-row" style="color:var(--receive-green);" id="bExtraRow"><span>Extra Items (Total):</span> <strong id="bExtraTotal">+₹0</strong></div>
                 <div class="breakdown-row"><span>Other Charges:</span> <strong id="bOrdOther">₹0</strong></div>
                 <div class="breakdown-row" style="color:#1976d2;"><span>GST:</span> <strong id="bOrdGST">₹0</strong></div>
                 <div class="breakdown-row" style="color:#d84315;"><span>Discount:</span> <strong id="bOrdDisc">-₹0</strong></div>
@@ -868,15 +903,6 @@
                     oLink.innerHTML += `<option value="${i.id}" data-purity="${i.purity}" data-gross="${i.grossWt}" data-stone="${i.stoneWt}" data-cat="${i.category}" data-desc="${i.name||''}">[${i.barcode}] ${i.category} - ${i.netWt}g (${i.purity})</option>`;
                 });
             }
-
-            // For Extra Items during Billing
-            const bExtra = document.getElementById('billExtraSelect');
-            if(bExtra) {
-                bExtra.innerHTML = '<option value="">-- Select from Inventory --</option>';
-                availableStock.forEach(i => {
-                    bExtra.innerHTML += `<option value="${i.id}" data-barcode="${i.barcode}" data-weight="${i.netWt}" data-purity="${i.purity}" data-cat="${i.category}">[${i.barcode}] ${i.category} - ${i.netWt}g</option>`;
-                });
-            }
         }
 
         window.onload = async function() {
@@ -888,7 +914,7 @@
             if(goldRates.customPurities) {
                 goldRates.customPurities.forEach(cp => { opts += `<option value="${cp.name}">${cp.name}</option>`; });
             }
-            const puritySelects = ['oPurity', 'oOldPurity', 'aIssuedPurity', 'ePurity', 'eOldPurity'];
+            const puritySelects = ['oPurity', 'oOldPurity', 'aIssuedPurity', 'ePurity', 'eOldPurity', 'manExtraPurity'];
             puritySelects.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = opts; });
 
             await loadMerchants(); await loadCustomers(); await loadOrders(); await loadInventoryForDropdowns();
@@ -1835,34 +1861,103 @@
             document.getElementById('billAdvanceHistoryList').innerHTML = advanceHtml;
 
             billingPayments = []; extraBillingItems = []; 
-            document.getElementById('billExtraSelect').value = '';
+            
+            if(document.getElementById('billManualExtraToggle')) {
+                document.getElementById('billManualExtraToggle').checked = false;
+                toggleExtraItemMode();
+            }
+            if(document.getElementById('billExtraSearchInput')) document.getElementById('billExtraSearchInput').value = '';
+            if(document.getElementById('selectedBillExtraInvId')) document.getElementById('selectedBillExtraInvId').value = '';
+            
             renderExtraItems(); // clear
             closeModal('viewJobModal'); openModal('billingModal');
             calcBillingAdjustment();
         }
 
         // Add Extra Items during Billing
-        function addExtraItemToBill() {
-            const sel = document.getElementById('billExtraSelect');
-            const invId = sel.value;
-            if(!invId) return showToast("Select an item to add", "error");
+        function toggleExtraItemMode() {
+            const isManual = document.getElementById('billManualExtraToggle').checked;
+            document.getElementById('billExtraSearchMode').style.display = isManual ? 'none' : 'block';
+            document.getElementById('billExtraManualMode').style.display = isManual ? 'block' : 'none';
+        }
+
+        function searchInventoryForBill() {
+            const term = document.getElementById('billExtraSearchInput').value.toLowerCase();
+            const resultsDiv = document.getElementById('billExtraSearchResults');
+            resultsDiv.innerHTML = '';
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const availableStock = allInventoryGlobal.filter(i => i.status === 'stock' && i.netWt > 0);
+            const matches = availableStock.filter(i => 
+                (i.barcode && i.barcode.toLowerCase().includes(term)) || 
+                (i.category && i.category.toLowerCase().includes(term)) ||
+                (i.name && i.name.toLowerCase().includes(term))
+            ).slice(0, 10);
+
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(i => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>[${i.barcode}]</b> ${i.category} - ${i.netWt}g <small>(${i.purity})</small>`;
+                    div.onclick = () => {
+                        document.getElementById('selectedBillExtraInvId').value = i.id;
+                        document.getElementById('billExtraSearchInput').value = `[${i.barcode}] ${i.category} - ${i.netWt}g`;
+                        resultsDiv.style.display = 'none';
+                    };
+                    resultsDiv.appendChild(div);
+                });
+            } else { resultsDiv.style.display = 'none'; }
+        }
+
+        function addExtraItemFromSearch() {
+            const invId = document.getElementById('selectedBillExtraInvId').value;
+            if(!invId) return showToast("Search and select an item from the list", "error");
             
             const invObj = allInventoryGlobal.find(x => x.id === invId);
             if(!invObj) return;
 
-            // Check if already added
             if(extraBillingItems.find(x => x.id === invId)) return showToast("Item already added", "error");
 
             extraBillingItems.push({
                 id: invObj.id,
                 barcode: invObj.barcode,
-                category: invObj.category,
+                category: invObj.category || invObj.name,
                 weight: invObj.netWt || 0,
                 purity: invObj.purity,
-                makingCharge: invObj.makingCharge || 0
+                makingCharge: invObj.makingCharge || 0,
+                isManual: false
             });
 
-            sel.value = '';
+            document.getElementById('billExtraSearchInput').value = '';
+            document.getElementById('selectedBillExtraInvId').value = '';
+            
+            renderExtraItems();
+            calcBillingAdjustment();
+        }
+
+        function addManualExtraItem() {
+            const cat = document.getElementById('manExtraCat').value;
+            const pur = document.getElementById('manExtraPurity').value;
+            const wt = parseFloat(document.getElementById('manExtraWt').value) || 0;
+            const mk = parseFloat(document.getElementById('manExtraMaking').value) || 0;
+
+            if(!cat || wt <= 0) return showToast("Please enter Item Name and valid Weight", "error");
+
+            extraBillingItems.push({
+                id: 'manual_' + Date.now(),
+                barcode: 'MANUAL',
+                category: cat,
+                weight: wt,
+                purity: pur,
+                makingCharge: mk,
+                isManual: true
+            });
+
+            document.getElementById('manExtraCat').value = '';
+            document.getElementById('manExtraWt').value = '';
+            document.getElementById('manExtraMaking').value = 0;
+
             renderExtraItems();
             calcBillingAdjustment();
         }
@@ -2018,11 +2113,14 @@
                     weight: ext.weight, rate: o.lockedRate, makingAmount: ext.makingCharge || 0,
                     total: extTotal
                 });
+                
                 // Mark Extra item sold
-                let invData = allInventoryGlobal.find(x => x.id === ext.id);
-                if(invData) {
-                    invData.status = 'sold';
-                    await updateItem('inventory', invData);
+                if(!ext.isManual) {
+                    let invData = allInventoryGlobal.find(x => x.id === ext.id);
+                    if(invData) {
+                        invData.status = 'sold';
+                        await updateItem('inventory', invData);
+                    }
                 }
             }
 
