@@ -508,8 +508,8 @@
         if (bAmt === displayGrossAmt && cAmt === 0) return `(₹${fmtNum(displayGrossAmt)}#)`;
         
         let parts = [];
-        if(cAmt > 0) parts.push(`₹${fmtNum(cAmt)}*`);
-        if(bAmt > 0) parts.push(`₹${fmtNum(bAmt)}#`);
+        if(cAmt > 0) parts.push(`${fmtNum(cAmt)}*`);
+        if(bAmt > 0) parts.push(`${fmtNum(bAmt)}#`);
         return `(${parts.join(' + ')})`;
     }
 
@@ -613,7 +613,429 @@
                 }
             };
 
-            // NEW SALES LOGIC
+            sales.forEach(s => {
+                if (s.status === 'cancelled') return;
+                let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
+                let metalIn = 0, metalOut = 0;
+                
+                (s.items || []).forEach(i => {
+                    if (isGold(i)) {
+                        let net = getSafeNet(i);
+                        let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
+                        let isFromInventory = i.stockId || i.inventoryId || i.barcode || i.fromInventory || i.itemId;
+
+                        if (isItemOld) metalIn += net; 
+                        else if (isFromInventory) metalOut += net;
+                    }
+                });
+                
+                let ogTypeStr = String(s.oldGoldType || s.oldGoldName || '').toLowerCase();
+                let isOgSilver = ogTypeStr.includes('silver') || ogTypeStr.includes('chandi') || ogTypeStr.includes('92.5') || ogTypeStr.includes('payal') || ogTypeStr.includes('99.9');
+
+                if (metalIn === 0 && !isOgSilver && isGold(s)) {
+                    let saleOgWt = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
+                    if (saleOgWt > 0) metalIn = saleOgWt;
+                }
+
+                if (metalIn > 0) logMetal(s.date, metalIn, true, 'OLD'); 
+                if (metalOut > 0) {
+                    if (!isOrderBill || (isOrderBill && s.jobType !== 'Repair')) {
+                        logMetal(s.date, metalOut, false, 'NET');
+                    }
+                }
+
+                if (s.date && s.date.startsWith(today)) {
+                    let cName = getCustName(s.customerId);
+                    if (metalOut > 0) {
+                        if (!isOrderBill || (isOrderBill && s.jobType !== 'Repair')) {
+                            pushMetalLog(metalOut, 'Net', cName, 'Sale Delivered', false);
+                        }
+                    }
+                    if (metalIn > 0) pushMetalLog(metalIn, 'Old', cName, 'Old Gold Recv', true);
+                }
+            });
+
+            purchases.forEach(p => {
+                let mIn = 0;
+                let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                
+                if (explicitTotal > 0) {
+                    mIn = explicitTotal;
+                } else if (p.itemDetails && p.itemDetails.length > 0) {
+                    p.itemDetails.forEach(i => { 
+                        if(isGold(i)) mIn += getSafeNet(i); 
+                    });
+                } else {
+                    if (isGold(p)) {
+                        let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                        let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                        if (rootGross > 0) mIn = rootGross - rootStone;
+                        else mIn = parseNum(p.weight || p.netWt || p.netWeight);
+                    }
+                }
+                
+                let isDouble = false;
+                mPayments.forEach(mp => {
+                    let mpDate = mp.date ? mp.date.split('T')[0] : '';
+                    let pDate = p.date ? p.date.split('T')[0] : '';
+                    if (mp.goldType !== 'fixed' && mpDate === pDate && parseNum(mp.gold) === mIn && String(mp.merchantId) === String(p.merchantId)) {
+                        isDouble = true;
+                    }
+                });
+                
+                if (mIn > 0 && !isDouble) {
+                    logMetal(p.date, mIn, true, 'NET');
+                    if (p.date && p.date.startsWith(today)) {
+                        let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                        if (actualWt === 0) actualWt = mIn;
+                        let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                        let pDesc = `Purchase Stock <br><span style="font-size:0.7rem; color:#666;">Wt: ${parseFloat(actualWt).toFixed(3)}g | Tounch: ${displayPurity}</span>`;
+                        pushMetalLog(mIn, 'Net', getMerchName(p.merchantId), pDesc, true);
+                    }
+                }
+            });
+
+            mPayments.forEach(mp => {
+                if (!isGold(mp)) return; 
+                if (mp.goldType !== 'fixed') {
+                    let fineWt = parseNum(mp.gold);
+                    if (mp.paymentType === 'OUT') logMetal(mp.date, fineWt, false, 'NET');
+                    else logMetal(mp.date, fineWt, true, 'NET');
+
+                    if (mp.date && mp.date.startsWith(today) && fineWt > 0) {
+                        let actualWt = parseNum(mp.originalGrossWt) || fineWt;
+                        let displayPurity = mp.purity || "Fine";
+                        if (!mp.purity && actualWt > fineWt) {
+                            displayPurity = ((fineWt / actualWt) * 100).toFixed(1) + "%";
+                        }
+
+                        let actionStr = mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv';
+                        let mpDesc = `${actionStr} <br><span style="font-size:0.7rem; color:#666;">Wt: ${parseFloat(actualWt).toFixed(3)}g | Tounch: ${displayPurity}</span>`;
+                        
+                        pushMetalLog(fineWt, 'Net', getMerchName(mp.merchantId), mpDesc, mp.paymentType !== 'OUT');
+                    }
+                }
+            });
+
+            oldGold.forEach(o => {
+                if (o.mode !== 'POS Exchange' && isGold(o)) { 
+                    let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
+                    if (isMelt) {
+                        let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
+                        let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
+                        let loss = parseNum(o.lossWt);
+                        
+                        if (recv > 0 && loss === 0) loss = sent - recv;
+                        if (loss > 0 && recv === 0) recv = sent - loss;
+                        if (loss < 0) loss = 0;
+                        if (recv < 0) recv = 0;
+
+                        if (recv > 0 || loss > 0) {
+                            if (recv > 0) { 
+                                logMetal(o.date, recv, true, 'MIX');
+                                logMetal(o.date, recv, false, 'OLD'); 
+                            }
+                            if (loss > 0) {
+                                logMetal(o.date, loss, false, 'OLD');
+                            }
+                        } else {
+                            logMetal(o.date, sent, false, 'OLD');
+                        }
+
+                        if (o.date && o.date.startsWith(today)) {
+                            if (sent > 0 && loss === 0 && recv === 0) pushMetalLog(sent, 'Old', 'Refinery', 'Melt Sent', false);
+                            else if (sent > 0 && loss > 0) {
+                                let converted = sent - loss;
+                                if(converted > 0) pushMetalLog(converted, 'Old', 'Refinery', 'Melt Sent', false);
+                                pushMetalLog(loss, 'Old', 'Refinery', 'Melting Loss', false);
+                            }
+                            if (recv > 0) pushMetalLog(recv, 'Mix', 'Refinery', 'Pure Recv', true);
+                        }
+                    } else {
+                        let wt = getSafeNet(o);
+                        logMetal(o.date, wt, true, 'OLD');
+                        if (o.date && o.date.startsWith(today) && wt > 0) pushMetalLog(wt, 'Old', getCustName(o.customerId), 'Bought OG', true);
+                    }
+                }
+            });
+
+            orders.forEach(o => {
+                if (o.status === 'cancelled') return;
+                
+                let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
+                if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
+                let kName = kNameRaw + ' (Karigar)';
+
+                if (isGold(o)) {
+                    if (o.jobType === 'Repair') {
+                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                        
+                        if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'NET');
+                        if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'NET');
+
+                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                        if (iDate && iDate.startsWith(today) && shopIssued > 0) pushMetalLog(shopIssued, 'Net', kName, 'Repair Issue', false);
+                        let aDate = o.repairMeta?.auditDate || o.orderDate;
+                        if (aDate && aDate.startsWith(today) && returnedRaw > 0) pushMetalLog(returnedRaw, 'Net', kName, 'Repair Recv', true);
+
+                    } else {
+                        let inWt = parseNum(o.oldGoldNet);
+                        if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
+
+                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                        let issueCategory = 'NET'; 
+                        if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
+
+                        let receivedFromKarigarWt = parseNum(o.finalNet);
+                        if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                            logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
+                        }
+
+                        if (o.orderDate && o.orderDate.startsWith(today)) {
+                            let cName = getCustName(o.customerId);
+                            if(inWt > 0) pushMetalLog(inWt, 'Old', cName, 'Order Advance OG', true);
+                            if(karigarIssuedWt > 0) pushMetalLog(karigarIssuedWt, 'Net', kName, 'Order Metal Issue', false);
+                            if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                                pushMetalLog(receivedFromKarigarWt, 'Net', kName, 'Order Metal Recv', true);
+                            }
+                        }
+                    }
+                }
+            });
+
+            inventory.forEach(inv => {
+                if (isGold(inv)) {
+                    let mWt = getSafeNet(inv); 
+                    let catStr = String(inv.category || '').toUpperCase();
+                    let isMix = (catStr === 'LANGADI' || catStr === 'REFINERY'); 
+                    let targetCategory = isMix ? 'MIX' : 'NET'; 
+                    
+                    if (inv.source !== 'purchase' && inv.status !== 'cancelled') {
+                        let itemDate = inv.addedDate || inv.date || '';
+                        logMetal(itemDate, mWt, true, targetCategory);
+
+                        if (itemDate.startsWith(today) && mWt > 0 && (inv.source === 'manual' || !inv.source)) {
+                            let displayName = inv.category || inv.name || 'Inventory';
+                            pushMetalLog(mWt, targetCategory === 'MIX' ? 'Mix' : 'Net', displayName, 'Custom Add', true);
+                        }
+                    }
+
+                    if ((inv.status === 'removed' || inv.status === 'extracted') && inv.removeDate) {
+                        logMetal(inv.removeDate, mWt, false, targetCategory);
+                        
+                        if (inv.removeDate.startsWith(today) && mWt > 0) {
+                            let displayName = inv.category || inv.name || 'Inventory';
+                            pushMetalLog(mWt, targetCategory === 'MIX' ? 'Mix' : 'Net', displayName, inv.status === 'extracted' ? 'Converted/Extracted' : 'Manual Remove', false);
+                        }
+                    }
+                }
+            });
+
+            let closingOld = openOld + todayOldIn - todayOldOut;
+            let closingNet = liveInventoryStockNet;
+            let closingMix = liveInventoryStockMix;
+
+            let openNet = closingNet - todayNetIn + todayNetOut;
+            let openMix = closingMix - todayMixIn + todayMixOut;
+
+            let jamaNet = openNet + todayNetIn;
+            let jamaOld = openOld + todayOldIn;
+            let jamaMix = openMix + todayMixIn;
+            let jamaTotalMetal = jamaNet + jamaOld + jamaMix;
+
+            let namaNet = todayNetOut + closingNet;
+            let namaOld = todayOldOut + closingOld;
+            let namaMix = todayMixOut + closingMix;
+            let namaTotalMetal = namaNet + namaOld + namaMix;
+
+            cFlows.forEach(c => {
+                let amt = Math.abs(parseNum(c.amount));
+                let cDate = c.date ? c.date.split('T')[0] : '';
+                let mType = getMoneyType(c.mode);
+                if(mType === 'none') return; 
+
+                let type = c.type || 'OUT';
+                if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
+
+                if (cDate < today) {
+                    if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
+                    else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
+                } else if (cDate === today) {
+                    if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
+                    else { if(mType==='bank') todayBankOut+=amt; else todayCashOut+=amt; }
+                }
+            });
+
+            let openingTotal = openCash + openBank;
+            let closingCash = openCash + todayCashIn - todayCashOut;
+            let closingBank = openBank + todayBankIn - todayBankOut;
+            let closingTotal = closingCash + closingBank;
+
+            document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
+            document.getElementById('openCash').innerText = fmtNum(openCash);
+            document.getElementById('openBank').innerText = fmtNum(openBank);
+
+            document.getElementById('todayIn').innerText = "+₹" + fmtNum(todayCashIn + todayBankIn);
+            document.getElementById('todayOut').innerText = "-₹" + fmtNum(todayCashOut + todayBankOut);
+            
+            document.getElementById('closeBal').innerText = "₹" + fmtNum(closingTotal);
+            document.getElementById('closeCash').innerText = fmtNum(closingCash);
+            document.getElementById('closeBank').innerText = fmtNum(closingBank);
+
+            document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
+            document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
+
+            document.getElementById('uiOpenNet').innerText = openNet.toFixed(3) + "g";
+            document.getElementById('uiOpenOld').innerText = openOld.toFixed(3) + "g";
+            document.getElementById('uiOpenMix').innerText = openMix.toFixed(3) + "g";
+            
+            document.getElementById('uiCloseNet').innerText = closingNet.toFixed(3) + "g";
+            document.getElementById('uiCloseOld').innerText = closingOld.toFixed(3) + "g";
+            document.getElementById('uiCloseMix').innerText = closingMix.toFixed(3) + "g";
+
+            ['Net', 'Old', 'Mix'].forEach(cat => {
+                let elIn = document.getElementById(`md${cat}In`);
+                let elOut = document.getElementById(`md${cat}Out`);
+                if(elIn) elIn.innerHTML = dMetal[cat].in.length > 0 ? dMetal[cat].in.join('') : '<div class="empty-log" style="font-size:0.7rem; padding:10px 0; color:#aaa;">No Data</div>';
+                if(elOut) elOut.innerHTML = dMetal[cat].out.length > 0 ? dMetal[cat].out.join('') : '<div class="empty-log" style="font-size:0.7rem; padding:10px 0; color:#aaa;">No Data</div>';
+            });
+
+            document.getElementById('tJamaNet').innerText = jamaNet.toFixed(3) + "g";
+            document.getElementById('tJamaOld').innerText = jamaOld.toFixed(3) + "g";
+            document.getElementById('tJamaMix').innerText = jamaMix.toFixed(3) + "g";
+            document.getElementById('tJamaTotal').innerText = jamaTotalMetal.toFixed(3) + "g";
+
+            document.getElementById('tNamaNet').innerText = namaNet.toFixed(3) + "g";
+            document.getElementById('tNamaOld').innerText = namaOld.toFixed(3) + "g";
+            document.getElementById('tNamaMix').innerText = namaMix.toFixed(3) + "g";
+            document.getElementById('tNamaTotal').innerText = namaTotalMetal.toFixed(3) + "g";
+
+            // --- 5. CASH FLOW UI GENERATION ---
+            let logs = {
+                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
+                'SaleDueRecv': [], 'PurchaseDue': [], 'MeltIn': [],
+                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'BC Out': [], 'Other Out': [], 'Expense': [],
+                'SaleDueGiven': [], 'OldGold': [], 'MeltOut': []
+            };
+
+            let sumJama = openingTotal;
+            let sumNama = 0;
+
+            const pushLog = (key, amt, midStr, rightStr, splitStr, isIN, metalFlows = [], amtOverride = null) => {
+                if(amt === 0 && metalFlows.length === 0 && !amtOverride) return;
+                
+                let c = isIN ? 'c-in' : 'c-out';
+                let splitHTML = splitStr ? `<div class="log-split">${splitStr}</div>` : '';
+                
+                let metalHTML = rightStr !== '' ? `<span>${rightStr}</span>` : '';
+                metalFlows.forEach(m => {
+                    if(m.val !== 0) {
+                        let isPos = m.val > 0;
+                        let sign = isPos ? '+' : '';
+                        let cssClass = isPos ? 'wt-plus' : 'wt-minus';
+                        metalHTML += `<span class="wt-tag ${cssClass}">${sign}${m.val.toFixed(3)}g ${m.label}</span>`;
+                    }
+                });
+
+                let displayAmt = amtOverride !== null ? amtOverride : `₹${fmtNum(amt)}`;
+
+                if(logs[key]) {
+                    logs[key].push(`
+                    <div class="log-item">
+                        <div class="log-main">
+                            <span class="log-amt ${c}">${displayAmt}</span>
+                            <span class="log-code">| ${midStr} |</span>
+                            <span class="log-wt">${metalHTML}</span>
+                        </div>
+                        ${splitHTML}
+                    </div>`);
+                }
+                
+                if(isIN) sumJama += amt;
+                else sumNama += amt;
+            };
+
+            orders.forEach(o => {
+                if (o.status === 'cancelled') return;
+                let oDate = (o.orderDate || o.date || '').split('T')[0];
+                let cName = getCustName(o.customerId);
+                
+                if (oDate === today) {
+                    let itemN = o.itemName || o.item || o.jobType || 'Order';
+                    let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
+                    let ogWt = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
+                    let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
+                    let totalIn = advCash + ogAmt;
+                    
+                    let matchedMode = 'Cash';
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            if (cat.includes('order') || note.includes('ord-')) {
+                                let cAmt = Math.abs(parseNum(c.amount));
+                                if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || cAmt === advCash) {
+                                    c.alreadyHandled = true;
+                                    matchedMode = c.mode || matchedMode;
+                                }
+                            }
+                        }
+                    });
+
+                    if (totalIn > 0) {
+                        let spl = getSplitStr(o.payments, matchedMode, advCash, totalIn);
+                        pushLog('Order In', totalIn, `${cName} - ${itemN}`, 'Adv + OG', spl, true);
+                    }
+                    if (ogAmt > 0) {
+                        pushLog('OldGold', ogAmt, cName, 'Order OG Exch', '', false, [{val: ogWt, label: 'Old'}]);
+                    }
+                }
+                
+                let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
+                if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
+                let kName = kNameRaw + ' (Karigar)';
+
+                if (isGold(o)) {
+                    if (o.jobType === 'Repair') {
+                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                        let fIssue = getSafeFine(o.repairMeta) || parseNum(o.repairMeta?.fineIssued || o.repairMeta?.issuedFineWt);
+                        
+                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                        if (iDate === today && shopIssued > 0) {
+                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Diya', 0, kName, 'Repair Metal Issued', '', false, [{val: shopIssued, label: 'NET'}], customAmt);
+                        }
+                        
+                        let aDate = o.repairMeta?.auditDate || o.orderDate;
+                        if (aDate === today && returnedRaw > 0) {
+                            let fRet = parseNum(o.repairMeta?.fineReturned || o.repairMeta?.returnedFineWt); 
+                            let customAmt = `<span style="color:#000;">${(fRet > 0 ? fRet : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Aaya', 0, kName, 'Repair Metal Recv', '', true, [{val: returnedRaw, label: 'NET'}], customAmt);
+                        }
+                    } else {
+                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                        let issueCategory = 'NET'; 
+                        let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight || o.expectedFine);
+
+                        if (o.orderDate === today && karigarIssuedWt > 0) {
+                            let wtDesc = `${o.issuedGrossWt || karigarIssuedWt}g + Wst`;
+                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Diya', 0, kName, `Metal Issue (${wtDesc})`, '', false, [{val: karigarIssuedWt, label: issueCategory}], customAmt);
+                        }
+
+                        let receivedFromKarigarWt = parseNum(o.finalNet);
+                        let fRecv = getSafeFine(o) || parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
+                        if (o.orderDate === today && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                            let customAmt = `<span style="color:#000;">${(fRecv > 0 ? fRecv : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}], customAmt);
+                        }
+                    }
+                }
+            });
+
             sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
                 let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
                 if (isRepairSale) return; 
@@ -625,6 +1047,7 @@
                 
                 if (isOrderBill) {
                     let udhariPaidToday = 0;
+                    
                     cFlows.forEach(c => {
                         if (c.date && c.date.startsWith(today) && c.type !== 'OUT') {
                             let cat = String(c.category || '').toLowerCase();
@@ -641,7 +1064,9 @@
                             }
                         }
                     });
+
                     let originalUdhari = currentUdhari + udhariPaidToday;
+
                     if (originalUdhari > 0) {
                         pushLog('SaleDueGiven', originalUdhari, cName, 'Order Udhari', '', false);
                     }
@@ -650,8 +1075,7 @@
                 
                 let udhari = currentUdhari;
                 let paid = Math.abs(parseNum(s.paidAmount));
-                let og = Math.abs(parseNum(s.oldGoldDeduction));
-                let bc = Math.abs(parseNum(s.bcWalletDeduction || 0));
+                let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
                 
                 cFlows.forEach(c => {
                     if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
@@ -681,35 +1105,12 @@
                 });
                 
                 if (oldWtRcv === 0) oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet);
-                
-                // ⭐️ THE FIX: FULL INVOICE VALUE CALCULATION ⭐️
-                let jamaAmt = paid + udhari + og + bc;
+                if (isOrderBill) oldWtRcv = 0; 
 
-                // ⭐️ Custom Explict Split Generator for Sales ⭐️
-                let cAmt = 0, bAmt = 0;
-                if (s.payments && s.payments.length > 0) {
-                    s.payments.forEach(p => {
-                        let m = String(p.mode).toLowerCase();
-                        let a = Math.abs(parseNum(p.amount));
-                        if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
-                        else cAmt += a;
-                    });
-                } else {
-                    let m = String(s.mode).toLowerCase();
-                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt = paid;
-                    else cAmt = paid;
-                }
-
-                let splParts = [];
-                if (cAmt > 0) splParts.push(`₹${fmtNum(cAmt)}*`);
-                if (bAmt > 0) splParts.push(`₹${fmtNum(bAmt)}#`);
-                if (og > 0) splParts.push(`₹${fmtNum(og)} OG`);
-                if (bc > 0) splParts.push(`₹${fmtNum(bc)} BC`);
-                if (udhari > 0) splParts.push(`₹${fmtNum(udhari)} Due`);
-                
-                let spl = splParts.length > 0 ? `(${splParts.join(' + ')})` : '';
+                let jamaAmt = paid + udhari + og;
 
                 if(jamaAmt > 0) {
+                    let spl = getSplitStr(s.payments, s.mode, paid, jamaAmt);
                     pushLog('Sale', jamaAmt, `${cName} - ${itemStr}`, '', spl, true, [{val: -netWtSold, label:'Net'}]);
                 } else if (netWtSold > 0) {
                     pushLog('Sale', 0, `${cName} - ${itemStr}`, 'Delivered', '', true, [{val: -netWtSold, label:'Net'}], '₹0');
@@ -717,7 +1118,6 @@
                 
                 if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
                 if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false, [{val: oldWtRcv, label:'Old'}]);
-                if(bc > 0) pushLog('BC Out', bc, cName, 'BC Applied', '', false);
             });
 
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
@@ -763,30 +1163,11 @@
                     });
                 }
 
-                // ⭐️ Custom Explict Split Generator for Purchases ⭐️
-                let cAmt = 0, bAmt = 0;
-                if (p.payments && p.payments.length > 0) {
-                    p.payments.forEach(pay => {
-                        let m = String(pay.mode).toLowerCase();
-                        let a = Math.abs(parseNum(pay.amount));
-                        if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
-                        else cAmt += a;
-                    });
-                } else {
-                    let m = String(p.paymentMode || p.mode).toLowerCase();
-                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt = paid;
-                    else cAmt = paid;
-                }
-                
-                let splParts = [];
-                if(cAmt > 0) splParts.push(`₹${fmtNum(cAmt)}*`);
-                if(bAmt > 0) splParts.push(`₹${fmtNum(bAmt)}#`);
-                if(due > 0) splParts.push(`₹${fmtNum(due)} Due`);
-                let spl = splParts.length > 0 ? `(${splParts.join(' + ')})` : '';
-
                 if(gross > 0) {
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
                     pushLog('Purchase', gross, mName, itemStr, spl, false, [{val: netWtBought, label:'Net'}]);
                 } else if (paid > 0) { 
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
                     pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv' + mathDesc, spl, false, [{val: netWtBought, label:'Net'}]);
                 } else {
                     let isDouble = false;
@@ -869,8 +1250,8 @@
                         if(totalAmt === 0) return;
 
                         let splParts = [];
-                        if(cAmt > 0) splParts.push(`₹${fmtNum(cAmt)}*`);
-                        if(bAmt > 0) splParts.push(`₹${fmtNum(bAmt)}#`);
+                        if(cAmt > 0) splParts.push(`${fmtNum(cAmt)}*`);
+                        if(bAmt > 0) splParts.push(`${fmtNum(bAmt)}#`);
                         let splText = splParts.length > 0 ? `(${splParts.join(' + ')})` : `(₹${fmtNum(totalAmt)}*)`;
 
                         let isLastPayment = (p === l.payments[l.payments.length - 1]);
@@ -942,103 +1323,6 @@
                 }
             });
 
-            orders.forEach(o => {
-                if (o.status === 'cancelled') return;
-                let oDate = (o.orderDate || o.date || '').split('T')[0];
-                let cName = getCustName(o.customerId);
-                
-                if (oDate === today) {
-                    let itemN = o.itemName || o.item || o.jobType || 'Order';
-                    let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
-                    let ogWt = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
-                    let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
-                    let totalIn = advCash + ogAmt;
-                    
-                    let matchedMode = 'Cash';
-                    cFlows.forEach(c => {
-                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                            let cat = String(c.category || '').toLowerCase();
-                            let note = String(c.note || '').toLowerCase();
-                            if (cat.includes('order') || note.includes('ord-')) {
-                                let cAmt = Math.abs(parseNum(c.amount));
-                                if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || cAmt === advCash) {
-                                    c.alreadyHandled = true;
-                                    matchedMode = c.mode || matchedMode;
-                                }
-                            }
-                        }
-                    });
-
-                    // ⭐️ Custom Explict Split Generator for Order In ⭐️
-                    if (totalIn > 0) {
-                        let splParts = [];
-                        let cAmt = 0, bAmt = 0;
-                        if (o.payments && o.payments.length > 0) {
-                            o.payments.forEach(p => {
-                                let m = String(p.mode).toLowerCase();
-                                let a = Math.abs(parseNum(p.amount));
-                                if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
-                                else cAmt += a;
-                            });
-                        } else {
-                            if(matchedMode.toLowerCase().includes('upi')||matchedMode.toLowerCase().includes('bank')||matchedMode.toLowerCase().includes('card')) bAmt = advCash;
-                            else cAmt = advCash;
-                        }
-                        if (cAmt > 0) splParts.push(`₹${fmtNum(cAmt)}*`);
-                        if (bAmt > 0) splParts.push(`₹${fmtNum(bAmt)}#`);
-                        if (ogAmt > 0) splParts.push(`₹${fmtNum(ogAmt)} OG`);
-                        let spl = splParts.length > 0 ? `(${splParts.join(' + ')})` : '';
-                        
-                        pushLog('Order In', totalIn, `${cName} - ${itemN}`, 'Adv + OG', spl, true);
-                    }
-                    if (ogAmt > 0) {
-                        pushLog('OldGold', ogAmt, cName, 'Order OG Exch', '', false, [{val: ogWt, label: 'Old'}]);
-                    }
-                }
-                
-                let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
-                if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
-                let kName = kNameRaw + ' (Karigar)';
-
-                if (isGold(o)) {
-                    if (o.jobType === 'Repair') {
-                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
-                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
-                        let fIssue = getSafeFine(o.repairMeta) || parseNum(o.repairMeta?.fineIssued || o.repairMeta?.issuedFineWt);
-                        
-                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
-                        if (iDate === today && shopIssued > 0) {
-                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Diya', 0, kName, 'Repair Metal Issued', '', false, [{val: shopIssued, label: 'NET'}], customAmt);
-                        }
-                        
-                        let aDate = o.repairMeta?.auditDate || o.orderDate;
-                        if (aDate === today && returnedRaw > 0) {
-                            let fRet = parseNum(o.repairMeta?.fineReturned || o.repairMeta?.returnedFineWt); 
-                            let customAmt = `<span style="color:#000;">${(fRet > 0 ? fRet : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Aaya', 0, kName, 'Repair Metal Recv', '', true, [{val: returnedRaw, label: 'NET'}], customAmt);
-                        }
-                    } else {
-                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
-                        let issueCategory = 'NET'; 
-                        let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight || o.expectedFine);
-
-                        if (o.orderDate === today && karigarIssuedWt > 0) {
-                            let wtDesc = `${o.issuedGrossWt || karigarIssuedWt}g + Wst`;
-                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Diya', 0, kName, `Metal Issue (${wtDesc})`, '', false, [{val: karigarIssuedWt, label: issueCategory}], customAmt);
-                        }
-
-                        let receivedFromKarigarWt = parseNum(o.finalNet);
-                        let fRecv = getSafeFine(o) || parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
-                        if (o.orderDate === today && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                            let customAmt = `<span style="color:#000;">${(fRecv > 0 ? fRecv : 0).toFixed(3)}gF</span>`;
-                            pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}], customAmt);
-                        }
-                    }
-                }
-            });
-
             schemes.forEach(sch => {
                 let cName = getCustName(sch.customerId);
                 let schTitle = `${cName} [BC-${sch.id}]`;
@@ -1074,33 +1358,35 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
-                let loanMatch = note.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i) || cat.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i);
+               let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
+let loanMatch = note.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i) || cat.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i);
 
-                if (type === 'OUT' && (loanMatch || isTopUp)) {
-                    let lId = loanMatch ? loanMatch[1] : '';
-                    let cNameForLoan = '';
-                    
-                    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
-                        cNameForLoan = getCustName(c.customerId);
-                    } 
-                    else if (c.customerName || c.partyName || c.name) {
-                        cNameForLoan = c.customerName || c.partyName || c.name;
-                    }
+if (type === 'OUT' && (loanMatch || isTopUp)) {
+    let lId = loanMatch ? loanMatch[1] : '';
+    
+    let cNameForLoan = '';
+    
+    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+        cNameForLoan = getCustName(c.customerId);
+    } 
+    else if (c.customerName || c.partyName || c.name) {
+        cNameForLoan = c.customerName || c.partyName || c.name;
+    }
 
-                    if (!cNameForLoan && lId) {
-                        let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
-                        if (matchedLoan && matchedLoan.customerId) {
-                            cNameForLoan = getCustName(matchedLoan.customerId);
-                        }
-                    }
+    if (!cNameForLoan && lId) {
+        let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
+        if (matchedLoan && matchedLoan.customerId) {
+            cNameForLoan = getCustName(matchedLoan.customerId);
+        }
+    }
 
-                    if (!cNameForLoan) cNameForLoan = 'Customer';
-                    let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
-                    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
-                    return; 
-                }
-                
+    if (!cNameForLoan) cNameForLoan = 'Customer';
+
+    let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
+
+    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
+    return; 
+}
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
                 let vyapariName = '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
@@ -1246,51 +1532,6 @@
                     }
                 }
             });
-
-            // --- 5. CASH FLOW UI GENERATION ---
-            let logs = {
-                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
-                'SaleDueRecv': [], 'PurchaseDue': [], 'MeltIn': [],
-                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'BC Out': [], 'Other Out': [], 'Expense': [],
-                'SaleDueGiven': [], 'OldGold': [], 'MeltOut': []
-            };
-
-            let sumJama = openingTotal;
-            let sumNama = 0;
-
-            const pushLog = (key, amt, midStr, rightStr, splitStr, isIN, metalFlows = [], amtOverride = null) => {
-                if(amt === 0 && metalFlows.length === 0 && !amtOverride) return;
-                
-                let c = isIN ? 'c-in' : 'c-out';
-                let splitHTML = splitStr ? `<div class="log-split">${splitStr}</div>` : '';
-                
-                let metalHTML = rightStr !== '' ? `<span>${rightStr}</span>` : '';
-                metalFlows.forEach(m => {
-                    if(m.val !== 0) {
-                        let isPos = m.val > 0;
-                        let sign = isPos ? '+' : '';
-                        let cssClass = isPos ? 'wt-plus' : 'wt-minus';
-                        metalHTML += `<span class="wt-tag ${cssClass}">${sign}${m.val.toFixed(3)}g ${m.label}</span>`;
-                    }
-                });
-
-                let displayAmt = amtOverride !== null ? amtOverride : `₹${fmtNum(amt)}`;
-
-                if(logs[key]) {
-                    logs[key].push(`
-                    <div class="log-item">
-                        <div class="log-main">
-                            <span class="log-amt ${c}">${displayAmt}</span>
-                            <span class="log-code">| ${midStr} |</span>
-                            <span class="log-wt">${metalHTML}</span>
-                        </div>
-                        ${splitHTML}
-                    </div>`);
-                }
-                
-                if(isIN) sumJama += amt;
-                else sumNama += amt;
-            };
 
             sumNama += closingTotal; 
             
