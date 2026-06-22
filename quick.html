@@ -1036,7 +1036,6 @@
                 }
             });
 
-            // 🔥 UPDATED SALES FILTER LOGIC
             sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
                 let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
                 if (isRepairSale) return; 
@@ -1045,66 +1044,80 @@
                 let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
                 let cName = getCustName(s.customerId);
                 let currentUdhari = Math.abs(parseNum(s.pendingAmount));
+                
+                if (isOrderBill) {
+                    let udhariPaidToday = 0;
+                    
+                    cFlows.forEach(c => {
+                        if (c.date && c.date.startsWith(today) && c.type !== 'OUT') {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            let isUdhariFlow = cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding');
+                            
+                            let isMatch = false;
+                            if (c.saleId && String(c.saleId) === String(s.id)) isMatch = true;
+                            else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isMatch = true;
+                            else if (c.orderId && String(c.orderId) === String(s.orderId || s.id)) isMatch = true;
+                            
+                            if (isUdhariFlow && isMatch) {
+                                udhariPaidToday += Math.abs(parseNum(c.amount));
+                            }
+                        }
+                    });
 
-                let udhariPaidToday = 0;
+                    let originalUdhari = currentUdhari + udhariPaidToday;
+
+                    if (originalUdhari > 0) {
+                        pushLog('SaleDueGiven', originalUdhari, cName, 'Order Udhari', '', false);
+                    }
+                    return; 
+                }
+                
+                let udhari = currentUdhari;
+                let paid = Math.abs(parseNum(s.paidAmount));
+                let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
                 
                 cFlows.forEach(c => {
                     if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
                         let cat = String(c.category || '').toLowerCase();
                         let note = String(c.note || '').toLowerCase();
-
+                        
                         let isMatch = false;
                         if (c.saleId && String(c.saleId) === String(s.id)) isMatch = true;
                         else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isMatch = true;
                         else if (note.includes(String(s.id).toLowerCase())) isMatch = true;
-                        else if (isOrderBill && c.orderId && String(c.orderId) === String(s.orderId || s.id)) isMatch = true;
 
                         if (isMatch) {
-                            let isUdhariFlow = cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding');
-                            if (isUdhariFlow && c.type !== 'OUT') {
-                                udhariPaidToday += Math.abs(parseNum(c.amount));
-                            } else if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || cat.includes('reversal')) {
+                            if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || cat.includes('reversal') || cat.includes('due payment')) {
                                 c.alreadyHandled = true;
                             }
                         }
                     }
                 });
-
-                let udhari = currentUdhari + udhariPaidToday;
-                let paid = Math.abs(parseNum(s.paidAmount));
-                let og = Math.abs(parseNum(s.oldGoldDeduction)); 
-
-                let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : (isOrderBill ? 'Order Billed' : 'Item');
+                
+                let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
                 let netWtSold = 0, oldWtRcv = 0;
-
+                
                 (s.items || []).forEach(i => {
                     let net = getSafeNet(i);
                     let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
                     if (isItemOld) oldWtRcv += net; else netWtSold += net;
                 });
-
+                
                 if (oldWtRcv === 0) oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet);
+                if (isOrderBill) oldWtRcv = 0; 
 
-                let jamaAmt = paid + udhari + og + advance;
+                let jamaAmt = paid + udhari + og;
 
-                if (jamaAmt > 0) {
+                if(jamaAmt > 0) {
                     let spl = getSplitStr(s.payments, s.mode, paid, jamaAmt);
-                    pushLog('Sale', jamaAmt, `${cName} - ${itemStr}`, isOrderBill ? 'Order Billed' : '', spl, true, [{val: -netWtSold, label:'Net'}]);
+                    pushLog('Sale', jamaAmt, `${cName} - ${itemStr}`, '', spl, true, [{val: -netWtSold, label:'Net'}]);
                 } else if (netWtSold > 0) {
                     pushLog('Sale', 0, `${cName} - ${itemStr}`, 'Delivered', '', true, [{val: -netWtSold, label:'Net'}], '₹0');
                 }
-
-                if (udhari > 0) {
-                    pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
-                }
-
-                if (og > 0) {
-                    pushLog('OldGold', og, cName, isOrderBill ? 'Order OG Adjusted' : 'Bill Exch', '', false, isOrderBill ? [] : [{val: oldWtRcv, label:'Old'}]);
-                }
-
-                if (isOrderBill && advance > 0) {
-                    pushLog('Other Out', advance, cName, 'Advance Adjusted', '', false);
-                }
+                
+                if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
+                if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false, [{val: oldWtRcv, label:'Old'}]);
             });
 
             purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
@@ -1346,35 +1359,34 @@
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
                let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
-               let loanMatch = note.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i) || cat.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i);
+let loanMatch = note.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i) || cat.match(/(?:loan|girvi|l)\s*(?:#|-)?\s*([a-zA-Z0-9]+)/i);
 
-               if (type === 'OUT' && (loanMatch || isTopUp)) {
-                   let lId = loanMatch ? loanMatch[1] : '';
-                   
-                   let cNameForLoan = '';
-                   
-                   if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
-                       cNameForLoan = getCustName(c.customerId);
-                   } 
-                   else if (c.customerName || c.partyName || c.name) {
-                       cNameForLoan = c.customerName || c.partyName || c.name;
-                   }
+if (type === 'OUT' && (loanMatch || isTopUp)) {
+    let lId = loanMatch ? loanMatch[1] : '';
+    
+    let cNameForLoan = '';
+    
+    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+        cNameForLoan = getCustName(c.customerId);
+    } 
+    else if (c.customerName || c.partyName || c.name) {
+        cNameForLoan = c.customerName || c.partyName || c.name;
+    }
 
-                   if (!cNameForLoan && lId) {
-                       let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
-                       if (matchedLoan && matchedLoan.customerId) {
-                           cNameForLoan = getCustName(matchedLoan.customerId);
-                       }
-                   }
+    if (!cNameForLoan && lId) {
+        let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
+        if (matchedLoan && matchedLoan.customerId) {
+            cNameForLoan = getCustName(matchedLoan.customerId);
+        }
+    }
 
-                   if (!cNameForLoan) cNameForLoan = 'Customer';
+    if (!cNameForLoan) cNameForLoan = 'Customer';
 
-                   let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
+    let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
 
-                   pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
-                   return; 
-               }
-
+    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
+    return; 
+}
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
                 let vyapariName = '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
