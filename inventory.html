@@ -668,7 +668,7 @@
     function autoPrint(items) {
         const container = document.getElementById('printContainer');
         container.innerHTML = '';
-        let printItems = items.filter(i => i.category !== 'MIX' && !i.barcode.includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && i.status !== 'cancelled' && i.status !== 'extracted' && !(i.barcode && i.barcode.startsWith('LOOSE')));
+        let printItems = items.filter(i => i.category !== 'MIX' && !String(i.barcode || '').includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && i.status !== 'cancelled' && i.status !== 'extracted' && !(i.barcode && String(i.barcode).startsWith('LOOSE')));
         if(printItems.length === 0) return;
         printItems.forEach((item, index) => {
             const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
@@ -682,7 +682,7 @@
                         <div class="t-wt">${item.purity}</div>
                     </div>
                     <div class="print-half-right">
-                        <div class="t-code" style="margin-bottom:1px;">${item.category.toUpperCase()}</div>
+                        <div class="t-code" style="margin-bottom:1px;">${String(item.category || '').toUpperCase()}</div>
                         <svg id="barcode-svg-${index}" class="barcode-svg"></svg>
                         <div class="t-code" style="margin-top:1px;">${item.barcode}</div>
                     </div>
@@ -707,7 +707,7 @@
 
     let printSelectionList = [];
     function openSelectPrintModal() {
-        printSelectionList = allInventory.filter(i => i.status === 'stock' && i.category !== 'MIX' && !i.barcode.includes('MIX') && !(i.barcode && i.barcode.startsWith('LOOSE')));
+        printSelectionList = allInventory.filter(i => i.status === 'stock' && i.category !== 'MIX' && !String(i.barcode || '').includes('MIX') && !(i.barcode && String(i.barcode).startsWith('LOOSE')));
         document.getElementById('printSearchInput').value = '';
         document.getElementById('selectAllPrint').checked = false;
         renderPrintCheckList(printSelectionList);
@@ -738,9 +738,9 @@
     function filterPrintList() {
         const term = document.getElementById('printSearchInput').value.toUpperCase().trim();
         const filtered = printSelectionList.filter(i => 
-            (i.barcode && i.barcode.toUpperCase().includes(term)) || 
-            (i.category && i.category.toUpperCase().includes(term)) ||
-            (i.purity && i.purity.toUpperCase().includes(term))
+            (i.barcode && String(i.barcode).toUpperCase().includes(term)) || 
+            (i.category && String(i.category).toUpperCase().includes(term)) ||
+            (i.purity && String(i.purity).toUpperCase().includes(term))
         );
         renderPrintCheckList(filtered);
         document.getElementById('selectAllPrint').checked = false;
@@ -823,13 +823,13 @@
 
     function getCategoryMode(catName) {
         if (!catName) return 'individual';
-        const upper = catName.toUpperCase();
+        const upper = String(catName).toUpperCase();
         if (upper === 'MIX' || upper.includes('LOOSE') || upper.includes('BULK')) return 'bulk';
         if (categoryModes[catName]) return categoryModes[catName];
         return 'individual';
     }
     
-    // NAYI AUR STRICT SILVER CHECKING LOGIC
+    // NAYI AUR STRICT SILVER CHECKING LOGIC - 100% Crash Proof
     function checkIsSilver(itemOrPurity) {
         if (!itemOrPurity) return false;
         let purity = '';
@@ -838,37 +838,32 @@
         let barcode = '';
         let name = '';
 
-        if (typeof itemOrPurity === 'string') {
-            purity = itemOrPurity;
+        if (typeof itemOrPurity === 'string' || typeof itemOrPurity === 'number') {
+            purity = String(itemOrPurity);
         } else {
-            purity = itemOrPurity.purity || '';
-            cat = itemOrPurity.category || '';
-            metal = itemOrPurity.metal || '';
-            barcode = itemOrPurity.barcode || '';
-            name = (itemOrPurity.name || '') + ' ' + (itemOrPurity.subFolder || '');
+            purity = String(itemOrPurity.purity || '');
+            cat = String(itemOrPurity.category || '');
+            metal = String(itemOrPurity.metal || '');
+            barcode = String(itemOrPurity.barcode || '');
+            name = String(itemOrPurity.name || '') + ' ' + String(itemOrPurity.subFolder || '');
         }
 
-        // 1. Agar explicitly metal 'Silver' set kiya hua hai database me toh aankh band karke TRUE
-        if (metal.toUpperCase() === 'SILVER') return true;
-        if (metal.toUpperCase() === 'GOLD') return false;
+        let m = metal.toUpperCase();
+        if (m === 'SILVER') return true;
+        if (m === 'GOLD') return false;
 
         let p = purity.toUpperCase();
         let b = barcode.toUpperCase();
         let n = name.toUpperCase();
         
-        // 2. Barcode, Name ya Subfolder me kahin bhi Silver/Chandi likha ho toh TRUE
         if (b.includes('SIL') || b.includes('CHANDI')) return true;
         if (n.includes('SILVER') || n.includes('CHANDI') || n.includes('SIL ')) return true;
-
-        // 3. Purity me explicit Silver percentage ho toh TRUE
         if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9') || p.includes('CHANDI')) return true;
         
-        // 4. Agar category EXCLUSIVELY Silver ki ho aur Gold me na ho (like Payal, Utensils)
         if (cat && silverCategories.includes(cat) && !goldCategories.includes(cat)) return true;
 
-        // 5. Agar user ne Settings me custom silver purity me isko add kiya ho
         if (goldRates && goldRates.customSilverPurities && Array.isArray(goldRates.customSilverPurities)) {
-            const isCustomSilver = goldRates.customSilverPurities.some(cp => cp.pct + '%' === purity || cp.name.toUpperCase() === p);
+            const isCustomSilver = goldRates.customSilverPurities.some(cp => String(cp.pct) + '%' === purity || String(cp.name).toUpperCase() === p);
             if (isCustomSilver) return true;
         }
         
@@ -877,12 +872,13 @@
     
     const getPurityFactor = (key) => {
         if (!key) return 1.000;
-        if (key === '24K' || key === 'Silver') return 1.000;
-        if (key === '22K') return 0.9166;
-        if (key === '18K') return 0.7500;
-        if (key === 'Silver 92.5%') return 0.925;
-        if(key.toString().includes('%')) {
-            const val = parseFloat(key.toString().replace('%', ''));
+        let strKey = String(key);
+        if (strKey === '24K' || strKey === 'Silver') return 1.000;
+        if (strKey === '22K') return 0.9166;
+        if (strKey === '18K') return 0.7500;
+        if (strKey === 'Silver 92.5%') return 0.925;
+        if(strKey.includes('%')) {
+            const val = parseFloat(strKey.replace('%', ''));
             if(!isNaN(val)) return val / 100;
         }
         return 1.0;
@@ -926,7 +922,7 @@
         let opts = ''; cats.forEach(cat => { opts += `<option value="${cat}">${cat}</option>`; }); opts += `<option value="Other">Other</option>`;
         if(tagSelect) tagSelect.innerHTML = opts; 
         if(editSelect) {
-            editSelect.innerHTML = opts + `<option value="MIX">MIXED</option>`;
+            editSelect.innerHTML = opts + `<option value="MIX">Mixed / Untagged</option>`;
         }
         if(manSelect) manSelect.innerHTML = opts + `<option value="MIX">Mixed / Untagged</option>`;
     }
@@ -941,7 +937,7 @@
             return;
         }
         let permanent = savedSubCategories[cat] || [];
-        let extracted = allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim());
+        let extracted = allInventory.filter(i => i.category === cat && i.name && !String(i.name).toLowerCase().includes('loose') && !String(i.name).toLowerCase().includes('mix') && i.name !== cat).map(i => String(i.name).replace(/\s+\d+$/, '').trim());
         const uniqueSubCats = [...new Set([...permanent, ...extracted])];
         if (uniqueSubCats.length > 0) {
             subCatGroup.style.display = 'flex';
@@ -961,6 +957,7 @@
         const activeCats = isSilv ? silverCategories : goldCategories;
         let html = `<option value="ALL">All Categories</option>`;
         activeCats.forEach(cat => { html += `<option value="${cat}">${cat}</option>`; });
+        html += `<option value="MIX">Mixed / Untagged</option>`;
         catSelect.innerHTML = html + `<option value="Other">Other</option>`;
         populateCategoryDropdowns();
     }
@@ -1001,7 +998,7 @@
         const cats = activeCatManagerMode === 'Gold' ? goldCategories : silverCategories;
         const catToDelete = cats[idx];
         const duplicateCount = cats.filter(c => c.toLowerCase() === catToDelete.toLowerCase()).length;
-        const isUsed = allInventory.some(item => item.category && item.category.toLowerCase() === catToDelete.toLowerCase());
+        const isUsed = allInventory.some(item => item.category && String(item.category).toLowerCase() === String(catToDelete).toLowerCase());
         if (isUsed && duplicateCount <= 1) {
             appAlert("Item used in transaction or inventory. Cannot delete this category.");
             return;
@@ -1022,17 +1019,18 @@
     function setupBarcodeScanner() {
         document.getElementById('searchInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
-                const exactMatch = allInventory.find(i => i.barcode && i.barcode.toUpperCase() === this.value.toUpperCase().trim() && i.status === 'stock');
+                const exactMatch = allInventory.find(i => i.barcode && String(i.barcode).toUpperCase() === this.value.toUpperCase().trim() && i.status === 'stock');
                 if (exactMatch) { openItemDetails(exactMatch.id); this.value = ''; applyFilters(); }
             }
         });
     }
     function generateSafeBarcode(category) {
-        const prefix = category === 'MIX' ? 'MIX' : (category.length >= 3 ? category.substring(0, 3).toUpperCase() : category.toUpperCase());
+        let strCat = String(category);
+        const prefix = strCat === 'MIX' ? 'MIX' : (strCat.length >= 3 ? strCat.substring(0, 3).toUpperCase() : strCat.toUpperCase());
         let maxNum = 0;
         allInventory.forEach(i => {
-            if (i.barcode && i.barcode.startsWith(prefix)) {
-                const num = parseInt(i.barcode.substring(prefix.length), 10);
+            if (i.barcode && String(i.barcode).startsWith(prefix)) {
+                const num = parseInt(String(i.barcode).substring(prefix.length), 10);
                 if (!isNaN(num) && num > maxNum) maxNum = num;
             }
         });
@@ -1111,14 +1109,19 @@
             if (currentMetalFilter === 'SILVER') return isSilv;
             if (isSilv) return false;
             
-            const isOrder = i.barcode?.startsWith('ORD-') || i.source?.startsWith('order_');
-            const isUntagged = i.category === 'MIX' || (i.barcode && i.barcode.startsWith('LOOSE-'));
+            const b = String(i.barcode || '');
+            const s = String(i.source || '');
+            const c = String(i.category || '');
+            const p = String(i.purity || '');
+
+            const isOrder = b.startsWith('ORD-') || s.startsWith('order_');
+            const isUntagged = c === 'MIX' || b.startsWith('LOOSE');
             
-            const isFineOrMelt = i.purity === '24K' || 
-                                 i.category?.toUpperCase().includes('MELT') || 
-                                 i.category?.toUpperCase().includes('FINE') || 
-                                 i.barcode?.startsWith('BAR') || 
-                                 i.source?.startsWith('melt_');
+            const isFineOrMelt = p === '24K' || 
+                                 c.toUpperCase().includes('MELT') || 
+                                 c.toUpperCase().includes('FINE') || 
+                                 b.startsWith('BAR') || 
+                                 s.startsWith('melt_');
                                  
             if (currentMetalFilter === 'GOLD_ORDER') return isOrder;
             if (currentMetalFilter === 'GOLD_LOOSE') return isUntagged && !isOrder; 
@@ -1133,18 +1136,18 @@
             filtered = filtered.filter(i => i.category === catType);
             if (subCatType !== 'ALL') {
                 if (subCatType === 'BASE') {
-                    filtered = filtered.filter(i => !i.name || i.name === i.category || i.name.toLowerCase().includes('loose') || i.name.toLowerCase().includes('mix'));
+                    filtered = filtered.filter(i => !i.name || i.name === i.category || String(i.name).toLowerCase().includes('loose') || String(i.name).toLowerCase().includes('mix'));
                 } else {
-                    filtered = filtered.filter(i => i.name && i.name.replace(/\s+\d+$/, '').trim() === subCatType);
+                    filtered = filtered.filter(i => i.name && String(i.name).replace(/\s+\d+$/, '').trim() === subCatType);
                 }
             }
         }
         if (searchTerm) {
             filtered = filtered.filter(i => 
-                (i.barcode?.toUpperCase().includes(searchTerm)) || 
-                (i.category?.toUpperCase().includes(searchTerm)) || 
-                (i.name && i.name.toUpperCase().includes(searchTerm)) ||
-                (i.huid && i.huid.toUpperCase().includes(searchTerm))
+                (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                (i.category && String(i.category).toUpperCase().includes(searchTerm)) || 
+                (i.name && String(i.name).toUpperCase().includes(searchTerm)) ||
+                (i.huid && String(i.huid).toUpperCase().includes(searchTerm))
             );
         }
         
@@ -1153,9 +1156,10 @@
 
     function getRate(purity) {
         if(!purity) return 0;
-        if(purity.includes('22')) return goldRates.rate22k;
-        if(purity.includes('24')) return goldRates.rate24k;
-        if(checkIsSilver(purity)) return (goldRates.rateSilver / 100); 
+        let strP = String(purity);
+        if(strP.includes('22')) return goldRates.rate22k;
+        if(strP.includes('24')) return goldRates.rate24k;
+        if(checkIsSilver(strP)) return (goldRates.rateSilver / 100); 
         return 0;
     }
 
@@ -1202,7 +1206,7 @@
 
             let key = item.category || 'Other'; 
             if (item.category === 'MIX') key = 'MIX';
-            if (item.barcode?.startsWith('ORD-')) key = `ORDER_${item.category}`;
+            if (item.barcode && String(item.barcode).startsWith('ORD-')) key = `ORDER_${item.category}`;
 
             if(!groupedInventory[key]) {
                 groupedInventory[key] = { 
@@ -1231,7 +1235,7 @@
 
             if (item.status === 'sold' || item.status === 'removed') {
                 if (removedInRange) {
-                    if (item.status === 'sold' && item.barcode && item.barcode.startsWith('LOOSE')) {
+                    if (item.status === 'sold' && item.barcode && String(item.barcode).startsWith('LOOSE')) {
                     } else {
                         g.outQty += pcs;
                         g.outWt += net;
@@ -1260,7 +1264,7 @@
                 let saleDate = sale.date || sale.timestamp || sale.soldDate;
                 if (sale.status !== 'cancelled' && isActionInRange(saleDate)) {
                     (sale.items || []).forEach(si => {
-                        if (si.barcode && si.barcode.startsWith('LOOSE')) {
+                        if (si.barcode && String(si.barcode).startsWith('LOOSE')) {
                             let key = si.category || 'Other';
                             if (si.category === 'MIX') key = 'MIX';
                             
@@ -1281,7 +1285,7 @@
             });
         }
 
-        let groupsArray = Object.values(groupedInventory).sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+        let groupsArray = Object.values(groupedInventory).sort((a, b) => String(a.category || '').localeCompare(String(b.category || '')));
 
         groupsArray.forEach(group => {
             if (group.openingQty === 0 && group.addedQty === 0 && group.outQty === 0 && group.closingQty === 0 && group.taggedOutQty === 0) return;
@@ -1379,7 +1383,7 @@
         if(subCatSelect) {
             subCatSelect.innerHTML = '<option value="">-- No Sub-Category --</option>';
             let permanent = savedSubCategories[cat] || [];
-            let extracted = allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim());
+            let extracted = allInventory.filter(i => i.category === cat && i.name && !String(i.name).toLowerCase().includes('loose') && !String(i.name).toLowerCase().includes('mix') && i.name !== cat).map(i => String(i.name).replace(/\s+\d+$/, '').trim());
             const uniqueNames = [...new Set([...permanent, ...extracted])];
             uniqueNames.forEach(n => { subCatSelect.innerHTML += `<option value="${n}">${n}</option>`; });
             subCatSelect.innerHTML += `<option value="NEW" style="color:var(--info-blue); font-weight:bold;">+ Add New Sub-Category</option>`;
@@ -1447,13 +1451,13 @@
         if(!g || g<=0) return appAlert("Enter Valid Weight");
         let newlyAddedItems = [];
         const n = Math.max(0, g - s); const f = n * getPurityFactor(purity);
-        const prefix = cat === 'MIX' ? 'MIX' : cat.substring(0,3).toUpperCase();
+        const prefix = cat === 'MIX' ? 'MIX' : String(cat).substring(0,3).toUpperCase();
         const currentDocNo = 'DOC-' + Date.now();
         if (isBulk) {
             const finalFolderName = useFolder ? name : "General Loose";
-            const cleanPurity = purity.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-            const cleanName = finalFolderName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-            const cleanCatName = cat.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const cleanPurity = String(purity).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const cleanName = String(finalFolderName).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const cleanCatName = String(cat).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
             const barcode = `LOOSE-${cleanCatName}-${cleanName}-${cleanPurity}`;
             
             let existingItem = allInventory.find(i => i.barcode === barcode && i.purity === purity && i.status === 'stock');
@@ -1464,7 +1468,7 @@
                 existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + f).toFixed(3));
                 existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
                 existingItem.subFolder = finalFolderName;
-                existingItem.metal = metalType; // ensure metal is saved
+                existingItem.metal = metalType; 
                 await updateItem('inventory', existingItem);
             } else {
                 const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
@@ -1495,19 +1499,19 @@
 
     function openItemDetails(id) {
         const item = allInventory.find(i => String(i.id) === String(id)); if(!item) return;
-        let isLoose = item.barcode && item.barcode.startsWith('LOOSE');
+        let isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
         document.getElementById('idmBarcode').innerHTML = isLoose ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
         document.getElementById('idmCategory').innerText = item.category;
         let rawSub = item.subFolder || "";
-        if (!rawSub && item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) rawSub = item.name.replace(/\s+\d+$/, '').trim();
+        if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
         document.getElementById('idmSubCat').innerText = rawSub || '-';
         document.getElementById('idmPurity').innerText = item.purity;
         
-        document.getElementById('idmHuid').innerHTML = item.huid && item.huid.trim() !== '' ? item.huid : '<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>';
+        document.getElementById('idmHuid').innerHTML = item.huid && String(item.huid).trim() !== '' ? item.huid : '<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>';
         
         document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g";
-        document.getElementById('idmStatus').innerText = item.status.toUpperCase();
+        document.getElementById('idmStatus').innerText = String(item.status).toUpperCase();
         document.getElementById('idmDate').innerHTML = item.addedDate ? new Date(item.addedDate).toLocaleString() : '-';
         document.getElementById('idmDocNo').innerHTML = item.docNo ? `<span class="badge badge-order">${item.docNo}</span>` : '-';
 
@@ -1571,8 +1575,8 @@
 
         if(searchTerm) {
             filteredItems = filteredItems.filter(i => 
-                (i.barcode && i.barcode.toUpperCase().includes(searchTerm)) || 
-                (i.huid && i.huid.toUpperCase().includes(searchTerm)) ||
+                (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                (i.huid && String(i.huid).toUpperCase().includes(searchTerm)) ||
                 (i.grossWt && String(i.grossWt).includes(searchTerm)) ||
                 (i.netWt && String(i.netWt).includes(searchTerm))
             );
@@ -1584,24 +1588,24 @@
             if(item.status === 'sold') statusBadge = '<br><span class="badge badge-pending">SOLD OUT</span>';
             if(item.status === 'removed' || item.status === 'extracted') statusBadge = '<br><span class="badge badge-silver">REMOVED</span>';
             
-            let displayBc = item.barcode && item.barcode.startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : item.barcode;
+            let displayBc = item.barcode && String(item.barcode).startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : item.barcode;
             let dateHtml = item.addedDate ? `<br><span style="font-size:0.75rem; color:#888;"><i class="fas fa-calendar-alt"></i> ${new Date(item.addedDate).toLocaleDateString('en-GB')}</span>` : '';
             displayBc += dateHtml + statusBadge;
             
             let actionBtnHTML = '';
             if(item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
                 actionBtnHTML = `<button class="btn-sm btn-view" onclick="openItemDetails('${item.id}')" style="background:#ea580c; color:white; border:none;"><i class="fas fa-info-circle"></i> Info</button>`;
-            } else if(item.barcode && item.barcode.startsWith('LOOSE') || item.category === 'MIX') {
+            } else if(item.barcode && String(item.barcode).startsWith('LOOSE') || item.category === 'MIX') {
                  actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${item.id}')"><i class="fas fa-tags"></i> Tag</button>`;
             } else {
                  actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
             }
             
             let rawSub = item.subFolder || "";
-            if (!rawSub && item.name && item.name.trim() !== '' && item.name !== item.category && !item.name.toLowerCase().includes('loose') && !item.name.toLowerCase().includes('mix')) rawSub = item.name.replace(/\s+\d+$/, '').trim();
+            if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
             let subHtml = rawSub ? `<span class="badge badge-silver">${rawSub}</span>` : '-';
             
-            let huidHtml = item.huid && item.huid.trim() !== '' ? `<span style="font-weight:700; color:#333;">${item.huid}</span>` : `<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>`;
+            let huidHtml = item.huid && String(item.huid).trim() !== '' ? `<span style="font-weight:700; color:#333;">${item.huid}</span>` : `<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>`;
 
             let rowStyle = (item.status !== 'stock') ? 'background-color:#f8fafc; opacity:0.8;' : '';
 
@@ -1635,7 +1639,7 @@
         if(subCatSelect) {
             subCatSelect.innerHTML = '<option value="">-- No Sub-Category --</option>';
             let permanent = savedSubCategories[cat] || [];
-            let extracted = allInventory.filter(i => i.category === cat && i.name && !i.name.toLowerCase().includes('loose') && !i.name.toLowerCase().includes('mix') && i.name !== cat).map(i => i.name.replace(/\s+\d+$/, '').trim());
+            let extracted = allInventory.filter(i => i.category === cat && i.name && !String(i.name).toLowerCase().includes('loose') && !String(i.name).toLowerCase().includes('mix') && i.name !== cat).map(i => String(i.name).replace(/\s+\d+$/, '').trim());
             const uniqueNames = [...new Set([...permanent, ...extracted])];
             uniqueNames.forEach(n => { subCatSelect.innerHTML += `<option value="${n}">${n}</option>`; });
             subCatSelect.innerHTML += `<option value="NEW" style="color:var(--info-blue); font-weight:bold;">+ Add New Sub-Category</option>`;
@@ -1692,7 +1696,7 @@
         
         const isSilv = checkIsSilver(item);
         const metalType = isSilv ? 'Silver' : 'Gold';
-        const prefix = cat.substring(0,3).toUpperCase();
+        const prefix = String(cat).substring(0,3).toUpperCase();
         const extractDocNo = 'EXT-' + Date.now();
         const inputs = document.querySelectorAll('.tag-gross');
         
@@ -1765,10 +1769,10 @@
     function filterRemoveList() {
         const term = document.getElementById('removeScanner').value.toUpperCase().trim();
         const filtered = removeSelectionList.filter(i => 
-            (i.barcode && i.barcode.toUpperCase().includes(term)) || 
-            (i.category && i.category.toUpperCase().includes(term)) ||
-            (i.purity && i.purity.toUpperCase().includes(term)) ||
-            (i.huid && i.huid.toUpperCase().includes(term)) ||
+            (i.barcode && String(i.barcode).toUpperCase().includes(term)) || 
+            (i.category && String(i.category).toUpperCase().includes(term)) ||
+            (i.purity && String(i.purity).toUpperCase().includes(term)) ||
+            (i.huid && String(i.huid).toUpperCase().includes(term)) ||
             (i.grossWt && String(i.grossWt).includes(term)) ||
             (i.netWt && String(i.netWt).includes(term))
         );
@@ -1789,7 +1793,7 @@
             const strId = String(item.id);
             const isChecked = removeBatchList.includes(strId) ? 'checked' : '';
             
-            const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
+            const isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
             let weightInputHtml = '';
             if (isLoose) {
                 weightInputHtml = `
@@ -1855,7 +1859,7 @@
         const dateStr = new Date().toISOString();
         
         for (let item of itemsToRemove) {
-            const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
+            const isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
             let removeWt = parseFloat(item.grossWt || item.weight);
             
             if (isLoose) {
@@ -1983,10 +1987,10 @@
         tbody.innerHTML = '';
         
         currentEditDocItems.forEach((item, index) => {
-            const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
+            const isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
             const displayName = isLoose ? item.subFolder || item.name : item.barcode;
             
-            const isSilv = item.metal ? (item.metal.toUpperCase() === 'SILVER') : checkIsSilver(item);
+            const isSilv = item.metal ? (String(item.metal).toUpperCase() === 'SILVER') : checkIsSilver(item);
             
             let metOpts = `<option value="Gold" ${(!isSilv)?'selected':''}>Gold</option><option value="Silver" ${isSilv?'selected':''}>Silver</option>`;
 
@@ -2003,7 +2007,6 @@
                 });
             }
             
-            // Just in case it's a completely custom purity not in dropdown
             if(!purityOpts.includes(`value="${item.purity}"`) && item.purity) {
                  purityOpts += `<option value="${item.purity}" selected>${item.purity}</option>`;
             }
@@ -2062,7 +2065,7 @@
         const item = allInventory.find(i=>String(i.id)===String(id)); 
         document.getElementById('editId').value = id; 
         
-        const isSilv = item.metal ? (item.metal.toUpperCase() === 'SILVER') : checkIsSilver(item);
+        const isSilv = item.metal ? (String(item.metal).toUpperCase() === 'SILVER') : checkIsSilver(item);
         const m = isSilv ? 'Silver' : 'Gold';
         document.getElementById('editMetal').value = m;
         populateCategoryDropdowns(m);
@@ -2095,7 +2098,7 @@
             const newName = document.getElementById('editItemName').value.trim();
             if (newName) {
                 item.name = newName;
-                if(item.barcode && item.barcode.startsWith('LOOSE')) {
+                if(item.barcode && String(item.barcode).startsWith('LOOSE')) {
                     item.subFolder = newName;
                 }
             }
