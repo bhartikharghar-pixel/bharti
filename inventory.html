@@ -57,7 +57,7 @@
         .btn-history { background: #8e24aa; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         
         .filter-bar-new { display: flex; gap: 15px; align-items: flex-end; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; border: 1px solid #eee; flex-wrap: wrap;}
-        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;}
+        .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px;}
         .filter-group label { font-size: 0.8rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
         .filter-group select, .filter-group input[type="date"] { padding: 12px 15px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; font-family: inherit; font-size: 0.95rem; width: 100%; box-sizing: border-box;}
         
@@ -226,6 +226,18 @@
             <label><i class="fas fa-calendar-check"></i> To Date:</label>
             <input type="date" id="filterToDate" onchange="applyFilters()">
         </div>
+        
+        <!-- YAHAN NAYA STATUS FILTER HAI -->
+        <div class="filter-group">
+            <label><i class="fas fa-filter"></i> Stock Status:</label>
+            <select id="filterStatus" onchange="applyFilters()">
+                <option value="STOCK">Active Stock</option>
+                <option value="ALL">All History</option>
+                <option value="SOLD">Sold Out</option>
+                <option value="REMOVED">Removed</option>
+            </select>
+        </div>
+
         <div style="display: flex; align-items: flex-end;">
             <button class="btn-view" style="height: 45px; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 0px;" onclick="resetDates()"><i class="fas fa-sync"></i> Reset</button>
         </div>
@@ -809,6 +821,7 @@
     function resetDates() {
         document.getElementById('filterFromDate').value = '';
         document.getElementById('filterToDate').value = '';
+        if(document.getElementById('filterStatus')) document.getElementById('filterStatus').value = 'STOCK';
         applyFilters();
     }
 
@@ -832,11 +845,7 @@
     // NAYI AUR STRICT SILVER CHECKING LOGIC - 100% Crash Proof
     function checkIsSilver(itemOrPurity) {
         if (!itemOrPurity) return false;
-        let purity = '';
-        let cat = '';
-        let metal = '';
-        let barcode = '';
-        let name = '';
+        let purity = '', cat = '', metal = '', barcode = '', name = '';
 
         if (typeof itemOrPurity === 'string' || typeof itemOrPurity === 'number') {
             purity = String(itemOrPurity);
@@ -855,9 +864,11 @@
         let p = purity.toUpperCase();
         let b = barcode.toUpperCase();
         let n = name.toUpperCase();
+        let c = cat.toUpperCase();
         
         if (b.includes('SIL') || b.includes('CHANDI')) return true;
-        if (n.includes('SILVER') || n.includes('CHANDI') || n.includes('SIL ')) return true;
+        if (n.includes('SILVER') || n.includes('CHANDI') || n.includes('SIL ') || n.includes('PAYAL') || n.includes('BICHHIYA') || n.includes('MURTI') || n.includes('BARTAN') || n.includes('KADA')) return true;
+        if (c.includes('SILVER') || c.includes('CHANDI') || c.includes('PAYAL') || c.startsWith('S BOX') || c.startsWith('SBOX')) return true;
         if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9') || p.includes('CHANDI')) return true;
         
         if (cat && silverCategories.includes(cat) && !goldCategories.includes(cat)) return true;
@@ -1050,7 +1061,8 @@
     function setMetalFilter(metalFilter) {
         currentMetalFilter = metalFilter; 
         document.getElementById('filterCategory').value = 'ALL'; 
-        document.getElementById('filterType').value = 'ALL';
+        const filterTypeEl = document.getElementById('filterType');
+        if(filterTypeEl) filterTypeEl.value = 'ALL';
         const subCatGroup = document.getElementById('subCatFilterGroup');
         if(subCatGroup) subCatGroup.style.display = 'none';
         const subCatSelect = document.getElementById('filterSubCategory');
@@ -1070,88 +1082,125 @@
     }
 
     function applyFilters() {
-        const searchTerm = document.getElementById('searchInput').value.toUpperCase().trim();
-        const viewType = document.getElementById('filterType').value;
-        const catType = document.getElementById('filterCategory').value;
-        const subCatSelect = document.getElementById('filterSubCategory');
-        const subCatType = subCatSelect ? subCatSelect.value : 'ALL';
+        try {
+            const searchTerm = document.getElementById('searchInput').value.toUpperCase().trim();
+            const filterTypeEl = document.getElementById('filterType');
+            const viewType = filterTypeEl ? filterTypeEl.value : 'ALL';
+            const catType = document.getElementById('filterCategory').value;
+            const subCatSelect = document.getElementById('filterSubCategory');
+            const subCatType = subCatSelect ? subCatSelect.value : 'ALL';
+            
+            // NAYA STATUS FILTER LE RAHE HAIN
+            const statusFilterEl = document.getElementById('filterStatus');
+            const statusFilter = statusFilterEl ? statusFilterEl.value : 'STOCK';
 
-        const fdInput = document.getElementById('filterFromDate').value;
-        const tdInput = document.getElementById('filterToDate').value;
-        let fd = fdInput ? new Date(fdInput) : null;
-        if(fd) fd.setHours(0,0,0,0);
-        let td = tdInput ? new Date(tdInput) : null;
-        if(td) td.setHours(23,59,59,999);
-        
-        let filtered = allInventory.filter(i => {
-            if (i.status === 'cancelled') return false; 
+            const fdInput = document.getElementById('filterFromDate').value;
+            const tdInput = document.getElementById('filterToDate').value;
+            let fd = fdInput ? new Date(fdInput) : null;
+            if(fd) fd.setHours(0,0,0,0);
+            let td = tdInput ? new Date(tdInput) : null;
+            if(td) td.setHours(23,59,59,999);
             
-            if (i.status === 'stock') return true; 
-            
-            if (i.status === 'sold' || i.status === 'removed' || i.status === 'extracted') {
-                const outDate = new Date(i.removeDate || i.soldDate || i.date || 0);
-                if (fd && td) {
-                    return outDate >= fd && outDate <= td;
-                } else if (fd) {
-                    return outDate >= fd;
-                } else if (td) {
-                    return outDate <= td;
-                } else {
-                    return isToday(outDate);
+            let filtered = allInventory.filter(i => {
+                if (!i) return false;
+                if (i.status === 'cancelled') return false; 
+                
+                const actionDateStr = i.removeDate || i.soldDate || i.date || i.addedDate;
+                const actionDate = actionDateStr ? new Date(actionDateStr) : null;
+                
+                let isDateMatched = false;
+                if (actionDate) {
+                    if (fd && td) {
+                        isDateMatched = actionDate >= fd && actionDate <= td;
+                    } else if (fd) {
+                        isDateMatched = actionDate >= fd;
+                    } else if (td) {
+                        isDateMatched = actionDate <= td;
+                    } else {
+                        isDateMatched = isToday(actionDate);
+                    }
+                }
+
+                if (statusFilter === 'STOCK') {
+                    if (i.status === 'stock') return true;
+                    // Default view me aaj ke removed/sold items dikhte the
+                    if ((i.status === 'sold' || i.status === 'removed' || i.status === 'extracted') && isDateMatched) return true;
+                    return false;
+                } else if (statusFilter === 'ALL') {
+                    return true;
+                } else if (statusFilter === 'SOLD') {
+                    return i.status === 'sold';
+                } else if (statusFilter === 'REMOVED') {
+                    return i.status === 'removed' || i.status === 'extracted';
+                }
+                return false;
+            });
+
+            // Date validation for ALL, SOLD, REMOVED Explicitly
+            if ((statusFilter === 'ALL' || statusFilter === 'SOLD' || statusFilter === 'REMOVED') && (fd || td)) {
+                 filtered = filtered.filter(i => {
+                      const dStr = i.removeDate || i.soldDate || i.date || i.addedDate;
+                      if(!dStr) return false;
+                      const d = new Date(dStr);
+                      if (fd && td) return d >= fd && d <= td;
+                      if (fd) return d >= fd;
+                      if (td) return d <= td;
+                      return true;
+                 });
+            }
+
+            filtered = filtered.filter(i => {
+                const isSilv = checkIsSilver(i); 
+                if (currentMetalFilter === 'ALL') return true;
+                if (currentMetalFilter === 'SILVER') return isSilv;
+                if (isSilv) return false; 
+                
+                const b = String(i.barcode || '');
+                const s = String(i.source || '');
+                const c = String(i.category || '');
+                const p = String(i.purity || '');
+
+                const isOrder = b.startsWith('ORD-') || s.startsWith('order_');
+                const isUntagged = c === 'MIX' || b.startsWith('LOOSE');
+                
+                const isFineOrMelt = p === '24K' || 
+                                     c.toUpperCase().includes('MELT') || 
+                                     c.toUpperCase().includes('FINE') || 
+                                     b.startsWith('BAR') || 
+                                     s.startsWith('melt_');
+                                     
+                if (currentMetalFilter === 'GOLD_ORDER') return isOrder;
+                if (currentMetalFilter === 'GOLD_LOOSE') return isUntagged && !isOrder; 
+                if (currentMetalFilter === 'GOLD_TOTAL') return !isOrder && !isFineOrMelt; 
+                if (currentMetalFilter === 'GOLD_FINE') return isFineOrMelt && !isOrder && !isUntagged;
+                if (currentMetalFilter === 'GOLD_TAGGED') return !isOrder && !isFineOrMelt && !isUntagged;
+                return true;
+            });
+
+            if (viewType === 'MIX') filtered = filtered.filter(i => i.category === 'MIX');
+            if (catType !== 'ALL') {
+                filtered = filtered.filter(i => i.category === catType);
+                if (subCatType !== 'ALL') {
+                    if (subCatType === 'BASE') {
+                        filtered = filtered.filter(i => !i.name || i.name === i.category || String(i.name).toLowerCase().includes('loose') || String(i.name).toLowerCase().includes('mix'));
+                    } else {
+                        filtered = filtered.filter(i => i.name && String(i.name).replace(/\s+\d+$/, '').trim() === subCatType);
+                    }
                 }
             }
-            return false;
-        });
-
-        filtered = filtered.filter(i => {
-            const isSilv = checkIsSilver(i); 
-            if (currentMetalFilter === 'ALL') return true;
-            if (currentMetalFilter === 'SILVER') return isSilv;
-            if (isSilv) return false;
-            
-            const b = String(i.barcode || '');
-            const s = String(i.source || '');
-            const c = String(i.category || '');
-            const p = String(i.purity || '');
-
-            const isOrder = b.startsWith('ORD-') || s.startsWith('order_');
-            const isUntagged = c === 'MIX' || b.startsWith('LOOSE');
-            
-            const isFineOrMelt = p === '24K' || 
-                                 c.toUpperCase().includes('MELT') || 
-                                 c.toUpperCase().includes('FINE') || 
-                                 b.startsWith('BAR') || 
-                                 s.startsWith('melt_');
-                                 
-            if (currentMetalFilter === 'GOLD_ORDER') return isOrder;
-            if (currentMetalFilter === 'GOLD_LOOSE') return isUntagged && !isOrder; 
-            if (currentMetalFilter === 'GOLD_TOTAL') return !isOrder && !isFineOrMelt; 
-            if (currentMetalFilter === 'GOLD_FINE') return isFineOrMelt && !isOrder && !isUntagged;
-            if (currentMetalFilter === 'GOLD_TAGGED') return !isOrder && !isFineOrMelt && !isUntagged;
-            return true;
-        });
-
-        if (viewType === 'MIX') filtered = filtered.filter(i => i.category === 'MIX');
-        if (catType !== 'ALL') {
-            filtered = filtered.filter(i => i.category === catType);
-            if (subCatType !== 'ALL') {
-                if (subCatType === 'BASE') {
-                    filtered = filtered.filter(i => !i.name || i.name === i.category || String(i.name).toLowerCase().includes('loose') || String(i.name).toLowerCase().includes('mix'));
-                } else {
-                    filtered = filtered.filter(i => i.name && String(i.name).replace(/\s+\d+$/, '').trim() === subCatType);
-                }
+            if (searchTerm) {
+                filtered = filtered.filter(i => 
+                    (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                    (i.category && String(i.category).toUpperCase().includes(searchTerm)) || 
+                    (i.name && String(i.name).toUpperCase().includes(searchTerm)) ||
+                    (i.huid && String(i.huid).toUpperCase().includes(searchTerm))
+                );
             }
+            
+            renderList(filtered);
+        } catch (e) {
+            console.error(e);
         }
-        if (searchTerm) {
-            filtered = filtered.filter(i => 
-                (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
-                (i.category && String(i.category).toUpperCase().includes(searchTerm)) || 
-                (i.name && String(i.name).toUpperCase().includes(searchTerm)) ||
-                (i.huid && String(i.huid).toUpperCase().includes(searchTerm))
-            );
-        }
-        
-        renderList(filtered);
     }
 
     function getRate(purity) {
@@ -1468,7 +1517,7 @@
                 existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + f).toFixed(3));
                 existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
                 existingItem.subFolder = finalFolderName;
-                existingItem.metal = metalType; 
+                existingItem.metal = metalType; // ensure metal is saved
                 await updateItem('inventory', existingItem);
             } else {
                 const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
@@ -2007,6 +2056,7 @@
                 });
             }
             
+            // Just in case it's a completely custom purity not in dropdown
             if(!purityOpts.includes(`value="${item.purity}"`) && item.purity) {
                  purityOpts += `<option value="${item.purity}" selected>${item.purity}</option>`;
             }
