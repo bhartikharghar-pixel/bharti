@@ -317,7 +317,7 @@
     <div class="modal-content" style="max-width: 650px;">
         <button class="close-btn" onclick="closeModal('removeStockModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-minus-circle"></i> Batch Remove Stock</h3>
-        <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Agar aapko thoda gram wajan nikalna hai (partial remove), toh box me likhein. Agar pura dabba remove karna hai toh box khali chhod dein.</p>
+        <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Agar aapko thoda gram wajan nikalna hai, toh box me wajan likhein. Agar box khali chhod kar tick karenge, toh PURA dabba remove ho jayega.</p>
         <div class="search-box-container">
             <i class="fas fa-search search-icon"></i>
             <input type="text" id="removeScanner" class="search-box" placeholder="Search Barcode, Category, or Weight (e.g., 15.200)..." onkeyup="filterRemoveList()">
@@ -1548,8 +1548,8 @@
             if(item) {
                 item.status = 'stock';
                 item.removeCancelled = true;
-                item.removeDate = null;
-                item.removeDocNo = null;
+                item.removeDate = "";
+                item.removeDocNo = "";
                 await updateItem('inventory', item);
                 showToast("Stock Wapas Aa Gaya!", "success");
                 closeModal('itemDetailsModal');
@@ -1933,10 +1933,31 @@
     function updateSelectedRemoveCount() {
         document.getElementById('selectedRemoveCount').innerText = `${removeBatchList.length} Selected`;
     }
+    
+    // NAYA WARNING LOGIC
     async function confirmBatchRemove() {
         if (removeBatchList.length === 0) return appAlert("Select at least one item to remove.");
         const itemsToRemove = allInventory.filter(i => removeBatchList.includes(String(i.id)));
         if (itemsToRemove.length === 0) return appAlert("Error: Items could not be identified.");
+        
+        let looseEmptyCount = 0;
+        itemsToRemove.forEach(i => {
+            const isLoose = i.barcode && String(i.barcode).startsWith('LOOSE');
+            if (isLoose) {
+                const wtInput = document.getElementById(`rem_wt_${i.id}`);
+                if (!wtInput || wtInput.value === "" || parseFloat(wtInput.value) <= 0) {
+                    looseEmptyCount++;
+                }
+            }
+        });
+
+        if(looseEmptyCount > 0) {
+            const proceedLoose = await appConfirm(`Aapne ${looseEmptyCount} loose items ke wajan ka dabba khali chhod diya hai.\n\nKhali chhodne ka matlab hai PURA DABBA remove karna.\nKya aap sach me pura stock zero karna chahte hain?`);
+            if(!proceedLoose) return;
+        } else {
+            const proceed = await appConfirm(`Kya aap sach me in ${itemsToRemove.length} items ko remove karna chahte hain?`);
+            if(!proceed) return;
+        }
         
         const remDocNo = 'REM-' + Date.now();
         const dateStr = new Date().toISOString();
@@ -1947,7 +1968,6 @@
             
             if (isLoose) {
                 const wtInput = document.getElementById(`rem_wt_${item.id}`);
-                // Pura dabba hatane ki galti se bachne ke liye naya logic
                 if (wtInput && wtInput.value !== "" && parseFloat(wtInput.value) > 0) {
                     removeWt = parseFloat(wtInput.value);
                 }
@@ -2059,7 +2079,6 @@
         }
     }
 
-    // --- NAYA EDIT DOCUMENT LOGIC WITH METAL SELECT ---
     let currentEditDocItems = [];
 
     function editDocument(docNo, type) {
@@ -2143,7 +2162,6 @@
         await loadInventory(); 
         openDocHistoryModal(); 
     }
-    // ------------------------------
 
    async function editItem(id) { 
         const item = allInventory.find(i=>String(i.id)===String(id)); 
@@ -2156,7 +2174,6 @@
         
         setTimeout(() => {
             const catSelect = document.getElementById('editCategory');
-            // Ensure category exists in dropdown, else add it
             let optExists = Array.from(catSelect.options).some(opt => opt.value === item.category);
             if (!optExists && item.category) {
                 catSelect.add(new Option(item.category, item.category));
