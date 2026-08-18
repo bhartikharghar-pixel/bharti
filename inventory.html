@@ -559,10 +559,21 @@
         <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--info-blue);"><i class="fas fa-pen"></i> Edit Item</h3>
         <input type="hidden" id="editId">
-        <div class="form-group">
-            <label>Category</label>
-            <select id="editCategory"></select>
+        
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Metal Type</label>
+                <select id="editMetal" onchange="populateCategoryDropdowns(document.getElementById('editMetal').value); setTimeout(()=>{document.getElementById('editCategory').value = document.getElementById('editCategory').querySelector('option').value}, 50);">
+                    <option value="Gold">Gold</option>
+                    <option value="Silver">Silver</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <select id="editCategory"></select>
+            </div>
         </div>
+
         <div class="form-group">
             <label>Item / Box Name (Tag)</label>
             <input type="text" id="editItemName" placeholder="e.g. Payal - Box 1">
@@ -598,17 +609,17 @@
     </div>
 </div>
 
-<!-- NAYA EDIT DOC MODAL YAHAN ADD KIYA GAYA HAI -->
 <div id="editDocModal" class="modal" style="z-index: 2200;">
-    <div class="modal-content" style="max-width: 900px;">
+    <div class="modal-content" style="max-width: 950px;">
         <button class="close-btn" onclick="closeModal('editDocModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--info-blue);"><i class="fas fa-edit"></i> Edit Document <span id="editDocNoLabel"></span></h3>
-        <p style="font-size:0.85rem; color:#64748b;">Agar aapse entry me koi galti ho gayi hai, toh aap weights aur purity yahan se theek kar sakte hain.</p>
+        <p style="font-size:0.85rem; color:#64748b;">Agar aapse entry me koi galti ho gayi hai, toh aap weights, metal aur purity yahan se theek kar sakte hain.</p>
         <div class="table-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px;">
             <table class="inv-table">
                 <thead>
                     <tr>
                         <th>Barcode / Name</th>
+                        <th>Metal</th>
                         <th>Category</th>
                         <th>Purity</th>
                         <th>Gross Wt</th>
@@ -818,12 +829,14 @@
         return 'individual';
     }
     
+    // NAYI AUR STRICT SILVER CHECKING LOGIC
     function checkIsSilver(itemOrPurity) {
         if (!itemOrPurity) return false;
         let purity = '';
         let cat = '';
         let metal = '';
         let barcode = '';
+        let name = '';
 
         if (typeof itemOrPurity === 'string') {
             purity = itemOrPurity;
@@ -832,19 +845,33 @@
             cat = itemOrPurity.category || '';
             metal = itemOrPurity.metal || '';
             barcode = itemOrPurity.barcode || '';
+            name = (itemOrPurity.name || '') + ' ' + (itemOrPurity.subFolder || '');
         }
 
-        let p = purity.toUpperCase();
-        if (barcode && barcode.toUpperCase().includes('SIL')) return true;
-        
+        // 1. Agar explicitly metal 'Silver' set kiya hua hai database me toh aankh band karke TRUE
         if (metal.toUpperCase() === 'SILVER') return true;
-        if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
+        if (metal.toUpperCase() === 'GOLD') return false;
+
+        let p = purity.toUpperCase();
+        let b = barcode.toUpperCase();
+        let n = name.toUpperCase();
+        
+        // 2. Barcode, Name ya Subfolder me kahin bhi Silver/Chandi likha ho toh TRUE
+        if (b.includes('SIL') || b.includes('CHANDI')) return true;
+        if (n.includes('SILVER') || n.includes('CHANDI') || n.includes('SIL ')) return true;
+
+        // 3. Purity me explicit Silver percentage ho toh TRUE
+        if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9') || p.includes('CHANDI')) return true;
+        
+        // 4. Agar category EXCLUSIVELY Silver ki ho aur Gold me na ho (like Payal, Utensils)
         if (cat && silverCategories.includes(cat) && !goldCategories.includes(cat)) return true;
 
+        // 5. Agar user ne Settings me custom silver purity me isko add kiya ho
         if (goldRates && goldRates.customSilverPurities && Array.isArray(goldRates.customSilverPurities)) {
             const isCustomSilver = goldRates.customSilverPurities.some(cp => cp.pct + '%' === purity || cp.name.toUpperCase() === p);
             if (isCustomSilver) return true;
         }
+        
         return false;
     }
     
@@ -898,7 +925,9 @@
         const manSelect = document.getElementById('manCategory');
         let opts = ''; cats.forEach(cat => { opts += `<option value="${cat}">${cat}</option>`; }); opts += `<option value="Other">Other</option>`;
         if(tagSelect) tagSelect.innerHTML = opts; 
-        if(editSelect) editSelect.innerHTML = opts + `<option value="MIX">MIXED</option>`;
+        if(editSelect) {
+            editSelect.innerHTML = opts + `<option value="MIX">MIXED</option>`;
+        }
         if(manSelect) manSelect.innerHTML = opts + `<option value="MIX">Mixed / Untagged</option>`;
     }
     function updateSubCatFilter() {
@@ -1221,7 +1250,6 @@
                 g.items.push(item); 
             }
 
-            // NAYA CODE: Out items ko bhi list me dikhane ke liye push karein
             if (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
                 g.items.push(item);
             }
@@ -1403,6 +1431,7 @@
         document.getElementById('manNet').value = net.toFixed(3); document.getElementById('manFine').value = (net * getPurityFactor(document.getElementById('manPurity').value)).toFixed(3);
     }
     async function saveManualEntry() {
+        const metalType = document.getElementById('manMetal').value;
         const cat = document.getElementById('manCategory').value;
         const mode = document.getElementById('manStockMode').value;
         const isBulk = mode === 'bulk' || cat === 'MIX';
@@ -1435,17 +1464,18 @@
                 existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + f).toFixed(3));
                 existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
                 existingItem.subFolder = finalFolderName;
+                existingItem.metal = metalType; // ensure metal is saved
                 await updateItem('inventory', existingItem);
             } else {
-                const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
+                const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
                 await addItem('inventory', item); 
                 allInventory.push(item);
             }
         } else {
-            const isSilv = checkIsSilver({category: cat, purity: purity});
+            const isSilv = (metalType === 'Silver');
             if(pieces <= 1) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
-                const item = { barcode, category: cat, name, purity, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
+                const item = { barcode, category: cat, name, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
                 await addItem('inventory', item); newlyAddedItems.push(item);
             } else {
                 const gi = document.querySelectorAll('.man-piece-gross'); const si = document.querySelectorAll('.man-piece-stone');
@@ -1453,7 +1483,7 @@
                     const gp = parseFloat(gi[i].value)||0; const sp = parseFloat(si[i].value)||0;
                     if(gp>0) {
                         const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
+                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, metal: metalType, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
                         await addItem('inventory', item); newlyAddedItems.push(item);
                     }
                 }
@@ -1481,10 +1511,8 @@
         document.getElementById('idmDate').innerHTML = item.addedDate ? new Date(item.addedDate).toLocaleString() : '-';
         document.getElementById('idmDocNo').innerHTML = item.docNo ? `<span class="badge badge-order">${item.docNo}</span>` : '-';
 
-        // --- NAYA CODE: Sale info fetch aur display karna ---
         document.getElementById('soldInfoRow').style.display = 'none';
         if ((item.status === 'sold' || item.status === 'removed') && allSalesData) {
-            // Find sale invoice matching this item
             const sale = allSalesData.find(s => s.items && s.items.some(si => si.barcode === item.barcode || String(si.id) === String(item.id)));
             if(sale) {
                 document.getElementById('soldInfoRow').style.display = 'flex';
@@ -1493,7 +1521,6 @@
                 document.getElementById('idmSaleDate').innerText = sale.date ? new Date(sale.date).toLocaleString('en-GB') : '-';
             }
         }
-        // ----------------------------------------------------
 
         if (isLoose || item.category === 'MIX') {
             document.getElementById('idmPrintBtn').style.display = 'none';
@@ -1505,7 +1532,6 @@
             document.getElementById('idmPrintBtn').onclick = () => autoPrint([item]);
         }
         
-        // Hide print/edit/tag buttons if item is sold
         if (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
             document.getElementById('idmPrintBtn').style.display = 'none';
             document.getElementById('idmExtractBtn').style.display = 'none';
@@ -1523,7 +1549,7 @@
     function openGroupDetails(key) {
         currentOpenGroupKey = key;
         const searchInput = document.getElementById('detailsSearchInput');
-        if(searchInput) searchInput.value = ''; // Modal khulte hi search reset
+        if(searchInput) searchInput.value = ''; 
         renderGroupDetailsTable();
         openModal('detailsModal');
     }
@@ -1665,6 +1691,7 @@
         let newlyAddedItems = [];
         
         const isSilv = checkIsSilver(item);
+        const metalType = isSilv ? 'Silver' : 'Gold';
         const prefix = cat.substring(0,3).toUpperCase();
         const extractDocNo = 'EXT-' + Date.now();
         const inputs = document.querySelectorAll('.tag-gross');
@@ -1673,7 +1700,7 @@
             const g = parseFloat(inputs[i].value) || 0;
             if (g > 0) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                const newItem = { barcode, category: cat, name: `${finalName}`, purity, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
+                const newItem = { barcode, category: cat, name: `${finalName}`, purity, metal: metalType, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
                 await addItem('inventory', newItem); 
                 newlyAddedItems.push(newItem);
                 allInventory.push(newItem);
@@ -1685,6 +1712,7 @@
             category: item.category,
             name: (item.name || item.category) + ' (Extracted)',
             purity: item.purity,
+            metal: metalType,
             grossWt: sum,
             stoneWt: 0,
             netWt: sum,
@@ -1847,6 +1875,7 @@
                     removedPortion.removeDocNo = remDocNo;
                     removedPortion.removeDate = dateStr;
                     removedPortion.source = 'partial_remove';
+                    removedPortion.metal = item.metal || (checkIsSilver(item) ? 'Silver' : 'Gold');
                     await addItem('inventory', removedPortion);
                     
                     item.grossWt = Number((parseFloat(item.grossWt) - removeWt).toFixed(3));
@@ -1942,7 +1971,7 @@
         }
     }
 
-    // --- NAYA EDIT DOCUMENT LOGIC ---
+    // --- NAYA EDIT DOCUMENT LOGIC WITH METAL SELECT ---
     let currentEditDocItems = [];
 
     function editDocument(docNo, type) {
@@ -1957,7 +1986,10 @@
             const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
             const displayName = isLoose ? item.subFolder || item.name : item.barcode;
             
-            const isSilv = checkIsSilver(item);
+            const isSilv = item.metal ? (item.metal.toUpperCase() === 'SILVER') : checkIsSilver(item);
+            
+            let metOpts = `<option value="Gold" ${(!isSilv)?'selected':''}>Gold</option><option value="Silver" ${isSilv?'selected':''}>Silver</option>`;
+
             const customP = isSilv ? goldRates.customSilverPurities : goldRates.customPurities;
             let purityOpts = isSilv ? 
                 `<option value="Silver" ${item.purity==='Silver'?'selected':''}>Silver</option><option value="Silver 92.5%" ${item.purity==='Silver 92.5%'?'selected':''}>Silver 92.5%</option>` :
@@ -1970,10 +2002,16 @@
                     purityOpts += `<option value="${val}" ${sel}>${cp.name} (${val})</option>`;
                 });
             }
+            
+            // Just in case it's a completely custom purity not in dropdown
+            if(!purityOpts.includes(`value="${item.purity}"`) && item.purity) {
+                 purityOpts += `<option value="${item.purity}" selected>${item.purity}</option>`;
+            }
 
             tbody.innerHTML += `
                 <tr>
                     <td style="font-weight:bold; color:var(--info-blue);">${displayName}</td>
+                    <td><select id="editDoc_met_${index}" style="padding:8px; width:100%; border-radius:6px; border:1px solid #cbd5e1;">${metOpts}</select></td>
                     <td>${item.category}</td>
                     <td><select id="editDoc_pur_${index}" style="padding:8px; width:100%; border-radius:6px; border:1px solid #cbd5e1;">${purityOpts}</select></td>
                     <td><input type="number" id="editDoc_gw_${index}" value="${item.grossWt || item.weight || 0}" step="0.001" style="padding:8px; width:100%; border-radius:6px; border:1px solid #cbd5e1;" oninput="calcEditDocNet(${index})"></td>
@@ -1997,13 +2035,15 @@
         for(let i = 0; i < currentEditDocItems.length; i++) {
             let item = currentEditDocItems[i];
             const newPur = document.getElementById(`editDoc_pur_${i}`).value;
+            const newMet = document.getElementById(`editDoc_met_${i}`).value;
             const newGw = parseFloat(document.getElementById(`editDoc_gw_${i}`).value) || 0;
             const newSw = parseFloat(document.getElementById(`editDoc_sw_${i}`).value) || 0;
             const newNw = Math.max(0, newGw - newSw);
             const newFw = newNw * getPurityFactor(newPur);
             
-            if(item.purity !== newPur || item.grossWt !== newGw || item.stoneWt !== newSw || item.netWt !== newNw) {
+            if(item.purity !== newPur || item.metal !== newMet || item.grossWt !== newGw || item.stoneWt !== newSw || item.netWt !== newNw) {
                 item.purity = newPur;
+                item.metal = newMet;
                 item.grossWt = newGw;
                 item.stoneWt = newSw;
                 item.netWt = newNw;
@@ -2021,21 +2061,35 @@
    async function editItem(id) { 
         const item = allInventory.find(i=>String(i.id)===String(id)); 
         document.getElementById('editId').value = id; 
-        document.getElementById('editCategory').value = item.category; 
+        
+        const isSilv = item.metal ? (item.metal.toUpperCase() === 'SILVER') : checkIsSilver(item);
+        const m = isSilv ? 'Silver' : 'Gold';
+        document.getElementById('editMetal').value = m;
+        populateCategoryDropdowns(m);
+        
+        setTimeout(() => {
+            const catSelect = document.getElementById('editCategory');
+            // Ensure category exists in dropdown, else add it
+            let optExists = Array.from(catSelect.options).some(opt => opt.value === item.category);
+            if (!optExists && item.category) {
+                catSelect.add(new Option(item.category, item.category));
+            }
+            catSelect.value = item.category || 'Other'; 
+        }, 50);
         
         document.getElementById('editItemName').value = item.name || item.subFolder || ''; 
-        
         document.getElementById('editHuid').value = item.huid || '';
-
         document.getElementById('editItemImage').value = item.imageUrl || item.imageLink || ''; 
         document.getElementById('editGross').value = item.grossWt || item.weight || 0; 
         document.getElementById('editStone').value = item.stoneWt || 0; 
         openModal('editModal'); 
     }
+
     async function saveEdit() { 
         const id = document.getElementById('editId').value; 
         const item = await getItem('inventory', id); 
         if(item){ 
+            item.metal = document.getElementById('editMetal').value;
             item.category = document.getElementById('editCategory').value; 
             
             const newName = document.getElementById('editItemName').value.trim();
@@ -2047,7 +2101,6 @@
             }
 
             item.huid = document.getElementById('editHuid').value.trim();
-
             item.imageUrl = document.getElementById('editItemImage').value.trim();
 
             item.grossWt = parseFloat(document.getElementById('editGross').value) || 0; 
@@ -2057,7 +2110,7 @@
             await updateItem('inventory', item); 
             closeModal('editModal'); 
             loadInventory(); 
-            showToast("Box Tagged & Updated!", "success"); 
+            showToast("Item Tagged & Updated!", "success"); 
         } 
     }
     function calcEditNet() {}
@@ -2066,10 +2119,11 @@
     function exportInventoryCSV() {
         if (allInventory.length === 0) return showToast("No data to export", "error");
         let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Barcode,HUID,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
+        csvContent += "Barcode,HUID,Metal,Category,Sub-Category,Name,Purity,Pieces,Gross Wt,Stone Wt,Net Wt,Fine Wt,Status,Added Date,Document No,Remove Doc No\n";
         allInventory.forEach(row => {
             let rDate = row.addedDate ? new Date(row.addedDate).toLocaleDateString() : '';
-            let rowStr = `${row.barcode||''},${row.huid||''},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
+            let metal = row.metal ? row.metal : (checkIsSilver(row) ? 'Silver' : 'Gold');
+            let rowStr = `${row.barcode||''},${row.huid||''},${metal},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
             csvContent += rowStr + "\n";
         });
         const encodedUri = encodeURI(csvContent);
