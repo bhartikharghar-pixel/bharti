@@ -209,6 +209,8 @@
                 <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <!-- NAYA BATCH RESTORE BUTTON ADD KIYA GAYA HAI -->
+                <button class="btn-history" style="background: #10b981;" onclick="openRestoreStockModal()"><i class="fas fa-undo"></i> Batch Restore</button>
                 <button class="btn-history" style="background: var(--active-red);" onclick="openRemoveStockModal()"><i class="fas fa-minus-circle"></i> Batch Remove</button>
                 <button class="btn-history" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
                 <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
@@ -290,6 +292,26 @@
 
     <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
 </div>
+
+<!-- NAYA BATCH RESTORE MODAL YAHAN HAI -->
+<div id="restoreStockModal" class="modal">
+    <div class="modal-content" style="max-width: 650px;">
+        <button class="close-btn" onclick="closeModal('restoreStockModal')">&times;</button>
+        <h3 style="margin-top:0; color:#10b981; font-size:1.4rem;"><i class="fas fa-undo"></i> Batch Restore Stock</h3>
+        <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Jo items galti se remove ho gaye the, unko select karein aur ek sath wapas 'Active Stock' me layein.</p>
+        <div class="search-box-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="restoreScanner" class="search-box" placeholder="Search Barcode, Category, or Name..." onkeyup="filterRestoreList()">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 10px; font-size: 0.9rem; flex-wrap: wrap; gap: 10px;">
+            <label style="cursor:pointer; color:var(--info-blue); font-weight:600;"><input type="checkbox" id="selectAllRestore" onclick="toggleSelectAllRestore()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
+            <span id="selectedRestoreCount" style="font-weight:bold; color:#10b981;">0 Selected</span>
+        </div>
+        <div id="restoreCheckList" style="max-height: 350px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; margin-bottom: 15px;"></div>
+        <button class="btn-block btn-primary" style="background:#10b981;" onclick="confirmBatchRestore()"><i class="fas fa-undo"></i> Confirm Bulk Restore</button>
+    </div>
+</div>
+<!-- END BATCH RESTORE MODAL -->
 
 <div id="docHistoryModal" class="modal">
     <div class="modal-content" style="max-width: 850px;">
@@ -1838,6 +1860,7 @@
         setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
     }
 
+    // --- BATCH REMOVE LOGIC ---
     let removeBatchList = [];
     let removeSelectionList = [];
     function openRemoveStockModal() {
@@ -1934,7 +1957,6 @@
         document.getElementById('selectedRemoveCount').innerText = `${removeBatchList.length} Selected`;
     }
     
-    // NAYA WARNING LOGIC
     async function confirmBatchRemove() {
         if (removeBatchList.length === 0) return appAlert("Select at least one item to remove.");
         const itemsToRemove = allInventory.filter(i => removeBatchList.includes(String(i.id)));
@@ -2004,6 +2026,106 @@
         closeModal('removeStockModal');
         loadInventory();
     }
+
+    // --- NAYA BATCH RESTORE LOGIC ---
+    let restoreBatchList = [];
+    let restoreSelectionList = [];
+
+    function openRestoreStockModal() {
+        restoreBatchList = [];
+        restoreSelectionList = allInventory.filter(i => i.status === 'removed' || i.status === 'extracted');
+        document.getElementById('restoreScanner').value = '';
+        document.getElementById('selectAllRestore').checked = false;
+        renderRestoreCheckList(restoreSelectionList);
+        openModal('restoreStockModal');
+    }
+
+    function filterRestoreList() {
+        const term = document.getElementById('restoreScanner').value.toUpperCase().trim();
+        const filtered = restoreSelectionList.filter(i => 
+            (i.barcode && String(i.barcode).toUpperCase().includes(term)) || 
+            (i.category && String(i.category).toUpperCase().includes(term)) ||
+            (i.name && String(i.name).toUpperCase().includes(term))
+        );
+        renderRestoreCheckList(filtered);
+        document.getElementById('selectAllRestore').checked = false;
+    }
+
+    function renderRestoreCheckList(items) {
+        const listContainer = document.getElementById('restoreCheckList');
+        listContainer.innerHTML = '';
+        if(items.length === 0) {
+            listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: #888;">No removed stock found.</div>`;
+            updateSelectedRestoreCount();
+            return;
+        }
+        const displayItems = items.slice(0, 300);
+        displayItems.sort((a,b) => new Date(b.removeDate || 0) - new Date(a.removeDate || 0)).forEach(item => {
+            const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+            const strId = String(item.id);
+            const isChecked = restoreBatchList.includes(strId) ? 'checked' : '';
+            
+            let rawSub = item.subFolder || "";
+            if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
+            const displayName = rawSub || item.category;
+
+            listContainer.innerHTML += `
+                <label class="print-item-row" style="cursor:pointer; display:flex; align-items:center;">
+                    <input type="checkbox" class="restore-checkbox" value="${strId}" ${isChecked} onchange="updateRestoreBatchList(this, '${strId}')">
+                    <div style="flex:1;">
+                        <div style="font-weight:700; color:#10b981;">${item.barcode}</div>
+                        <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${displayName} | Total: ${gross}g</div>
+                    </div>
+                </label>
+            `;
+        });
+        if (items.length > 300) {
+            listContainer.innerHTML += `<div style="padding: 10px; text-align: center; color: #888; font-size: 0.8rem; background: #f8fafc; border-top: 1px solid #eee;">Showing 300 of ${items.length} items. Refine search to see more.</div>`;
+        }
+        updateSelectedRestoreCount();
+    }
+
+    function updateRestoreBatchList(cb, id) {
+        const strId = String(id);
+        if(cb.checked) { if(!restoreBatchList.includes(strId)) restoreBatchList.push(strId); }
+        else { restoreBatchList = restoreBatchList.filter(i => i !== strId); }
+        updateSelectedRestoreCount();
+    }
+
+    function toggleSelectAllRestore() {
+        const isChecked = document.getElementById('selectAllRestore').checked;
+        const checkboxes = document.querySelectorAll('.restore-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+            updateRestoreBatchList(cb, String(cb.value));
+        });
+    }
+
+    function updateSelectedRestoreCount() {
+        document.getElementById('selectedRestoreCount').innerText = `${restoreBatchList.length} Selected`;
+    }
+
+    async function confirmBatchRestore() {
+        if (restoreBatchList.length === 0) return appAlert("Select at least one item to restore.");
+        const itemsToRestore = allInventory.filter(i => restoreBatchList.includes(String(i.id)));
+        if (itemsToRestore.length === 0) return appAlert("Error: Items could not be identified.");
+        
+        const proceed = await appConfirm(`Kya aap sach me in ${itemsToRestore.length} items ko wapas Active Stock me lana chahte hain?`);
+        if(!proceed) return;
+
+        for (let item of itemsToRestore) {
+            item.status = 'stock';
+            item.removeCancelled = true;
+            item.removeDate = "";
+            item.removeDocNo = "";
+            await updateItem('inventory', item);
+        }
+        
+        showToast("Bulk Stock Restored Successfully!", "success");
+        closeModal('restoreStockModal');
+        loadInventory();
+    }
+    // ------------------------------------
 
     function openDocHistoryModal() {
         const docs = {};
