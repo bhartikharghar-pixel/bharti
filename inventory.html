@@ -598,6 +598,34 @@
     </div>
 </div>
 
+<!-- NAYA EDIT DOC MODAL YAHAN ADD KIYA GAYA HAI -->
+<div id="editDocModal" class="modal" style="z-index: 2200;">
+    <div class="modal-content" style="max-width: 900px;">
+        <button class="close-btn" onclick="closeModal('editDocModal')">&times;</button>
+        <h3 style="margin-top:0; color:var(--info-blue);"><i class="fas fa-edit"></i> Edit Document <span id="editDocNoLabel"></span></h3>
+        <p style="font-size:0.85rem; color:#64748b;">Agar aapse entry me koi galti ho gayi hai, toh aap weights aur purity yahan se theek kar sakte hain.</p>
+        <div class="table-container" style="max-height: 50vh; overflow-y: auto; margin-bottom: 20px;">
+            <table class="inv-table">
+                <thead>
+                    <tr>
+                        <th>Barcode / Name</th>
+                        <th>Category</th>
+                        <th>Purity</th>
+                        <th>Gross Wt</th>
+                        <th>Stone Wt</th>
+                        <th>Net Wt</th>
+                    </tr>
+                </thead>
+                <tbody id="editDocItemList"></tbody>
+            </table>
+        </div>
+        <div style="display:flex; gap:15px;">
+            <button class="btn-block btn-secondary" onclick="closeModal('editDocModal')">Cancel</button>
+            <button class="btn-block btn-primary" style="margin-top:0;" onclick="saveDocumentChanges()"><i class="fas fa-save"></i> Save Changes</button>
+        </div>
+    </div>
+</div>
+
 <div id="printContainer"></div>
 <div id="toast">Message Saved!</div>
 
@@ -1869,7 +1897,11 @@
                 const typeBadge = doc.type === 'IN' ? `<span class="badge badge-22k">STOCK IN</span>` : `<span class="badge badge-pending">STOCK REMOVED</span>`;
                 let rowStyle = doc.isCancelled ? 'opacity: 0.6; background: #f8f9fa;' : '';
                 let badgeExtra = doc.isCancelled ? `<br><span class="badge badge-pending" style="background:#e2e8f0; color:#475569; border: 1px solid #cbd5e1;">CANCELLED</span>` : '';
-                let actionBtn = doc.isCancelled ? `<span style="color:#888; font-weight:bold; font-size:0.8rem;">Cancelled</span>` : `<button class="btn-sm btn-del" onclick="cancelDocument('${doc.docNo}', '${doc.type}')"><i class="fas fa-undo"></i> Cancel Doc</button>`;
+                let actionBtn = doc.isCancelled ? 
+                    `<span style="color:#888; font-weight:bold; font-size:0.8rem;">Cancelled</span>` : 
+                    `<button class="btn-sm btn-edit" style="background:#0284c7; color:white; border:none;" onclick="editDocument('${doc.docNo}', '${doc.type}')"><i class="fas fa-pen"></i> Edit</button>
+                     <button class="btn-sm btn-del" onclick="cancelDocument('${doc.docNo}', '${doc.type}')"><i class="fas fa-undo"></i> Cancel</button>`;
+                     
                 tbody.innerHTML += `
                     <tr style="${rowStyle}">
                         <td><span class="badge badge-order">${doc.docNo}</span><br>${typeBadge}${badgeExtra}</td>
@@ -1909,6 +1941,82 @@
             }
         }
     }
+
+    // --- NAYA EDIT DOCUMENT LOGIC ---
+    let currentEditDocItems = [];
+
+    function editDocument(docNo, type) {
+        document.getElementById('editDocNoLabel').innerText = '[' + docNo + ']';
+        
+        currentEditDocItems = allInventory.filter(i => type === 'IN' ? i.docNo === docNo : i.removeDocNo === docNo);
+        
+        const tbody = document.getElementById('editDocItemList');
+        tbody.innerHTML = '';
+        
+        currentEditDocItems.forEach((item, index) => {
+            const isLoose = item.barcode && item.barcode.startsWith('LOOSE');
+            const displayName = isLoose ? item.subFolder || item.name : item.barcode;
+            
+            const isSilv = checkIsSilver(item);
+            const customP = isSilv ? goldRates.customSilverPurities : goldRates.customPurities;
+            let purityOpts = isSilv ? 
+                `<option value="Silver" ${item.purity==='Silver'?'selected':''}>Silver</option><option value="Silver 92.5%" ${item.purity==='Silver 92.5%'?'selected':''}>Silver 92.5%</option>` :
+                `<option value="24K" ${item.purity==='24K'?'selected':''}>24K</option><option value="22K" ${item.purity==='22K'?'selected':''}>22K</option><option value="18K" ${item.purity==='18K'?'selected':''}>18K</option>`;
+            
+            if(customP && Array.isArray(customP)) {
+                customP.forEach(cp => {
+                    const val = cp.pct + '%';
+                    const sel = item.purity === val ? 'selected' : '';
+                    purityOpts += `<option value="${val}" ${sel}>${cp.name} (${val})</option>`;
+                });
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight:bold; color:var(--info-blue);">${displayName}</td>
+                    <td>${item.category}</td>
+                    <td><select id="editDoc_pur_${index}" style="padding:8px; width:100%; border-radius:6px; border:1px solid #cbd5e1;">${purityOpts}</select></td>
+                    <td><input type="number" id="editDoc_gw_${index}" value="${item.grossWt || item.weight || 0}" step="0.001" style="padding:8px; width:100%; border-radius:6px; border:1px solid #cbd5e1;" oninput="calcEditDocNet(${index})"></td>
+                    <td><input type="number" id="editDoc_sw_${index}" value="${item.stoneWt || 0}" step="0.001" style="padding:8px; width:100%; border-radius:6px; border:1px solid #cbd5e1;" oninput="calcEditDocNet(${index})"></td>
+                    <td><input type="number" id="editDoc_nw_${index}" value="${item.netWt || item.grossWt || 0}" step="0.001" readonly style="padding:8px; width:100%; background:#f1f5f9; border-radius:6px; border:1px solid #cbd5e1;"></td>
+                </tr>
+            `;
+        });
+        
+        openModal('editDocModal');
+    }
+
+    function calcEditDocNet(index) {
+        const gw = parseFloat(document.getElementById(`editDoc_gw_${index}`).value) || 0;
+        const sw = parseFloat(document.getElementById(`editDoc_sw_${index}`).value) || 0;
+        const nw = Math.max(0, gw - sw);
+        document.getElementById(`editDoc_nw_${index}`).value = nw.toFixed(3);
+    }
+
+    async function saveDocumentChanges() {
+        for(let i = 0; i < currentEditDocItems.length; i++) {
+            let item = currentEditDocItems[i];
+            const newPur = document.getElementById(`editDoc_pur_${i}`).value;
+            const newGw = parseFloat(document.getElementById(`editDoc_gw_${i}`).value) || 0;
+            const newSw = parseFloat(document.getElementById(`editDoc_sw_${i}`).value) || 0;
+            const newNw = Math.max(0, newGw - newSw);
+            const newFw = newNw * getPurityFactor(newPur);
+            
+            if(item.purity !== newPur || item.grossWt !== newGw || item.stoneWt !== newSw || item.netWt !== newNw) {
+                item.purity = newPur;
+                item.grossWt = newGw;
+                item.stoneWt = newSw;
+                item.netWt = newNw;
+                item.fineWt = newFw;
+                await updateItem('inventory', item);
+            }
+        }
+        showToast("Document updated successfully!", "success");
+        closeModal('editDocModal');
+        await loadInventory(); 
+        openDocHistoryModal(); 
+    }
+    // ------------------------------
 
    async function editItem(id) { 
         const item = allInventory.find(i=>String(i.id)===String(id)); 
