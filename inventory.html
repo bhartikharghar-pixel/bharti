@@ -227,14 +227,13 @@
             <input type="date" id="filterToDate" onchange="applyFilters()">
         </div>
         
-        <!-- YAHAN NAYA STATUS FILTER HAI -->
         <div class="filter-group">
             <label><i class="fas fa-filter"></i> Stock Status:</label>
             <select id="filterStatus" onchange="applyFilters()">
                 <option value="STOCK">Active Stock</option>
                 <option value="ALL">All History</option>
                 <option value="SOLD">Sold Out</option>
-                <option value="REMOVED">Removed</option>
+                <option value="REMOVED">Removed / Hidden</option>
             </select>
         </div>
 
@@ -318,7 +317,7 @@
     <div class="modal-content" style="max-width: 650px;">
         <button class="close-btn" onclick="closeModal('removeStockModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--active-red); font-size:1.4rem;"><i class="fas fa-minus-circle"></i> Batch Remove Stock</h3>
-        <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Search category (e.g., CHA) or barcode. Quick select items to bulk remove them.</p>
+        <p style="font-size:0.85rem; color:#64748b; margin-bottom: 20px;">Agar aapko thoda gram wajan nikalna hai (partial remove), toh box me likhein. Agar pura dabba remove karna hai toh box khali chhod dein.</p>
         <div class="search-box-container">
             <i class="fas fa-search search-icon"></i>
             <input type="text" id="removeScanner" class="search-box" placeholder="Search Barcode, Category, or Weight (e.g., 15.200)..." onkeyup="filterRemoveList()">
@@ -414,7 +413,7 @@
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Bill/Invoice No:</span><span class="item-detail-val" id="idmBillNo">...</span></div>
             <div style="display:flex; justify-content:space-between;"><span class="item-detail-lbl">Sale Date:</span><span class="item-detail-val" id="idmSaleDate">...</span></div>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:20px;">
+        <div id="idmButtonsGrid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:20px;">
             <button class="btn-block btn-primary" style="margin-top:0;" id="idmEditBtn"><i class="fas fa-pen"></i> Edit Item</button>
             <button class="btn-block btn-secondary" style="margin-top:0;" id="idmPrintBtn"><i class="fas fa-print"></i> Print Tag</button>
             <button class="btn-block btn-tag" style="margin-top:0; display:none; background:#10b981; color:white; grid-column: 1 / -1;" id="idmExtractBtn"><i class="fas fa-tags"></i> Create Unique Tag</button>
@@ -842,7 +841,6 @@
         return 'individual';
     }
     
-    // NAYI AUR STRICT SILVER CHECKING LOGIC - 100% Crash Proof
     function checkIsSilver(itemOrPurity) {
         if (!itemOrPurity) return false;
         let purity = '', cat = '', metal = '', barcode = '', name = '';
@@ -1090,7 +1088,6 @@
             const subCatSelect = document.getElementById('filterSubCategory');
             const subCatType = subCatSelect ? subCatSelect.value : 'ALL';
             
-            // NAYA STATUS FILTER LE RAHE HAIN
             const statusFilterEl = document.getElementById('filterStatus');
             const statusFilter = statusFilterEl ? statusFilterEl.value : 'STOCK';
 
@@ -1123,7 +1120,6 @@
 
                 if (statusFilter === 'STOCK') {
                     if (i.status === 'stock') return true;
-                    // Default view me aaj ke removed/sold items dikhte the
                     if ((i.status === 'sold' || i.status === 'removed' || i.status === 'extracted') && isDateMatched) return true;
                     return false;
                 } else if (statusFilter === 'ALL') {
@@ -1136,7 +1132,6 @@
                 return false;
             });
 
-            // Date validation for ALL, SOLD, REMOVED Explicitly
             if ((statusFilter === 'ALL' || statusFilter === 'SOLD' || statusFilter === 'REMOVED') && (fd || td)) {
                  filtered = filtered.filter(i => {
                       const dStr = i.removeDate || i.soldDate || i.date || i.addedDate;
@@ -1546,6 +1541,23 @@
         if (newlyAddedItems.length > 0) autoPrint(newlyAddedItems);
     }
 
+    async function restoreItem(id) {
+        const proceed = await appConfirm("Kya aap is item ko wapas 'Active Stock' me lana chahte hain?");
+        if(proceed) {
+            const item = await getItem('inventory', id);
+            if(item) {
+                item.status = 'stock';
+                item.removeCancelled = true;
+                item.removeDate = null;
+                item.removeDocNo = null;
+                await updateItem('inventory', item);
+                showToast("Stock Wapas Aa Gaya!", "success");
+                closeModal('itemDetailsModal');
+                loadInventory();
+            }
+        }
+    }
+
     function openItemDetails(id) {
         const item = allInventory.find(i => String(i.id) === String(id)); if(!item) return;
         let isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
@@ -1585,13 +1597,34 @@
             document.getElementById('idmPrintBtn').onclick = () => autoPrint([item]);
         }
         
+        let restoreBtn = document.getElementById('idmRestoreBtn');
+        if(!restoreBtn) {
+            restoreBtn = document.createElement('button');
+            restoreBtn.id = 'idmRestoreBtn';
+            restoreBtn.className = 'btn-block';
+            restoreBtn.style.background = '#10b981';
+            restoreBtn.style.color = 'white';
+            restoreBtn.style.marginTop = '0';
+            restoreBtn.style.border = 'none';
+            restoreBtn.style.borderRadius = '10px';
+            restoreBtn.style.padding = '14px';
+            restoreBtn.style.fontWeight = '700';
+            restoreBtn.style.cursor = 'pointer';
+            restoreBtn.style.gridColumn = '1 / -1';
+            restoreBtn.innerHTML = '<i class="fas fa-undo"></i> Wapas Stock Me Layein';
+            document.getElementById('idmButtonsGrid').appendChild(restoreBtn);
+        }
+
         if (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
             document.getElementById('idmPrintBtn').style.display = 'none';
             document.getElementById('idmExtractBtn').style.display = 'none';
             document.getElementById('idmEditBtn').style.display = 'none';
+            restoreBtn.style.display = 'block';
+            restoreBtn.onclick = () => { restoreItem(item.id); };
         } else {
             document.getElementById('idmEditBtn').style.display = 'block';
             document.getElementById('idmEditBtn').onclick = () => { closeModal('itemDetailsModal'); editItem(item.id); };
+            restoreBtn.style.display = 'none';
         }
 
         closeModal('detailsModal'); openModal('itemDetailsModal');
@@ -1643,7 +1676,8 @@
             
             let actionBtnHTML = '';
             if(item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
-                actionBtnHTML = `<button class="btn-sm btn-view" onclick="openItemDetails('${item.id}')" style="background:#ea580c; color:white; border:none;"><i class="fas fa-info-circle"></i> Info</button>`;
+                actionBtnHTML = `<button class="btn-sm btn-view" onclick="openItemDetails('${item.id}')" style="background:#ea580c; color:white; border:none; margin-bottom:4px;"><i class="fas fa-info-circle"></i> Info</button>`;
+                actionBtnHTML += `<br><button class="btn-sm" onclick="restoreItem('${item.id}')" style="background:#10b981; color:white; border:none; padding:4px 10px;"><i class="fas fa-undo"></i> Restore</button>`;
             } else if(item.barcode && String(item.barcode).startsWith('LOOSE') || item.category === 'MIX') {
                  actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${item.id}')"><i class="fas fa-tags"></i> Tag</button>`;
             } else {
@@ -1847,8 +1881,8 @@
             if (isLoose) {
                 weightInputHtml = `
                 <div style="margin-left: 10px;" onclick="event.stopPropagation()">
-                    <input type="number" id="rem_wt_${strId}" value="${gross}" max="${gross}" step="0.001" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; background: #fff;">
-                    <span style="font-size:0.75rem; color:#666; font-weight:bold;">g</span>
+                    <input type="number" id="rem_wt_${strId}" placeholder="${gross}g" max="${gross}" step="0.001" style="width: 100px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; background: #fff;">
+                    <span style="font-size:0.75rem; color:#666; font-weight:bold;">g nikalna hai</span>
                 </div>`;
             }
 
@@ -1913,7 +1947,8 @@
             
             if (isLoose) {
                 const wtInput = document.getElementById(`rem_wt_${item.id}`);
-                if (wtInput && parseFloat(wtInput.value) > 0) {
+                // Pura dabba hatane ki galti se bachne ke liye naya logic
+                if (wtInput && wtInput.value !== "" && parseFloat(wtInput.value) > 0) {
                     removeWt = parseFloat(wtInput.value);
                 }
                 
@@ -2056,7 +2091,6 @@
                 });
             }
             
-            // Just in case it's a completely custom purity not in dropdown
             if(!purityOpts.includes(`value="${item.purity}"`) && item.purity) {
                  purityOpts += `<option value="${item.purity}" selected>${item.purity}</option>`;
             }
