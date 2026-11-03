@@ -55,6 +55,7 @@
         .order-card.ready { border-top-color: var(--receive-green); opacity: 0.95; }
         .order-card.billed { border-top-color: #333; opacity: 0.8; background:#fafafa;}
         .order-card.cancelled { border-top-color: #888; opacity: 0.6; }
+        .order-card.deleted { border-top-color: #b71c1c; opacity: 0.65; background: #fff5f5; }
         .order-card.overdue { border-top-color: #d32f2f; }
 
         .o-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
@@ -72,6 +73,7 @@
         .b-completed { background: #e8f5e9; color: #2e7d32; }
         .b-billed { background: #e0e0e0; color: #333; }
         .b-cancelled { background: #eeeeee; color: #757575; }
+        .b-deleted { background: #ffcdd2; color: #b71c1c; border: 1px solid #ef9a9a; }
         .b-overdue { background: #ffebee; color: #c62828; animation: pulse 2s infinite; }
 
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
@@ -131,7 +133,6 @@
         #toast.success { background-color: var(--receive-green); }
         #toast.error { background-color: var(--active-red); }
 
-        /* Custom Box styling for better breakdown */
         .breakdown-box { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
         .breakdown-title { font-weight: 700; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 8px; color:#333; }
         .breakdown-row { display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px; }
@@ -206,7 +207,7 @@
                 <button class="tab active" onclick="switchTab('pending', this)">Pending / In-Progress</button>
                 <button class="tab" onclick="switchTab('completed', this)">Ready (In Stock)</button>
                 <button class="tab" onclick="switchTab('billed', this)">Billed / Delivered</button>
-                <button class="tab" onclick="switchTab('cancelled', this)">Cancelled</button>
+                <button class="tab" onclick="switchTab('cancelled', this)">Cancelled / Deleted</button>
             </div>
         </div>
 
@@ -540,7 +541,10 @@
 
                 <button type="button" class="btn-primary" style="background:#1976d2; margin-top:0; grid-column: span 2;" id="btnGoToSales" onclick="openBillingModal()"><i class="fas fa-desktop"></i> Finalize & Bill Order</button>
 
-                <button type="button" class="btn-primary" id="btnCancel" style="background:#c62828; margin-top:0; grid-column: span 2;" onclick="openCancelModal()"><i class="fas fa-undo"></i> Cancel Job & Refund</button>
+                <button type="button" class="btn-primary" id="btnCancel" style="background:#f57c00; margin-top:0; grid-column: span 2;" onclick="openCancelModal()"><i class="fas fa-undo"></i> Cancel Job & Refund</button>
+                
+                <!-- NEW DIRECT DELETE BUTTON (NO TRANSACTION IMPACT) -->
+                <button type="button" class="btn-primary" id="btnDeleteDirect" style="background:#b71c1c; margin-top:0; grid-column: span 2;" onclick="deleteOrderDirectly()"><i class="fas fa-trash-alt"></i> Delete Order (No Refund / No Transaction Impact)</button>
             </div>
         </div>
     </div>
@@ -985,7 +989,7 @@
                 if (currentTab === 'pending') matchTab = (o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar');
                 else if (currentTab === 'completed') matchTab = (o.status === 'completed' || o.status === 'ready');
                 else if (currentTab === 'billed') matchTab = (o.status === 'billed' || o.status === 'delivered');
-                else if (currentTab === 'cancelled') matchTab = (o.status === 'cancelled');
+                else if (currentTab === 'cancelled') matchTab = (o.status === 'cancelled' || o.status === 'deleted');
                 
                 const matchSearch = o.custName.toLowerCase().includes(term) || String(o.custMobile).includes(term) || (o.description||'').toLowerCase().includes(term) || String(o.invoiceNo||'').toLowerCase().includes(term);
                 return matchTab && matchSearch;
@@ -1011,6 +1015,7 @@
 
                 if(o.status === 'billed' || o.status === 'delivered') { badgeClass = 'b-billed'; badgeText = 'Delivered'; } 
                 else if(o.status === 'completed' || o.status === 'ready') { badgeClass = 'b-completed'; badgeText = 'Ready'; } 
+                else if(o.status === 'deleted' || o.isDeleted) { badgeClass = 'b-deleted'; badgeText = '<i class="fas fa-trash-alt"></i> Deleted'; } 
                 else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
                 else if(o.status === 'in_progress' || o.status === 'with_karigar') {
                     const mId = o.merchantId; const m = allMerchants.find(x => x.id == mId);
@@ -1020,6 +1025,7 @@
                 let cardClass = '';
                 if (o.status === 'billed' || o.status === 'delivered') cardClass = 'billed';
                 else if (o.status === 'completed' || o.status === 'ready') cardClass = 'completed';
+                else if (o.status === 'deleted' || o.isDeleted) cardClass = 'deleted';
                 else if (o.status === 'cancelled') cardClass = 'cancelled';
                 else if (isOverdue) cardClass = 'overdue';
                 
@@ -1028,7 +1034,7 @@
                 const grandTotal = o.grandTotal || o.estAmount || 0; 
                 const oldGoldVal = o.oldGoldValue || 0;
                 let netPayable = grandTotal - oldGoldVal - adv;
-                if (o.status === 'billed' || o.status === 'delivered') netPayable = 0; 
+                if (o.status === 'billed' || o.status === 'delivered' || o.status === 'deleted' || o.isDeleted) netPayable = 0; 
 
                 const icon = o.itemImage ? '<i class="fas fa-image" style="color:var(--bill-blue);"></i>' : '<i class="fas fa-ring" style="color:var(--accent-gold);"></i>';
                 let displayWt = o.finalGross ? `${o.finalGross}g (Final)` : `${o.grossWt}g (Est)`;
@@ -1051,7 +1057,7 @@
                         </div>
                         <div class="o-footer">
                             <span style="font-size:0.85rem; color:#666;">Net Due: <b style="color:${netPayable < 0 ? 'var(--old-gold)' : 'var(--active-red)'}; font-size:1.1rem;">₹${Math.abs(netPayable).toLocaleString()}</b></span>
-                            <button class="btn-view" onclick="openViewModal('${o.id}')">${(o.status === 'billed' || o.status === 'delivered') ? 'View Details' : 'Manage Order'}</button>
+                            <button class="btn-view" onclick="openViewModal('${o.id}')">${(o.status === 'billed' || o.status === 'delivered' || o.status === 'deleted' || o.isDeleted) ? 'View Details' : 'Manage Order'}</button>
                         </div>
                     </div>
                 `;
@@ -1222,7 +1228,7 @@
         }
 
         function updateOrderImage(event) {
-            previewImage(event, 'vImage', 'oImageBase64'); // Temporary use, but we need to auto save.
+            previewImage(event, 'vImage', 'oImageBase64');
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
@@ -1230,7 +1236,7 @@
                 const img = new Image();
                 img.onload = async function() {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 800; canvas.height = 800 * (img.height/img.width); // rough scale
+                    canvas.width = 800; canvas.height = 800 * (img.height/img.width);
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
@@ -1368,7 +1374,6 @@
                         await addItem('cashflow', { date: finalOrderDate, type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo}`, orderId: orderId });
                     }
                     
-                    // Mark Inventory Reserved
                     if(linkedInvId) {
                         let inv = await getItem('inventory', linkedInvId);
                         if(inv) { inv.status = 'reserved_for_order'; await updateItem('inventory', inv); }
@@ -1416,7 +1421,7 @@
             await updateItem('orders', activeJobData);
             showToast('Order info updated!', 'success');
             closeModal('editJobModal');
-            openViewModal(activeJobData.id); // reload view
+            openViewModal(activeJobData.id);
             loadOrders();
         }
 
@@ -1459,7 +1464,7 @@
             await updateItem('orders', activeJobData);
             showToast('Old Gold details updated!', 'success');
             closeModal('editOldGoldModal');
-            openViewModal(activeJobData.id); // reload view
+            openViewModal(activeJobData.id);
             loadOrders();
         }
 
@@ -1504,6 +1509,8 @@
                 } else if(o.status === 'completed' || o.status === 'ready') { 
                     badge.className = 'badge b-completed'; badge.innerText = 'Ready'; 
                     document.getElementById('step1').classList.add('done'); document.getElementById('step2').classList.add('done'); document.getElementById('step3').classList.add('active'); 
+                } else if(o.status === 'deleted' || o.isDeleted) { 
+                    badge.className = 'badge b-deleted'; badge.innerHTML = '<i class="fas fa-trash-alt"></i> Deleted'; 
                 } else if(o.status === 'cancelled') { 
                     badge.className = 'badge b-cancelled'; badge.innerText = 'Cancelled'; 
                 } else if(o.status === 'in_progress' || o.status === 'with_karigar') { 
@@ -1565,16 +1572,17 @@
             } else { toggleDisplay('vOldGoldDetailsBox', 'none'); }
 
             let pending = grandTotal - oldVal - adv;
-            if (o.status === 'billed' || o.status === 'delivered') pending = 0; 
-            updateDueUI(pending, o.status);
+            if (o.status === 'billed' || o.status === 'delivered' || o.status === 'deleted' || o.isDeleted) pending = 0; 
+            updateDueUI(pending, o.status, o.isDeleted);
 
-            const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
+            const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
 
             toggleDisplay('btnEditJobInfo', isDone ? 'none' : 'block');
             toggleDisplay('btnEditOldGold', isDone ? 'none' : 'block');
-            toggleDisplay('addPaySection', (o.status === 'billed' || o.status === 'delivered' || o.status === 'cancelled') ? 'none' : 'block');
+            toggleDisplay('addPaySection', (o.status === 'billed' || o.status === 'delivered' || o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted) ? 'none' : 'block');
 
             toggleDisplay('btnCancel', isDone ? 'none' : 'block');
+            toggleDisplay('btnDeleteDirect', (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted || o.status === 'billed' || o.status === 'delivered') ? 'none' : 'flex');
             
             if (isDone) {
                 toggleDisplay('btnForwardMerchant', 'none'); toggleDisplay('btnPrintKarigarSlip', 'none'); toggleDisplay('btnReceiveMerchant', 'none');
@@ -1593,10 +1601,12 @@
             openModal('viewJobModal');
         }
 
-        function updateDueUI(pending, status) {
+        function updateDueUI(pending, status, isDeleted = false) {
             const vDueLabel = document.getElementById('vDueLabel');
             const vDue = document.getElementById('vDue');
-            if (pending < 0) {
+            if (status === 'deleted' || isDeleted) {
+                vDueLabel.innerText = "Order Status:"; vDue.innerText = "DELETED"; vDue.style.color = "#b71c1c";
+            } else if (pending < 0) {
                 vDueLabel.innerText = "Refund Due:"; vDue.innerText = "₹" + Math.abs(pending).toLocaleString(); vDue.style.color = "var(--old-gold)";
             } else if (pending === 0 && (status === 'billed' || status === 'delivered')) {
                 vDueLabel.innerText = "Settled:"; vDue.innerText = "₹0"; vDue.style.color = "var(--receive-green)";
@@ -1889,13 +1899,12 @@
             document.getElementById('billDiscount').value = o.discount || 0; 
             document.getElementById('billApplyGST').checked = (o.gstAmount > 0);
             
-            // --- NEW: Load Old Gold Values into Billing Modal ---
             document.getElementById('billOldPurity').value = o.oldGoldPurity || '22K';
             document.getElementById('billOldGoldRate').value = o.oldGoldRate || Math.round(goldRates.rate24k/10) || 0;
             document.getElementById('billOldGrossWt').value = o.oldGoldGross || 0;
             document.getElementById('billOldStoneWt').value = o.oldGoldStone || 0;
             document.getElementById('billOldExchangePct').value = o.oldGoldPct || 100;
-            calcBillOldGold(); // Recalculate Old Gold specific fields
+            calcBillOldGold();
             
             document.getElementById('bOrdAdv').innerText = "-₹" + (o.advancePaid || 0).toLocaleString();
             
@@ -1918,12 +1927,11 @@
             if(document.getElementById('billExtraSearchInput')) document.getElementById('billExtraSearchInput').value = '';
             if(document.getElementById('selectedBillExtraInvId')) document.getElementById('selectedBillExtraInvId').value = '';
             
-            renderExtraItems(); // clear
+            renderExtraItems();
             closeModal('viewJobModal'); openModal('billingModal');
             calcBillingAdjustment();
         }
 
-        // Add Extra Items during Billing
         function toggleExtraItemMode() {
             const isManual = document.getElementById('billManualExtraToggle').checked;
             document.getElementById('billExtraSearchMode').style.display = isManual ? 'none' : 'block';
@@ -2029,7 +2037,6 @@
             const currentRate = parseFloat(document.getElementById('billFinalRate').value) || 0;
             
             extraBillingItems.forEach(item => {
-                // Approximate value just for display in row
                 const itemVal = Math.round((item.weight * currentRate) + parseFloat(item.makingCharge || 0));
                 container.innerHTML += `
                     <div style="display:flex; justify-content:space-between; background:#fff; border:1px solid #c8e6c9; padding:8px; border-radius:6px; font-size:0.85rem; align-items:center;">
@@ -2045,7 +2052,6 @@
             });
         }
 
-        // --- NEW: Calculate Old Gold Fields specifically within the Billing Modal ---
         function calcBillOldGold() {
             const g = parseFloat(document.getElementById('billOldGrossWt').value) || 0;
             const s = parseFloat(document.getElementById('billOldStoneWt').value) || 0;
@@ -2057,7 +2063,6 @@
             const pct = parseFloat(document.getElementById('billOldExchangePct').value) || 100;
             document.getElementById('billOldGoldFinalVal').value = Math.round(fine * rate * (pct / 100));
             
-            // Re-run the main billing adjustment after calculating old gold
             calcBillingAdjustment();
         }
 
@@ -2072,13 +2077,11 @@
             let actualMaking = (newMakingType === 'pct') ? goldValue * (newMakingInput / 100) : finalWeightToUse * newMakingInput;
             const newOtherCharge = parseFloat(document.getElementById('billOtherCharge').value) || 0;
             
-            // Calculate extra items total
             let extraTotal = 0;
             extraBillingItems.forEach(item => {
                 extraTotal += Math.round((item.weight * newRate) + parseFloat(item.makingCharge || 0));
             });
 
-            // Base Total = Main Order Gold + Main Order Making + Other + Extra Items Total
             const newBaseTotal = Math.round(goldValue + actualMaking + newOtherCharge + extraTotal);
             
             const applyGST = document.getElementById('billApplyGST').checked;
@@ -2095,11 +2098,9 @@
             document.getElementById('billExtraTotalVal').value = extraTotal;
             
             const adv = o.advancePaid || 0;
-            // Get old gold from the live field in billing modal, not just o.oldGoldValue
             const oldVal = parseFloat(document.getElementById('billOldGoldFinalVal').value) || 0;
             const netDue = newGrandTotal - oldVal - adv;
             
-            // Update UI Breakdown
             document.getElementById('bOrdGoldVal').innerText = "₹" + Math.round(goldValue).toLocaleString();
             document.getElementById('bOrdMaking').innerText = "₹" + Math.round(actualMaking).toLocaleString();
             document.getElementById('bExtraTotal').innerText = "+₹" + extraTotal.toLocaleString();
@@ -2111,7 +2112,6 @@
             document.getElementById('bOrdOld').innerText = "-₹" + oldVal.toLocaleString();
             document.getElementById('bOrdNet').innerText = "₹" + Math.max(0, netDue).toLocaleString();
             
-            // Render extra items to update their row prices dynamically if rate changed
             renderExtraItems();
             renderBillPayments();
         }
@@ -2157,7 +2157,6 @@
             o.discount = parseFloat(document.getElementById('billUpdatedDiscount').value) || 0; 
             o.grandTotal = parseFloat(document.getElementById('billUpdatedGrandTotal').value) || 0;
 
-            // --- Update Old Gold Variables from Billing Form ---
             o.oldGoldPurity = document.getElementById('billOldPurity').value;
             o.oldGoldRate = parseFloat(document.getElementById('billOldGoldRate').value) || 0;
             o.oldGoldGross = parseFloat(document.getElementById('billOldGrossWt').value) || 0;
@@ -2176,14 +2175,12 @@
             const totalCashReceived = (o.advancePaid || 0) + newlyPaid;
             const remainingDue = Math.max(0, o.grandTotal - (o.oldGoldValue || 0) - (o.advancePaid || 0) - newlyPaid);
 
-            // Construct items array for Sales record
             let salesItems = [{ 
                 id: 'inv_'+Date.now(), barcode: o.barcode, category: o.category, purity: o.purity, 
                 weight: o.finalNet || o.netWt || 0, rate: o.lockedRate, makingAmount: o.finalMaking || 0, 
                 total: Math.round((o.finalNet || o.netWt || 0)*o.lockedRate + (o.finalMaking||0) + (o.otherCharge||0))
             }];
 
-            // Append Extra Items
             for (let ext of extraBillingItems) {
                 let extTotal = Math.round((ext.weight * o.lockedRate) + parseFloat(ext.makingCharge || 0));
                 salesItems.push({
@@ -2192,7 +2189,6 @@
                     total: extTotal
                 });
                 
-                // Mark Extra item sold
                 if(!ext.isManual) {
                     let invData = allInventoryGlobal.find(x => x.id === ext.id);
                     if(invData) {
@@ -2202,7 +2198,6 @@
                 }
             }
 
-            // Save Sales entry
             await addItem('sales', {
                 date: new Date().toISOString(), customerId: finalCustId, jobType: 'Order',
                 invoiceNo: invoiceNo, orderId: o.id,
@@ -2211,12 +2206,10 @@
                 paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
             });
 
-            // Mark Custom Make item as sold
             const allInventory = await getAllItems('inventory');
             const invItem = allInventory.find(i => i.barcode === o.barcode);
             if(invItem) { invItem.status = 'sold'; await updateItem('inventory', invItem); }
 
-            // Log Final Old Gold Entry in Database
             if (o.oldGoldValue > 0) {
                  await addItem('old_gold', {
                      date: new Date().toISOString(),
@@ -2247,7 +2240,7 @@
             await loadOrders(); await loadInventoryForDropdowns();
         }
 
-        // ==================== CANCEL ====================
+        // ==================== CANCEL & DIRECT DELETE ====================
         function openCancelModal() {
             const o = activeJobData;
             document.getElementById('cOrderId').value = o.id;
@@ -2269,6 +2262,7 @@
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
             const oldStatus = o.status; 
             o.status = 'cancelled'; 
+            o.isDeleted = false;
             o.refundedAmount = totalRefundAmt;
             await updateItem('orders', o);
             
@@ -2280,18 +2274,40 @@
                 if(item) { item.netWt += o.issuedGrossWt; item.grossWt += o.issuedGrossWt; item.weight = item.netWt; item.status = 'stock'; await updateItem('inventory', item); }
             }
 
-            // Release linked inventory if any
             if(o.linkedInventoryId) {
                 let item = await getItem('inventory', o.linkedInventoryId);
                 if(item && item.status === 'reserved_for_order') { item.status = 'stock'; await updateItem('inventory', item); }
             }
 
-            const returnOldGold = document.getElementById('cReturnOldGold').checked;
-            if(returnOldGold && (o.oldGoldValue > 0)) {
-                // If it was cancelled, we don't insert old gold. If any existed, they might need adjustment manually.
+            showToast("Order Cancelled & Refunded!", "success"); closeModal('cancelModal'); await loadOrders(); await loadInventoryForDropdowns();
+        }
+
+        // NEW FUNCTION: Direct Delete Without Affecting Money/Transactions
+        async function deleteOrderDirectly() {
+            const o = activeJobData;
+            if(!o) return;
+            
+            const confirmMsg = "Are you sure you want to DELETE this order?\n\n- No Cashflow / Money transaction will be affected.\n- Order will move to 'Cancelled / Deleted' tab and show as DELETED.";
+            if(!confirm(confirmMsg)) return;
+
+            o.status = 'deleted';
+            o.isDeleted = true;
+            o.deletedAt = new Date().toISOString();
+            await updateItem('orders', o);
+
+            // Release reserved inventory item if any (without affecting money)
+            if(o.linkedInventoryId) {
+                let item = await getItem('inventory', o.linkedInventoryId);
+                if(item && item.status === 'reserved_for_order') { 
+                    item.status = 'stock'; 
+                    await updateItem('inventory', item); 
+                }
             }
 
-            showToast("Order Cancelled & Refunded!", "success"); closeModal('cancelModal'); await loadOrders(); await loadInventoryForDropdowns();
+            showToast("Order Deleted (Moved to Cancelled tab)!", "success");
+            closeModal('viewJobModal');
+            await loadOrders();
+            await loadInventoryForDropdowns();
         }
 
         // ==================== PRINT & WHATSAPP ====================
