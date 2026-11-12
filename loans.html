@@ -67,7 +67,7 @@
 
         /* --- MODALS --- */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; backdrop-filter: blur(4px); }
-        .modal-content { background: white; width: 95%; max-width: 650px; border-radius: 16px; padding: 25px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; }
+        .modal-content { background: white; width: 95%; max-width: 650px; border-radius: 16px; padding: 25px; max-height: 92vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666; z-index: 10; }
@@ -182,11 +182,14 @@
         <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
     </div>
 
+    <!-- CUSTOMER LOANS MODAL WITH 4-BOX BREAKDOWN & GRAND TOTAL -->
     <div id="customerLoansModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('customerLoansModal')">&times;</button>
             <h3 id="custListTitle">Customer Loans</h3>
-            <div id="customerLoansContainer" style="margin-top:15px; display:grid; gap:10px; max-height: 60vh; overflow-y: auto; padding-right: 5px;"></div>
+            <div id="customerLoansContainer" style="margin-top:15px; display:grid; gap:10px; max-height: 55vh; overflow-y: auto; padding-right: 5px;"></div>
+            <!-- Grand Total Summary Bar -->
+            <div id="customerLoansTotalSummary" style="margin-top: 15px; padding: 12px 15px; background: #fff8e1; border-radius: 10px; border: 2px solid #C5A059;"></div>
         </div>
     </div>
 
@@ -711,8 +714,15 @@
             document.getElementById('custListTitle').innerText = `${foundCust.name}'s Loans`;
             
             const container = document.getElementById('customerLoansContainer');
+            const summaryBox = document.getElementById('customerLoansTotalSummary');
             container.innerHTML = '';
             
+            let sumMainPrin = 0;
+            let sumCurrPrin = 0;
+            let sumPendingInt = 0;
+            let sumGrandTotal = 0;
+            let activeLoansCount = 0;
+
             custLoans.sort((a,b) => {
                 if(a.status === 'active' && b.status !== 'active') return -1;
                 if(a.status !== 'active' && b.status === 'active') return 1;
@@ -721,7 +731,14 @@
                 let bClass = l.status === 'active' ? 'badge-active' : 'badge-closed';
                 let bText = l.status === 'active' ? 'Active' : 'Closed';
                 
-                let totalUdhar = l.amount;
+                // 1. Main Principal (Original Loan Amount)
+                let mainPrin = parseFloat(l.amount) || 0;
+                
+                // 2. Current Principal (Remaining Main Principal + Remaining Top-Ups)
+                let currPrin = l.currentPrincipal !== undefined ? l.currentPrincipal : mainPrin;
+
+                // 3. Total Udhar & Total Jama Calculation
+                let totalUdhar = mainPrin;
                 if(l.ledger) l.ledger.forEach(row => totalUdhar += (row.interestCharged || 0));
                 if(l.topUps) {
                     l.topUps.forEach(t => {
@@ -733,38 +750,101 @@
                 if(l.payments) l.payments.forEach(p => totalJama += (p.totalAmount || 0));
                 
                 let netPayable = totalUdhar - totalJama;
-                if(netPayable < 0) netPayable = 0;
+                if(netPayable < 0 || l.status === 'closed') netPayable = 0;
+
+                // Pending Interest Calculation
+                let pendingInt = 0;
+                if(l.status === 'active') {
+                    if(l.ledger) l.ledger.forEach(r => pendingInt += (r.interestCharged - (r.paidInterest || 0)));
+                    if(l.topUps) l.topUps.forEach(t => {
+                        if(t.ledger) t.ledger.forEach(r => pendingInt += (r.interestCharged - (r.paidInterest || 0)));
+                    });
+                }
+
+                // Add to Grand Totals for Active Loans
+                if(l.status === 'active') {
+                    activeLoansCount++;
+                    sumMainPrin += mainPrin;
+                    sumCurrPrin += currPrin;
+                    sumPendingInt += pendingInt;
+                    sumGrandTotal += netPayable;
+                }
 
                 let wText = l.weight ? ` (${l.weight}g)` : '';
 
-                // Risk Highlight verification for row
+                // Risk Highlight verification
                 let mktVal = getGoldValue(l.weight, l.purity);
                 let isLoanOverLimit = (l.status === 'active' && mktVal > 0 && netPayable > mktVal);
                 
                 let cardBg = isLoanOverLimit ? '#ffebee' : '#f8f9fa';
                 let cardBorderLeft = isLoanOverLimit ? '4px solid #c62828' : `4px solid ${l.status === 'active' ? '#1976d2' : '#2e7d32'}`;
-                let warningText = isLoanOverLimit ? `<div style="color:#c62828; font-weight:bold; font-size:0.75rem; margin-top:5px; background:#fff; padding:5px; border-radius:4px; border:1px solid #ffcdd2;"><i class="fas fa-exclamation-triangle"></i> Alert: Due exceeds current Gold Value (₹${Math.round(mktVal).toLocaleString()})</div>` : '';
+                let warningText = isLoanOverLimit ? `<div style="color:#c62828; font-weight:bold; font-size:0.75rem; margin-top:8px; background:#fff; padding:6px 8px; border-radius:4px; border:1px solid #ffcdd2;"><i class="fas fa-exclamation-triangle"></i> Alert: Due exceeds current Gold Value (₹${Math.round(mktVal).toLocaleString()})</div>` : '';
 
                 container.innerHTML += `
                     <div style="background:${cardBg}; padding:15px; border-radius:8px; border:1px solid #e0e0e0; border-left: ${cardBorderLeft};">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <strong style="color:#333;">A/C #${l.loanNo || l.id} • ${l.description}${wText}</strong>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <strong style="color:#222; font-size:0.95rem;">A/C #${l.loanNo || l.id} • ${l.description}${wText}</strong>
                             <span class="l-badge ${isLoanOverLimit ? 'badge-overdue' : bClass}">${isLoanOverLimit ? '⚠️ High Risk' : bText}</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#555; margin-bottom:12px;">
-                            <span>Issued: ${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
-                            <div style="text-align:right;">
-                                <span style="font-weight:bold; color:${l.status === 'active' ? '#D32F2F' : '#2e7d32'}; font-size:1.05rem;">₹${netPayable.toLocaleString()}</span><br>
-                                <span style="font-size:0.7rem; color:#666;">Total (Prin + Int)</span>
+                        <div style="font-size:0.8rem; color:#666; margin-bottom:10px;">
+                            Issued: <strong>${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong> | Int Rate: <strong>${l.ratePercent}% / mo</strong>
+                        </div>
+
+                        <!-- 4-Box Breakdown Grid: Main Prin, Current Prin, Pending Int, Total Due -->
+                        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; background:#fff; padding:10px 8px; border-radius:6px; border:1px solid #ddd; text-align:center;">
+                            <div style="border-right:1px solid #eee; padding-right:4px;">
+                                <div style="font-size:0.68rem; color:#777;">Main Prin.</div>
+                                <div style="font-weight:700; color:#444; font-size:0.88rem;">₹${mainPrin.toLocaleString()}</div>
+                            </div>
+                            <div style="border-right:1px solid #eee; padding-right:4px;">
+                                <div style="font-size:0.68rem; color:#777;">Current Prin.</div>
+                                <div style="font-weight:700; color:#1976d2; font-size:0.88rem;">₹${(l.status === 'closed' ? 0 : currPrin).toLocaleString()}</div>
+                            </div>
+                            <div style="border-right:1px solid #eee; padding-right:4px;">
+                                <div style="font-size:0.68rem; color:#777;">Pending Int.</div>
+                                <div style="font-weight:700; color:#d84315; font-size:0.88rem;">₹${pendingInt.toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <div style="font-size:0.68rem; color:#777;">Total Due</div>
+                                <div style="font-weight:800; color:${l.status === 'active' ? '#D32F2F' : '#2e7d32'}; font-size:0.95rem;">₹${netPayable.toLocaleString()}</div>
                             </div>
                         </div>
+
                         ${warningText}
-                        <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin-top:8px; background:#333;" onclick="openLedger('${l.id}')">
+                        <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin-top:10px; background:#333;" onclick="openLedger('${l.id}')">
                             <i class="fas fa-book-open"></i> Open T-Ledger
                         </button>
                     </div>
                 `;
             });
+
+            // Grand Total Summary Box at Bottom of Modal
+            if (summaryBox) {
+                summaryBox.innerHTML = `
+                    <div style="font-size:0.8rem; font-weight:700; color:#b2872c; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between;">
+                        <span><i class="fas fa-calculator"></i> Sabhi Active Loans Ka Total (${activeLoansCount})</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; text-align:center; background:#fff; padding:10px 8px; border-radius:8px; border:1px solid #ffe082;">
+                        <div style="border-right:1px solid #eee;">
+                            <div style="font-size:0.7rem; color:#666;">Total Main Prin.</div>
+                            <div style="font-weight:700; color:#333; font-size:0.95rem;">₹${sumMainPrin.toLocaleString()}</div>
+                        </div>
+                        <div style="border-right:1px solid #eee;">
+                            <div style="font-size:0.7rem; color:#666;">Total Curr. Prin.</div>
+                            <div style="font-weight:700; color:#1976d2; font-size:0.95rem;">₹${sumCurrPrin.toLocaleString()}</div>
+                        </div>
+                        <div style="border-right:1px solid #eee;">
+                            <div style="font-size:0.7rem; color:#666;">Total Interest</div>
+                            <div style="font-weight:700; color:#d84315; font-size:0.95rem;">₹${sumPendingInt.toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem; color:#666; font-weight:600;">Grand Total</div>
+                            <div style="font-weight:800; color:#D32F2F; font-size:1.1rem;">₹${sumGrandTotal.toLocaleString()}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
             document.getElementById('customerLoansModal').style.display = 'flex';
         }
 
@@ -904,14 +984,14 @@
                 await addItem('cashflow', {
                     date: startDate.toISOString(), type: 'OUT', mode: 'Cash',
                     category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${nextLoanNo}`,
-                    customerId: custId // Ye line naam show karegi
+                    customerId: custId
                 });
             }
             if (bankAmt > 0) {
                 await addItem('cashflow', {
                     date: startDate.toISOString(), type: 'OUT', mode: 'Bank',
                     category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${nextLoanNo}`,
-                    customerId: custId // Ye line naam show karegi
+                    customerId: custId
                 });
             }
 
@@ -1118,10 +1198,10 @@
 
                 await updateItem('loans', l);
                 
-await addItem('cashflow', {
+                await addItem('cashflow', {
                     date: topUpDateObj.toISOString(), type: 'OUT', mode: topUpMode,
                     category: 'Loan Top-Up', amount: topUpAmt, note: `Extra money given for Loan #${l.loanNo || currentLoanId}`,
-                    customerId: l.customerId // Ye line naam show karegi
+                    customerId: l.customerId
                 });
                 alert("Additional Money Added Successfully!");
                 document.getElementById('topUpBox').style.display = 'none';
@@ -1260,19 +1340,18 @@ await addItem('cashflow', {
 
                 await updateItem('loans', l);
 
-                
-if(cashAmt > 0) {
+                if(cashAmt > 0) {
                     await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'IN', mode: 'Cash',
                         category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${l.loanNo || currentLoanId}`,
-                        customerId: l.customerId // Ye line naam show karegi
+                        customerId: l.customerId
                     });
                 }
                 if(bankAmt > 0) {
                     await addItem('cashflow', {
                         date: new Date().toISOString(), type: 'IN', mode: 'Bank',
                         category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${l.loanNo || currentLoanId}`,
-                        customerId: l.customerId // Ye line naam show karegi
+                        customerId: l.customerId
                     });
                 }
 
