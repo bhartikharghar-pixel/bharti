@@ -188,7 +188,7 @@
             <input type="text" id="loanListSearch" class="search-box" placeholder="Search by Customer Name or Mobile..." onkeyup="filterLoansList()">
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('active', this)">Active Customers</button>
-                <button class="tab" onclick="switchTab('closed', this)">History</button>
+                <button class="tab" onclick="switchTab('closed', this)">History (Closed)</button>
             </div>
         </div>
 
@@ -501,7 +501,7 @@
 
         async function toggleCustomerAuditCheck(custId, event) {
             if (event) event.stopPropagation();
-            const custLoans = allLoans.filter(l => String(l.customerId) === String(custId) && (currentTab === 'active' ? l.status === 'active' : l.status !== 'active'));
+            const custLoans = allLoans.filter(l => String(l.customerId) === String(custId) && (currentTab === 'active' ? l.status === 'active' : l.status === 'closed'));
             if (!custLoans.length) return;
 
             const allChecked = custLoans.every(l => isLoanAuditChecked(l));
@@ -562,18 +562,14 @@
             if (!confirm(confirmMsg)) return;
 
             try {
-                // 1. Delete Loan from 'loans' store
                 if (typeof deleteItem === 'function') {
                     await deleteItem('loans', l.id);
                 } else if (typeof firebase !== 'undefined' && firebase.firestore) {
                     await firebase.firestore().collection('loans').doc(String(l.id)).delete();
                 }
 
-                // 2. Clean up associated Cashbook entries if any exist
                 try {
                     const flows = await getAllItems('cashflow');
-                    const loanTag1 = `Loan #${l.loanNo}`;
-                    const loanTag2 = `Loan #${l.id}`;
                     for (let f of flows) {
                         if (f.note && (
                             (l.loanNo && new RegExp(`Loan #${l.loanNo}\\b`).test(f.note)) ||
@@ -590,17 +586,9 @@
                     console.warn("Cashflow cleanup skipped or partial:", cfErr);
                 }
 
-                // Close ledger modal if this loan was open inside it
                 if (String(currentLoanId) === String(loanId)) {
                     closeModal('viewModal');
                     currentLoanId = null;
-                }
-
-                // Check if customer still has other loans before reloading
-                const remainingCustLoans = allLoans.filter(x => String(x.customerId) === String(l.customerId) && String(x.id) !== String(loanId));
-                if (remainingCustLoans.length === 0 && String(currentCustomerViewId) === String(l.customerId)) {
-                    closeModal('customerLoansModal');
-                    currentCustomerViewId = null;
                 }
 
                 alert(`🗑️ Loan A/C #${l.loanNo || l.id} successfully delete ho gaya!`);
@@ -656,6 +644,45 @@
             if (purity == '18' || purity == 18) factor = 0.818; 
             if (purity == '24' || purity == 24) factor = 1.09;  
             return weight * ratePerGram * factor;
+        }
+
+        // --- HELPER: CHECK IF LOAN IS FULLY SETTLED / ZERO ---
+        function checkAndMarkClosed(l) {
+            if (!l.payments || l.payments.length === 0) return false;
+
+            let totalUdhar = parseFloat(l.amount) || 0;
+            if (l.ledger) l.ledger.forEach(row => totalUdhar += (row.interestCharged || 0));
+            if (l.topUps) {
+                l.topUps.forEach(t => {
+                    totalUdhar += (t.amount || 0);
+                    if (t.ledger) t.ledger.forEach(row => totalUdhar += (row.interestCharged || 0));
+                });
+            }
+
+            let totalJama = 0;
+            l.payments.forEach(p => totalJama += (parseFloat(p.totalAmount) || 0));
+
+            let netPayable = totalUdhar - totalJama;
+
+            let remMain = (l.ledger && l.ledger.length > 0) ? l.ledger[l.ledger.length - 1].closingPrincipal : l.amount;
+            let remTopUp = 0;
+            if (l.topUps) l.topUps.forEach(t => remTopUp += Math.max(0, t.amount - (t.paidPrincipal || 0)));
+
+            let remInt = 0;
+            if (l.ledger) l.ledger.forEach(r => remInt += (r.interestCharged - (r.paidInterest || 0)));
+            if (l.topUps) l.topUps.forEach(t => {
+                if (t.ledger) t.ledger.forEach(r => remInt += (r.interestCharged - (r.paidInterest || 0)));
+            });
+
+            if (netPayable <= 0 || (remMain <= 0 && remTopUp <= 0 && remInt <= 0)) {
+                if (l.status !== 'closed') {
+                    l.status = 'closed';
+                    if (!l.closeDate) l.closeDate = l.payments[l.payments.length - 1].date || new Date().toISOString();
+                    if (l.ledger && l.ledger.length > 0) l.ledger[l.ledger.length - 1].closingPrincipal = 0;
+                    return true;
+                }
+            }
+            return false;
         }
 
         // --- CHRONOLOGICAL LEDGER RECALCULATION (SUPPORTS BACKDATED PAYMENTS) ---
@@ -717,7 +744,6 @@
                 events.push({ type: 'PAYMENT', date: new Date(p.date), payIdx: idx });
             });
 
-            // Priority on same timestamp: Accrue month interest first, then apply payment
             const typePriority = { 'MAIN_MONTH': 1, 'TOPUP_MONTH': 2, 'PAYMENT': 3 };
             events.sort((a, b) => {
                 const diff = a.date.getTime() - b.date.getTime();
@@ -725,25 +751,39 @@
                 return typePriority[a.type] - typePriority[b.type];
             });
 
-            // Replay all events chronologically
+            // Replay all events chronologically across the timeline
             events.forEach(ev => {
+                // Stop generating future months if loan is already fully paid off
+                let curMainP = l.ledger[l.ledger.length - 1].closingPrincipal;
+                let curTopP = 0;
+                if (l.topUps) l.topUps.forEach(t => {
+                    if (t.ledger && t.ledger.length > 0) curTopP += Math.max(0, t.amount - (t.paidPrincipal || 0));
+                });
+                let curUnpaidInt = 0;
+                l.ledger.forEach(r => curUnpaidInt += (r.interestCharged - r.paidInterest));
+                if (l.topUps) l.topUps.forEach(t => {
+                    if (t.ledger) t.ledger.forEach(r => curUnpaidInt += (r.interestCharged - r.paidInterest));
+                });
+
+                const alreadySettled = (l.payments.length > 0 && curMainP <= 0 && curTopP <= 0 && curUnpaidInt <= 0);
+
                 if (ev.type === 'MAIN_MONTH') {
-                    const prev = l.ledger[l.ledger.length - 1];
-                    const openP = prev.closingPrincipal;
+                    if (alreadySettled || curMainP <= 0) return;
                     const mStr = ev.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                     l.ledger.push({
                         month: mStr,
                         cycleDate: ev.date.toISOString(),
-                        openPrincipal: openP,
-                        interestCharged: Math.round((openP * l.ratePercent) / 100),
+                        openPrincipal: curMainP,
+                        interestCharged: Math.round((curMainP * l.ratePercent) / 100),
                         paidInterest: 0,
                         paidPrincipal: 0,
-                        closingPrincipal: openP,
+                        closingPrincipal: curMainP,
                         status: 'active'
                     });
                 } else if (ev.type === 'TOPUP_MONTH') {
                     const t = l.topUps[ev.topUpIdx];
                     const curTPrin = Math.max(0, t.amount - (t.paidPrincipal || 0));
+                    if (curTPrin <= 0) return;
                     const mStr = ev.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                     t.ledger.push({
                         month: mStr,
@@ -797,17 +837,15 @@
                         }
                     }
 
-                    // 4. Pay Top-Up Principal (only for top-ups that have started by payment date)
+                    // 4. Pay Top-Up Principal
                     if (rem > 0 && l.topUps) {
                         for (let t = 0; t < l.topUps.length; t++) {
-                            if (l.topUps[t].ledger && l.topUps[t].ledger.length > 0) {
-                                let unpaidT = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
-                                if (unpaidT > 0 && rem > 0) {
-                                    let pay = Math.min(rem, unpaidT);
-                                    l.topUps[t].paidPrincipal = (l.topUps[t].paidPrincipal || 0) + pay;
-                                    rem -= pay;
-                                    prinPaidThis += pay;
-                                }
+                            let unpaidT = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
+                            if (unpaidT > 0 && rem > 0) {
+                                let pay = Math.min(rem, unpaidT);
+                                l.topUps[t].paidPrincipal = (l.topUps[t].paidPrincipal || 0) + pay;
+                                rem -= pay;
+                                prinPaidThis += pay;
                             }
                         }
                     }
@@ -817,27 +855,16 @@
                 }
             });
 
-            // Check if loan is fully settled
-            let remMain = l.ledger[l.ledger.length - 1].closingPrincipal;
-            let remTopUp = 0;
-            if (l.topUps) l.topUps.forEach(t => remTopUp += Math.max(0, t.amount - (t.paidPrincipal || 0)));
-
-            let remInt = 0;
-            l.ledger.forEach(r => remInt += (r.interestCharged - r.paidInterest));
-            if (l.topUps) l.topUps.forEach(t => {
-                if (t.ledger) t.ledger.forEach(r => remInt += (r.interestCharged - r.paidInterest));
-            });
-
-            if (l.payments.length > 0 && remMain <= 0 && remTopUp <= 0 && remInt <= 0) {
-                l.status = 'closed';
-                if (!l.closeDate) l.closeDate = l.payments[l.payments.length - 1].date;
-            } else {
-                l.status = 'active';
-            }
+            l.status = 'active';
+            checkAndMarkClosed(l);
         }
 
         // --- DATE TO DATE INTEREST LOGIC (INCLUDING TOP-UPS) ---
         function syncLoanLedger(l) {
+            // Auto-check if an active loan is already paid off / zero
+            if (l.status === 'active' && checkAndMarkClosed(l)) {
+                return true;
+            }
             if (l.status !== 'active') return false; 
             let updated = false;
             const now = new Date();
@@ -852,11 +879,13 @@
             if (l.ledger && l.ledger.length < expectedLedgerLength) {
                 for (let i = l.ledger.length; i < expectedLedgerLength; i++) {
                     const prevEntry = l.ledger[i - 1];
+                    const newOpenPrincipal = prevEntry.closingPrincipal;
+                    if (newOpenPrincipal <= 0) break;
+
                     const missingMonthDate = new Date(startDate);
                     missingMonthDate.setMonth(startDate.getMonth() + i);
                     const monthStr = missingMonthDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                     
-                    const newOpenPrincipal = prevEntry.closingPrincipal;
                     const newInterest = Math.round((newOpenPrincipal * l.ratePercent) / 100);
                     
                     l.ledger.push({
@@ -875,6 +904,9 @@
             // 2. Sync Top-Ups Ledger (Extra Money)
             if (l.topUps && l.topUps.length > 0) {
                 l.topUps.forEach(topUp => {
+                    let currentTPrin = topUp.amount - (topUp.paidPrincipal || 0);
+                    if (currentTPrin <= 0) return;
+
                     const tStartDate = new Date(topUp.date);
                     let tElapsedMonths = (now.getFullYear() - tStartDate.getFullYear()) * 12 + (now.getMonth() - tStartDate.getMonth());
                     if (now.getDate() < tStartDate.getDate()) { tElapsedMonths--; }
@@ -889,7 +921,6 @@
                             tMissingMonthDate.setMonth(tStartDate.getMonth() + i);
                             const tMonthStr = tMissingMonthDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                             
-                            let currentTPrin = topUp.amount - (topUp.paidPrincipal || 0);
                             const newTInterest = Math.round((currentTPrin * l.ratePercent) / 100);
                             
                             topUp.ledger.push({
@@ -936,9 +967,10 @@
                     }
                     if(l.topUps && l.topUps.length > 0) {
                         l.topUps.forEach(t => {
-                            currentPrin += (t.amount - (t.paidPrincipal || 0));
+                            currentPrin += Math.max(0, t.amount - (t.paidPrincipal || 0));
                         });
                     }
+                    if (l.status === 'closed') currentPrin = 0;
 
                     if(l.status === 'active') {
                         totalPrin += currentPrin;
@@ -1001,6 +1033,7 @@
                         closedCount: 0,
                         totalActivePrincipal: 0,
                         totalActiveInterest: 0,
+                        totalClosedPrincipal: 0,
                         hasRiskyLoan: false,
                         loans: []
                     };
@@ -1029,14 +1062,17 @@
                     }
                 } else {
                     groups[l.customerId].closedCount++;
+                    groups[l.customerId].totalClosedPrincipal += (parseFloat(l.amount) || 0);
                 }
             });
 
-            // Calculate Audit Progress Counter across all active/closed groups in current tab
-            let allTabGroups = Object.values(groups).filter(g => currentTab === 'active' ? g.activeCount > 0 : (g.activeCount === 0 && g.closedCount > 0));
+            // Filter by Active vs Closed Tab:
+            // Active tab shows customers with >= 1 active loan.
+            // Closed (History) tab shows customers with >= 1 closed loan!
+            let allTabGroups = Object.values(groups).filter(g => currentTab === 'active' ? g.activeCount > 0 : g.closedCount > 0);
             let verifiedCustCount = 0;
             allTabGroups.forEach(g => {
-                const relevantLoans = g.loans.filter(l => currentTab === 'active' ? l.status === 'active' : l.status !== 'active');
+                const relevantLoans = g.loans.filter(l => currentTab === 'active' ? l.status === 'active' : l.status === 'closed');
                 if (relevantLoans.length > 0 && relevantLoans.every(l => isLoanAuditChecked(l))) {
                     verifiedCustCount++;
                 }
@@ -1051,17 +1087,18 @@
             });
 
             if(filteredGroups.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: span 3;">No ${currentTab} customers found.</div>`;
+                container.innerHTML = `<div style="text-align:center; padding:30px; color:#999; grid-column: span 3;">No ${currentTab} loan records found.</div>`;
                 return;
             }
 
             filteredGroups.sort((a,b) => a.custName.localeCompare(b.custName)).forEach(g => {
-                let isRisky = g.hasRiskyLoan;
-                let borderTopColor = g.activeCount > 0 ? (isRisky ? '#d32f2f' : '#1976d2') : '#2e7d32';
-                let badgeClass = isRisky ? 'badge-overdue' : (g.activeCount > 0 ? 'badge-active' : 'badge-closed');
-                let badgeText = isRisky ? `⚠️ Risk: Amount > Gold Value` : (g.activeCount > 0 ? `${g.activeCount} Active Loan(s)` : `All Closed`);
+                const isClosedTab = (currentTab === 'closed');
+                let isRisky = !isClosedTab && g.hasRiskyLoan;
+                let borderTopColor = !isClosedTab ? (isRisky ? '#d32f2f' : '#1976d2') : '#2e7d32';
+                let badgeClass = isRisky ? 'badge-overdue' : (!isClosedTab ? 'badge-active' : 'badge-closed');
+                let badgeText = isRisky ? `⚠️ Risk: Amount > Gold Value` : (!isClosedTab ? `${g.activeCount} Active Loan(s)` : `${g.closedCount} Closed Loan(s)`);
 
-                const relevantLoans = g.loans.filter(l => currentTab === 'active' ? l.status === 'active' : l.status !== 'active');
+                const relevantLoans = g.loans.filter(l => !isClosedTab ? l.status === 'active' : l.status === 'closed');
                 const checkedCount = relevantLoans.filter(l => isLoanAuditChecked(l)).length;
                 const isCustVerified = relevantLoans.length > 0 && checkedCount === relevantLoans.length;
 
@@ -1074,12 +1111,21 @@
                     verifiedTagHtml = `<span class="verified-tag" style="background:#fff3e0; color:#e65100;"><i class="fas fa-clock"></i> ${checkedCount}/${relevantLoans.length} Checked</span>`;
                 }
 
-                let interestHtml = '';
-                if (g.activeCount > 0) {
-                    interestHtml = `
-                    <div style="font-size:1.05rem; color:#d84315; font-weight:700; margin-top:2px;">
-                        + ₹${g.totalActiveInterest.toLocaleString()} <span style="font-size:0.75rem; color:#666; font-weight:normal;">Pending Int.</span>
-                    </div>`;
+                let amountSectionHtml = '';
+                if (!isClosedTab) {
+                    amountSectionHtml = `
+                        <div class="l-amt" style="margin-bottom:0;">₹${g.totalActivePrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Principal</span></div>
+                        <div style="font-size:1.05rem; color:#d84315; font-weight:700; margin-top:2px;">
+                            + ₹${g.totalActiveInterest.toLocaleString()} <span style="font-size:0.75rem; color:#666; font-weight:normal;">Pending Int.</span>
+                        </div>
+                    `;
+                } else {
+                    amountSectionHtml = `
+                        <div class="l-amt" style="margin-bottom:0; color:#2e7d32;">₹${g.totalClosedPrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Original Principal (Settled)</span></div>
+                        <div style="font-size:0.85rem; color:#2e7d32; font-weight:600; margin-top:2px;">
+                            <i class="fas fa-check-circle"></i> Account Cleared / Closed
+                        </div>
+                    `;
                 }
 
                 container.innerHTML += `
@@ -1098,11 +1144,10 @@
                             <span class="l-badge ${badgeClass}">${badgeText}</span>
                         </div>
                         
-                        <div class="l-amt" style="margin-bottom:0;">₹${g.totalActivePrincipal.toLocaleString()} <span style="font-size:0.8rem; color:#666; font-weight:normal;">Principal</span></div>
-                        ${interestHtml} 
+                        ${amountSectionHtml}
                         <div class="l-footer">
-                            <span style="font-size:0.85rem; color:#666; font-weight:600;">Total Records: ${g.loans.length}</span>
-                            <button class="btn-view" onclick="openCustomerLoans('${g.customerId}')">View Details</button>
+                            <span style="font-size:0.85rem; color:#666; font-weight:600;">${!isClosedTab ? `Active Loans: ${g.activeCount}` : `Closed Loans: ${g.closedCount}`}</span>
+                            <button class="btn-view" onclick="openCustomerLoans('${g.customerId}')">View ${!isClosedTab ? 'Active' : 'Closed'}</button>
                         </div>
                     </div>
                 `;
@@ -1123,13 +1168,20 @@
             if(!foundCust) return alert("Customer not found.");
             
             currentCustomerViewId = foundCust.id;
-            const custLoans = allLoans.filter(l => String(l.customerId) === String(currentCustomerViewId));
+            // Filter strictly according to currentTab!
+            // Active tab shows ONLY active loans; History tab shows ONLY closed loans!
+            const custLoans = allLoans.filter(l => 
+                String(l.customerId) === String(currentCustomerViewId) && 
+                (currentTab === 'active' ? l.status === 'active' : l.status === 'closed')
+            );
+
             if(!custLoans.length) {
                 closeModal('customerLoansModal');
                 return;
             }
             
-            document.getElementById('custListTitle').innerText = `${foundCust.name}'s Loans`;
+            const tabLabel = currentTab === 'active' ? 'Active Loans' : 'Closed Loans (History)';
+            document.getElementById('custListTitle').innerText = `${foundCust.name} - ${tabLabel}`;
             
             const container = document.getElementById('customerLoansContainer');
             const summaryBox = document.getElementById('customerLoansTotalSummary');
@@ -1139,21 +1191,16 @@
             let sumCurrPrin = 0;
             let sumPendingInt = 0;
             let sumGrandTotal = 0;
-            let activeLoansCount = 0;
 
-            custLoans.sort((a,b) => {
-                if(a.status === 'active' && b.status !== 'active') return -1;
-                if(a.status !== 'active' && b.status === 'active') return 1;
-                return new Date(b.date) - new Date(a.date);
-            }).forEach(l => {
+            custLoans.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(l => {
                 let bClass = l.status === 'active' ? 'badge-active' : 'badge-closed';
-                let bText = l.status === 'active' ? 'Active' : 'Closed';
+                let bText = l.status === 'active' ? 'Active' : 'Closed / Cleared';
                 
                 // 1. Main Principal (Original Loan Amount)
                 let mainPrin = parseFloat(l.amount) || 0;
                 
                 // 2. Current Principal (Remaining Main Principal + Remaining Top-Ups)
-                let currPrin = l.currentPrincipal !== undefined ? l.currentPrincipal : mainPrin;
+                let currPrin = l.status === 'closed' ? 0 : (l.currentPrincipal !== undefined ? l.currentPrincipal : mainPrin);
 
                 // 3. Total Udhar & Total Jama Calculation
                 let totalUdhar = mainPrin;
@@ -1179,14 +1226,11 @@
                     });
                 }
 
-                // Add to Grand Totals for Active Loans
-                if(l.status === 'active') {
-                    activeLoansCount++;
-                    sumMainPrin += mainPrin;
-                    sumCurrPrin += currPrin;
-                    sumPendingInt += pendingInt;
-                    sumGrandTotal += netPayable;
-                }
+                // Add to Grand Totals
+                sumMainPrin += mainPrin;
+                sumCurrPrin += currPrin;
+                sumPendingInt += pendingInt;
+                sumGrandTotal += netPayable;
 
                 let wText = l.weight ? ` (${l.weight}g)` : '';
 
@@ -1201,6 +1245,8 @@
                 let cardBg = isLoanOverLimit ? '#ffebee' : (isChecked ? '#f1f8e9' : '#f8f9fa');
                 let cardBorderLeft = isLoanOverLimit ? '4px solid #c62828' : `4px solid ${l.status === 'active' ? '#1976d2' : '#2e7d32'}`;
                 let warningText = isLoanOverLimit ? `<div style="color:#c62828; font-weight:bold; font-size:0.75rem; margin-top:8px; background:#fff; padding:6px 8px; border-radius:4px; border:1px solid #ffcdd2;"><i class="fas fa-exclamation-triangle"></i> Alert: Due exceeds current Gold Value (₹${Math.round(mktVal).toLocaleString()})</div>` : '';
+
+                let closedDateInfo = (l.status === 'closed' && l.closeDate) ? ` | Settled: <strong>${new Date(l.closeDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong>` : '';
 
                 container.innerHTML += `
                     <div style="background:${cardBg}; padding:15px; border-radius:8px; border:1px solid ${isChecked ? '#a5d6a7' : '#e0e0e0'}; border-left: ${cardBorderLeft};">
@@ -1217,7 +1263,7 @@
                             <span class="l-badge ${isLoanOverLimit ? 'badge-overdue' : bClass}">${isLoanOverLimit ? '⚠️ High Risk' : bText}</span>
                         </div>
                         <div style="font-size:0.8rem; color:#666; margin-bottom:10px; padding-left:42px;">
-                            Issued: <strong>${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong> | Int Rate: <strong>${l.ratePercent}% / mo</strong>
+                            Issued: <strong>${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong> | Int Rate: <strong>${l.ratePercent}% / mo</strong>${closedDateInfo}
                         </div>
 
                         <!-- 4-Box Breakdown Grid: Main Prin, Current Prin, Pending Int, Total Due -->
@@ -1228,7 +1274,7 @@
                             </div>
                             <div style="border-right:1px solid #eee; padding-right:4px;">
                                 <div style="font-size:0.68rem; color:#777;">Current Prin.</div>
-                                <div style="font-weight:700; color:#1976d2; font-size:0.88rem;">₹${(l.status === 'closed' ? 0 : currPrin).toLocaleString()}</div>
+                                <div style="font-weight:700; color:#1976d2; font-size:0.88rem;">₹${currPrin.toLocaleString()}</div>
                             </div>
                             <div style="border-right:1px solid #eee; padding-right:4px;">
                                 <div style="font-size:0.68rem; color:#777;">Pending Int.</div>
@@ -1236,7 +1282,7 @@
                             </div>
                             <div>
                                 <div style="font-size:0.68rem; color:#777;">Total Due</div>
-                                <div style="font-weight:800; color:${l.status === 'active' ? '#D32F2F' : '#2e7d32'}; font-size:0.95rem;">₹${netPayable.toLocaleString()}</div>
+                                <div style="font-weight:800; color:${l.status === 'active' ? '#D32F2F' : '#2e7d32'}; font-size:0.95rem;">${l.status === 'closed' ? '₹0 (Clear)' : '₹' + netPayable.toLocaleString()}</div>
                             </div>
                         </div>
 
@@ -1257,7 +1303,7 @@
             if (summaryBox) {
                 summaryBox.innerHTML = `
                     <div style="font-size:0.8rem; font-weight:700; color:#b2872c; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between;">
-                        <span><i class="fas fa-calculator"></i> Sabhi Active Loans Ka Total (${activeLoansCount})</span>
+                        <span><i class="fas fa-calculator"></i> ${currentTab === 'active' ? `Sabhi Active Loans Ka Total (${custLoans.length})` : `Sabhi Closed Loans Ka Total (${custLoans.length})`}</span>
                     </div>
                     <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; text-align:center; background:#fff; padding:10px 8px; border-radius:8px; border:1px solid #ffe082;">
                         <div style="border-right:1px solid #eee;">
@@ -1274,7 +1320,7 @@
                         </div>
                         <div>
                             <div style="font-size:0.7rem; color:#666; font-weight:600;">Grand Total</div>
-                            <div style="font-weight:800; color:#D32F2F; font-size:1.1rem;">₹${sumGrandTotal.toLocaleString()}</div>
+                            <div style="font-weight:800; color:${currentTab === 'active' ? '#D32F2F' : '#2e7d32'}; font-size:1.1rem;">₹${sumGrandTotal.toLocaleString()}</div>
                         </div>
                     </div>
                 `;
@@ -1701,7 +1747,6 @@
 
                 const payDateObj = new Date(payDateVal);
                 const loanStartObj = new Date(l.date);
-                // Reset time part for fair date comparison
                 const payDay = new Date(payDateObj.getFullYear(), payDateObj.getMonth(), payDateObj.getDate());
                 const startDay = new Date(loanStartObj.getFullYear(), loanStartObj.getMonth(), loanStartObj.getDate());
 
@@ -1719,7 +1764,7 @@
                     principalPaid: 0
                 });
 
-                // Chronologically recalculate entire loan ledger (handles both current & backdated Jama accurately)
+                // Chronologically recalculate entire loan ledger & check if settled
                 recalculateLoanLedger(l);
 
                 await updateItem('loans', l);
@@ -1740,10 +1785,18 @@
                     });
                 }
 
-                alert(`✅ ₹${payAmt.toLocaleString()} Jama Recorded on ${formattedPayDate} & Cashbook Updated!`);
+                if (l.status === 'closed') {
+                    alert(`🎉 Loan A/C #${l.loanNo || currentLoanId} poora Clear (Settled) ho gaya hai aur History (Closed) tab me chala gaya hai!`);
+                    closeModal('viewModal');
+                } else {
+                    alert(`✅ ₹${payAmt.toLocaleString()} Jama Recorded on ${formattedPayDate} & Cashbook Updated!`);
+                }
+
                 await loadCashBalance(); 
                 await loadLoans(); 
-                openLedger(currentLoanId); 
+                if (l.status !== 'closed') {
+                    openLedger(currentLoanId); 
+                }
             } catch (e) {
                 console.error("Payment Processing Error", e);
                 alert("Error recording payment. Check console.");
