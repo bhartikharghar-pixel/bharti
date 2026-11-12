@@ -56,6 +56,10 @@
         .loan-card.verified-card { background: #f4fbf6; border-color: #a5d6a7; }
         .verified-tag { font-size: 0.7rem; color: #2e7d32; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; background: #e8f5e9; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
 
+        /* Delete Button Style */
+        .btn-delete-loan { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; transition: 0.2s; }
+        .btn-delete-loan:hover { background: #c62828; color: #fff; }
+
         /* Loan Cards Grid */
         .loan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
         .loan-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; border-top: 4px solid #1976d2; transition: transform 0.2s; }
@@ -122,7 +126,7 @@
         /* Print Specifics */
         @media print {
             body { background: white; padding: 0; color: black; }
-            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .fab, .close-btn, #paymentBox, #btnSettleClose, #btnWaReminder, #btnPrintLedger, #btnAddTopUp { display: none !important; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .fab, .close-btn, #paymentBox, #btnSettleClose, #btnWaReminder, #btnPrintLedger, #btnDeleteLedgerLoan, #btnAddTopUp { display: none !important; }
             .modal { position: static; display: block !important; background: none; }
             .modal-content { box-shadow: none; max-width: 100%; width: 100%; padding: 0; margin: 0; border: none; }
             .t-ledger-container { border: 1px solid #000; break-inside: avoid; }
@@ -208,7 +212,7 @@
         <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- CUSTOMER LOANS MODAL WITH 4-BOX BREAKDOWN, AUDIT TICK & GRAND TOTAL -->
+    <!-- CUSTOMER LOANS MODAL WITH 4-BOX BREAKDOWN, AUDIT TICK, DELETE & GRAND TOTAL -->
     <div id="customerLoansModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('customerLoansModal')">&times;</button>
@@ -328,7 +332,12 @@
             <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
             <h3 id="viewTitle" style="display:flex; justify-content:space-between; align-items:center; padding-right:40px; margin-bottom:5px;">
                 <span>Loan A/C: <span id="vLoanIdHeader"></span></span>
-                <button id="btnPrintLedger" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#555;" onclick="window.print()" title="Print Ledger"><i class="fas fa-print"></i></button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button id="btnDeleteLedgerLoan" class="btn-delete-loan" onclick="deleteLoan(currentLoanId)" title="Is Loan ko humesha ke liye delete karein">
+                        <i class="fas fa-trash-alt"></i> Delete Loan
+                    </button>
+                    <button id="btnPrintLedger" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#555;" onclick="window.print()" title="Print Ledger"><i class="fas fa-print"></i></button>
+                </div>
             </h3>
             
             <div style="font-size: 0.9rem; color: #555; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
@@ -398,8 +407,15 @@
                 <div class="net-payable-amt" id="uiNetPayable">₹0</div>
             </div>
 
+            <!-- PAYMENT (JAMA) BOX WITH DATE PICKER -->
             <div id="paymentBox" style="background:#fff; border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <h4 style="margin:0 0 10px 0; color:#333; font-size:0.95rem;">Receive Payment (Jama)</h4>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                    <h4 style="margin:0; color:#333; font-size:0.95rem;"><i class="fas fa-hand-holding-usd" style="color:#2e7d32;"></i> Receive Payment (Jama)</h4>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <label style="margin:0; font-size:0.78rem; color:#2e7d32; font-weight:700;">Jama Date:</label>
+                        <input type="date" id="payDate" style="width:auto; padding:6px 10px; font-size:0.85rem; border:1px solid #2e7d32; border-radius:6px; font-weight:600; color:#2e7d32;">
+                    </div>
+                </div>
                 
                 <div style="display:flex; gap:10px; margin-bottom: 10px;">
                     <div style="flex:1;">
@@ -440,6 +456,12 @@
         let currentTab = 'active';
         let goldRates = { rate22k: 0 };
         let currentCustomerViewId = null;
+
+        function getTodayISTDateStr() {
+            const today = new Date();
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            return new Date(today.getTime() + istOffset).toISOString().split('T')[0];
+        }
 
         // --- 7 DAYS AUTO-EXPIRY AUDIT CHECK LOGIC ---
         const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -528,6 +550,68 @@
             }
         }
 
+        // --- DIRECT LOAN DELETE FUNCTION ---
+        async function deleteLoan(loanId, event) {
+            if (event) event.stopPropagation();
+            if (!loanId) return;
+
+            const l = allLoans.find(x => String(x.id) === String(loanId));
+            if (!l) return alert("Loan record nahi mila!");
+
+            const confirmMsg = `⚠️ KYA AAP SURE HAIN?\n\nAap "${l.custName}" ka Loan A/C #${l.loanNo || l.id} (${l.description || 'Gold Item'} - ₹${(l.amount || 0).toLocaleString()}) humesha ke liye DELETE kar rahe hain!\n\nIs loan se judi Cashbook entries bhi hat jayengi. Ye wapas nahi aayega!`;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                // 1. Delete Loan from 'loans' store
+                if (typeof deleteItem === 'function') {
+                    await deleteItem('loans', l.id);
+                } else if (typeof firebase !== 'undefined' && firebase.firestore) {
+                    await firebase.firestore().collection('loans').doc(String(l.id)).delete();
+                }
+
+                // 2. Clean up associated Cashbook entries if any exist
+                try {
+                    const flows = await getAllItems('cashflow');
+                    const loanTag1 = `Loan #${l.loanNo}`;
+                    const loanTag2 = `Loan #${l.id}`;
+                    for (let f of flows) {
+                        if (f.note && (
+                            (l.loanNo && new RegExp(`Loan #${l.loanNo}\\b`).test(f.note)) ||
+                            new RegExp(`Loan #${l.id}\\b`).test(f.note)
+                        )) {
+                            if (typeof deleteItem === 'function') {
+                                await deleteItem('cashflow', f.id);
+                            } else if (typeof firebase !== 'undefined' && firebase.firestore) {
+                                await firebase.firestore().collection('cashflow').doc(String(f.id)).delete();
+                            }
+                        }
+                    }
+                } catch (cfErr) {
+                    console.warn("Cashflow cleanup skipped or partial:", cfErr);
+                }
+
+                // Close ledger modal if this loan was open inside it
+                if (String(currentLoanId) === String(loanId)) {
+                    closeModal('viewModal');
+                    currentLoanId = null;
+                }
+
+                // Check if customer still has other loans before reloading
+                const remainingCustLoans = allLoans.filter(x => String(x.customerId) === String(l.customerId) && String(x.id) !== String(loanId));
+                if (remainingCustLoans.length === 0 && String(currentCustomerViewId) === String(l.customerId)) {
+                    closeModal('customerLoansModal');
+                    currentCustomerViewId = null;
+                }
+
+                alert(`🗑️ Loan A/C #${l.loanNo || l.id} successfully delete ho gaya!`);
+                await loadCashBalance();
+                await loadLoans();
+            } catch (err) {
+                console.error("Delete Loan Error:", err);
+                alert("Loan delete karne me error aayi. Console check karein.");
+            }
+        }
+
         window.onload = async function() {
             try {
                 const r = await getSetting('gold_rates');
@@ -572,6 +656,184 @@
             if (purity == '18' || purity == 18) factor = 0.818; 
             if (purity == '24' || purity == 24) factor = 1.09;  
             return weight * ratePerGram * factor;
+        }
+
+        // --- CHRONOLOGICAL LEDGER RECALCULATION (SUPPORTS BACKDATED PAYMENTS) ---
+        function recalculateLoanLedger(l) {
+            const now = new Date();
+            const startDate = new Date(l.date);
+            let elapsedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
+            if (now.getDate() < startDate.getDate()) elapsedMonths--;
+            if (elapsedMonths < 0) elapsedMonths = 0;
+            const totalMainMonths = elapsedMonths + 1;
+
+            // Initialize Main Ledger Month 0
+            const firstMonthStr = startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            l.ledger = [{
+                month: firstMonthStr,
+                cycleDate: startDate.toISOString(),
+                openPrincipal: l.amount,
+                interestCharged: Math.round((l.amount * l.ratePercent) / 100),
+                paidInterest: 0,
+                paidPrincipal: 0,
+                closingPrincipal: l.amount,
+                status: 'active'
+            }];
+
+            // Initialize Top-Ups
+            let topUpMeta = [];
+            if (l.topUps && l.topUps.length > 0) {
+                l.topUps.forEach((t, idx) => {
+                    t.paidPrincipal = 0;
+                    t.ledger = [];
+                    const tStart = new Date(t.date);
+                    let tElapsed = (now.getFullYear() - tStart.getFullYear()) * 12 + (now.getMonth() - tStart.getMonth());
+                    if (now.getDate() < tStart.getDate()) tElapsed--;
+                    if (tElapsed < 0) tElapsed = 0;
+                    topUpMeta.push({ idx, tStart, totalMonths: tElapsed + 1 });
+                });
+            }
+
+            // Build timeline events (subsequent month cycles & TopUp starts)
+            let events = [];
+            for (let i = 1; i < totalMainMonths; i++) {
+                const mDate = new Date(startDate);
+                mDate.setMonth(startDate.getMonth() + i);
+                events.push({ type: 'MAIN_MONTH', date: mDate, monthIndex: i });
+            }
+
+            topUpMeta.forEach(tm => {
+                for (let i = 0; i < tm.totalMonths; i++) {
+                    const tDate = new Date(tm.tStart);
+                    tDate.setMonth(tm.tStart.getMonth() + i);
+                    events.push({ type: 'TOPUP_MONTH', date: tDate, topUpIdx: tm.idx, monthIndex: i });
+                }
+            });
+
+            // Sort payments chronologically by date
+            if (!l.payments) l.payments = [];
+            l.payments.sort((a, b) => new Date(a.date) - new Date(b.date));
+            l.payments.forEach((p, idx) => {
+                events.push({ type: 'PAYMENT', date: new Date(p.date), payIdx: idx });
+            });
+
+            // Priority on same timestamp: Accrue month interest first, then apply payment
+            const typePriority = { 'MAIN_MONTH': 1, 'TOPUP_MONTH': 2, 'PAYMENT': 3 };
+            events.sort((a, b) => {
+                const diff = a.date.getTime() - b.date.getTime();
+                if (diff !== 0) return diff;
+                return typePriority[a.type] - typePriority[b.type];
+            });
+
+            // Replay all events chronologically
+            events.forEach(ev => {
+                if (ev.type === 'MAIN_MONTH') {
+                    const prev = l.ledger[l.ledger.length - 1];
+                    const openP = prev.closingPrincipal;
+                    const mStr = ev.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                    l.ledger.push({
+                        month: mStr,
+                        cycleDate: ev.date.toISOString(),
+                        openPrincipal: openP,
+                        interestCharged: Math.round((openP * l.ratePercent) / 100),
+                        paidInterest: 0,
+                        paidPrincipal: 0,
+                        closingPrincipal: openP,
+                        status: 'active'
+                    });
+                } else if (ev.type === 'TOPUP_MONTH') {
+                    const t = l.topUps[ev.topUpIdx];
+                    const curTPrin = Math.max(0, t.amount - (t.paidPrincipal || 0));
+                    const mStr = ev.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                    t.ledger.push({
+                        month: mStr,
+                        cycleDate: ev.date.toISOString(),
+                        interestCharged: Math.round((curTPrin * l.ratePercent) / 100),
+                        paidInterest: 0
+                    });
+                } else if (ev.type === 'PAYMENT') {
+                    const p = l.payments[ev.payIdx];
+                    let rem = parseFloat(p.totalAmount) || 0;
+                    let intPaidThis = 0;
+                    let prinPaidThis = 0;
+
+                    // 1. Pay unpaid Main Interest accrued so far
+                    for (let i = 0; i < l.ledger.length; i++) {
+                        let unpaid = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
+                        if (unpaid > 0 && rem > 0) {
+                            let pay = Math.min(rem, unpaid);
+                            l.ledger[i].paidInterest += pay;
+                            rem -= pay;
+                            intPaidThis += pay;
+                        }
+                    }
+
+                    // 2. Pay unpaid Top-Up Interest accrued so far
+                    if (l.topUps && rem > 0) {
+                        for (let t = 0; t < l.topUps.length; t++) {
+                            if (l.topUps[t].ledger) {
+                                for (let i = 0; i < l.topUps[t].ledger.length; i++) {
+                                    let unpaid = l.topUps[t].ledger[i].interestCharged - l.topUps[t].ledger[i].paidInterest;
+                                    if (unpaid > 0 && rem > 0) {
+                                        let pay = Math.min(rem, unpaid);
+                                        l.topUps[t].ledger[i].paidInterest += pay;
+                                        rem -= pay;
+                                        intPaidThis += pay;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Pay Main Principal
+                    if (rem > 0 && l.ledger.length > 0) {
+                        let lastEntry = l.ledger[l.ledger.length - 1];
+                        if (lastEntry.closingPrincipal > 0) {
+                            let pay = Math.min(rem, lastEntry.closingPrincipal);
+                            lastEntry.paidPrincipal += pay;
+                            lastEntry.closingPrincipal -= pay;
+                            rem -= pay;
+                            prinPaidThis += pay;
+                        }
+                    }
+
+                    // 4. Pay Top-Up Principal (only for top-ups that have started by payment date)
+                    if (rem > 0 && l.topUps) {
+                        for (let t = 0; t < l.topUps.length; t++) {
+                            if (l.topUps[t].ledger && l.topUps[t].ledger.length > 0) {
+                                let unpaidT = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
+                                if (unpaidT > 0 && rem > 0) {
+                                    let pay = Math.min(rem, unpaidT);
+                                    l.topUps[t].paidPrincipal = (l.topUps[t].paidPrincipal || 0) + pay;
+                                    rem -= pay;
+                                    prinPaidThis += pay;
+                                }
+                            }
+                        }
+                    }
+
+                    p.interestPaid = intPaidThis;
+                    p.principalPaid = prinPaidThis;
+                }
+            });
+
+            // Check if loan is fully settled
+            let remMain = l.ledger[l.ledger.length - 1].closingPrincipal;
+            let remTopUp = 0;
+            if (l.topUps) l.topUps.forEach(t => remTopUp += Math.max(0, t.amount - (t.paidPrincipal || 0)));
+
+            let remInt = 0;
+            l.ledger.forEach(r => remInt += (r.interestCharged - r.paidInterest));
+            if (l.topUps) l.topUps.forEach(t => {
+                if (t.ledger) t.ledger.forEach(r => remInt += (r.interestCharged - r.paidInterest));
+            });
+
+            if (l.payments.length > 0 && remMain <= 0 && remTopUp <= 0 && remInt <= 0) {
+                l.status = 'closed';
+                if (!l.closeDate) l.closeDate = l.payments[l.payments.length - 1].date;
+            } else {
+                l.status = 'active';
+            }
         }
 
         // --- DATE TO DATE INTEREST LOGIC (INCLUDING TOP-UPS) ---
@@ -862,7 +1124,10 @@
             
             currentCustomerViewId = foundCust.id;
             const custLoans = allLoans.filter(l => String(l.customerId) === String(currentCustomerViewId));
-            if(!custLoans.length) return;
+            if(!custLoans.length) {
+                closeModal('customerLoansModal');
+                return;
+            }
             
             document.getElementById('custListTitle').innerText = `${foundCust.name}'s Loans`;
             
@@ -976,9 +1241,14 @@
                         </div>
 
                         ${warningText}
-                        <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin-top:10px; background:#333;" onclick="openLedger('${l.id}')">
-                            <i class="fas fa-book-open"></i> Open T-Ledger
-                        </button>
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin:0; background:#333; flex:1;" onclick="openLedger('${l.id}')">
+                                <i class="fas fa-book-open"></i> Open T-Ledger
+                            </button>
+                            <button class="btn-delete-loan" onclick="deleteLoan('${l.id}', event)" title="Is Loan ko direct delete karein">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </button>
+                        </div>
                     </div>
                 `;
             });
@@ -1055,10 +1325,7 @@
             document.getElementById('loanWeight').value = '';
             document.getElementById('lblMaxLoan').innerText = '₹0';
             
-            const today = new Date();
-            const istOffset = 5.5 * 60 * 60 * 1000;
-            const istDate = new Date(today.getTime() + istOffset);
-            document.getElementById('loanStartDate').value = istDate.toISOString().split('T')[0];
+            document.getElementById('loanStartDate').value = getTodayISTDateStr();
         }
 
         function calcMaxLoan() {
@@ -1187,12 +1454,12 @@
                 document.getElementById('vItemWeight').innerText = l.weight ? l.weight + "g" : "N/A";
                 document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
 
+                const todayStr = getTodayISTDateStr();
                 document.getElementById('topUpBox').style.display = 'none';
                 document.getElementById('topUpAmount').value = '';
-                const today = new Date();
-                const istOffset = 5.5 * 60 * 60 * 1000;
-                document.getElementById('topUpDate').value = new Date(today.getTime() + istOffset).toISOString().split('T')[0];
+                document.getElementById('topUpDate').value = todayStr;
 
+                document.getElementById('payDate').value = todayStr;
                 document.getElementById('payCash').value = '';
                 document.getElementById('payBank').value = '';
                 document.getElementById('lblTotalPay').innerText = '₹0';
@@ -1205,11 +1472,11 @@
                 let totalUdhar = 0;
                 let totalJama = 0;
 
-                const startDateStr = new Date(l.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+                const startDateStr = new Date(l.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
                 uiUdhar.innerHTML += `
                     <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
                         <div style="display:flex; justify-content:space-between; width:100%;">
-                            <span>${startDateStr}</span>
+                            <span><i class="far fa-calendar-alt"></i> ${startDateStr}</span>
                             <span style="color:#c62828;">₹${l.amount.toLocaleString()}</span>
                         </div>
                         <div style="font-size:0.7rem; color:#666; margin-top:2px;">Principal (Main)</div>
@@ -1242,11 +1509,11 @@
 
                 if(l.topUps && l.topUps.length > 0) {
                     l.topUps.forEach((t, index) => {
-                        const tDateStr = new Date(t.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
+                        const tDateStr = new Date(t.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
                         uiUdhar.innerHTML += `
                             <li class="ledger-row" style="flex-direction:column; align-items:flex-start; background:#fff8e1;">
                                 <div style="display:flex; justify-content:space-between; width:100%;">
-                                    <span>${tDateStr}</span>
+                                    <span><i class="far fa-calendar-alt"></i> ${tDateStr}</span>
                                     <span style="color:#c62828;">₹${t.amount.toLocaleString()}</span>
                                 </div>
                                 <div style="font-size:0.7rem; color:#d84315; margin-top:2px; font-weight:600;">+ Extra Principal (Top-Up ${index+1})</div>
@@ -1278,28 +1545,32 @@
                 let pendingInt = totalIntCharged - totalIntPaid;
                 document.getElementById('uiPendingIntAmount').value = pendingInt;
 
-                let paymentsList = l.payments || [];
-                paymentsList.forEach(p => {
-                    const pDateStr = new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' });
-                    
-                    let modes = [];
-                    if(p.cashAmount > 0) modes.push(`Cash: ${p.cashAmount}`);
-                    if(p.bankAmount > 0) modes.push(`Bank: ${p.bankAmount}`);
-                    
-                    uiJama.innerHTML += `
-                        <li class="ledger-row" style="flex-direction:column; align-items:flex-start;">
-                            <div style="display:flex; justify-content:space-between; width:100%;">
-                                <span>${pDateStr}</span>
-                                <span style="color:#2e7d32;">₹${p.totalAmount.toLocaleString()}</span>
-                            </div>
-                            <div style="font-size:0.7rem; color:#666; margin-top:3px; display:flex; justify-content:space-between; width:100%;">
-                                <span>${modes.join(' | ')}</span>
-                                <span>Int: ${p.interestPaid || 0} | Prin: ${p.principalPaid || 0}</span>
-                            </div>
-                        </li>
-                    `;
-                    totalJama += p.totalAmount;
-                });
+                let paymentsList = (l.payments || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+                if (paymentsList.length === 0) {
+                    uiJama.innerHTML = `<li style="padding:15px; text-align:center; color:#999; font-size:0.8rem;">No Jama entries yet</li>`;
+                } else {
+                    paymentsList.forEach(p => {
+                        const pDateStr = p.date ? new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : 'N/A';
+                        
+                        let modes = [];
+                        if(p.cashAmount > 0) modes.push(`Cash: ₹${p.cashAmount.toLocaleString()}`);
+                        if(p.bankAmount > 0) modes.push(`Bank: ₹${p.bankAmount.toLocaleString()}`);
+                        
+                        uiJama.innerHTML += `
+                            <li class="ledger-row" style="flex-direction:column; align-items:flex-start; background:#f1f8e9;">
+                                <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                                    <span style="font-weight:600; color:#2e7d32;"><i class="far fa-calendar-check"></i> ${pDateStr}</span>
+                                    <span style="color:#2e7d32; font-size:0.95rem;">₹${(p.totalAmount || 0).toLocaleString()}</span>
+                                </div>
+                                <div style="font-size:0.7rem; color:#555; margin-top:3px; display:flex; justify-content:space-between; width:100%;">
+                                    <span>${modes.join(' | ')}</span>
+                                    <span>Int: ₹${(p.interestPaid || 0).toLocaleString()} | Prin: ₹${(p.principalPaid || 0).toLocaleString()}</span>
+                                </div>
+                            </li>
+                        `;
+                        totalJama += (p.totalAmount || 0);
+                    });
+                }
 
                 document.getElementById('uiTotalJama').innerText = `₹${totalJama.toLocaleString()}`;
                 document.getElementById('uiTotalUdhar').innerText = `₹${totalUdhar.toLocaleString()}`;
@@ -1361,6 +1632,7 @@
                     }]
                 });
 
+                recalculateLoanLedger(l);
                 await updateItem('loans', l);
                 
                 await addItem('cashflow', {
@@ -1411,116 +1683,64 @@
             document.getElementById('payCash').value = parseFloat(netAmtStr);
             document.getElementById('payBank').value = '';
             calcTotalPay();
-            alert("Settle amount auto-filled in 'Cash' box.\nYou can adjust Cash/Bank values if needed, then click 'Record Jama' to close the account.");
+            alert("Settle amount auto-filled in 'Cash' box.\nYou can adjust Cash/Bank values or Jama Date if needed, then click 'Record Jama' to close the account.");
         }
 
         async function processPayment() {
             const cashAmt = parseFloat(document.getElementById('payCash').value) || 0;
             const bankAmt = parseFloat(document.getElementById('payBank').value) || 0;
             const payAmt = cashAmt + bankAmt;
+            const payDateVal = document.getElementById('payDate').value;
 
             if(payAmt <= 0) return alert("Please enter valid Cash or Bank amount.");
+            if(!payDateVal) return alert("Please select Jama (Payment) Date.");
 
             try {
                 let l = await getItem('loans', currentLoanId);
                 if (!l) return alert("Error: Loan record not found.");
 
-                syncLoanLedger(l); 
+                const payDateObj = new Date(payDateVal);
+                const loanStartObj = new Date(l.date);
+                // Reset time part for fair date comparison
+                const payDay = new Date(payDateObj.getFullYear(), payDateObj.getMonth(), payDateObj.getDate());
+                const startDay = new Date(loanStartObj.getFullYear(), loanStartObj.getMonth(), loanStartObj.getDate());
 
-                let pendingInt = 0;
-                if (l.ledger) l.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
-                if (l.topUps) l.topUps.forEach(t => {
-                    if(t.ledger) t.ledger.forEach(r => pendingInt += (r.interestCharged - r.paidInterest));
-                });
-
-                let toInt = Math.min(payAmt, pendingInt);
-                let toPrin = payAmt - toInt;
+                if (payDay < startDay) {
+                    return alert("Jama Date loan shuru hone ki date (" + loanStartObj.toLocaleDateString('en-IN') + ") se pehle ki nahi ho sakti!");
+                }
 
                 if (!l.payments) l.payments = [];
                 l.payments.push({ 
-                    date: new Date().toISOString(), 
+                    date: payDateObj.toISOString(), 
                     totalAmount: payAmt, 
                     cashAmount: cashAmt, 
                     bankAmount: bankAmt,
-                    interestPaid: toInt,
-                    principalPaid: toPrin
+                    interestPaid: 0,
+                    principalPaid: 0
                 });
 
-                let amountToDistribute = payAmt;
-                if(l.ledger) {
-                    for (let i = 0; i < l.ledger.length; i++) {
-                        let unpaidInt = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
-                        if (unpaidInt > 0) {
-                            let payThis = Math.min(amountToDistribute, unpaidInt);
-                            l.ledger[i].paidInterest += payThis;
-                            amountToDistribute -= payThis;
-                        }
-                    }
-                }
-                if(l.topUps && amountToDistribute > 0) {
-                    for(let t=0; t<l.topUps.length; t++) {
-                        if(l.topUps[t].ledger) {
-                            for(let i=0; i<l.topUps[t].ledger.length; i++) {
-                                let unpaidInt = l.topUps[t].ledger[i].interestCharged - l.topUps[t].ledger[i].paidInterest;
-                                if(unpaidInt > 0) {
-                                    let payThis = Math.min(amountToDistribute, unpaidInt);
-                                    l.topUps[t].ledger[i].paidInterest += payThis;
-                                    amountToDistribute -= payThis;
-                                }
-                            }
-                        }
-                    }
-                }
-                    
-                if(amountToDistribute > 0 && l.ledger) {
-                    let lastEntry = l.ledger[l.ledger.length - 1];
-                    let unpaidMainPrin = lastEntry.closingPrincipal;
-                    if(unpaidMainPrin > 0) {
-                        let payThis = Math.min(amountToDistribute, unpaidMainPrin);
-                        lastEntry.paidPrincipal += payThis;
-                        lastEntry.closingPrincipal -= payThis;
-                        amountToDistribute -= payThis;
-                    }
-                }
-                if(amountToDistribute > 0 && l.topUps) {
-                    for(let t=0; t<l.topUps.length; t++) {
-                        let unpaidTPrin = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
-                        if(unpaidTPrin > 0) {
-                            let payThis = Math.min(amountToDistribute, unpaidTPrin);
-                            l.topUps[t].paidPrincipal = (l.topUps[t].paidPrincipal || 0) + payThis;
-                            amountToDistribute -= payThis;
-                        }
-                    }
-                }
-
-                let remainingMainPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
-                let remainingTopUpPrin = 0;
-                if (l.topUps) l.topUps.forEach(t => remainingTopUpPrin += (t.amount - (t.paidPrincipal || 0)));
-                
-                if (remainingMainPrin <= 0 && remainingTopUpPrin <= 0) {
-                    l.status = 'closed';
-                    l.closeDate = new Date().toISOString();
-                    if(l.ledger[l.ledger.length - 1].closingPrincipal < 0) l.ledger[l.ledger.length - 1].closingPrincipal = 0;
-                }
+                // Chronologically recalculate entire loan ledger (handles both current & backdated Jama accurately)
+                recalculateLoanLedger(l);
 
                 await updateItem('loans', l);
 
+                const formattedPayDate = payDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                 if(cashAmt > 0) {
                     await addItem('cashflow', {
-                        date: new Date().toISOString(), type: 'IN', mode: 'Cash',
-                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama for Loan #${l.loanNo || currentLoanId}`,
+                        date: payDateObj.toISOString(), type: 'IN', mode: 'Cash',
+                        category: 'Loan Payment', amount: cashAmt, note: `Cash Jama (${formattedPayDate}) for Loan #${l.loanNo || currentLoanId}`,
                         customerId: l.customerId
                     });
                 }
                 if(bankAmt > 0) {
                     await addItem('cashflow', {
-                        date: new Date().toISOString(), type: 'IN', mode: 'Bank',
-                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama for Loan #${l.loanNo || currentLoanId}`,
+                        date: payDateObj.toISOString(), type: 'IN', mode: 'Bank',
+                        category: 'Loan Payment', amount: bankAmt, note: `Bank Jama (${formattedPayDate}) for Loan #${l.loanNo || currentLoanId}`,
                         customerId: l.customerId
                     });
                 }
 
-                alert("Payment Recorded & Cashbook Updated!");
+                alert(`✅ ₹${payAmt.toLocaleString()} Jama Recorded on ${formattedPayDate} & Cashbook Updated!`);
                 await loadCashBalance(); 
                 await loadLoans(); 
                 openLedger(currentLoanId); 
@@ -1570,33 +1790,8 @@
                         let loanData = await getItem('loans', currentLoanId);
                         
                         if (loanData) {
-                            let oldRate = loanData.ratePercent || 1; 
                             loanData.ratePercent = parsedRate;
-                            
-                            if (loanData.ledger && loanData.ledger.length > 0) {
-                                loanData.ledger.forEach(row => {
-                                    if (row.openPrincipal !== undefined) {
-                                        row.interestCharged = Math.round((row.openPrincipal * parsedRate) / 100);
-                                    } else {
-                                        row.interestCharged = Math.round((row.interestCharged / oldRate) * parsedRate);
-                                    }
-                                });
-                            }
-
-                            if (loanData.topUps && loanData.topUps.length > 0) {
-                                loanData.topUps.forEach(t => {
-                                    if (t.ledger && t.ledger.length > 0) {
-                                        t.ledger.forEach(row => {
-                                            if (oldRate > 0) {
-                                                row.interestCharged = Math.round((row.interestCharged / oldRate) * parsedRate);
-                                            } else {
-                                                let p = t.amount - (t.paidPrincipal || 0);
-                                                row.interestCharged = Math.round((p * parsedRate) / 100);
-                                            }
-                                        });
-                                    }
-                                });
-                            }
+                            recalculateLoanLedger(loanData);
 
                             await updateItem('loans', loanData); 
                             
