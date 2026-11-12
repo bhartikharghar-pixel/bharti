@@ -35,12 +35,26 @@
         .stat-lbl { font-size: 0.9rem; color: #666; font-weight: 500; }
 
         /* Filter & Tabs */
-        .controls-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        .controls-row { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; }
         .search-box { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none; }
         
         .tabs { display: flex; background: #e0e0e0; border-radius: 10px; padding: 4px; gap: 5px; }
         .tab { padding: 8px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
         .tab.active { background: white; color: #D32F2F; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* Action Bar (Bulk & Audit Controls) */
+        .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: #fff; padding: 12px 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border: 1px solid #e0e0e0; }
+        .audit-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .audit-badge { background: #e8f5e9; color: #2e7d32; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; border: 1px solid #c8e6c9; }
+        .btn-reset-checks { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+        .btn-reset-checks:hover { background: #ffcdd2; }
+
+        /* Verification Tick Button Styles */
+        .check-tick-btn { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ccc; background: #fff; color: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; flex-shrink: 0; padding: 0; outline: none; }
+        .check-tick-btn:hover { border-color: #2e7d32; color: #a5d6a7; }
+        .check-tick-btn.checked { background: #2e7d32; border-color: #2e7d32; color: #fff; box-shadow: 0 2px 6px rgba(46, 125, 50, 0.35); }
+        .loan-card.verified-card { background: #f4fbf6; border-color: #a5d6a7; }
+        .verified-tag { font-size: 0.7rem; color: #2e7d32; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; background: #e8f5e9; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
 
         /* Loan Cards Grid */
         .loan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
@@ -48,12 +62,12 @@
         .loan-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .loan-card.closed { border-top-color: #2e7d32; opacity: 0.8; }
         
-        .l-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .l-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; gap: 8px; }
         .l-cust { font-weight: 700; font-size: 1.1rem; color: #222; display: block; }
         .l-amt { font-weight: 700; font-size: 1.2rem; color: #D32F2F; }
         .l-sub { font-size: 0.85rem; color: #666; margin-bottom: 5px; display: block; }
         
-        .l-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+        .l-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
         .badge-active { background: #e3f2fd; color: #1565c0; }
         .badge-closed { background: #e8f5e9; color: #2e7d32; }
         .badge-overdue { background: #ffebee; color: #c62828; }
@@ -174,20 +188,35 @@
             </div>
         </div>
 
-        <button class="btn-primary" style="width: auto; background: #5e35b1; padding: 10px 15px; margin-bottom: 20px;" onclick="openBulkModal()">
-            <i class="fas fa-layer-group"></i> Add Purane Loans (Bulk)
-        </button>
+        <!-- ACTION BAR: BULK LOANS & DIARY AUDIT CHECK SYSTEM -->
+        <div class="action-bar">
+            <button class="btn-primary" style="width: auto; background: #5e35b1; padding: 10px 15px; margin: 0;" onclick="openBulkModal()">
+                <i class="fas fa-layer-group"></i> Add Purane Loans (Bulk)
+            </button>
+
+            <div class="audit-controls">
+                <span class="audit-badge" id="auditCounterBadge" title="7 din baad tick apne aap hat jayega">
+                    <i class="fas fa-check-double"></i> Diary Checked: 0 / 0
+                </span>
+                <button class="btn-reset-checks" onclick="clearAllAuditChecks()" title="Sabhi customers ke right nishan hatayein">
+                    <i class="fas fa-undo"></i> Sabhi Right (✓) Hatayein
+                </button>
+            </div>
+        </div>
         
         <div id="loans-list" class="loan-grid"></div>
         <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- CUSTOMER LOANS MODAL WITH 4-BOX BREAKDOWN & GRAND TOTAL -->
+    <!-- CUSTOMER LOANS MODAL WITH 4-BOX BREAKDOWN, AUDIT TICK & GRAND TOTAL -->
     <div id="customerLoansModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('customerLoansModal')">&times;</button>
-            <h3 id="custListTitle">Customer Loans</h3>
-            <div id="customerLoansContainer" style="margin-top:15px; display:grid; gap:10px; max-height: 55vh; overflow-y: auto; padding-right: 5px;"></div>
+            <h3 id="custListTitle" style="padding-right: 30px;">Customer Loans</h3>
+            <p style="font-size: 0.78rem; color: #666; margin-top: -5px; margin-bottom: 10px;">
+                <i class="fas fa-info-circle" style="color:#2e7d32;"></i> Paper diary se milane ke baad loan ke aage <strong>Right (✓)</strong> tick lagayein (7 din baad auto-reset).
+            </p>
+            <div id="customerLoansContainer" style="margin-top:10px; display:grid; gap:10px; max-height: 52vh; overflow-y: auto; padding-right: 5px;"></div>
             <!-- Grand Total Summary Bar -->
             <div id="customerLoansTotalSummary" style="margin-top: 15px; padding: 12px 15px; background: #fff8e1; border-radius: 10px; border: 2px solid #C5A059;"></div>
         </div>
@@ -412,6 +441,93 @@
         let goldRates = { rate22k: 0 };
         let currentCustomerViewId = null;
 
+        // --- 7 DAYS AUTO-EXPIRY AUDIT CHECK LOGIC ---
+        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+        function isLoanAuditChecked(loan) {
+            if (!loan || !loan.auditCheckedAt) return false;
+            const diff = Date.now() - Number(loan.auditCheckedAt);
+            return diff >= 0 && diff < SEVEN_DAYS_MS;
+        }
+
+        function getRemainingCheckDays(timestamp) {
+            if (!timestamp) return 0;
+            const remainingMs = SEVEN_DAYS_MS - (Date.now() - Number(timestamp));
+            return Math.max(1, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+        }
+
+        async function toggleLoanAuditCheck(loanId, event) {
+            if (event) event.stopPropagation();
+            const l = allLoans.find(x => String(x.id) === String(loanId));
+            if (!l) return;
+
+            const newTimestamp = isLoanAuditChecked(l) ? null : Date.now();
+            l.auditCheckedAt = newTimestamp;
+
+            try {
+                let dbLoan = await getItem('loans', loanId);
+                if (dbLoan) {
+                    dbLoan.auditCheckedAt = newTimestamp;
+                    await updateItem('loans', dbLoan);
+                }
+                renderLoans();
+                if (currentCustomerViewId) openCustomerLoans(currentCustomerViewId);
+            } catch (e) {
+                console.error("Error toggling loan audit check:", e);
+            }
+        }
+
+        async function toggleCustomerAuditCheck(custId, event) {
+            if (event) event.stopPropagation();
+            const custLoans = allLoans.filter(l => String(l.customerId) === String(custId) && (currentTab === 'active' ? l.status === 'active' : l.status !== 'active'));
+            if (!custLoans.length) return;
+
+            const allChecked = custLoans.every(l => isLoanAuditChecked(l));
+            const newTimestamp = allChecked ? null : Date.now();
+
+            try {
+                for (let l of custLoans) {
+                    l.auditCheckedAt = newTimestamp;
+                    let dbLoan = await getItem('loans', l.id);
+                    if (dbLoan) {
+                        dbLoan.auditCheckedAt = newTimestamp;
+                        await updateItem('loans', dbLoan);
+                    }
+                }
+                renderLoans();
+                if (currentCustomerViewId && String(currentCustomerViewId) === String(custId)) {
+                    openCustomerLoans(currentCustomerViewId);
+                }
+            } catch (e) {
+                console.error("Error toggling customer audit check:", e);
+            }
+        }
+
+        async function clearAllAuditChecks() {
+            const checkedLoans = allLoans.filter(l => l.auditCheckedAt);
+            if (checkedLoans.length === 0) {
+                return alert("Kisi bhi customer ya loan par abhi Right (✓) nishan nahi laga hai.");
+            }
+            if (!confirm(`Kya aap sabhi ${checkedLoans.length} checked loans ke Right (✓) nishan hatana chahte hain?`)) return;
+
+            try {
+                for (let l of checkedLoans) {
+                    l.auditCheckedAt = null;
+                    let dbLoan = await getItem('loans', l.id);
+                    if (dbLoan) {
+                        dbLoan.auditCheckedAt = null;
+                        await updateItem('loans', dbLoan);
+                    }
+                }
+                renderLoans();
+                if (currentCustomerViewId) openCustomerLoans(currentCustomerViewId);
+                alert("Sabhi Right (✓) nishan hata diye gaye hain!");
+            } catch (e) {
+                console.error("Error clearing audit checks:", e);
+                alert("Reset karne me error aayi.");
+            }
+        }
+
         window.onload = async function() {
             try {
                 const r = await getSetting('gold_rates');
@@ -539,7 +655,15 @@
                 allLoans = await Promise.all(loans.map(async (l) => {
                     const c = allCustomers.find(x => String(x.id) === String(l.customerId));
                     
-                    if (syncLoanLedger(l)) {
+                    let needsDbUpdate = syncLoanLedger(l);
+
+                    // Auto-clean expired 7-day audit check from DB
+                    if (l.auditCheckedAt && !isLoanAuditChecked(l)) {
+                        l.auditCheckedAt = null;
+                        needsDbUpdate = true;
+                    }
+
+                    if (needsDbUpdate) {
                         await updateItem('loans', l); 
                     }
 
@@ -646,12 +770,22 @@
                 }
             });
 
-            let filteredGroups = Object.values(groups).filter(g => {
-                let matchesSearch = g.custName.toLowerCase().includes(term) || String(g.custMobile).includes(term);
-                let matchesTab = false;
-                if (currentTab === 'active' && g.activeCount > 0) matchesTab = true;
-                if (currentTab === 'closed' && g.activeCount === 0 && g.closedCount > 0) matchesTab = true;
-                return matchesSearch && matchesTab;
+            // Calculate Audit Progress Counter across all active/closed groups in current tab
+            let allTabGroups = Object.values(groups).filter(g => currentTab === 'active' ? g.activeCount > 0 : (g.activeCount === 0 && g.closedCount > 0));
+            let verifiedCustCount = 0;
+            allTabGroups.forEach(g => {
+                const relevantLoans = g.loans.filter(l => currentTab === 'active' ? l.status === 'active' : l.status !== 'active');
+                if (relevantLoans.length > 0 && relevantLoans.every(l => isLoanAuditChecked(l))) {
+                    verifiedCustCount++;
+                }
+            });
+            const badgeEl = document.getElementById('auditCounterBadge');
+            if (badgeEl) {
+                badgeEl.innerHTML = `<i class="fas fa-check-double"></i> Diary Checked: ${verifiedCustCount} / ${allTabGroups.length}`;
+            }
+
+            let filteredGroups = allTabGroups.filter(g => {
+                return g.custName.toLowerCase().includes(term) || String(g.custMobile).includes(term);
             });
 
             if(filteredGroups.length === 0) {
@@ -665,6 +799,19 @@
                 let badgeClass = isRisky ? 'badge-overdue' : (g.activeCount > 0 ? 'badge-active' : 'badge-closed');
                 let badgeText = isRisky ? `⚠️ Risk: Amount > Gold Value` : (g.activeCount > 0 ? `${g.activeCount} Active Loan(s)` : `All Closed`);
 
+                const relevantLoans = g.loans.filter(l => currentTab === 'active' ? l.status === 'active' : l.status !== 'active');
+                const checkedCount = relevantLoans.filter(l => isLoanAuditChecked(l)).length;
+                const isCustVerified = relevantLoans.length > 0 && checkedCount === relevantLoans.length;
+
+                let verifiedTagHtml = '';
+                if (isCustVerified) {
+                    const earliestCheck = Math.min(...relevantLoans.map(l => Number(l.auditCheckedAt)));
+                    const daysLeft = getRemainingCheckDays(earliestCheck);
+                    verifiedTagHtml = `<span class="verified-tag"><i class="fas fa-check-circle"></i> Checked (${daysLeft}d left)</span>`;
+                } else if (checkedCount > 0) {
+                    verifiedTagHtml = `<span class="verified-tag" style="background:#fff3e0; color:#e65100;"><i class="fas fa-clock"></i> ${checkedCount}/${relevantLoans.length} Checked</span>`;
+                }
+
                 let interestHtml = '';
                 if (g.activeCount > 0) {
                     interestHtml = `
@@ -674,11 +821,17 @@
                 }
 
                 container.innerHTML += `
-                    <div class="loan-card" style="border-top-color: ${borderTopColor}; ${isRisky ? 'border-left: 2px solid #d32f2f;' : ''}">
+                    <div class="loan-card ${isCustVerified ? 'verified-card' : ''}" style="border-top-color: ${borderTopColor}; ${isRisky ? 'border-left: 2px solid #d32f2f;' : ''}">
                         <div class="l-header">
-                            <div>
-                                <span class="l-cust">${g.custName}</span>
-                                <span class="l-sub"><i class="fas fa-phone"></i> ${g.custMobile || 'N/A'}</span>
+                            <div style="display:flex; align-items:flex-start; gap:10px;">
+                                <button class="check-tick-btn ${isCustVerified ? 'checked' : ''}" onclick="toggleCustomerAuditCheck('${g.customerId}', event)" title="Diary se milane ke baad Right (✓) lagayein">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <div>
+                                    <span class="l-cust">${g.custName}</span>
+                                    <span class="l-sub"><i class="fas fa-phone"></i> ${g.custMobile || 'N/A'}</span>
+                                    ${verifiedTagHtml}
+                                </div>
                             </div>
                             <span class="l-badge ${badgeClass}">${badgeText}</span>
                         </div>
@@ -772,21 +925,33 @@
 
                 let wText = l.weight ? ` (${l.weight}g)` : '';
 
+                // Audit check status for this individual loan
+                const isChecked = isLoanAuditChecked(l);
+                const checkDaysLeft = isChecked ? getRemainingCheckDays(l.auditCheckedAt) : 0;
+
                 // Risk Highlight verification
                 let mktVal = getGoldValue(l.weight, l.purity);
                 let isLoanOverLimit = (l.status === 'active' && mktVal > 0 && netPayable > mktVal);
                 
-                let cardBg = isLoanOverLimit ? '#ffebee' : '#f8f9fa';
+                let cardBg = isLoanOverLimit ? '#ffebee' : (isChecked ? '#f1f8e9' : '#f8f9fa');
                 let cardBorderLeft = isLoanOverLimit ? '4px solid #c62828' : `4px solid ${l.status === 'active' ? '#1976d2' : '#2e7d32'}`;
                 let warningText = isLoanOverLimit ? `<div style="color:#c62828; font-weight:bold; font-size:0.75rem; margin-top:8px; background:#fff; padding:6px 8px; border-radius:4px; border:1px solid #ffcdd2;"><i class="fas fa-exclamation-triangle"></i> Alert: Due exceeds current Gold Value (₹${Math.round(mktVal).toLocaleString()})</div>` : '';
 
                 container.innerHTML += `
-                    <div style="background:${cardBg}; padding:15px; border-radius:8px; border:1px solid #e0e0e0; border-left: ${cardBorderLeft};">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <strong style="color:#222; font-size:0.95rem;">A/C #${l.loanNo || l.id} • ${l.description}${wText}</strong>
+                    <div style="background:${cardBg}; padding:15px; border-radius:8px; border:1px solid ${isChecked ? '#a5d6a7' : '#e0e0e0'}; border-left: ${cardBorderLeft};">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <button class="check-tick-btn ${isChecked ? 'checked' : ''}" onclick="toggleLoanAuditCheck('${l.id}', event)" title="Is loan ko diary se milane ke baad Right (✓) karein">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <div>
+                                    <strong style="color:#222; font-size:0.95rem;">A/C #${l.loanNo || l.id} • ${l.description}${wText}</strong>
+                                    ${isChecked ? `<span class="verified-tag" style="margin-left:6px;"><i class="fas fa-check-circle"></i> Checked (${checkDaysLeft}d left)</span>` : ''}
+                                </div>
+                            </div>
                             <span class="l-badge ${isLoanOverLimit ? 'badge-overdue' : bClass}">${isLoanOverLimit ? '⚠️ High Risk' : bText}</span>
                         </div>
-                        <div style="font-size:0.8rem; color:#666; margin-bottom:10px;">
+                        <div style="font-size:0.8rem; color:#666; margin-bottom:10px; padding-left:42px;">
                             Issued: <strong>${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong> | Int Rate: <strong>${l.ratePercent}% / mo</strong>
                         </div>
 
