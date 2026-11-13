@@ -848,79 +848,58 @@
             const goldBal = parseFloat(m.goldBalance || 0);
             const silverBal = parseFloat(m.silverBalance || 0);
 
-            if (Math.abs(cashBal) < 0.5 && Math.abs(goldBal) < 0.0005 && Math.abs(silverBal) < 0.0005) {
-                return showToast(`${m.name} ka hisab pehle se hi Clear (Zero) hai!`, "success");
+            const isAlreadyZero = (Math.abs(cashBal) < 0.5 && Math.abs(goldBal) < 0.0005 && Math.abs(silverBal) < 0.0005);
+
+            let confirmMsg = `🧹 HISAB CLEAR / NEEL (ZERO) CONFIRMATION\n\nParty: ${m.name}\n\n`;
+            if (isAlreadyZero) {
+                confirmMsg += `Hisab pehle se hi Zero (0) hai.\nKya aap is purane hisab ko history me daal kar ek fresh (naya) page shuru karna chahte hain?`;
+            } else {
+                const summaryLines = [];
+                if (Math.abs(cashBal) >= 0.5) summaryLines.push(`• Cash: ₹${Math.abs(cashBal).toLocaleString()} (${cashBal > 0 ? 'Dena' : 'Lena'})`);
+                if (Math.abs(goldBal) >= 0.0005) summaryLines.push(`• Gold: ${Math.abs(goldBal).toFixed(3)}g (${goldBal > 0 ? 'Dena' : 'Lena'})`);
+                if (Math.abs(silverBal) >= 0.0005) summaryLines.push(`• Silver: ${Math.abs(silverBal).toFixed(3)}g (${silverBal > 0 ? 'Dena' : 'Lena'})`);
+                confirmMsg += `Abhi ka Baki Hisab:\n${summaryLines.join('\n')}\n\nKya aap is hisab ko poora CLEAR (ZERO / NEEL) karke naye sire se shuru karna chahte hain?`;
             }
-
-            const summaryLines = [];
-            if (Math.abs(cashBal) >= 0.5) summaryLines.push(`• Cash: ₹${Math.abs(cashBal).toLocaleString()} (${cashBal > 0 ? 'Dena' : 'Lena'})`);
-            if (Math.abs(goldBal) >= 0.0005) summaryLines.push(`• Gold: ${Math.abs(goldBal).toFixed(3)}g (${goldBal > 0 ? 'Dena' : 'Lena'})`);
-            if (Math.abs(silverBal) >= 0.0005) summaryLines.push(`• Silver: ${Math.abs(silverBal).toFixed(3)}g (${silverBal > 0 ? 'Dena' : 'Lena'})`);
-
-            const confirmMsg = `🧹 HISAB CLEAR / NEEL (ZERO) CONFIRMATION\n\nParty: ${m.name}\n\nAbhi ka Baki Hisab:\n${summaryLines.join('\n')}\n\nKya aap is hisab ko poora CLEAR (ZERO / NEEL) karke naye sire se shuru karna chahte hain?`;
+            
             if (!confirm(confirmMsg)) return;
 
             try {
                 const clearDateISO = new Date().toISOString();
 
-                // Record balancing entries in merchant_payments so ledger math remains 100% consistent
-                if (Math.abs(cashBal) >= 0.5 || Math.abs(goldBal) >= 0.0005) {
-                    const dir = (cashBal > 0 || (cashBal === 0 && goldBal > 0)) ? 'OUT' : 'IN';
-                    // Handle exact opposite signs between cash and gold cleanly
+                // If already zero, just insert a marker entry to cleanly separate history
+                if (isAlreadyZero) {
+                    await addItem('merchant_payments', {
+                        merchantId: id, amount: 0, gold: 0, metal: 'Gold', goldType: 'unfixed', rate: 0,
+                        paymentType: 'OUT', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
+                    });
+                } else {
+                    // Record balancing entries in merchant_payments so ledger math remains 100% consistent
                     if (Math.abs(cashBal) >= 0.5) {
                         await addItem('merchant_payments', {
-                            merchantId: id,
-                            amount: Math.abs(cashBal),
-                            gold: 0,
-                            metal: 'Gold',
-                            goldType: 'unfixed',
-                            rate: 0,
-                            paymentType: cashBal > 0 ? 'OUT' : 'IN',
-                            date: clearDateISO,
-                            mode: 'Hisab Clear (Neel)',
-                            isClearEntry: true
+                            merchantId: id, amount: Math.abs(cashBal), gold: 0, metal: 'Gold', goldType: 'unfixed', rate: 0,
+                            paymentType: cashBal > 0 ? 'OUT' : 'IN', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
                         });
                     }
                     if (Math.abs(goldBal) >= 0.0005) {
                         await addItem('merchant_payments', {
-                            merchantId: id,
-                            amount: 0,
-                            gold: parseFloat(Math.abs(goldBal).toFixed(3)),
-                            metal: 'Gold',
-                            goldType: 'unfixed',
-                            rate: 0,
-                            paymentType: goldBal > 0 ? 'OUT' : 'IN',
-                            date: clearDateISO,
-                            mode: 'Hisab Clear (Neel)',
-                            isClearEntry: true
+                            merchantId: id, amount: 0, gold: parseFloat(Math.abs(goldBal).toFixed(3)), metal: 'Gold', goldType: 'unfixed', rate: 0,
+                            paymentType: goldBal > 0 ? 'OUT' : 'IN', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
+                        });
+                    }
+                    if (Math.abs(silverBal) >= 0.0005) {
+                        await addItem('merchant_payments', {
+                            merchantId: id, amount: 0, gold: parseFloat(Math.abs(silverBal).toFixed(3)), metal: 'Silver', goldType: 'unfixed', rate: 0,
+                            paymentType: silverBal > 0 ? 'OUT' : 'IN', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
                         });
                     }
                 }
 
-                if (Math.abs(silverBal) >= 0.0005) {
-                    await addItem('merchant_payments', {
-                        merchantId: id,
-                        amount: 0,
-                        gold: parseFloat(Math.abs(silverBal).toFixed(3)),
-                        metal: 'Silver',
-                        goldType: 'unfixed',
-                        rate: 0,
-                        paymentType: silverBal > 0 ? 'OUT' : 'IN',
-                        date: clearDateISO,
-                        mode: 'Hisab Clear (Neel)',
-                        isClearEntry: true
-                    });
-                }
-
                 // Set Merchant's current balances to 0 and save lastClearDate so new Khata starts fresh
                 await updateItem('merchants', m.id, {
-                    balance: 0,
-                    goldBalance: 0,
-                    silverBalance: 0,
-                    lastClearDate: clearDateISO
+                    balance: 0, goldBalance: 0, silverBalance: 0, lastClearDate: clearDateISO
                 });
 
-                showToast(`✅ ${m.name} ka hisab Neel (0) ho gaya!`, "success");
+                showToast(`✅ ${m.name} ka hisab fresh Zero ho gaya!`, "success");
                 await loadMerchants();
 
                 // If Paper Khata modal is open for this merchant, refresh it
@@ -1515,6 +1494,9 @@
                             else goldChange = parseFloat(p.gold) * pmtMult;
                             descParts.push(`Hisab Clear / Neel (${metalName} ${parseFloat(p.gold).toFixed(3)}g)`);
                         }
+                        if (p.amount === 0 && p.gold === 0) {
+                            descParts.push(`Khata Reset to Zero (0)`);
+                        }
                         let pSafeDate = getSafeDateISO(p.date);
                         transactions.push({ date: pSafeDate, type: 'Hisab Clear (Zero)', desc: descParts.join(' | '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-clear', isClearEntry: true });
                         continue;
@@ -1620,16 +1602,25 @@
             let pageOpenGold = currentReportMeta.openGold;
             let pageOpenSilver = currentReportMeta.openSilver;
             let pageOpenCash = currentReportMeta.openCash;
+            let isFreshStart = false;
 
-            // If Hisab was cleared (Neel) previously and user hasn't checked "Show Old Cleared History",
-            // start fresh from the clear point (0.000g / ₹0)!
-            if (!showAllHistory && currentReportMeta.lastClearDate) {
-                const clearTime = new Date(currentReportMeta.lastClearDate).getTime();
-                const afterClearRows = currentReportData.filter(t => new Date(t.date).getTime() > clearTime && !t.isClearEntry);
-                displayRows = afterClearRows;
-                pageOpenGold = 0;
-                pageOpenSilver = 0;
-                pageOpenCash = 0;
+            // HIDDEN HISTORY LOGIC: Find the exact position of the last "Hisab Clear"
+            if (!showAllHistory) {
+                let lastClearIdx = -1;
+                for (let i = currentReportData.length - 1; i >= 0; i--) {
+                    if (currentReportData[i].isClearEntry || currentReportData[i].type === 'Hisab Clear (Zero)') {
+                        lastClearIdx = i;
+                        break;
+                    }
+                }
+
+                if (lastClearIdx !== -1) {
+                    displayRows = currentReportData.slice(lastClearIdx + 1);
+                    pageOpenGold = 0;
+                    pageOpenSilver = 0;
+                    pageOpenCash = 0;
+                    isFreshStart = true;
+                }
             }
 
             const totalPages = Math.max(1, Math.ceil(displayRows.length / ROWS_PER_PAPER_PAGE));
@@ -1685,7 +1676,7 @@
             };
 
             const openLabel = currentPaperPage === 1 
-                ? (currentReportMeta.lastClearDate && !showAllHistory ? 'OPENING BALANCE (Fresh Start / Neel)' : 'OPENING BALANCE') 
+                ? (isFreshStart ? 'OPENING BALANCE (Fresh Start / Neel)' : 'OPENING BALANCE') 
                 : `B/F FROM PAGE ${currentPaperPage - 1}`;
 
             const trOp = document.createElement('tr');
