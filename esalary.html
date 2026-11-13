@@ -104,9 +104,9 @@
         .col-title.nama { background: #ffebee; color: #c62828; }
         
         .ledger-list { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; background: #fafafa; }
-        .ledger-row { padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.85rem; align-items: center; }
-        .ledger-row span:first-child { color: #555; font-size: 0.8rem; display: flex; flex-direction: column;}
-        .ledger-row span:last-child { font-weight: 700; font-size: 0.95rem; }
+        .ledger-row { padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.85rem; align-items: flex-start; }
+        .ledger-row span:first-child { color: #555; font-size: 0.8rem; display: flex; flex-direction: column; flex:1; padding-right:10px;}
+        .ledger-row span:last-child { font-weight: 700; font-size: 0.95rem; white-space: nowrap;}
         
         .col-footer { padding: 12px; font-weight: 700; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; font-size: 1.05rem; background: #fff; }
         
@@ -115,9 +115,9 @@
         .net-payable-amt { font-size: 1.5rem; font-weight: 800; }
 
         .loader-text { text-align: center; color: var(--text-gray); padding: 30px; font-weight: 500; }
-        .tx-desc { font-weight: 600; color: #333; font-size: 0.85rem;}
+        .tx-desc { font-weight: 600; color: #333; font-size: 0.85rem; line-height: 1.3; margin-bottom: 3px;}
         .tx-date { font-size: 0.7rem; color: #888; }
-        .tx-badge { font-size: 0.6rem; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 3px; font-weight: 600;}
+        .tx-badge { font-size: 0.6rem; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 3px; font-weight: 600; width: max-content;}
 
         @media (max-width: 768px) {
             .t-ledger-container { flex-direction: column; min-height: auto; }
@@ -209,7 +209,7 @@
             </div>
             <div style="display:flex; gap:10px;">
                 <div class="form-group" style="flex:1;">
-                    <label>Join Date</label>
+                    <label>Join Date (Kaam Shuru kiya)</label>
                     <input type="date" id="emp-join-date">
                 </div>
                 <div class="form-group" style="flex:1;">
@@ -237,9 +237,17 @@
             <h3 style="margin-top:0; color:#333; margin-bottom: 15px;"><i class="fas fa-book-open" style="color:var(--primary-blue);"></i> Staff Khata (Ledger)</h3>
             
             <div class="ledger-header-card">
-                <h3 id="ledger-emp-name">Employee Name</h3>
-                <p id="ledger-emp-details">Role • Phone</p>
-                <p style="margin-top:5px; font-weight:600; color:#333;">Fixed Salary: <span id="ledger-emp-salary" style="color:var(--success);">₹0</span> / month</p>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <h3 id="ledger-emp-name">Employee Name</h3>
+                        <p id="ledger-emp-details">Role • Phone</p>
+                        <p id="ledger-emp-join" style="color:var(--primary-blue); font-weight:700; margin-top:5px; font-size:0.85rem;"><i class="fas fa-calendar-check"></i> Joined: --</p>
+                    </div>
+                    <div style="text-align:right; background:#f0fdf4; padding:8px 12px; border-radius:8px; border:1px solid #bbf7d0;">
+                        <span style="font-size:0.7rem; color:#166534; font-weight:700; text-transform:uppercase;">Fixed Salary</span>
+                        <div id="ledger-emp-salary" style="color:var(--success); font-weight:700; font-size:1.15rem;">₹0<span style="font-size:0.8rem;">/mo</span></div>
+                    </div>
+                </div>
             </div>
 
             <div style="display:flex; gap:10px; margin-bottom: 15px; flex-wrap:wrap;">
@@ -301,10 +309,20 @@
                 <select id="tx-category" onchange="toggleCashMode()"></select>
             </div>
 
+            <!-- SALARY MONTH/DAYS SELECTOR (Only shows for JAMA -> Salary Accrued) -->
+            <div class="form-group" id="salary-period-group" style="display:none; background:#e0f2fe; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #bae6fd;">
+                <label style="color:#0284c7;"><i class="fas fa-calendar-alt"></i> Select Salary Month</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="month" id="tx-salary-month" style="flex:1;" onchange="updateSalaryNote()">
+                    <input type="number" id="tx-salary-days" placeholder="Days (Opt.)" style="flex:1;" oninput="updateSalaryNote(); calcCustomSalary();" title="If partial month, enter days">
+                </div>
+                <small style="color:#0284c7; display:block; margin-top:5px; font-weight:600;">Leave "Days" empty if full month salary.</small>
+            </div>
+
             <div class="form-group">
                 <label>Amount (₹) *</label>
                 <input type="number" id="tx-amount" placeholder="0" style="font-size:1.2rem; font-weight:700;">
-                <button type="button" id="btn-fill-salary" style="display:none; margin-top:5px; background:#e0f2fe; border:none; color:#0284c7; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer;" onclick="fillFixedSalary()">Auto-fill Fixed Salary</button>
+                <button type="button" id="btn-fill-salary" style="display:none; margin-top:5px; background:#bae6fd; border:none; color:#0369a1; padding:6px 10px; border-radius:4px; font-size:0.8rem; font-weight:700; cursor:pointer; width:100%; transition:0.2s;" onmouseover="this.style.background='#7dd3fc'" onmouseout="this.style.background='#bae6fd'" onclick="fillFixedSalary()"><i class="fas fa-magic"></i> Auto-fill Fixed Salary Amount</button>
             </div>
 
             <div style="display:flex; gap:10px;">
@@ -316,18 +334,18 @@
                     </select>
                 </div>
                 <div class="form-group" style="flex:1;">
-                    <label>Date</label>
+                    <label>Entry Date</label>
                     <input type="date" id="tx-date">
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Note (Optional)</label>
-                <input type="text" id="tx-note" placeholder="Month details, expense reason, etc.">
+                <label>Note / Description</label>
+                <input type="text" id="tx-note" placeholder="Note (Auto-filled for salary)">
             </div>
 
             <button class="btn-full btn-gold-solid" onclick="saveTransaction()" style="margin-top:10px;"><i class="fas fa-check-circle"></i> Save Entry</button>
-            <p id="tx-warning" style="font-size: 0.75rem; color: #d32f2f; text-align: center; margin-top: 10px; font-weight:600; display:none;">* This will deduct money from Shop Cashbook.</p>
+            <p id="tx-warning" style="font-size: 0.75rem; color: #d32f2f; text-align: center; margin-top: 10px; font-weight:600; display:none;">* This will deduct/add money from Shop Cashbook.</p>
         </div>
     </div>
 
@@ -371,7 +389,17 @@
             const unpaidLeaves = Math.max(0, empLeaves.length - totalAllowedLeaves);
             
             const deductionAmount = unpaidLeaves * perDaySalary;
-            return Math.max(0, (diffDays * perDaySalary) - deductionAmount);
+            return {
+                amount: Math.max(0, (diffDays * perDaySalary) - deductionAmount),
+                diffDays: diffDays
+            };
+        }
+
+        function formatDateDisplay(dateString) {
+            if (!dateString) return 'N/A';
+            const d = new Date(dateString);
+            if(isNaN(d.getTime())) return dateString;
+            return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         }
 
         async function loadData() {
@@ -389,15 +417,17 @@
                 for (let emp of employees) {
                     if (!emp.ledgerEntries) {
                         emp.ledgerEntries = [];
-                        const oldEarned = calculateOldEarned(emp, leaves);
-                        if (oldEarned > 0) {
+                        const oldResult = calculateOldEarned(emp, leaves);
+                        if (oldResult.amount > 0) {
+                            const joinDateStr = formatDateDisplay(emp.joinDate);
+                            const todayStr = formatDateDisplay(new Date());
                             emp.ledgerEntries.push({
                                 id: 'mig_' + Date.now(),
                                 date: new Date().toISOString(),
                                 type: 'JAMA',
                                 category: 'Salary Accrued',
-                                amount: Math.round(oldEarned),
-                                note: 'Auto-calculated opening accrued salary (Migration)'
+                                amount: Math.round(oldResult.amount),
+                                note: `Pending salary from Joining (${joinDateStr}) to Today (${oldResult.diffDays} Days)`
                             });
                         }
                         await updateItem('employees', emp.id, emp);
@@ -405,7 +435,6 @@
                     }
                 }
                 if (dbUpdated) {
-                    // reload if migrated
                     const e2 = await getAllItems('employees');
                     employees = (Array.isArray(e2) ? e2 : []).filter(e => e != null);
                 }
@@ -580,9 +609,11 @@
 
             document.getElementById('ledger-emp-name').innerText = emp.name;
             document.getElementById('ledger-emp-details').innerText = `${emp.role || 'Staff'} • ${emp.phone || 'No Contact'}`;
+            
+            const jDate = formatDateDisplay(emp.joinDate);
+            document.getElementById('ledger-emp-join').innerHTML = `<i class="fas fa-calendar-alt"></i> Joined: ${jDate}`;
             document.getElementById('ledger-emp-salary').innerText = `₹${(parseFloat(emp.salary)||0).toLocaleString()}`;
             
-            // Required for Add Tx modal
             document.getElementById('tx-emp-id').value = emp.id;
 
             const ledgerData = [];
@@ -611,9 +642,7 @@
                     date: c.date,
                     desc: c.remark || c.note || c.category,
                     cat: c.category,
-                    // IN = Deposit by Emp = JAMA
                     jama: c.type === 'IN' ? parseFloat(c.amount) : 0,
-                    // OUT = Paid to Emp = NAMA
                     nama: c.type === 'OUT' ? parseFloat(c.amount) : 0,
                     isCash: true,
                     mode: c.mode,
@@ -632,7 +661,7 @@
             let totalNama = 0;
 
             ledgerData.forEach(item => {
-                const dateStr = new Date(item.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+                const dateStr = formatDateDisplay(item.date);
                 const badge = item.isCash ? `<span class="tx-badge" style="background:#e0f2fe; color:#0284c7;">Cashbook: ${item.mode}</span>` : `<span class="tx-badge" style="background:#fef3c7; color:#b45309;">Journal (No Cash)</span>`;
                 
                 const li = document.createElement('li');
@@ -721,14 +750,56 @@
                 sel.appendChild(opt);
             });
 
-            // Show 'Auto Fill Salary' button if JAMA -> Salary Accrued
-            if (dir === 'JAMA' && sel.value === 'Salary Accrued') {
-                document.getElementById('btn-fill-salary').style.display = 'inline-block';
-            } else {
-                document.getElementById('btn-fill-salary').style.display = 'none';
+            const isSalaryAccrual = (dir === 'JAMA' && sel.value === 'Salary Accrued');
+            document.getElementById('salary-period-group').style.display = isSalaryAccrual ? 'block' : 'none';
+            document.getElementById('btn-fill-salary').style.display = isSalaryAccrual ? 'inline-block' : 'none';
+
+            if(isSalaryAccrual) {
+                const today = new Date();
+                let m = (today.getMonth() + 1).toString().padStart(2, '0');
+                let y = today.getFullYear();
+                document.getElementById('tx-salary-month').value = `${y}-${m}`;
+                document.getElementById('tx-salary-days').value = ''; 
+                updateSalaryNote();
             }
 
             toggleCashMode();
+        }
+
+        function updateSalaryNote() {
+            const monthVal = document.getElementById('tx-salary-month').value; 
+            const days = document.getElementById('tx-salary-days').value;
+            if(!monthVal) return;
+
+            const d = new Date(monthVal + '-01');
+            const monthStr = d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            
+            if (days && days > 0) {
+                document.getElementById('tx-note').value = `Salary for ${monthStr} (${days} Days)`;
+            } else {
+                document.getElementById('tx-note').value = `Salary for ${monthStr} (Full Month)`;
+            }
+        }
+
+        function calcCustomSalary() {
+            const empId = document.getElementById('tx-emp-id').value;
+            const emp = employees.find(e => String(e.id) === String(empId));
+            if (!emp) return;
+
+            const days = parseFloat(document.getElementById('tx-salary-days').value);
+            if (days && days > 0) {
+                // Assume 30 days a month for precise calculation
+                const perDay = (parseFloat(emp.salary) || 0) / 30;
+                document.getElementById('tx-amount').value = Math.round(perDay * days);
+            } else {
+                document.getElementById('tx-amount').value = emp.salary || 0;
+            }
+        }
+
+        function fillFixedSalary() {
+            document.getElementById('tx-salary-days').value = '';
+            calcCustomSalary();
+            updateSalaryNote();
         }
 
         function toggleCashMode() {
@@ -738,22 +809,12 @@
             
             document.getElementById('tx-mode-group').style.display = isCash ? 'block' : 'none';
             document.getElementById('tx-warning').style.display = isCash ? 'block' : 'none';
-
+            
+            // Re-check salary accrual for buttons
             const dir = document.getElementById('tx-direction').value;
-            if (dir === 'JAMA' && sel.value === 'Salary Accrued') {
-                document.getElementById('btn-fill-salary').style.display = 'inline-block';
-            } else {
-                document.getElementById('btn-fill-salary').style.display = 'none';
-            }
-        }
-
-        function fillFixedSalary() {
-            const empId = document.getElementById('tx-emp-id').value;
-            const emp = employees.find(e => String(e.id) === String(empId));
-            if (emp && emp.salary) {
-                document.getElementById('tx-amount').value = emp.salary;
-                document.getElementById('tx-note').value = `Salary for Month`;
-            }
+            const isSalaryAccrual = (dir === 'JAMA' && sel.value === 'Salary Accrued');
+            document.getElementById('salary-period-group').style.display = isSalaryAccrual ? 'block' : 'none';
+            document.getElementById('btn-fill-salary').style.display = isSalaryAccrual ? 'inline-block' : 'none';
         }
 
         async function saveTransaction() {
@@ -776,8 +837,6 @@
 
             try {
                 if (isCash) {
-                    // Save to Cashflow
-                    // JAMA + Cash = IN. NAMA + Cash = OUT.
                     const cashType = dir === 'JAMA' ? 'IN' : 'OUT';
                     await addItem('cashflow', {
                         type: cashType,
@@ -790,7 +849,6 @@
                         employeeName: emp.name
                     });
                 } else {
-                    // Save to Employee Ledger Array
                     if (!emp.ledgerEntries) emp.ledgerEntries = [];
                     emp.ledgerEntries.push({
                         id: 'ledg_' + Date.now(),
@@ -804,14 +862,13 @@
                 }
 
                 closeModal('tx-modal');
-                // Reload data silently to refresh UI
+                // Reload data silently
                 const empData = await getAllItems('employees').catch(()=>[]);
                 const cashData = await getAllItems('cashflow').catch(()=>[]);
                 employees = (Array.isArray(empData) ? empData : []).filter(e => e != null);
                 cashflow = (Array.isArray(cashData) ? cashData : []).filter(c => c != null);
                 
                 renderEmployees();
-                // If Ledger was open, refresh it
                 if (document.getElementById('ledger-modal').style.display === 'flex') {
                     openLedger(empId);
                 }
