@@ -55,8 +55,10 @@
         .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
         .btn-success { background: var(--in-green); color: #fff; }
         .btn-success:hover { background: #1b5e20; }
+        .btn-primary-alt { background: #5e35b1; color: white; padding: 10px 15px; font-size: 0.9rem; }
+        .btn-primary-alt:hover { background: #4527a0; }
 
-        /* Search Results for Deposit */
+        /* Search Results for Deposit & Bulk */
         .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 200px; overflow-y: auto; z-index: 20; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; transition: 0.2s;}
         .search-item:hover { background: #e3f2fd; color: var(--digital-blue); font-weight: 500;}
@@ -73,7 +75,7 @@
         .cust-mobile { font-size: 0.8rem; color: #777; }
         .cust-due { font-weight: 700; color: var(--active-red); font-size: 1.1rem; }
 
-        .bal-badge { font-weight: 700; font-size: 1rem; padding: 4px 8px; border-radius: 6px; }
+        .bal-badge { font-weight: 700; font-size: 1rem; padding: 4px 8px; border-radius: 6px; display: inline-block;}
         .bal-due { color: var(--active-red); background: #ffebee; }
         .bal-adv { color: var(--in-green); background: #e8f5e9; }
         .bal-clr { color: #888; background: #f0f0f0; }
@@ -87,15 +89,16 @@
         
         .bill-list { margin-top: 15px; max-height: 250px; overflow-y: auto; padding-right: 5px; }
         .bill-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; border: 1px solid #444; margin-bottom: 8px; font-size: 0.9rem;}
-        .bill-info { display: flex; flex-direction: column; }
         
         .pay-chips { display: flex; gap: 8px; margin: 15px 0; }
         .pay-chip { background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; cursor: pointer; border: 1px solid transparent; color: white; transition: 0.2s;}
         .pay-chip.active { border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(197, 160, 89, 0.1); font-weight: bold;}
         
-        .action-row { display: flex; gap: 15px; margin-top: auto; }
-        .btn-refund { background: #455a64; color: white; }
+        .btn-refund { background: #455a64; color: white; margin-top:10px; }
         .btn-refund:hover { background: #263238; }
+
+        .btn-correct { background: #333; color: white; border: 1px solid #555; margin-top: 10px; font-size: 0.85rem;}
+        .btn-correct:hover { background: #000; border-color: #666; }
 
         #emptyState { text-align: center; color: #888; padding: 50px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;}
         #emptyState i { font-size: 4rem; color: #ddd; margin-bottom: 15px; }
@@ -111,10 +114,13 @@
 
         /* Modal */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
-        .modal-content { background: white; width: 95%; max-width: 450px; border-radius: 16px; padding: 25px; position: relative; animation: slideUp 0.3s ease-out; }
+        .modal-content { background: white; width: 95%; max-width: 450px; border-radius: 16px; padding: 25px; position: relative; animation: slideUp 0.3s ease-out; max-height: 90vh; overflow-y:auto;}
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.8rem; cursor: pointer; background: none; border: none; color: #666; z-index: 10; }
 
+        /* Bulk Modal Specific */
+        .bulk-row { display: flex; gap: 10px; align-items: center; background: #f9f9f9; padding: 12px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px;}
+        
         /* Toast Notifications */
         #toast {
             visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
@@ -138,7 +144,7 @@
     </header>
 
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
-  <aside id="app-sidebar" class="sidebar-drawer">
+    <aside id="app-sidebar" class="sidebar-drawer">
         <ul class="sidebar-menu">
             <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
             <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
@@ -160,12 +166,14 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
     </aside>
+
     <div class="app-container">
         
         <!-- LEFT PANEL: Customer List -->
         <div class="card" style="height: 100%;">
             <div class="card-header">
                 <div class="card-title"><i class="fas fa-users"></i> Khata List</div>
+                <button class="btn btn-primary-alt" style="width:auto;" onclick="openBulkOldKhataModal()">+ Add Purana Khata</button>
             </div>
             
             <!-- Global Stats -->
@@ -259,19 +267,111 @@
                         <button class="btn btn-success" onclick="processPayment()" id="btnProcessPayment">
                             <i class="fas fa-check-circle"></i> Save Payment & Update Ledger
                         </button>
-                        <button class="btn btn-refund" onclick="openPaymentModal('OUT')" id="btnRefund" style="display:none; margin-top:10px;">
-                            <i class="fas fa-arrow-up"></i> Refund Advance to Customer
-                        </button>
+                        
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <button class="btn btn-refund" onclick="openPaymentModal('OUT')" id="btnRefund" style="display:none; flex:1;">
+                                <i class="fas fa-arrow-up"></i> Refund Advance to Customer
+                            </button>
+                            <button class="btn btn-correct" onclick="openCorrectLedgerModal()" style="flex:1;" title="Bina cashbook change kiye purana balance theek karein">
+                                <i class="fas fa-tools"></i> Manage Balance (Silent Correction)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 🟢 NAYA: Floating Action Button (New Independent Advance) -->
+    <!-- FAB for New Advance Deposit -->
     <div class="fab" onclick="openNewAdvanceModal()"><i class="fas fa-plus"></i></div>
 
-    <!-- 🟢 NAYA: New Advance/Deposit Modal -->
+    <!-- 1. BULK OLD KHATA MODAL (NEW) -->
+    <div id="bulkOldKhataModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <button class="close-btn" onclick="closeModal('bulkOldKhataModal')">&times;</button>
+            <h3 style="margin-top:0; color:#333;"><i class="fas fa-book-open"></i> Purana Khata Shuru Karein (Bulk)</h3>
+            <p style="font-size:0.8rem; color:var(--active-red); margin-top:-5px;">* In entries ka Cashbook/Rojmel par koi asar nahi hoga. Ye sirf customer ka hisab chalu karne ke liye hain.</p>
+
+            <div class="form-group" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                <label>1. Select Customer (Ek baar choose karein)</label>
+                <input type="text" id="bulkCustSearchInput" placeholder="Type Name or Mobile to Search..." onkeyup="searchBulkCustomer()" autocomplete="off">
+                <input type="hidden" id="bulkSelectedCustomerId">
+                <div id="bulkCustSearchResults" class="search-results"></div>
+                <div id="bulkSelectedCustDisplay" style="display:none; margin-top:8px; font-weight:bold; color:var(--digital-blue); background:#e3f2fd; padding:10px; border-radius:6px; justify-content:space-between; align-items:center;">
+                    <span id="bulkCustNameText"></span>
+                    <button style="border:none; background:white; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer;" onclick="resetBulkSearch()">Change</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:15px;">
+                <label>2. Purana Baki (Old Balance) Daalein</label>
+                <div class="radio-group" style="margin-bottom:10px;">
+                    <div class="radio-btn active in" id="bulkTypeDue" onclick="setBulkType('DUE')">
+                        Baki (Due / Lena Hai)
+                    </div>
+                    <div class="radio-btn" id="bulkTypeAdv" onclick="setBulkType('ADV')">
+                        Jama (Advance / Dena Hai)
+                    </div>
+                </div>
+                <input type="hidden" id="bulkTypeVal" value="DUE">
+                
+                <input type="number" id="bulkAmount" placeholder="Amount (₹)" style="font-size:1.2rem; font-weight:bold; color:#333;">
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <div class="form-group" style="flex:1;">
+                    <label>Date (Purani Date Chune)</label>
+                    <input type="date" id="bulkDate">
+                </div>
+                <div class="form-group" style="flex:2;">
+                    <label>Description / Note</label>
+                    <input type="text" id="bulkNote" placeholder="e.g. Purani diary ka hisab" value="Purani diary ka old balance">
+                </div>
+            </div>
+
+            <button class="btn btn-success" id="btnSaveBulk" onclick="saveBulkOldBalance()" style="margin-top:15px;">
+                <i class="fas fa-check-circle"></i> Save Purana Khata
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. SILENT CORRECTION MODAL (NEW) -->
+    <div id="correctLedgerModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('correctLedgerModal')">&times;</button>
+            <h3 style="margin-top:0; color:#333;"><i class="fas fa-tools"></i> Correct Ledger (Silent Edit)</h3>
+            <p style="font-size:0.8rem; color:#666; margin-top:-5px;">Use this to adjust customer balance (give discount or add old missing due) <b>without affecting the shop Cashbook.</b></p>
+            
+            <input type="hidden" id="correctCustId">
+            <div style="background:#e3f2fd; padding:10px; border-radius:6px; margin-bottom:15px; font-weight:bold; color:var(--digital-blue);">
+                Customer: <span id="correctCustName"></span>
+            </div>
+
+            <label>Adjustment Type</label>
+            <div class="radio-group">
+                <div class="radio-btn active in" id="correctTypeDue" onclick="setCorrectType('DUE')">
+                    Increase Due (Lena Hai)
+                </div>
+                <div class="radio-btn" id="correctTypeAdv" onclick="setCorrectType('ADV')">
+                    Give Chhoot/Advance (Dena Hai)
+                </div>
+            </div>
+            <input type="hidden" id="correctTypeVal" value="DUE">
+
+            <div class="form-group">
+                <label>Amount to Adjust (₹)</label>
+                <input type="number" id="correctAmount" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Reason for Correction</label>
+                <input type="text" id="correctNote" placeholder="e.g. Discount given, Old bill missing...">
+            </div>
+
+            <button class="btn btn-success" onclick="saveCorrection()"><i class="fas fa-save"></i> Save Adjustment</button>
+        </div>
+    </div>
+
+    <!-- New Advance/Deposit Modal -->
     <div id="newAdvanceModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newAdvanceModal')">&times;</button>
@@ -335,7 +435,7 @@
             <label style="color:#666; font-size:0.9rem;" id="payLabel">Enter Amount to Receive (₹)</label>
             <input type="number" id="payAmountInput" style="font-size:1.8rem; font-weight:bold; color:var(--digital-blue); text-align:center; padding:15px; border-radius:10px; margin:10px 0 20px 0; width:100%; border:2px solid #ccc; outline:none;">
             
-            <button class="btn btn-jama" id="btnConfirmPay" onclick="executeTransaction()" style="width:100%; padding:15px; font-size:1.1rem;">
+            <button class="btn btn-jama" id="btnConfirmPay" onclick="executeTransaction()" style="width:100%; padding:15px; font-size:1.1rem; background:var(--in-green); color:white;">
                 <i class="fas fa-check-circle"></i> Confirm Transaction
             </button>
         </div>
@@ -372,6 +472,7 @@
 
         window.onload = async () => {
             document.getElementById('kPayDate').valueAsDate = new Date();
+            document.getElementById('bulkDate').valueAsDate = new Date();
             await loadData();
         };
 
@@ -408,8 +509,13 @@
                 let totalAdvance = 0;
                 const custDeposits = allDeposits.filter(d => String(d.customerId) === String(c.id));
                 custDeposits.forEach(d => {
+                    // Type IN = Advance received from customer, Type OUT = Refund/Used advance
                     if (d.type === 'IN') totalAdvance += parseFloat(d.amount);
                     if (d.type === 'OUT') totalAdvance -= parseFloat(d.amount);
+                    
+                    // Specific logic for silent dues correction handled via deposits table but marked special
+                    if (d.type === 'DUE_CORRECTION') totalDue += parseFloat(d.amount);
+                    if (d.type === 'ADV_CORRECTION') totalAdvance += parseFloat(d.amount);
                 });
 
                 let netBalance = totalAdvance - totalDue;
@@ -417,7 +523,8 @@
                 if (netBalance < 0) marketDues += Math.abs(netBalance);
                 if (netBalance > 0) marketAdvances += netBalance;
 
-                if (totalDue > 0 || totalAdvance > 0 || netBalance !== 0) {
+                // Even if balance is 0, if they have history we can show them, but mainly keep active dues
+                if (totalDue > 0 || totalAdvance > 0 || netBalance !== 0 || custDeposits.length > 0) {
                     khataData.push({
                         ...c,
                         totalDue: totalDue,
@@ -464,11 +571,11 @@
                 let balText = 'Cleared';
                 let amtDisplay = '';
 
-                if (k.netBalance < 0) {
+                if (k.netBalance < -0.5) {
                     balClass = 'bal-due';
                     balText = 'Due';
                     amtDisplay = `₹${Math.abs(k.netBalance).toLocaleString()}`;
-                } else if (k.netBalance > 0) {
+                } else if (k.netBalance > 0.5) {
                     balClass = 'bal-adv';
                     balText = 'Advance';
                     amtDisplay = `₹${k.netBalance.toLocaleString()}`;
@@ -519,13 +626,13 @@
             const badgeEl = document.getElementById('kStatusBadge');
             const refundBtn = document.getElementById('btnRefund');
 
-            if (k.netBalance < 0) {
+            if (k.netBalance < -0.5) {
                 balEl.innerText = `₹${Math.abs(k.netBalance).toLocaleString()}`;
                 balEl.style.color = 'var(--active-red)';
                 badgeEl.innerText = 'UDHAR (DUE)';
                 badgeEl.className = 'bal-badge bal-due';
                 refundBtn.style.display = 'none';
-            } else if (k.netBalance > 0) {
+            } else if (k.netBalance > 0.5) {
                 balEl.innerText = `₹${k.netBalance.toLocaleString()}`;
                 balEl.style.color = 'var(--in-green)';
                 badgeEl.innerText = 'JAMA (ADVANCE)';
@@ -543,7 +650,7 @@
             bList.innerHTML = '';
             
             if (k.pendingBills.length === 0) {
-                bList.innerHTML = `<div style="text-align:center; padding:15px; color:#888;">No pending bills.</div>`;
+                bList.innerHTML = `<div style="text-align:center; padding:15px; color:#888;">No pending sales bills. (Balance is from Advances or Manual Entries)</div>`;
             } else {
                 k.pendingBills.forEach(b => {
                     const bNo = b.invoiceNo || `INV-${String(b.id).slice(-4).toUpperCase()}`;
@@ -608,7 +715,7 @@
                     paymentInput -= amountToDeduct;
                 }
 
-                // 2. If money still left, add as Advance Deposit
+                // 2. If money still left (or no bills), add as Advance Deposit
                 if (paymentInput > 0) {
                     await addItem('deposits', {
                         customerId: selectedCustData.id, 
@@ -616,22 +723,22 @@
                         type: 'IN',
                         amount: paymentInput, 
                         mode: currentPayMode, 
-                        note: 'Excess paid added to Advance'
+                        note: 'Advance deposit via Khata page'
                     });
                 }
 
-                // 3. Add entry to Cashflow (For Daybook & Cashbook sync)
+                // 3. Add single entry to Cashflow
                 await addItem('cashflow', {
                     date: new Date(payDate).toISOString(),
                     type: 'IN',
                     mode: currentPayMode,
                     category: 'Customer Due Recovery',
                     amount: originalPaymentInput,
-                    note: `Received outstanding payment from ${selectedCustData.name}`
+                    note: `Received payment from ${selectedCustData.name}`
                 });
 
                 alert(`Payment of ₹${originalPaymentInput.toLocaleString()} successfully recorded!`);
-                await loadData(); // Reloads all dues and updates UI
+                await loadData(); 
 
             } catch (error) {
                 console.error("Payment Processing Error:", error);
@@ -656,7 +763,7 @@
                 title.innerHTML = '<i class="fas fa-arrow-up"></i> Refund Advance';
                 title.style.color = '#455a64';
                 lbl.innerText = `Amount returning to customer (Max ₹${selectedCustData.netBalance.toLocaleString()})`;
-                btn.className = 'btn btn-refund';
+                btn.className = 'btn btn-jama';
                 btn.innerHTML = 'Process Refund';
                 input.value = selectedCustData.netBalance;
             }
@@ -711,7 +818,7 @@
         }
 
 
-        // 🟢 NAYA: INDEPENDENT ADVANCE DEPOSIT (FAB BUTTON LOGIC) 🟢
+        // ─── NEW ADVANCE DEPOSIT (FAB BUTTON LOGIC) ───
         function openNewAdvanceModal() {
             resetAdvCustSearch();
             document.getElementById('advAmount').value = '';
@@ -728,12 +835,13 @@
                 document.getElementById('advTypeIn').className = 'radio-btn active in';
                 const btn = document.getElementById('btnSaveAdvance');
                 btn.className = 'btn btn-success';
-                btn.innerHTML = '<i class="fas fa-arrow-down"></i> Receive Deposit (Jama)';
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Save Deposit (IN)';
             } else {
                 document.getElementById('advTypeOut').className = 'radio-btn active out';
                 const btn = document.getElementById('btnSaveAdvance');
                 btn.className = 'btn btn-danger';
-                btn.innerHTML = '<i class="fas fa-arrow-up"></i> Return Deposit (Nikal)';
+                btn.style.background = 'var(--active-red)';
+                btn.innerHTML = '<i class="fas fa-arrow-up"></i> Return Deposit (OUT)';
             }
             document.getElementById('advTypeVal').value = type;
         }
@@ -788,7 +896,6 @@
             const now = new Date().toISOString();
             
             try {
-                // If OUT, check if they actually have an advance
                 if(type === 'OUT') {
                     const b = khataData.find(x => String(x.id) === String(custId));
                     const currentAdv = b && b.netBalance > 0 ? b.netBalance : 0;
@@ -797,37 +904,190 @@
                     }
                 }
 
-                // 1. Save to Deposits Table
                 await addItem('deposits', {
-                    customerId: parseInt(custId),
-                    date: now,
-                    type: type,
-                    amount: amount,
-                    mode: mode,
+                    customerId: parseInt(custId), date: now, type: type, amount: amount, mode: mode,
                     note: note || (type === 'IN' ? 'Direct Advance Jama' : 'Advance Refund')
                 });
 
-                // 2. Sync with Cashflow (Master Ledger)
                 const cfCategory = type === 'IN' ? 'Customer Deposit (Jama)' : 'Deposit Return (Nikal)';
                 await addItem('cashflow', {
-                    date: now,
-                    type: type,
-                    mode: mode,
-                    category: cfCategory,
-                    amount: amount,
+                    date: now, type: type, mode: mode, category: cfCategory, amount: amount,
                     note: `${c.name} - ${note || (type === 'IN' ? 'Advance' : 'Refund')}`
                 });
 
                 showToast("Transaction Saved!", "success");
                 closeModal('newAdvanceModal');
                 
-                // Automatically open this customer's khata after saving
-                await loadData(); // Reloads all data
-                openKhataById(custId); // Highlights and opens the newly added customer
+                await loadData(); 
+                openKhataById(custId); 
 
             } catch (e) {
                 console.error("Advance Save Error:", e);
                 alert("Error processing transaction");
+            }
+        }
+
+        // ─── 1. BULK OLD KHATA ENTRY LOGIC ───
+        function openBulkOldKhataModal() {
+            resetBulkSearch();
+            document.getElementById('bulkAmount').value = '';
+            setBulkType('DUE');
+            document.getElementById('bulkOldKhataModal').style.display = 'flex';
+        }
+
+        function setBulkType(type) {
+            document.getElementById('bulkTypeDue').className = 'radio-btn';
+            document.getElementById('bulkTypeAdv').className = 'radio-btn';
+            if(type === 'DUE') {
+                document.getElementById('bulkTypeDue').className = 'radio-btn active in';
+            } else {
+                document.getElementById('bulkTypeAdv').className = 'radio-btn active out';
+            }
+            document.getElementById('bulkTypeVal').value = type;
+        }
+
+        function searchBulkCustomer() {
+            const term = document.getElementById('bulkCustSearchInput').value.toLowerCase();
+            const resultsDiv = document.getElementById('bulkCustSearchResults');
+            resultsDiv.innerHTML = '';
+            if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
+
+            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            if(matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
+                    div.onclick = () => {
+                        document.getElementById('bulkSelectedCustomerId').value = c.id;
+                        document.getElementById('bulkCustSearchInput').style.display = 'none';
+                        resultsDiv.style.display = 'none';
+                        document.getElementById('bulkSelectedCustDisplay').style.display = 'flex';
+                        document.getElementById('bulkCustNameText').innerHTML = `<i class="fas fa-user-check"></i> ${c.name}`;
+                    };
+                    resultsDiv.appendChild(div);
+                });
+            } else { resultsDiv.style.display = 'none'; }
+        }
+
+        function resetBulkSearch() {
+            document.getElementById('bulkSelectedCustomerId').value = '';
+            document.getElementById('bulkCustSearchInput').value = '';
+            document.getElementById('bulkCustSearchInput').style.display = 'block';
+            document.getElementById('bulkCustSearchResults').style.display = 'none';
+            document.getElementById('bulkSelectedCustDisplay').style.display = 'none';
+        }
+
+        async function saveBulkOldBalance() {
+            const custId = document.getElementById('bulkSelectedCustomerId').value;
+            const type = document.getElementById('bulkTypeVal').value;
+            const amount = parseFloat(document.getElementById('bulkAmount').value);
+            const dateStr = document.getElementById('bulkDate').value;
+            const note = document.getElementById('bulkNote').value;
+
+            if(!custId) return showToast("Select a Customer!", "error");
+            if(isNaN(amount) || amount <= 0) return showToast("Enter a valid amount", "error");
+            if(!dateStr) return showToast("Select a Date!", "error");
+
+            const btn = document.getElementById('btnSaveBulk');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            try {
+                // If it is DUE, we store it as a special sales bill so it adds to totalDue.
+                if (type === 'DUE') {
+                    // Create a dummy sale bill for old due
+                    const dummySale = {
+                        customerId: parseInt(custId),
+                        date: new Date(dateStr).toISOString(),
+                        invoiceNo: 'OLD-DUE-' + Date.now().toString().slice(-4),
+                        status: 'completed',
+                        grandTotal: amount,
+                        pendingAmount: amount,
+                        paidAmount: 0,
+                        items: [],
+                        isOldKhataEntry: true,
+                        note: note
+                    };
+                    await addItem('sales', dummySale);
+                } 
+                // If it is ADVANCE, we store it as special deposit so it adds to totalAdvance
+                else if (type === 'ADV') {
+                    await addItem('deposits', {
+                        customerId: parseInt(custId),
+                        date: new Date(dateStr).toISOString(),
+                        type: 'IN',
+                        amount: amount,
+                        mode: 'Old Balance (Manual)',
+                        note: note,
+                        isOldKhataEntry: true
+                    });
+                }
+
+                showToast("Purana Khata Saved Successfully!", "success");
+                closeModal('bulkOldKhataModal');
+                await loadData();
+
+            } catch (e) {
+                console.error("Bulk Khata Error:", e);
+                alert("Error saving old balance");
+            } finally {
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Save Purana Khata';
+                btn.disabled = false;
+            }
+        }
+
+        // ─── 2. SILENT CORRECTION MODAL LOGIC ───
+        function openCorrectLedgerModal() {
+            if (!selectedCustData) return;
+            document.getElementById('correctCustId').value = selectedCustData.id;
+            document.getElementById('correctCustName').innerText = selectedCustData.name;
+            document.getElementById('correctAmount').value = '';
+            document.getElementById('correctNote').value = '';
+            setCorrectType('DUE');
+            document.getElementById('correctLedgerModal').style.display = 'flex';
+        }
+
+        function setCorrectType(type) {
+            document.getElementById('correctTypeDue').className = 'radio-btn';
+            document.getElementById('correctTypeAdv').className = 'radio-btn';
+            if(type === 'DUE') document.getElementById('correctTypeDue').className = 'radio-btn active in';
+            else document.getElementById('correctTypeAdv').className = 'radio-btn active out';
+            document.getElementById('correctTypeVal').value = type;
+        }
+
+        async function saveCorrection() {
+            const custId = document.getElementById('correctCustId').value;
+            const type = document.getElementById('correctTypeVal').value; // DUE or ADV
+            const amount = parseFloat(document.getElementById('correctAmount').value);
+            const note = document.getElementById('correctNote').value || 'Silent Ledger Correction';
+
+            if(isNaN(amount) || amount <= 0) return showToast("Enter valid amount", "error");
+
+            if (!confirm(`Are you sure you want to add ₹${amount} to ${type === 'DUE' ? 'Lena Hai (Dues)' : 'Dena Hai (Advance)'} without updating Cashbook?`)) return;
+
+            try {
+                const isoDate = new Date().toISOString();
+                
+                // Save it into deposits table using special types so it affects khata but NOT cashflow
+                if (type === 'DUE') {
+                    // Adding to DUE means subtracting from Advance implicitly in our formula
+                    await addItem('deposits', {
+                        customerId: parseInt(custId), date: isoDate, type: 'DUE_CORRECTION', amount: amount, note: note
+                    });
+                } else {
+                    await addItem('deposits', {
+                        customerId: parseInt(custId), date: isoDate, type: 'ADV_CORRECTION', amount: amount, note: note
+                    });
+                }
+
+                showToast("Ledger Corrected Successfully!", "success");
+                closeModal('correctLedgerModal');
+                await loadData();
+            } catch (e) {
+                console.error("Correction error:", e);
+                alert("Error saving correction");
             }
         }
     </script>
