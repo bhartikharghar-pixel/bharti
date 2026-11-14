@@ -224,7 +224,7 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- NEW ORDER MODAL (UPGRADED FOR MULTIPLE ITEMS) -->
+    <!-- NEW ORDER MODAL (UPGRADED FOR MULTIPLE ITEMS + ROUND OFF) -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -276,7 +276,6 @@
             <div class="form-section">
                 <div class="form-section-title">Order Items</div>
 
-                <!-- Table for added items -->
                 <table class="item-table" id="oiTable" style="display:none;">
                     <thead>
                         <tr>
@@ -403,7 +402,7 @@
                 </div>
             </div>
 
-            <!-- OVERALL COSTING -->
+            <!-- OVERALL COSTING (WITH ROUND OFF & MAKING ADJ) -->
             <div class="form-section" style="border-left: 4px solid #fbc02d; background: #fffde7;">
                 <div class="form-section-title" style="color: #f57f17; border-color: #ffe0b2;">Total Costing & Advance</div>
 
@@ -418,9 +417,17 @@
                         <span>Total Items Value (Gold + Making):</span>
                         <span class="summary-val" id="oBaseTotalDisplay">₹0</span>
                     </div>
+                    <div class="summary-row" style="color:#ce93d8; margin-top:4px;">
+                        <span style="display:flex; align-items:center;">Making Adj (±₹):</span>
+                        <input type="number" id="oMakingAdj" style="width:70px; padding:2px; text-align:right; font-size:0.85rem; color:#000; font-weight:bold;" placeholder="0" oninput="calcOrderGrandTotal()">
+                    </div>
                     <div class="summary-row" id="oGSTSummaryRow" style="display:none; color:#64b5f6;">
                         <span>GST (3%):</span>
                         <span class="summary-val" id="oGSTTotalDisplay">+₹0</span>
+                    </div>
+                    <div class="summary-row" style="border-top:1px dashed #555; padding-top:5px; margin-top:5px;">
+                        <span style="display:flex; align-items:center;">Round Off (±₹):</span>
+                        <input type="number" id="oRoundOff" style="width:70px; padding:2px; text-align:right; font-size:0.85rem; color:#000; font-weight:bold;" placeholder="0" oninput="calcOrderGrandTotal()">
                     </div>
                     <div class="summary-row" style="border-top:1px dashed #555; padding-top:5px; margin-top:5px;">
                         <span>Gross Order Total:</span>
@@ -571,7 +578,7 @@
         </div>
     </div>
 
-    <!-- RECEIVE MODAL (DYNAMIC MULTIPLE ITEMS) -->
+    <!-- RECEIVE MODAL -->
     <div id="receiveModal" class="modal">
         <div class="modal-content" style="max-width:650px;">
             <button class="close-btn" onclick="closeModal('receiveModal')">&times;</button>
@@ -1003,6 +1010,8 @@
 
             document.getElementById('oApplyGST').checked = false;
             document.getElementById('oAdv').value = '';
+            document.getElementById('oMakingAdj').value = '';
+            document.getElementById('oRoundOff').value = '';
 
             autoFillOIRate();
             autoFillOGRate();
@@ -1181,10 +1190,15 @@
             let totalOG = 0;
             newOldGoldItems.forEach(i => totalOG += i.value);
 
-            document.getElementById('oBaseTotalDisplay').innerText = `₹${Math.round(totalBase).toLocaleString()}`;
+            const mkAdj = parseFloat(document.getElementById('oMakingAdj').value) || 0;
+            const roundOff = parseFloat(document.getElementById('oRoundOff').value) || 0;
+
+            const adjustedBase = totalBase + mkAdj;
+
+            document.getElementById('oBaseTotalDisplay').innerText = `₹${Math.round(adjustedBase).toLocaleString()}`;
 
             const applyGST = document.getElementById('oApplyGST').checked;
-            let gst = applyGST ? Math.round(totalBase * 0.03) : 0;
+            let gst = applyGST ? Math.round(adjustedBase * 0.03) : 0;
             document.getElementById('oGstAmountVal').value = gst;
 
             if(gst > 0) {
@@ -1192,7 +1206,7 @@
                 document.getElementById('oGSTTotalDisplay').innerText = `+₹${gst.toLocaleString()}`;
             } else { document.getElementById('oGSTSummaryRow').style.display = 'none'; }
 
-            const grandTotal = totalBase + gst;
+            const grandTotal = adjustedBase + gst + roundOff;
             document.getElementById('oGrossTotalDisplay').innerText = `₹${Math.round(grandTotal).toLocaleString()}`;
 
             if(totalOG > 0) {
@@ -1235,6 +1249,15 @@
                     if(!custId) return showToast("Select a Customer", "error");
                 }
 
+                const mkAdj = parseFloat(document.getElementById('oMakingAdj').value) || 0;
+                const roundOff = parseFloat(document.getElementById('oRoundOff').value) || 0;
+
+                // Apply making adjustment to the first item if exists
+                if (newOrderItems.length > 0 && mkAdj !== 0) {
+                    newOrderItems[0].makingTotal = (newOrderItems[0].makingTotal || 0) + mkAdj;
+                    newOrderItems[0].baseTotal = newOrderItems[0].baseTotal + mkAdj;
+                }
+
                 // Aggregate totals for the top-level object
                 let tGross = 0, tStone = 0, tNet = 0, tFine = 0, tMk = 0, tBase = 0;
                 newOrderItems.forEach(i => { 
@@ -1249,7 +1272,7 @@
                 });
 
                 const gst = parseFloat(document.getElementById('oGstAmountVal').value) || 0;
-                const grand = tBase + gst;
+                const grand = tBase + gst + roundOff;
                 const adv = parseFloat(document.getElementById('oAdv').value) || 0;
 
                 const inputOrderDate = document.getElementById('oDate').value;
@@ -1270,7 +1293,7 @@
                     description: newOrderItems.map(i=>i.description).join(' | '),
                     purity: newOrderItems.length === 1 ? newOrderItems[0].purity : 'Mixed',
                     grossWt: tGross, stoneWt: tStone, netWt: tNet, fineWt: tFine,
-                    makingCharge: tMk, baseAmount: tBase,
+                    makingCharge: tMk, baseAmount: tBase, roundOff: roundOff,
 
                     oldGoldGross: ogGross, oldGoldStone: ogStone, oldGoldNet: ogNet,
                     oldGoldFine: ogFine, oldGoldValue: ogVal,
