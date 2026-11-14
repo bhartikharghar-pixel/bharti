@@ -684,6 +684,11 @@
 
                 <div class="breakdown-row" style="margin-top:8px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div>
                 <div class="breakdown-row" style="color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div>
+                
+                <div class="breakdown-row" style="margin-top:8px; border-top:1px solid #ddd; padding-top:8px;">
+                    <span style="display:flex; align-items:center; font-weight:bold;">Round Off (±₹):</span> 
+                    <input type="number" id="billRoundOff" style="width:80px; padding:4px; text-align:right; font-weight:bold;" placeholder="0" oninput="calcBillingAdjustment()">
+                </div>
 
                 <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.3rem;">
                     <span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong>
@@ -756,8 +761,8 @@
         let currentTab = 'pending';
         let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
 
-        let newOrderItems = []; // Array to hold multiple order items
-        let newOldGoldItems = []; // Array to hold multiple old gold items
+        let newOrderItems = []; 
+        let newOldGoldItems = []; 
 
         let billingPayments = []; 
         let extraBillingItems = []; 
@@ -1755,6 +1760,7 @@
             document.getElementById('billCustSearch').style.display = 'none';
 
             document.getElementById('billMakingAdj').value = 0; // Reset adjustment
+            document.getElementById('billRoundOff').value = o.roundOff || 0; // Reset round off
             document.getElementById('billOtherCharge').value = o.otherCharge || 0;
             document.getElementById('billDiscount').value = o.discount || 0; 
             document.getElementById('billApplyGST').checked = (o.gstAmount > 0);
@@ -1898,7 +1904,9 @@
             const newGSTAmount = applyGST ? Math.round(newBaseTotal * 0.03) : 0;
 
             const newDiscount = parseFloat(document.getElementById('billDiscount').value) || 0;
-            const newGrandTotal = newBaseTotal + newGSTAmount - newDiscount;
+            const roundOffVal = parseFloat(document.getElementById('billRoundOff').value) || 0;
+
+            const newGrandTotal = newBaseTotal + newGSTAmount - newDiscount + roundOffVal;
 
             document.getElementById('billUpdatedGrandTotal').value = newGrandTotal;
 
@@ -1946,6 +1954,7 @@
 
             o.otherCharge = parseFloat(document.getElementById('billOtherCharge').value) || 0;
             o.discount = parseFloat(document.getElementById('billDiscount').value) || 0; 
+            o.roundOff = parseFloat(document.getElementById('billRoundOff').value) || 0;
 
             // Recalculate accurately for DB
             let items = o.orderItems || [];
@@ -1964,7 +1973,7 @@
             
             const applyGST = document.getElementById('billApplyGST').checked;
             o.gstAmount = applyGST ? Math.round(o.baseAmount * 0.03) : 0;
-            o.grandTotal = o.baseAmount + o.gstAmount - o.discount;
+            o.grandTotal = o.baseAmount + o.gstAmount - o.discount + o.roundOff;
 
             const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
             const totalCashReceived = (o.advancePaid || 0) + newlyPaid;
@@ -1993,7 +2002,7 @@
 
             await addItem('sales', {
                 date: new Date().toISOString(), customerId: finalCustId, jobType: 'Order', invoiceNo: invoiceNo, orderId: o.id,
-                items: salesItems, subTotal: o.baseAmount, discount: o.discount, gst: o.gstAmount, oldGoldDeduction: o.oldGoldValue, grandTotal: o.grandTotal,
+                items: salesItems, subTotal: o.baseAmount, discount: o.discount, gst: o.gstAmount, oldGoldDeduction: o.oldGoldValue, roundOff: o.roundOff, grandTotal: o.grandTotal,
                 paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
             });
 
@@ -2019,7 +2028,7 @@
 
             for (const p of billingPayments) { await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Order Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}`, orderId: o.id }); }
 
-            showToast("Order Billed with Extra Items!", "success"); 
+            showToast("Order Billed with Extra Items & Round Off!", "success"); 
             closeModal('billingModal'); 
             printReceiptEngine(o.id); 
             await loadOrders(); await loadInventoryForDropdowns();
@@ -2095,6 +2104,10 @@
             if(o.gstAmount > 0) html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
             if(o.discount > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Discount:</span><span>-₹${o.discount}</span></div>`;
             if(o.oldGoldValue > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            if(o.roundOff) {
+                const sign = o.roundOff > 0 ? '+' : '';
+                html += `<div style="display:flex; justify-content:space-between;"><span>Round Off:</span><span>${sign}₹${o.roundOff}</span></div>`;
+            }
 
             html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000; padding-top:5px;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
             html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
