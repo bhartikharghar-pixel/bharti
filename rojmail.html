@@ -179,7 +179,7 @@
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="db.js"></script>
     <script>
@@ -261,6 +261,10 @@
 
             oldGold.forEach(og => {
                 if(isSameDate(og.date, targetDateStr)) {
+                    // अगर यह ओल्ड गोल्ड ऑर्डर की फाइनल बिलिंग से आया है, तो इसे इग्नोर करें 
+                    // (क्योंकि यह ऑर्डर डेट के दिन पहले ही जमा हो चुका है)
+                    if(og.status === 'received_in_bill') return; 
+
                     let cOut = parseFloat(og.cashPaid || og.totalAmount || 0);
                     let gIn = parseFloat(og.fineWt || 0);
                     if(cOut > 0) nama.push({ title: 'Old Gold Bought', desc: og.custName, cash: cOut, gold: 0 });
@@ -296,9 +300,13 @@
             });
 
             orders.forEach(o => {
-                if(isSameDate(o.date, targetDateStr)) {
-                    let adv = parseFloat(o.advance || 0);
-                    if(adv > 0) jama.push({ title: 'Order Advance', desc: o.custName, cash: adv, gold: 0 });
+                // नए अपडेट के अनुसार o.orderDate भी चेक करना ज़रूरी है
+                if(isSameDate(o.orderDate || o.date, targetDateStr)) {
+                    let adv = parseFloat(o.advancePaid || o.advance || 0);
+                    let ogFine = parseFloat(o.oldGoldFine || 0); // ओल्ड गोल्ड का फाइन वेट
+                    
+                    if(adv > 0) jama.push({ title: 'Order Advance (Cash)', desc: o.custName || 'Customer', cash: adv, gold: 0 });
+                    if(ogFine > 0) jama.push({ title: 'Order Old Gold', desc: o.custName || 'Customer', cash: 0, gold: ogFine }); // यह लाइन गोल्ड को जमा में लाएगी
                 }
             });
 
