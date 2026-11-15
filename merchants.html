@@ -191,6 +191,7 @@
     <aside id="app-sidebar" class="sidebar-drawer">
        <ul class="sidebar-menu">
             <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="quick.html"><i class="fas fa-bolt"></i> Quick Entry</a></li>
             <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
             <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
             <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
@@ -568,50 +569,160 @@
             document.getElementById('grpSilverBal').style.display = type === 'Gold' ? 'none' : 'block';
         }
 
-        // ─── LOAD MERCHANTS ────────────────────────────────────────────────────
+        // ─── 🔥 LIVE LEDGER ENGINE FOR MERCHANT LIST (100% SYNC WITH KHATA) ────
         async function loadMerchants() {
             let list = [];
-            try { list = await getAllItems('merchants'); } catch(e) {}
+            try { list = (await getAllItems('merchants')) || []; } catch(e) {}
             let orders = [];
-            try { orders = await getAllItems('orders'); } catch(e) {}
-
-            const pendingGold = {};
-            const pendingSilver = {};
-
-            orders.forEach(o => {
-                if (o.status === 'in_progress' && o.merchantId) {
-                    const mId = o.merchantId;
-                    const w = parseFloat(o.issuedFineWt) || 0;
-                    const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
-                    if (isSilv) pendingSilver[mId] = (pendingSilver[mId] || 0) + w;
-                    else pendingGold[mId] = (pendingGold[mId] || 0) + w;
-                }
-            });
+            try { orders = (await getAllItems('orders')) || []; } catch(e) {}
+            let purchases = [];
+            try { purchases = (await getAllItems('purchases')) || []; } catch(e) {}
+            let payments = [];
+            try { payments = (await getAllItems('merchant_payments')) || []; } catch(e) {}
 
             let globalGoldOwe = 0, globalGoldDue = 0;
             let globalSilverOwe = 0, globalSilverDue = 0;
             let globalCashOwe = 0;
 
-            list.forEach(m => {
-                const cBal = parseFloat(m.balance || 0);
-                globalCashOwe += cBal;
+            for (let m of list) {
+                const mId = m.id;
+                const myPurchases = purchases.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
+                const myPayments = payments.filter(p => String(p.merchantId) === String(mId) && p.status !== 'cancelled');
+                const myOrders = orders.filter(o => String(o.merchantId) === String(mId));
 
-                const gBal = parseFloat(m.goldBalance || 0);
-                const pGold = pendingGold[m.id] || 0;
-                const netGold = gBal - pGold;
-                if (netGold > 0.0005) globalGoldOwe += netGold;
-                else if (netGold < -0.0005) globalGoldDue += Math.abs(netGold);
-                m._netGold = Math.abs(netGold) < 0.0005 ? 0 : netGold;
-                m._pendingGold = pGold;
+                let txs = [];
 
-                const sBal = parseFloat(m.silverBalance || 0);
-                const pSilv = pendingSilver[m.id] || 0;
-                const netSilver = sBal - pSilv;
-                if (netSilver > 0.0005) globalSilverOwe += netSilver;
-                else if (netSilver < -0.0005) globalSilverDue += Math.abs(netSilver);
-                m._netSilver = Math.abs(netSilver) < 0.0005 ? 0 : netSilver;
-                m._pendingSilver = pSilv;
-            });
+                // 1. Purchases
+                myPurchases.forEach(p => {
+                    let goldChange = 0, silverChange = 0, cashChange = 0;
+                    const invItem = p.itemDetails && p.itemDetails[0] ? p.itemDetails[0] : {};
+                    const isSilv = (p.metal === 'Silver') || (p.category && String(p.category).toUpperCase().includes('SILVER')) || (invItem.category && String(invItem.category).toUpperCase().includes('SILVER')) || (invItem.purity && (String(invItem.purity).toUpperCase().includes('SIL') || String(invItem.purity).includes('92.5')));
+
+                    if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
+                        cashChange = parseFloat(p.totalAmount) || 0;
+                        let currentPaid = parseFloat(p.paidAmount) || 0;
+                        let laterNama = 0;
+                        myPayments.filter(pmt => String(pmt.purchaseId) === String(p.id)).forEach(pmt => {
+                            let pmtMult = pmt.paymentType === 'IN' ? -1 : 1;
+                            let pmtAmt = parseFloat(pmt.amount || pmt.cash || 0);
+                            if (pmt.goldType === 'fixed' && pmt.gold > 0) pmtAmt += (parseFloat(pmt.gold) * parseFloat(pmt.rate));
+                            laterNama += (pmtAmt * pmtMult);
+                        });
+                        let instantPayment = Math.round(currentPaid - laterNama);
+                        if (instantPayment > 0) {
+                            txs.push({ date: getSafeDateISO(p.date, 1000), gold: 0, silver: 0, cash: -instantPayment });
+                        }
+                    }
+                    if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
+                        if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
+                        else goldChange = parseFloat(p.totalFineWeight) || 0;
+                    }
+                    txs.push({ date: getSafeDateISO(p.date), gold: goldChange, silver: silverChange, cash: cashChange });
+                });
+
+                // 2. Active Orders / Jobwork
+                let pendingGoldAcc = 0, pendingSilverAcc = 0;
+                myOrders.filter(o => o.status === 'in_progress').forEach(o => {
+                    if (o.issuedFineWt > 0) {
+                        const isSilv = (o.metal === 'Silver') || (o.category && String(o.category).toUpperCase().includes('SILVER')) || (o.issuedPurity && (String(o.issuedPurity).toUpperCase().includes('SIL') || String(o.issuedPurity).includes('92.5')));
+                        if (isSilv) pendingSilverAcc += parseFloat(o.issuedFineWt);
+                        else pendingGoldAcc += parseFloat(o.issuedFineWt);
+
+                        txs.push({
+                            date: getSafeDateISO(o.orderDate),
+                            gold: isSilv ? 0 : -parseFloat(o.issuedFineWt),
+                            silver: isSilv ? -parseFloat(o.issuedFineWt) : 0,
+                            cash: 0
+                        });
+                    }
+                });
+
+                // 3. Payments / Settlements (Including entries from Cashbook Money In/Out)
+                myPayments.forEach(p => {
+                    let pmtMult = p.paymentType === 'IN' ? 1 : -1;
+                    let rawCash = parseFloat(p.amount !== undefined ? p.amount : (p.cash || 0)) || 0;
+                    let cashChange = rawCash * pmtMult;
+                    let goldChange = 0, silverChange = 0;
+
+                    if (p.isClearEntry || p.mode === 'Hisab Clear (Neel)') {
+                        const metalName = p.metal || 'Gold';
+                        if (p.gold > 0) {
+                            if (metalName === 'Silver') silverChange = parseFloat(p.gold) * pmtMult;
+                            else goldChange = parseFloat(p.gold) * pmtMult;
+                        }
+                        txs.push({ date: getSafeDateISO(p.date), gold: goldChange, silver: silverChange, cash: cashChange, isClearEntry: true });
+                        return;
+                    }
+
+                    if (p.gold > 0) {
+                        const metalName = p.metal || 'Gold';
+                        if (p.goldType === 'fixed') {
+                            cashChange += (parseFloat(p.gold) * parseFloat(p.rate || 0) * pmtMult);
+                        } else {
+                            if (metalName === 'Silver') silverChange = parseFloat(p.gold) * pmtMult;
+                            else goldChange = parseFloat(p.gold) * pmtMult;
+                        }
+                    }
+                    txs.push({ date: getSafeDateISO(p.date), gold: goldChange, silver: silverChange, cash: cashChange });
+                });
+
+                txs.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                // Cut off at last "Hisab Clear (Zero)" if any
+                let lastClearIdx = -1;
+                for (let i = txs.length - 1; i >= 0; i--) {
+                    if (txs[i].isClearEntry) { lastClearIdx = i; break; }
+                }
+
+                let rC = 0, rG = 0, rS = 0;
+                if (lastClearIdx !== -1) {
+                    const activeTxs = txs.slice(lastClearIdx + 1);
+                    activeTxs.forEach(t => { rC += t.cash; rG += t.gold; rS += t.silver; });
+                } else {
+                    let sumC = 0, sumG = 0, sumS = 0;
+                    txs.forEach(t => { sumC += t.cash; sumG += t.gold; sumS += t.silver; });
+
+                    let openC = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : (txs.length === 0 ? (parseFloat(m.balance) || 0) : 0);
+                    let openG = m.openingGold !== undefined ? parseFloat(m.openingGold) : (txs.length === 0 ? (parseFloat(m.goldBalance) || 0) : 0);
+                    let openS = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : (txs.length === 0 ? (parseFloat(m.silverBalance) || 0) : 0);
+
+                    rC = openC + sumC;
+                    rG = openG + sumG;
+                    rS = openS + sumS;
+                }
+
+                rC = Math.abs(rC) < 0.5 ? 0 : Math.round(rC);
+                rG = Math.abs(rG) < 0.0005 ? 0 : parseFloat(rG.toFixed(3));
+                rS = Math.abs(rS) < 0.0005 ? 0 : parseFloat(rS.toFixed(3));
+
+                // Auto-heal stored DB balance if out of sync (e.g. after Cashbook Money Out entry)
+                let storedGoldWithoutPending = parseFloat((rG + pendingGoldAcc).toFixed(3));
+                let storedSilverWithoutPending = parseFloat((rS + pendingSilverAcc).toFixed(3));
+                if (Math.abs((parseFloat(m.balance) || 0) - rC) >= 1 || Math.abs((parseFloat(m.goldBalance) || 0) - storedGoldWithoutPending) >= 0.001) {
+                    try {
+                        await updateItem('merchants', m.id, {
+                            balance: rC,
+                            goldBalance: storedGoldWithoutPending,
+                            silverBalance: storedSilverWithoutPending
+                        });
+                    } catch(e) {}
+                }
+
+                m.balance = rC;
+                m.goldBalance = storedGoldWithoutPending;
+                m.silverBalance = storedSilverWithoutPending;
+                m._netGold = rG;
+                m._netSilver = rS;
+                m._pendingGold = pendingGoldAcc;
+                m._pendingSilver = pendingSilverAcc;
+
+                globalCashOwe += rC;
+                if (rG > 0.0005) globalGoldOwe += rG;
+                else if (rG < -0.0005) globalGoldDue += Math.abs(rG);
+
+                if (rS > 0.0005) globalSilverOwe += rS;
+                else if (rS < -0.0005) globalSilverDue += Math.abs(rS);
+            }
 
             allMerchants = list;
 
@@ -621,8 +732,9 @@
             document.getElementById('globalSilverDue').innerText = globalSilverDue.toFixed(3) + " g";
 
             const cashEl = document.getElementById('globalCashOwe');
-            cashEl.innerText = "₹" + Math.abs(globalCashOwe).toLocaleString();
-            cashEl.style.color = globalCashOwe < 0 ? "var(--success-green)" : "var(--active-red)";
+            const cashSuffix = globalCashOwe > 0 ? " (Dena)" : (globalCashOwe < 0 ? " (Lena)" : "");
+            cashEl.innerText = "₹" + Math.abs(globalCashOwe).toLocaleString() + cashSuffix;
+            cashEl.style.color = globalCashOwe < 0 ? "var(--success-green)" : (globalCashOwe > 0 ? "var(--active-red)" : "#333");
 
             renderMerchants();
         }
@@ -655,8 +767,6 @@
                 const cs = getStatus(cashBal);
                 const gs = getStatus(netGold);
                 const ss = getStatus(netSilver);
-
-                const isAllClear = (cashBal === 0 && netGold === 0 && netSilver === 0);
 
                 const goldCellHtml = cat === 'Silver' 
                     ? `<span style="color:#cbd5e1;">-</span>` 
@@ -736,13 +846,11 @@
             try {
                 const clearDateISO = new Date().toISOString();
 
-                // ALWAYS insert a marker entry, so we know exactly when history was cut off
                 await addItem('merchant_payments', {
                     merchantId: id, amount: 0, gold: 0, metal: 'Gold', goldType: 'unfixed', rate: 0,
                     paymentType: 'OUT', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
                 });
 
-                // Update balances to absolute 0
                 await updateItem('merchants', m.id, {
                     balance: 0, goldBalance: 0, silverBalance: 0, lastClearDate: clearDateISO
                 });
@@ -1140,8 +1248,11 @@
                     return;
                 }
 
+                const merchObj = allMerchants.find(x => String(x.id) === String(id));
+                const merchName = merchObj ? merchObj.name : 'Merchant';
+
                 await addItem('merchant_payments', {
-                    merchantId: id, purchaseId: selectedPurchaseId, amount: amt, gold: gold, metal: metal,
+                    merchantId: id, merchantName: merchName, purchaseId: selectedPurchaseId, amount: amt, cash: amt, gold: gold, metal: metal,
                     goldType: goldType, rate: rate, paymentType: direction,
                     inventoryId: inventoryId, inventoryBarcode: inventoryBarcode,
                     purity: transferPurity,
@@ -1149,7 +1260,6 @@
                     date: new Date().toISOString(), mode: payMode
                 });
 
-                // Calculation mult logic: OUT means Dena reduced (subtracted), IN means Dena increased (added)
                 const mult = direction === 'OUT' ? -1 : 1;
                 let actualCashImpact = amt;
                 let actualGoldImpact = gold;
@@ -1162,7 +1272,8 @@
                 if (amt > 0) {
                     await addItem('cashflow', {
                         date: new Date().toISOString(), type: direction, mode: payMode,
-                        category: 'Merchant Settlement', amount: amt, note: `Ledger Settlement ID #${id}`
+                        merchantId: id, merchantName: merchName, partyName: merchName,
+                        category: 'Merchant Settlement', amount: amt, note: `Ledger Settlement - ${merchName} (ID #${id})`
                     });
                 }
 
@@ -1279,26 +1390,23 @@
                     const isSilv = (p.metal === 'Silver') || (p.category && String(p.category).toUpperCase().includes('SILVER')) || (invItem.category && String(invItem.category).toUpperCase().includes('SILVER')) || (invItem.purity && (String(invItem.purity).toUpperCase().includes('SIL') || String(invItem.purity).includes('92.5')));
 
                     if (p.type === 'Fixed' || p.type === 'Rate Cut (Settlement)') {
-                        // We bought fixed metal, so our liability (Dena) increases (+)
                         cashChange = parseFloat(p.totalAmount) || 0;
                         desc += ` (Total Bill: ₹${p.totalAmount})`;
                         let currentPaid = parseFloat(p.paidAmount) || 0;
                         let laterNama = 0;
                         myPayments.filter(pmt => String(pmt.purchaseId) === String(p.id)).forEach(pmt => {
                             let pmtMult = pmt.paymentType === 'IN' ? -1 : 1;
-                            let pmtAmt = parseFloat(pmt.amount || 0);
+                            let pmtAmt = parseFloat(pmt.amount !== undefined ? pmt.amount : (pmt.cash || 0));
                             if (pmt.goldType === 'fixed' && pmt.gold > 0) pmtAmt += (parseFloat(pmt.gold) * parseFloat(pmt.rate));
                             laterNama += (pmtAmt * pmtMult);
                         });
                         let instantPayment = Math.round(currentPaid - laterNama);
                         if (instantPayment > 0) {
                             let instantDate = getSafeDateISO(p.date, 1000);
-                            // We paid cash instantly, so liability (Dena) decreases (-)
                             transactions.push({ date: instantDate, type: 'Advance Paid', desc: `Cash Paid instantly for PUR-${p.id}`, gold: 0, silver: 0, cash: -instantPayment, badge: 'b-pay' });
                         }
                     }
                     if (p.type === 'Unfixed' || p.type === 'Rate Cut (Settlement)') {
-                        // We bought unfixed metal, so our metal liability (Dena) increases (+)
                         if (isSilv) silverChange = parseFloat(p.totalFineWeight) || 0;
                         else goldChange = parseFloat(p.totalFineWeight) || 0;
                         
@@ -1326,7 +1434,6 @@
                         let mathDesc = `<br><span style="font-size:0.74rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Gross: ${parseFloat(grossWt).toFixed(3)}g × Purity: ${displayPurity} = Fine: ${parseFloat(o.issuedFineWt).toFixed(3)}g</span>`;
 
                         let oSafeDate = getSafeDateISO(o.orderDate);
-                        // We issued metal to Karigar (OUT). Our liability decreases (-).
                         transactions.push({ date: oSafeDate, type: 'Jobwork Issued', desc: `Assigned Order ORD-${o.id}${mathDesc}`, gold: isSilv ? 0 : -o.issuedFineWt, silver: isSilv ? -o.issuedFineWt : 0, cash: 0, badge: 'b-unfix' });
                     }
                 });
@@ -1334,28 +1441,30 @@
                 // 3. Payments/Settlements Processing
                 for (let p of myPayments) {
                     let descParts = [];
-                    // IN = We receive from merchant = Liability (Dena) increases (+)
-                    // OUT = We give to merchant = Liability (Dena) decreases (-)
                     let pmtMult = p.paymentType === 'IN' ? 1 : -1;
-                    let cashChange = parseFloat(p.amount || 0) * pmtMult;
+                    let rawCash = parseFloat(p.amount !== undefined ? p.amount : (p.cash || 0)) || 0;
+                    let cashChange = rawCash * pmtMult;
                     let goldChange = 0, silverChange = 0;
 
                     if (p.isClearEntry || p.mode === 'Hisab Clear (Neel)') {
-                        if (p.amount > 0) descParts.push(`Hisab Clear (Cash ₹${parseFloat(p.amount).toLocaleString()})`);
+                        if (rawCash > 0) descParts.push(`Hisab Clear (Cash ₹${rawCash.toLocaleString()})`);
                         if (p.gold > 0) {
                             const metalName = p.metal || 'Gold';
                             if (metalName === 'Silver') silverChange = parseFloat(p.gold) * pmtMult;
                             else goldChange = parseFloat(p.gold) * pmtMult;
                             descParts.push(`Hisab Clear (${metalName} ${parseFloat(p.gold).toFixed(3)}g)`);
                         }
-                        if (p.amount == 0 && p.gold == 0) descParts.push("Hisab Clear Marker");
+                        if (rawCash == 0 && p.gold == 0) descParts.push("Hisab Clear Marker");
 
                         let pSafeDate = getSafeDateISO(p.date);
                         transactions.push({ date: pSafeDate, type: 'Hisab Clear (Zero)', desc: descParts.join(' | '), gold: goldChange, silver: silverChange, cash: cashChange, badge: 'b-clear', isClearEntry: true });
                         continue;
                     }
 
-                    if (p.amount > 0) descParts.push(`Cash ₹${p.amount} (${p.mode})`);
+                    if (rawCash > 0) {
+                        let noteExtra = p.note ? ` - ${p.note}` : '';
+                        descParts.push(`Cash ₹${rawCash.toLocaleString()} (${p.mode || 'Cash'})${noteExtra}`);
+                    }
                     
                     if (p.gold > 0) {
                         const metalName = p.metal || 'Gold';
@@ -1408,18 +1517,14 @@
                 let baseOpenSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
                 let baseOpenCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
 
-                // Compute exact running balances for every transaction chronologically
                 let rG = baseOpenGold, rS = baseOpenSilver, rC = baseOpenCash;
                 transactions.forEach(t => {
                     rG += t.gold;
                     rS += t.silver;
                     rC += t.cash;
                     
-                    // In clear entries, force it to absolute zero exactly to drop residual floating decimals
                     if (t.isClearEntry) {
-                        if (t.gold !== 0) rG = 0;
-                        if (t.silver !== 0) rS = 0;
-                        if (t.cash !== 0) rC = 0;
+                        rG = 0; rS = 0; rC = 0;
                     }
                     
                     t.runGold = Math.abs(rG) < 0.0005 ? 0 : rG;
@@ -1465,7 +1570,6 @@
             let pageOpenCash = currentReportMeta.openCash;
             let isFreshStart = false;
 
-            // HIDDEN HISTORY LOGIC: Find the exact position of the last "Hisab Clear"
             if (!showAllHistory) {
                 let lastClearIdx = -1;
                 for (let i = currentReportData.length - 1; i >= 0; i--) {
@@ -1492,7 +1596,6 @@
             const endIdx = startIdx + ROWS_PER_PAPER_PAGE;
             const pageSlice = displayRows.slice(startIdx, endIdx);
 
-            // Brought Forward (B/F) balance for Page > 1
             let bfGold = pageOpenGold;
             let bfSilver = pageOpenSilver;
             let bfCash = pageOpenCash;
@@ -1525,7 +1628,6 @@
 
             const tbody = document.getElementById('reportBody');
 
-            // Format Balance string with Lena/Dena label
             const formatB = (val, isCash = false) => {
                 let v = Math.abs(val) || 0;
                 if (isCash && v < 0.5) v = 0;
@@ -1557,9 +1659,6 @@
                 tbody.innerHTML += '<tr><td colspan="11" style="text-align:center; padding:35px; color:#94a3b8; font-style:italic;">Abhi is khate me koi naya hisab darj nahi hai (Hisab Neel / Clear hai).</td></tr>';
             } else {
                 pageSlice.forEach(t => {
-                    // Logic: 
-                    // Positive Impact (+) means Liability Increases (Jama / Received from merchant)
-                    // Negative Impact (-) means Liability Decreases (Nama / Given to merchant)
                     let gJ = t.gold > 0 ? t.gold : 0, gN = t.gold < 0 ? Math.abs(t.gold) : 0;
                     let sJ = t.silver > 0 ? t.silver : 0, sN = t.silver < 0 ? Math.abs(t.silver) : 0;
                     let cJ = t.cash > 0 ? t.cash : 0, cN = t.cash < 0 ? Math.abs(t.cash) : 0;
@@ -1596,7 +1695,6 @@
                 });
             }
 
-            // Closing Balance Row at bottom of current Paper Page
             let endGold = pageSlice.length > 0 ? pageSlice[pageSlice.length - 1].runGold : bfGold;
             let endSilver = pageSlice.length > 0 ? pageSlice[pageSlice.length - 1].runSilver : bfSilver;
             let endCash = pageSlice.length > 0 ? pageSlice[pageSlice.length - 1].runCash : bfCash;
@@ -1612,7 +1710,6 @@
             `;
             tbody.appendChild(trClose);
 
-            // Update Pagination Buttons
             document.getElementById('btnPrevPage').disabled = currentPaperPage <= 1;
             document.getElementById('btnNextPage').disabled = currentPaperPage >= totalPages;
 
