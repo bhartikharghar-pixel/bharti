@@ -381,7 +381,6 @@
     function toLocalDateStr(dateVal) {
         if (!dateVal) return '';
         let str = String(dateVal).trim();
-        // If it's an ISO string with time (e.g. 2026-11-15T18:30:00.000Z), convert to local IST YYYY-MM-DD
         if (str.includes('T')) {
             let d = new Date(str);
             if (!isNaN(d.getTime())) {
@@ -445,12 +444,12 @@
 
     function getSafeNet(item) {
         if (!item) return 0;
-        let n = parseNum(item.netWt || item.netWeight || item.totalNetWeight || item.net_wt);
+        let n = parseNum(item.netWt || item.netWeight || item.totalNetWeight || item.net_wt || item.oldGoldNet || item.oldGoldWeight || item.oldGoldWt);
         if(n > 0) return n;
         let g = parseNum(item.grossWt || item.totalGrossWeight || item.grossWeight || item.weight || item.totalWeight);
-        let s = parseNum(item.stoneWt || item.totalStoneWeight || item.stoneWeight);
-        if(g > 0) return g - s;
-        return 0;
+        let s = parseNum(item.stoneWt || item.totalStoneWeight || item.stoneWeight || item.lessWt || item.lessWeight);
+        if(g > 0) return Math.max(0, g - s);
+        return parseNum(item.fineWt || item.fineWeight);
     }
     
     function getSafeFine(item) {
@@ -556,7 +555,6 @@
             let dateEl = document.getElementById('selectedDate');
             let today = dateEl.value || getTodayLocalStr();
 
-            // Always fetch fresh Customers, Merchants & Settings on every refresh
             allCustomers = await safeGetAll('customers');
             allMerchants = await safeGetAll('merchants');
             try {
@@ -642,9 +640,19 @@
                 }
             };
 
+            // Track which sale IDs or order IDs already logged Old Gold in `old_gold` store so we NEVER double count
+            let handledSaleOgIds = new Set();
+            oldGold.forEach(o => {
+                if (o.status === 'cancelled') return;
+                if (o.saleId) handledSaleOgIds.add(String(o.saleId));
+                if (o.billId) handledSaleOgIds.add(String(o.billId));
+                if (o.invoiceNo) handledSaleOgIds.add(String(o.invoiceNo));
+            });
+
             sales.forEach(s => {
                 if (s.status === 'cancelled') return;
-                let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
+                let advance = Math.abs(parseNum(s.advanceAmount || 0));
+                let isOrderOrRepairBill = advance > 0 || Boolean(s.orderId) || String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
                 let metalIn = 0, metalOut = 0;
                 
                 (s.items || []).forEach(i => {
@@ -662,13 +670,19 @@
                 let isOgSilver = ogTypeStr.includes('silver') || ogTypeStr.includes('chandi') || ogTypeStr.includes('92.5') || ogTypeStr.includes('payal') || ogTypeStr.includes('99.9');
 
                 if (metalIn === 0 && !isOgSilver && isGold(s)) {
-                    let saleOgWt = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
+                    let saleOgWt = parseNum(s.totalExchWt || s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
                     if (saleOgWt > 0) metalIn = saleOgWt;
+                }
+
+                // Prevent double counting if this is an Order Bill (already counted in orders) or already in old_gold table
+                let alreadyInOldGoldStore = handledSaleOgIds.has(String(s.id)) || (s.invoiceNo && handledSaleOgIds.has(String(s.invoiceNo)));
+                if (isOrderOrRepairBill || alreadyInOldGoldStore) {
+                    metalIn = 0;
                 }
 
                 if (metalIn > 0) logMetal(s.date, metalIn, true, 'OLD'); 
                 if (metalOut > 0) {
-                    if (!isOrderBill || (isOrderBill && s.jobType !== 'Repair')) {
+                    if (!isOrderOrRepairBill || (isOrderOrRepairBill && s.jobType !== 'Repair')) {
                         logMetal(s.date, metalOut, false, 'NET');
                     }
                 }
@@ -676,7 +690,7 @@
                 if (isSameDay(s.date, today)) {
                     let cName = s.customerName || getCustName(s.customerId);
                     if (metalOut > 0) {
-                        if (!isOrderBill || (isOrderBill && s.jobType !== 'Repair')) {
+                        if (!isOrderOrRepairBill || (isOrderOrRepairBill && s.jobType !== 'Repair')) {
                             pushMetalLog(metalOut, 'Net', cName, 'Sale Delivered', false);
                         }
                     }
@@ -747,44 +761,55 @@
                 }
             });
 
+            // --- 🔥 FIXED OLD GOLD & REFINERY MELTING ENGINE ---
             oldGold.forEach(o => {
-                if (o.mode !== 'POS Exchange' && isGold(o)) { 
-                    let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
-                    if (isMelt) {
-                        let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
-                        let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
-                        let loss = parseNum(o.lossWt);
-                        
-                        if (recv > 0 && loss === 0) loss = sent - recv;
-                        if (loss > 0 && recv === 0) recv = sent - loss;
-                        if (loss < 0) loss = 0;
-                        if (recv < 0) recv = 0;
+                if (o.status === 'cancelled' || !isGold(o)) return;
 
-                        if (recv > 0 || loss > 0) {
-                            if (recv > 0) { 
-                                logMetal(o.date, recv, true, 'MIX');
-                                logMetal(o.date, recv, false, 'OLD'); 
-                            }
-                            if (loss > 0) {
-                                logMetal(o.date, loss, false, 'OLD');
-                            }
-                        } else {
-                            logMetal(o.date, sent, false, 'OLD');
-                        }
+                let isPosExch = (o.mode === 'POS Exchange' || String(o.type || '').toLowerCase().includes('exchange'));
+                let isLinkedToSale = Boolean(o.saleId || o.billId || o.invoiceNo);
 
-                        if (isSameDay(o.date, today)) {
-                            if (sent > 0 && loss === 0 && recv === 0) pushMetalLog(sent, 'Old', 'Refinery', 'Melt Sent', false);
-                            else if (sent > 0 && loss > 0) {
-                                let converted = sent - loss;
-                                if(converted > 0) pushMetalLog(converted, 'Old', 'Refinery', 'Melt Sent', false);
-                                pushMetalLog(loss, 'Old', 'Refinery', 'Melting Loss', false);
-                            }
-                            if (recv > 0) pushMetalLog(recv, 'Mix', 'Refinery', 'Pure Recv', true);
+                // If it's a POS Exchange that is already counted inside the `sales` loop above, skip it
+                if (isPosExch && !isLinkedToSale) return;
+
+                let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
+                if (isMelt) {
+                    let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt || o.totalSentWt || o.weight);
+                    let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt || o.pureWt);
+                    let loss = parseNum(o.lossWt);
+                    
+                    if (sent === 0 && (recv > 0 || loss > 0)) sent = recv + loss;
+                    if (recv > 0 && loss === 0 && sent > recv) loss = sent - recv;
+                    if (loss > 0 && recv === 0 && sent > loss) recv = sent - loss;
+                    if (loss < 0) loss = 0;
+                    if (recv < 0) recv = 0;
+
+                    // Full `sent` weight ALWAYS leaves Old Gold stock when melted!
+                    if (sent > 0) {
+                        logMetal(o.date, sent, false, 'OLD');
+                    }
+                    // Received pure/langadi weight enters MIX stock
+                    if (recv > 0) {
+                        logMetal(o.date, recv, true, 'MIX');
+                    }
+
+                    if (isSameDay(o.date, today)) {
+                        if (sent > 0 && loss === 0) {
+                            pushMetalLog(sent, 'Old', 'Refinery', 'Melt Sent', false);
+                        } else if (sent > 0 && loss > 0) {
+                            let converted = Math.max(0, sent - loss);
+                            if (converted > 0) pushMetalLog(converted, 'Old', 'Refinery', 'Melt Sent', false);
+                            pushMetalLog(loss, 'Old', 'Refinery', 'Melting Loss', false);
                         }
-                    } else {
-                        let wt = getSafeNet(o);
+                        if (recv > 0) pushMetalLog(recv, 'Mix', 'Refinery', 'Pure Recv', true);
+                    }
+                } else {
+                    let wt = getSafeNet(o);
+                    if (wt > 0) {
                         logMetal(o.date, wt, true, 'OLD');
-                        if (isSameDay(o.date, today) && wt > 0) pushMetalLog(wt, 'Old', getCustName(o.customerId), 'Bought OG', true);
+                        if (isSameDay(o.date, today)) {
+                            let cName = o.custName || o.customerName || getCustName(o.customerId);
+                            pushMetalLog(wt, 'Old', cName, isPosExch ? 'Bill Exch OG' : 'Bought OG', true);
+                        }
                     }
                 }
             });
@@ -810,20 +835,20 @@
                         if (isSameDay(aDate, today) && returnedRaw > 0) pushMetalLog(returnedRaw, 'Net', kName, 'Repair Recv', true);
 
                     } else {
-                        let inWt = parseNum(o.oldGoldNet);
-                        if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
+                        let inWt = parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight);
+                        if (inWt > 0) logMetal(o.orderDate || o.date, inWt, true, 'OLD');
 
                         let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
                         let issueCategory = 'NET'; 
-                        if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
+                        if (karigarIssuedWt > 0) logMetal(o.orderDate || o.date, karigarIssuedWt, false, issueCategory);
 
                         let receivedFromKarigarWt = parseNum(o.finalNet);
                         if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                            logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
+                            logMetal(o.orderDate || o.date, receivedFromKarigarWt, true, 'NET');
                         }
 
-                        if (isSameDay(o.orderDate, today)) {
-                            let cName = getCustName(o.customerId);
+                        if (isSameDay(o.orderDate || o.date, today)) {
+                            let cName = o.custName || getCustName(o.customerId);
                             if(inWt > 0) pushMetalLog(inWt, 'Old', cName, 'Order Advance OG', true);
                             if(karigarIssuedWt > 0) pushMetalLog(karigarIssuedWt, 'Net', kName, 'Order Metal Issue', false);
                             if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
@@ -989,7 +1014,7 @@
             orders.forEach(o => {
                 if (o.status === 'cancelled') return;
                 let oDate = toLocalDateStr(o.orderDate || o.date);
-                let cName = getCustName(o.customerId);
+                let cName = o.custName || getCustName(o.customerId);
                 
                 if (oDate === today) {
                     let itemN = o.itemName || o.item || o.jobType || 'Order';
@@ -1017,7 +1042,7 @@
                         let spl = getSplitStr(o.payments, matchedMode, advCash, totalIn);
                         pushLog('Order In', totalIn, `${cName} - ${itemN}`, 'Adv + OG', spl, true);
                     }
-                    if (ogAmt > 0) {
+                    if (ogAmt > 0 || ogWt > 0) {
                         pushLog('OldGold', ogAmt, cName, 'Order OG Exch', '', false, [{val: ogWt, label: 'Old'}]);
                     }
                 }
@@ -1070,7 +1095,7 @@
                 if (isRepairSale) return; 
 
                 let advance = Math.abs(parseNum(s.advanceAmount || 0));
-                let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
+                let isOrderBill = advance > 0 || Boolean(s.orderId) || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
                 let cName = s.customerName || getCustName(s.customerId);
                 let currentUdhari = Math.abs(parseNum(s.pendingAmount));
                 
@@ -1135,7 +1160,7 @@
                     if (isItemOld) oldWtRcv += net; else netWtSold += net;
                 });
                 
-                if (oldWtRcv === 0) oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet);
+                if (oldWtRcv === 0) oldWtRcv = parseNum(s.totalExchWt || s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
                 if (isOrderBill) oldWtRcv = 0; 
 
                 let jamaAmt = paid + udhari + og;
@@ -1221,7 +1246,6 @@
                 if (!isSameDay(mp.date, today)) return;
                 let mName = mp.merchantName || getMerchName(mp.merchantId);
 
-                // 1. Metal Entry
                 if (isGold(mp)) {
                     let net = parseNum(mp.gold); 
                     if (mp.goldType !== 'fixed' && net > 0) {
@@ -1241,7 +1265,6 @@
                     }
                 }
 
-                // 2. Cash/Bank Entry from Merchant Payments (100% Accurate Merchant Name)
                 let cashAmt = Math.abs(parseNum(mp.cash || mp.amount || mp.cashAmount || mp.paidAmount));
                 if (cashAmt > 0) {
                     let matchedMode = mp.mode || mp.paymentMode || 'Cash';
@@ -1351,21 +1374,22 @@
                 }
             });
 
-            oldGold.filter(o => isSameDay(o.date, today) && o.mode !== 'POS Exchange').forEach(o => {
+            oldGold.filter(o => o.status !== 'cancelled' && isSameDay(o.date, today) && o.mode !== 'POS Exchange').forEach(o => {
                 let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
                 if(isMelt) {
-                    let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
-                    let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
+                    let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt || o.totalSentWt || o.weight);
+                    let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt || o.pureWt);
                     let loss = parseNum(o.lossWt);
                     
-                    if (recv > 0 && loss === 0) loss = sent - recv;
-                    if (loss > 0 && recv === 0) recv = sent - loss;
+                    if (sent === 0 && (recv > 0 || loss > 0)) sent = recv + loss;
+                    if (recv > 0 && loss === 0 && sent > recv) loss = sent - recv;
+                    if (loss > 0 && recv === 0 && sent > loss) recv = sent - loss;
                     if (loss < 0) loss = 0;
                     if (recv < 0) recv = 0;
                     
                     if (sent > 0) {
                         if (loss > 0) {
-                            let converted = sent - loss;
+                            let converted = Math.max(0, sent - loss);
                             if (converted > 0) {
                                 pushLog('MeltOut', 0, 'Refinery', 'Melt Sent', '', false, [{val: -converted, label:'Old'}], '<span style="color:#c62828;">SENT</span>');
                             }
@@ -1378,11 +1402,12 @@
                         pushLog('MeltIn', 0, 'Refinery', 'Pure Recv', '', true, [{val: recv, label:'Mix'}], '<span style="color:#0277bd;">PURE</span>');
                     }
                 } else {
-                    let amt = Math.abs(parseNum(o.amount || o.cash));
-                    let wt = parseNum(o.netWt || o.oldGoldWeight);
-                    if(amt > 0) {
+                    let amt = Math.abs(parseNum(o.amount || o.cash || o.cashPaid || o.totalAmount));
+                    let wt = getSafeNet(o);
+                    let cName = o.custName || o.customerName || getCustName(o.customerId);
+                    if(amt > 0 || wt > 0) {
                         let spl = getSplitStr(null, o.mode, amt, amt);
-                        pushLog('OldGold', amt, getCustName(o.customerId), '', spl, false, [{val: wt, label: 'Old'}]);
+                        pushLog('OldGold', amt, cName, 'Bought OG', spl, false, [{val: wt, label: 'Old'}]);
                     }
                 }
             });
@@ -1411,7 +1436,7 @@
                 });
             });
 
-            // --- ALL REMAINING CASHFLOW ENTRIES (FROM UNIVERSAL CASHBOOK OR DIRECT) ---
+            // --- ALL REMAINING CASHFLOW ENTRIES ---
             cFlows.filter(c => isSameDay(c.date, today) && !c.alreadyHandled).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0 || getMoneyType(c.mode) === 'none') return;
@@ -1423,7 +1448,6 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
-                // 0. CHECK IF CONTRA / BANK TRANSFER
                 if (cat.includes('contra') || note.includes('contra-')) {
                     let contraTitle = c.note ? c.note.split('[Ref:')[0].trim() : 'Bank Contra';
                     if (type === 'IN') pushLog('Other In', amt, contraTitle, 'Contra In', spl, true);
@@ -1431,10 +1455,8 @@
                     return;
                 }
 
-                // 1. FIRST CHECK IF THIS IS VYAPARI / MERCHANT PAYMENT
                 let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement') || note.includes('vyapari') || note.includes('merchant') || Boolean(c.merchantId || c.merchant_id || c.merchantName);
 
-                // 2. LOAN TOP-UP CHECK
                 let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
                 let loanMatch = !isVyapariPayment ? (
                     note.match(/\b(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || 
@@ -1467,7 +1489,6 @@
                     return; 
                 }
 
-                // 3. MERCHANT NAME DETECTION
                 let vyapariName = c.merchantName || c.merchant_name || '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
 
@@ -1502,7 +1523,6 @@
                     }
                 }
 
-                // 4. CUSTOMER NAME DETECTION
                 let cNameFromFlow = '';
                 if (!isVyapariPayment) {
                     if (c.customerName) cNameFromFlow = c.customerName;
@@ -1539,7 +1559,6 @@
                     entityName = c.note || c.category || (isVyapariPayment ? 'Vyapari' : 'Payment');
                 }
 
-                // 5. ROUTE TO SPECIFIC BUCKETS
                 let isOrderInFlow = cat.includes('order') || note.includes('ord-');
                 let isRepairFlow = cat.includes('repair') || note.includes('repair') || note.includes('rep-');
                 let isDepositFlow = cat.includes('deposit');
