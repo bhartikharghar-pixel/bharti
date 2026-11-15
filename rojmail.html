@@ -1,411 +1,1331 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Master Rojmel (Daybook) - Bharti Jewellers</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
-            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #D4AF37;
-            --bg-light: #f4f6f9; --border-color: #2a2a2a; 
-            --in-green: #2e7d32; --out-red: #d32f2f; --white: #ffffff;
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --bg-light: #f4f6f9; --border-color: #2a2a2a; 
+            --in-green: #2e7d32; --out-red: #c62828; --white: #ffffff;
         }
 
         body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background: var(--bg-light); padding-top: 70px; color: #333; }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
 
-        /* HEADER */
+        /* --- HEADER & SIDEBAR --- */
         .app-header {
             position: fixed; top: 0; left: 0; width: 100%; height: 60px;
             background: var(--header-bg); display: flex; align-items: center;
-            justify-content: space-between; padding: 0 20px; z-index: 1000;
+            justify-content: space-between; padding: 0 15px; z-index: 2000;
             box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold);
         }
-        .app-header h2 { color: var(--accent-gold); margin: 0; font-size: 1.3rem; letter-spacing: 1px; }
-        .header-actions input {
-            padding: 8px 12px; border-radius: 5px; border: 1px solid var(--accent-gold);
-            background: #222; color: var(--accent-gold); font-family: 'Poppins'; font-weight: 600;
-        }
+        .header-left { display: flex; align-items: center; }
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
 
-        /* BALANCES SECTION */
-        .balance-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 15px; }
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+        .sidebar-menu li a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; transition: 0.2s; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 5px solid #fff; font-weight: 600; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-footer { padding: 15px; text-align: center; border-top: 1px solid var(--border-color); color: #666; font-size: 0.8rem; background: #0a0a0a; }
+
+        .master-container { max-width: 1200px; margin: auto; padding: 0 15px 30px 15px; }
+
+        /* --- TOP CONTROL BAR --- */
+        .top-bar {
+            background: #fff; padding: 15px 20px; border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05); margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+            border-bottom: 3px solid var(--accent-gold);
+        }
+        .top-bar h2 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #111; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+        .bar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .date-input { border: 2px solid var(--accent-gold); padding: 8px 12px; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.95rem; outline: none; background: #fffdf9; }
+        .btn-action { border: none; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 7px; font-family: inherit; transition: 0.2s; }
+        .btn-refresh { background: #111; color: var(--accent-gold); }
+        .btn-print { background: #1976d2; color: #fff; }
+        .btn-action:hover { transform: scale(1.02); opacity: 0.95; }
+
+        /* --- OPENING & SUMMARY CARDS --- */
+        .balance-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media(max-width: 900px) { .balance-cards { grid-template-columns: 1fr 1fr; } }
+        @media(max-width: 500px) { .balance-cards { grid-template-columns: 1fr; } }
+
         .b-card {
-            background: var(--white); padding: 15px; border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center;
-            border-bottom: 4px solid #ccc;
+            background: var(--white); padding: 15px; border-radius: 10px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.05); text-align: center;
+            border: 1px solid #eee; position: relative; overflow: hidden;
         }
-        .b-card.cash { border-color: var(--in-green); }
-        .b-card.gold { border-color: var(--accent-gold); }
-        .b-card h4 { margin: 0 0 5px 0; color: #666; font-size: 0.9rem; text-transform: uppercase; }
-        .b-card h2 { margin: 0; font-size: 1.6rem; color: #111; font-weight: 700; }
+        .b-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 5px; }
+        .b-card.open-c::before { background: #1976d2; }
+        .b-card.open-g::before { background: var(--accent-gold); }
+        .b-card.close-c::before { background: var(--in-green); }
+        .b-card.close-g::before { background: #e65100; }
 
-        /* DAYBOOK GRID (JAMA / NAMA) */
-        .daybook-container { display: flex; gap: 15px; padding: 0 15px 20px 15px; flex-wrap: wrap; }
+        .b-card h4 { margin: 0 0 6px 0; color: #666; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; }
+        .b-card h2 { margin: 0 0 6px 0; font-size: 1.45rem; color: #111; font-weight: 800; }
+        .sub-split { font-size: 0.75rem; color: #555; border-top: 1px dashed #ddd; padding-top: 6px; font-weight: 600; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 4px; }
+
+        /* --- DAYBOOK TABLES (JAMA / NAMA) --- */
+        .daybook-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; align-items: start; }
+        @media(max-width: 850px) { .daybook-container { grid-template-columns: 1fr; } }
+
         .ledger-side {
-            flex: 1; min-width: 320px; background: var(--white);
-            border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden; display: flex; flex-direction: column;
+            background: var(--white); border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06); overflow: hidden;
+            border: 1px solid #e0e0e0; display: flex; flex-direction: column;
         }
         .ledger-header {
-            padding: 15px; text-align: center; font-weight: 700; color: var(--white);
-            font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase;
+            padding: 13px 15px; text-align: center; font-weight: 800; color: var(--white);
+            font-size: 1.05rem; letter-spacing: 0.8px; text-transform: uppercase;
         }
-        .jama-bg { background: var(--in-green); }
-        .nama-bg { background: var(--out-red); }
+        .jama-bg { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+        .nama-bg { background: linear-gradient(135deg, #c62828, #b71c1c); }
+
+        .ledger-subbar {
+            background: #f8fafc; padding: 8px 15px; font-size: 0.85rem; font-weight: 700;
+            border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; color: #334155;
+        }
 
         .ledger-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .ledger-table th, .ledger-table td { padding: 12px 10px; border-bottom: 1px solid #eee; text-align: right; }
-        .ledger-table th { background: #f9f9f9; color: #555; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        .ledger-table th, .ledger-table td { padding: 10px 12px; border-bottom: 1px dashed #e2e8f0; text-align: right; vertical-align: middle; }
+        .ledger-table th { background: #f1f5f9; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; border-bottom: 2px solid #cbd5e1; }
         .ledger-table th:first-child, .ledger-table td:first-child { text-align: left; }
-        
+        .ledger-table tbody tr:hover { background: #fcfcfc; }
+
         .type-badge {
-            background: #eee; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;
-            color: #222; display: inline-block; margin-bottom: 4px; font-weight: 600;
+            padding: 2px 7px; border-radius: 4px; font-size: 0.7rem;
+            display: inline-block; margin-bottom: 3px; font-weight: 800; text-transform: uppercase;
         }
+        .badge-in { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .badge-out { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .badge-auto { background: #fff8e1; color: #e65100; border: 1px solid #ffe082; }
+        .badge-metal { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+
+        .party-name { font-weight: 700; color: #111; font-size: 0.88rem; }
+        .entry-desc { color: #64748b; font-size: 0.75rem; font-weight: 500; }
+        .mode-split { font-size: 0.72rem; color: #475569; font-weight: 600; display: block; margin-top: 2px; }
+
+        .wt-pill {
+            display: inline-block; padding: 2px 6px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 800; margin-top: 2px;
+        }
+        .wt-net { background: #e3f2fd; color: #0d47a1; }
+        .wt-old { background: #f3e5f5; color: #6a1b9a; }
+        .wt-mix { background: #fff8e1; color: #e65100; }
 
         .ledger-footer {
-            background: #f1f5f9; padding: 15px; font-weight: 700; font-size: 1.1rem;
-            display: flex; justify-content: space-between; border-top: 2px solid #ccc;
+            background: #f8fafc; padding: 12px 15px; font-weight: 800; font-size: 0.95rem;
+            display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #cbd5e1;
+        }
+        .grand-bar {
+            background: #1e293b; color: #fff; padding: 12px 15px; font-weight: 800; font-size: 0.95rem;
+            display: flex; justify-content: space-between; align-items: center;
         }
 
-        /* CLOSING SUMMARY */
+        /* --- CLOSING SUMMARY FOOTER --- */
         .closing-summary {
-            margin: 15px; background: #111; color: var(--white); padding: 25px;
-            border-radius: 8px; display: flex; justify-content: space-around; align-items: center;
-            border: 1px solid #333; border-left: 6px solid var(--accent-gold); flex-wrap: wrap; gap: 15px;
+            background: #111; color: var(--white); padding: 20px 25px;
+            border-radius: 12px; display: flex; justify-content: space-between; align-items: center;
+            border: 2px solid var(--accent-gold); flex-wrap: wrap; gap: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
         }
-        .closing-box { text-align: center; }
-        .closing-box h4 { margin: 0 0 5px 0; color: #aaa; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; }
-        .closing-box h2 { margin: 0; color: var(--accent-gold); font-size: 1.8rem; }
-        
+        .closing-box h4 { margin: 0 0 4px 0; color: #aaa; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        .closing-box h2 { margin: 0; color: var(--accent-gold); font-size: 1.5rem; font-weight: 800; }
+        .closing-box .sub-info { font-size: 0.8rem; color: #ddd; margin-top: 4px; font-weight: 600; }
+
         .match-btn {
-            background: var(--accent-gold); color: #000; border: none; padding: 12px 25px;
-            font-weight: 700; border-radius: 5px; cursor: pointer; font-family: 'Poppins';
-            font-size: 1.1rem; transition: 0.3s;
+            background: var(--accent-gold); color: #000; border: none; padding: 12px 22px;
+            font-weight: 800; border-radius: 8px; cursor: pointer; font-family: 'Poppins';
+            font-size: 0.95rem; transition: 0.2s; display: flex; align-items: center; gap: 8px;
         }
         .match-btn:hover { background: #e5c158; transform: scale(1.02); }
 
-        .empty-row { text-align: center; padding: 20px !important; color: #888; font-style: italic; }
+        .empty-row { text-align: center !important; padding: 25px !important; color: #94a3b8; font-style: italic; }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            @page { size: A4 portrait; margin: 8mm; }
+            body { padding-top: 0 !important; background: #fff !important; font-size: 8.5pt !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .bar-actions, .match-btn { display: none !important; }
+            .master-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+            .top-bar { border: none !important; box-shadow: none !important; padding: 0 0 10px 0 !important; margin-bottom: 10px !important; border-bottom: 2px solid #000 !important; }
+            .balance-cards { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; margin-bottom: 12px !important; }
+            .b-card { padding: 8px !important; box-shadow: none !important; border: 1px solid #ccc !important; }
+            .b-card h2 { font-size: 11pt !important; }
+            .daybook-container { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+            .ledger-side { box-shadow: none !important; border: 1px solid #999 !important; }
+            .ledger-table th, .ledger-table td { padding: 6px 6px !important; }
+            .closing-summary { padding: 12px !important; box-shadow: none !important; page-break-inside: avoid !important; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="app-header">
-        <h2><i class="fas fa-book-open"></i> MASTER ROJMEL</h2>
-        <div class="header-actions">
-            <input type="date" id="daybookDate" onchange="loadMasterDaybook()">
-        </div>
-    </div>
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-    <div class="balance-cards">
-        <div class="b-card cash">
-            <h4><i class="fas fa-wallet"></i> Opening Cash</h4>
-            <h2 id="vOpenCash">₹0</h2>
+    <header class="app-header">
+        <div class="header-left">
+            <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+            <div class="header-title">Bharti Jewellers</div>
         </div>
-        <div class="b-card gold">
-            <h4><i class="fas fa-weight-hanging"></i> Opening Gold (Fine)</h4>
-            <h2 id="vOpenGold">0.000 g</h2>
-        </div>
-    </div>
+        <div style="color:#aaa; font-size:0.85rem; font-weight:600;"><i class="fas fa-book-open" style="color:var(--accent-gold);"></i> Master Rojmel</div>
+    </header>
 
-    <div class="daybook-container">
+    <aside id="app-sidebar" class="sidebar-drawer">
+        <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="quick.html"><i class="fas fa-bolt"></i> Quick Entry</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="daybook.html" class="active"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            App Version 2.6 <br> <span style="color:#C5A059">● 100% Sync Validated</span>
+        </div>
+    </aside>
+
+    <div class="master-container">
         
-        <div class="ledger-side">
-            <div class="ledger-header jama-bg">
-                🟢 JAMA (INWARD / AAVAK)
+        <div class="top-bar">
+            <h2><i class="fas fa-book-open" style="color:var(--accent-gold);"></i> Master Rojmel (Bahi-Khata)</h2>
+            <div class="bar-actions">
+                <input type="date" id="daybookDate" class="date-input" onchange="loadMasterDaybook()">
+                <button class="btn-action btn-print" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+                <button class="btn-action btn-refresh" onclick="loadMasterDaybook()"><i class="fas fa-sync-alt"></i> Refresh</button>
             </div>
-            <table class="ledger-table" id="jamaTable">
-                <thead>
-                    <tr>
-                        <th>Particulars</th>
-                        <th>Cash IN (₹)</th>
-                        <th>Gold IN (g)</th>
-                    </tr>
-                </thead>
-                <tbody id="jamaBody">
-                </tbody>
-            </table>
-            <div class="ledger-footer">
-                <span>Total Jama:</span>
-                <div>
-                    <span style="color:var(--in-green);">₹<span id="tJamaCash">0</span></span> | 
-                    <span style="color:#b8860b;"><span id="tJamaGold">0.000</span> g</span>
+        </div>
+
+        <!-- 4 TOP CARDS: OPENING & CLOSING SNAPSHOT -->
+        <div class="balance-cards">
+            <div class="b-card open-c">
+                <h4><i class="fas fa-wallet"></i> Opening Balance</h4>
+                <h2 id="vOpenCash" style="color:#1976d2;">₹0</h2>
+                <div class="sub-split">
+                    <span style="color:#2e7d32;">Cash: <span id="vOpenCashSplit">0</span>*</span>
+                    <span style="color:#1976d2;">Bank: <span id="vOpenBankSplit">0</span>#</span>
+                </div>
+            </div>
+
+            <div class="b-card open-g">
+                <h4><i class="fas fa-coins"></i> Opening Gold Stock</h4>
+                <h2 id="vOpenGold" style="color:#b08d4a;">0.000 g</h2>
+                <div class="sub-split">
+                    <span>Net: <b id="vOpenNet">0.000</b>g</span>
+                    <span>Old: <b id="vOpenOld">0.000</b>g</span>
+                    <span>Mix: <b id="vOpenMix">0.000</b>g</span>
+                </div>
+            </div>
+
+            <div class="b-card close-c">
+                <h4><i class="fas fa-hand-holding-usd"></i> Closing Balance</h4>
+                <h2 id="vTopCloseCash" style="color:#2e7d32;">₹0</h2>
+                <div class="sub-split">
+                    <span style="color:#2e7d32;">Cash: <span id="vCloseCashSplit">0</span>*</span>
+                    <span style="color:#1976d2;">Bank: <span id="vCloseBankSplit">0</span>#</span>
+                </div>
+            </div>
+
+            <div class="b-card close-g">
+                <h4><i class="fas fa-balance-scale"></i> Closing Gold Stock</h4>
+                <h2 id="vTopCloseGold" style="color:#e65100;">0.000 g</h2>
+                <div class="sub-split">
+                    <span>Net: <b id="vCloseNet">0.000</b>g</span>
+                    <span>Old: <b id="vCloseOld">0.000</b>g</span>
+                    <span>Mix: <b id="vCloseMix">0.000</b>g</span>
                 </div>
             </div>
         </div>
 
-        <div class="ledger-side">
-            <div class="ledger-header nama-bg">
-                🔴 NAMA (OUTWARD / JAAVAK)
-            </div>
-            <table class="ledger-table" id="namaTable">
-                <thead>
-                    <tr>
-                        <th>Particulars</th>
-                        <th>Cash OUT (₹)</th>
-                        <th>Gold OUT (g)</th>
-                    </tr>
-                </thead>
-                <tbody id="namaBody">
-                </tbody>
-            </table>
-            <div class="ledger-footer">
-                <span>Total Nama:</span>
-                <div>
-                    <span style="color:var(--out-red);">₹<span id="tNamaCash">0</span></span> | 
-                    <span style="color:#b8860b;"><span id="tNamaGold">0.000</span> g</span>
+        <!-- JAMA / NAMA LEDGER TABLES -->
+        <div class="daybook-container">
+            
+            <!-- JAMA SIDE -->
+            <div class="ledger-side">
+                <div class="ledger-header jama-bg">
+                    ⬇️ JAMA (INWARD / AAVAK)
+                </div>
+                <div class="ledger-subbar">
+                    <span>Opening Balance (Cash + Bank):</span>
+                    <span id="subOpenJama" style="color:#1976d2;">₹0</span>
+                </div>
+                <table class="ledger-table" id="jamaTable">
+                    <thead>
+                        <tr>
+                            <th>Particulars (Vigat)</th>
+                            <th>Amount (₹)</th>
+                            <th>Metal Flow</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jamaBody"></tbody>
+                </table>
+                <div class="ledger-footer">
+                    <span>Today's Inward (Aavak):</span>
+                    <div>
+                        <span style="color:var(--in-green);">+₹<span id="tJamaCash">0</span></span> | 
+                        <span style="color:#0d47a1;">+<span id="tJamaGold">0.000</span>g</span>
+                    </div>
+                </div>
+                <div class="grand-bar">
+                    <span>GRAND TOTAL JAMA (Open + In):</span>
+                    <span style="color:#4ade80; font-size:1.1rem;">₹<span id="grandJamaCash">0</span></span>
                 </div>
             </div>
+
+            <!-- NAMA SIDE -->
+            <div class="ledger-side">
+                <div class="ledger-header nama-bg">
+                    ⬆️ NAMA (OUTWARD / JAAVAK)
+                </div>
+                <div class="ledger-subbar">
+                    <span>Today's Outward Entries:</span>
+                    <span id="subCountNama">0 Entries</span>
+                </div>
+                <table class="ledger-table" id="namaTable">
+                    <thead>
+                        <tr>
+                            <th>Particulars (Vigat)</th>
+                            <th>Amount (₹)</th>
+                            <th>Metal Flow</th>
+                        </tr>
+                    </thead>
+                    <tbody id="namaBody"></tbody>
+                </table>
+                <div class="ledger-footer">
+                    <span>Today's Outward (Jaavak):</span>
+                    <div>
+                        <span style="color:var(--out-red);">-₹<span id="tNamaCash">0</span></span> | 
+                        <span style="color:#c62828;">-<span id="tNamaGold">0.000</span>g</span>
+                    </div>
+                </div>
+                <div class="ledger-subbar" style="background:#fffde7; border-top:1px dashed #ccc;">
+                    <span>Closing Balance (Cash + Bank):</span>
+                    <span id="subCloseNama" style="color:#e65100;">₹0</span>
+                </div>
+                <div class="grand-bar">
+                    <span>GRAND TOTAL NAMA (Out + Close):</span>
+                    <span style="color:#f87171; font-size:1.1rem;">₹<span id="grandNamaCash">0</span></span>
+                </div>
+            </div>
+
         </div>
 
-    </div>
+        <!-- BOTTOM TALLY & LOCK BAR -->
+        <div class="closing-summary">
+            <div class="closing-box">
+                <h4>Final Closing Cash + Bank</h4>
+                <h2 id="vCloseCash">₹0</h2>
+                <div class="sub-info" id="vCloseSplitInfo">Cash: ₹0* | Bank: ₹0#</div>
+            </div>
+            <div>
+                <i class="fas fa-balance-scale" style="font-size: 2rem; color: var(--accent-gold);"></i>
+            </div>
+            <div class="closing-box">
+                <h4>Final Closing Gold (Net + Old + Mix)</h4>
+                <h2 id="vCloseGold">0.000 g</h2>
+                <div class="sub-info" id="vCloseGoldInfo">Metal Jama = Metal Nama Tally</div>
+            </div>
+            <button class="match-btn" onclick="closeDay()"><i class="fas fa-lock"></i> Match & Lock Day</button>
+        </div>
 
-    <div class="closing-summary">
-        <div class="closing-box">
-            <h4>Closing Cash In Hand</h4>
-            <h2 id="vCloseCash">₹0</h2>
-        </div>
-        <div>
-            <i class="fas fa-equals" style="font-size: 2rem; color: #555;"></i>
-        </div>
-        <div class="closing-box">
-            <h4>Closing Fine Gold</h4>
-            <h2 id="vCloseGold">0.000 g</h2>
-        </div>
-        <button class="match-btn" onclick="closeDay()"><i class="fas fa-lock"></i> Match & Close Day</button>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="db.js"></script>
+    <script src="db.js?v=40"></script>
+
     <script>
-        // 1. Set today's date on load
-        document.getElementById('daybookDate').valueAsDate = new Date();
-
-        window.onload = async () => {
-            await loadMasterDaybook();
-        };
-
-        // 2. Strong Date Matcher (Fixes time zone and formatting issues)
-        function isSameDate(dbDateString, targetDateStr) {
-            if(!dbDateString) return false;
-            try {
-                let d = new Date(dbDateString);
-                let yyyy = d.getFullYear();
-                let mm = String(d.getMonth() + 1).padStart(2, '0');
-                let dd = String(d.getDate()).padStart(2, '0');
-                let formattedDbDate = `${yyyy}-${mm}-${dd}`;
-                
-                return formattedDbDate === targetDateStr;
-            } catch(e) { 
-                return false; 
-            }
+        function toggleSidebar() { 
+            document.getElementById('app-sidebar').classList.toggle('open'); 
+            document.getElementById('sidebar-overlay').classList.toggle('show'); 
         }
 
-        // 3. Safe Database Fetcher (Prevents crash if table doesn't exist)
+        let allCustomers = [];
+        let allMerchants = [];
+        let goldCategories = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
+        let silverCategories = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
+
+        function parseNum(val) {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            return parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
+        }
+
+        function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
+
+        function getSafeNet(item) {
+            if (!item) return 0;
+            let n = parseNum(item.netWt || item.netWeight || item.totalNetWeight || item.net_wt);
+            if(n > 0) return n;
+            let g = parseNum(item.grossWt || item.totalGrossWeight || item.grossWeight || item.weight || item.totalWeight);
+            let s = parseNum(item.stoneWt || item.totalStoneWeight || item.stoneWeight);
+            if(g > 0) return g - s;
+            return 0;
+        }
+
+        function getSafeFine(item) {
+            if (!item) return 0;
+            return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
+        }
+
+        function isGold(item) {
+            if (!item) return true; 
+            if (item.barcode && String(item.barcode).toUpperCase().startsWith('SIL')) return false;
+
+            let text = String(
+                (item.metal || '') + ' ' + (item.metalType || '') + ' ' + (item.category || '') + ' ' +
+                (item.itemName || '') + ' ' + (item.name || '') + ' ' + (item.purity || '') + ' ' +
+                (item.type || '') + ' ' + (item.oldGoldType || '') + ' ' + (item.description || '')
+            ).toLowerCase();
+            
+            if (text.includes('silver') || text.includes('chandi') || text.includes('payal') || 
+                text.includes('sterling') || text.includes('imitation') || String(item.purity).toLowerCase().includes('sil')) {
+                return false;
+            }
+
+            let cat = item.category || item.itemName || item.name || '';
+            if (cat) {
+                let isOnlySilverCat = silverCategories.some(c => c.toLowerCase() === cat.toLowerCase()) && 
+                                      !goldCategories.some(c => c.toLowerCase() === cat.toLowerCase());
+                if (isOnlySilverCat) return false;
+            }
+            return true; 
+        }
+
         async function safeFetch(storeName) {
             try {
-                if (typeof getAllItems !== 'function') {
-                    console.error("db.js properly link nahi hua hai. getAllItems function nahi mila.");
-                    return [];
-                }
+                if (typeof getAllItems !== 'function') return [];
                 let data = await getAllItems(storeName);
                 return Array.isArray(data) ? data : [];
             } catch (error) {
-                console.warn(`Table [${storeName}] missing or empty. Safe mode activated.`);
                 return [];
             }
         }
 
-        // 4. Main Load Function
-        async function loadMasterDaybook() {
-            const targetDateStr = document.getElementById('daybookDate').value;
-            
-            let jama = []; 
-            let nama = []; 
+        function getCustName(id) { let c = allCustomers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in'; }
+        function getMerchName(id) { let m = allMerchants.find(x => String(x.id) === String(id)); return m ? m.name : 'Merchant'; }
 
-            // Fetch Data using safe mode
-            const sales = await safeFetch('sales');
-            const purchases = await safeFetch('purchases');
-            const oldGold = await safeFetch('old_gold');
-            const cashflow = await safeFetch('cashflow');
-            const loans = await safeFetch('loans');
-            const orders = await safeFetch('orders');
-            const repairs = await safeFetch('repairs');
-            const schemes = await safeFetch('schemes');
-            const deposits = await safeFetch('deposits');
-
-            // --- MODULE MATCHING LOGIC --- //
-
-            sales.forEach(s => {
-                if(isSameDate(s.date, targetDateStr)) {
-                    let cIn = parseFloat(s.paidAmount || s.grandTotal || 0); 
-                    let gOut = parseFloat(s.totalFineWeight || s.fineWt || 0); 
-                    if(cIn > 0) jama.push({ title: 'Sales Bill', desc: s.custName || 'Retail', cash: cIn, gold: 0 });
-                    if(gOut > 0) nama.push({ title: 'Goods Sold', desc: s.custName || 'Retail', cash: 0, gold: gOut });
-                }
-            });
-
-            purchases.forEach(p => {
-                if(isSameDate(p.date, targetDateStr)) {
-                    let cOut = parseFloat(p.paidAmount || 0);
-                    let gIn = parseFloat(p.totalFineWeight || 0);
-                    if(cOut > 0) nama.push({ title: 'Purchase Payout', desc: p.merchantName || 'Supplier', cash: cOut, gold: 0 });
-                    if(gIn > 0) jama.push({ title: 'Stock Inward', desc: p.merchantName || 'Supplier', cash: 0, gold: gIn });
-                }
-            });
-
-            oldGold.forEach(og => {
-                if(isSameDate(og.date, targetDateStr)) {
-                    let cOut = parseFloat(og.cashPaid || og.totalAmount || 0);
-                    let gIn = parseFloat(og.fineWt || 0);
-                    if(cOut > 0) nama.push({ title: 'Old Gold Bought', desc: og.custName, cash: cOut, gold: 0 });
-                    if(gIn > 0) jama.push({ title: 'Old Gold Recv', desc: og.custName, cash: 0, gold: gIn });
-                }
-            });
-
-            cashflow.forEach(c => {
-                if(isSameDate(c.date, targetDateStr)) {
-                    let amt = parseFloat(c.amount || 0);
-                    if(c.type === 'IN' && amt > 0) jama.push({ title: 'Cash In', desc: c.category || c.note, cash: amt, gold: 0 });
-                    if(c.type === 'OUT' && amt > 0) nama.push({ title: 'Expense', desc: c.category || c.note, cash: amt, gold: 0 });
-                }
-            });
-
-            loans.forEach(l => {
-                if(l.status === 'active' && isSameDate(l.loanDate || l.date, targetDateStr)) {
-                    let prin = parseFloat(l.principal || 0);
-                    if(prin > 0) nama.push({ title: 'Loan Issued', desc: l.custName, cash: prin, gold: 0 });
-                }
-                if(l.status === 'settled' && isSameDate(l.settledDate, targetDateStr)) {
-                    let sAmt = parseFloat(l.settleAmt || 0);
-                    if(sAmt > 0) jama.push({ title: 'Loan Settled', desc: l.custName, cash: sAmt, gold: 0 });
-                }
-            });
-
-            deposits.forEach(d => {
-                if(isSameDate(d.date, targetDateStr)) {
-                    let amt = parseFloat(d.amount || 0);
-                    if(d.type === 'IN' && amt > 0) jama.push({ title: 'Deposit In', desc: d.note || 'IN', cash: amt, gold: 0 });
-                    if(d.type === 'OUT' && amt > 0) nama.push({ title: 'Deposit Return', desc: d.note || 'OUT', cash: amt, gold: 0 });
-                }
-            });
-
-            orders.forEach(o => {
-                if(isSameDate(o.date, targetDateStr)) {
-                    let adv = parseFloat(o.advance || 0);
-                    if(adv > 0) jama.push({ title: 'Order Advance', desc: o.custName, cash: adv, gold: 0 });
-                }
-            });
-
-            repairs.forEach(r => {
-                if(isSameDate(r.date, targetDateStr)) {
-                    let adv = parseFloat(r.advance || 0);
-                    if(adv > 0) jama.push({ title: 'Repair Advance', desc: r.custName, cash: adv, gold: 0 });
-                }
-            });
-
-            schemes.forEach(s => {
-                if(s.ledger && Array.isArray(s.ledger)) {
-                    s.ledger.forEach(emi => {
-                        if(emi.status === 'paid' && isSameDate(emi.paidDate, targetDateStr)) {
-                            let amt = parseFloat(emi.amount || 0);
-                            if(amt > 0) jama.push({ title: 'Scheme EMI', desc: s.custName, cash: amt, gold: 0 });
-                        }
-                    });
-                }
-            });
-
-            // Render Results
-            renderTable('jamaBody', jama);
-            renderTable('namaBody', nama);
-            await calculateBalances(jama, nama, targetDateStr);
+        function getMoneyType(modeStr) {
+            if(!modeStr) return 'cash';
+            let m = String(modeStr).toLowerCase();
+            if (m.includes('upi') || m.includes('bank') || m.includes('card') || m.includes('online')) return 'bank';
+            if (m.includes('metal') || m.includes('-')) return 'none';
+            return 'cash'; 
         }
 
-        function renderTable(tbodyId, entries) {
+        function getSplitStr(payments, defaultMode, paidAmt, displayGrossAmt) {
+            let cAmt = 0, bAmt = 0;
+            paidAmt = Math.abs(parseNum(paidAmt));
+            displayGrossAmt = Math.abs(parseNum(displayGrossAmt));
+
+            if (paidAmt > 0) {
+                if (payments && payments.length > 0) {
+                    payments.forEach(p => {
+                        let m = String(p.mode).toLowerCase();
+                        let a = Math.abs(parseNum(p.amount));
+                        if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
+                        else cAmt += a;
+                    });
+                } else {
+                    let m = String(defaultMode).toLowerCase();
+                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt = paidAmt;
+                    else cAmt = paidAmt;
+                }
+            }
+            if (cAmt === 0 && bAmt === 0) return ``; 
+            if (cAmt === displayGrossAmt && bAmt === 0) return `(₹${fmtNum(displayGrossAmt)}* Cash)`;
+            if (bAmt === displayGrossAmt && cAmt === 0) return `(₹${fmtNum(displayGrossAmt)}# Bank)`;
+            
+            let parts = [];
+            if(cAmt > 0) parts.push(`₹${fmtNum(cAmt)}*`);
+            if(bAmt > 0) parts.push(`₹${fmtNum(bAmt)}#`);
+            return `(${parts.join(' + ')})`;
+        }
+
+        window.onload = async () => {
+            let dateEl = document.getElementById('daybookDate');
+            if(!dateEl.value) dateEl.valueAsDate = new Date();
+            
+            try {
+                allCustomers = await safeFetch('customers');
+                allMerchants = await safeFetch('merchants');
+                let settingsData = await safeFetch('settings');
+                let gCatsItem = settingsData.find(x => x.id === 'gold_categories' || x.key === 'gold_categories');
+                if (gCatsItem && gCatsItem.value) goldCategories = gCatsItem.value;
+                let sCatsItem = settingsData.find(x => x.id === 'silver_categories' || x.key === 'silver_categories');
+                if (sCatsItem && sCatsItem.value) silverCategories = sCatsItem.value;
+            } catch(e) {}
+
+            await loadMasterDaybook();
+        };
+
+        async function loadMasterDaybook() {
+            try {
+                const today = document.getElementById('daybookDate').value || new Date().toISOString().split('T')[0];
+
+                let openCash = 0, openBank = 0;
+                let todayCashIn = 0, todayBankIn = 0;
+                let todayCashOut = 0, todayBankOut = 0;
+
+                let todayNetIn = 0, todayNetOut = 0;
+                let todayMixIn = 0, todayMixOut = 0;
+                let openOld = 0, todayOldIn = 0, todayOldOut = 0;
+
+                const cFlows = await safeFetch('cashflow');
+                const sales = await safeFetch('sales');
+                const purchases = await safeFetch('purchases');
+                const loans = await safeFetch('loans');
+                const oldGold = await safeFetch('old_gold');
+                const mPayments = await safeFetch('merchant_payments');
+                const orders = await safeFetch('orders');
+                const schemes = await safeFetch('schemes');
+                const inventory = await safeFetch('inventory');
+
+                // --- 1. METAL INVENTORY & DAYBOOK ENGINE ---
+                let liveInventoryStockNet = 0;
+                let liveInventoryStockMix = 0;
+
+                inventory.forEach(inv => {
+                    if (inv.status === 'stock' && isGold(inv)) {
+                        let catStr = String(inv.category || '').toUpperCase();
+                        let isMix = (catStr === 'LANGADI' || catStr === 'REFINERY'); 
+                        let mWt = getSafeNet(inv); 
+                        if (isMix) liveInventoryStockMix += mWt;
+                        else liveInventoryStockNet += mWt;
+                    }
+                });
+
+                const logMetal = (dateStr, amt, isPos, category) => {
+                    if(amt <= 0 || !dateStr) return;
+                    let d = String(dateStr).split('T')[0].split(' ')[0].trim();
+                    if(!d || d === 'null' || d === 'undefined') return;
+                    let signedAmt = isPos ? amt : -amt;
+                    
+                    if (d < today) {
+                        if (category === 'OLD') openOld += signedAmt;
+                    } else if (d === today) {
+                        if (category === 'OLD') { if(isPos) todayOldIn += amt; else todayOldOut += amt; }
+                        else if (category === 'MIX') { if(isPos) todayMixIn += amt; else todayMixOut += amt; }
+                        else { if(isPos) todayNetIn += amt; else todayNetOut += amt; }
+                    }
+                };
+
+                sales.forEach(s => {
+                    if (s.status === 'cancelled') return;
+                    let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
+                    let metalIn = 0, metalOut = 0;
+                    
+                    (s.items || []).forEach(i => {
+                        if (isGold(i)) {
+                            let net = getSafeNet(i);
+                            let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
+                            let isFromInventory = i.stockId || i.inventoryId || i.barcode || i.fromInventory || i.itemId;
+                            if (isItemOld) metalIn += net; 
+                            else if (isFromInventory) metalOut += net;
+                        }
+                    });
+                    
+                    let ogTypeStr = String(s.oldGoldType || s.oldGoldName || '').toLowerCase();
+                    let isOgSilver = ogTypeStr.includes('silver') || ogTypeStr.includes('chandi') || ogTypeStr.includes('92.5') || ogTypeStr.includes('payal') || ogTypeStr.includes('99.9');
+
+                    if (metalIn === 0 && !isOgSilver && isGold(s)) {
+                        let saleOgWt = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
+                        if (saleOgWt > 0) metalIn = saleOgWt;
+                    }
+
+                    if (metalIn > 0) logMetal(s.date, metalIn, true, 'OLD'); 
+                    if (metalOut > 0 && (!isOrderBill || s.jobType !== 'Repair')) {
+                        logMetal(s.date, metalOut, false, 'NET');
+                    }
+                });
+
+                purchases.forEach(p => {
+                    let mIn = 0;
+                    let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                    if (explicitTotal > 0) {
+                        mIn = explicitTotal;
+                    } else if (p.itemDetails && p.itemDetails.length > 0) {
+                        p.itemDetails.forEach(i => { if(isGold(i)) mIn += getSafeNet(i); });
+                    } else if (isGold(p)) {
+                        let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                        let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                        if (rootGross > 0) mIn = rootGross - rootStone;
+                        else mIn = parseNum(p.weight || p.netWt || p.netWeight);
+                    }
+                    
+                    let isDouble = false;
+                    mPayments.forEach(mp => {
+                        let mpDate = mp.date ? mp.date.split('T')[0] : '';
+                        let pDate = p.date ? p.date.split('T')[0] : '';
+                        if (mp.goldType !== 'fixed' && mpDate === pDate && parseNum(mp.gold) === mIn && String(mp.merchantId) === String(p.merchantId)) {
+                            isDouble = true;
+                        }
+                    });
+                    if (mIn > 0 && !isDouble) logMetal(p.date, mIn, true, 'NET');
+                });
+
+                mPayments.forEach(mp => {
+                    if (!isGold(mp)) return; 
+                    if (mp.goldType !== 'fixed') {
+                        let fineWt = parseNum(mp.gold);
+                        if (mp.paymentType === 'OUT') logMetal(mp.date, fineWt, false, 'NET');
+                        else logMetal(mp.date, fineWt, true, 'NET');
+                    }
+                });
+
+                oldGold.forEach(o => {
+                    if (o.mode !== 'POS Exchange' && isGold(o)) { 
+                        let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
+                        if (isMelt) {
+                            let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
+                            let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
+                            let loss = parseNum(o.lossWt);
+                            if (recv > 0 && loss === 0) loss = sent - recv;
+                            if (loss > 0 && recv === 0) recv = sent - loss;
+                            if (loss < 0) loss = 0;
+                            if (recv < 0) recv = 0;
+
+                            if (recv > 0 || loss > 0) {
+                                if (recv > 0) { logMetal(o.date, recv, true, 'MIX'); logMetal(o.date, recv, false, 'OLD'); }
+                                if (loss > 0) logMetal(o.date, loss, false, 'OLD');
+                            } else {
+                                logMetal(o.date, sent, false, 'OLD');
+                            }
+                        } else {
+                            let wt = getSafeNet(o);
+                            logMetal(o.date, wt, true, 'OLD');
+                        }
+                    }
+                });
+
+                orders.forEach(o => {
+                    if (o.status === 'cancelled' || !isGold(o)) return;
+                    if (o.jobType === 'Repair') {
+                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                        if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'NET');
+                        if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'NET');
+                    } else {
+                        let inWt = parseNum(o.oldGoldNet);
+                        if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
+                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                        if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, 'NET');
+                        let receivedFromKarigarWt = parseNum(o.finalNet);
+                        if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                            logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
+                        }
+                    }
+                });
+
+                inventory.forEach(inv => {
+                    if (isGold(inv)) {
+                        let mWt = getSafeNet(inv); 
+                        let catStr = String(inv.category || '').toUpperCase();
+                        let targetCategory = (catStr === 'LANGADI' || catStr === 'REFINERY') ? 'MIX' : 'NET'; 
+                        if (inv.source !== 'purchase' && inv.status !== 'cancelled') {
+                            let itemDate = inv.addedDate || inv.date || '';
+                            logMetal(itemDate, mWt, true, targetCategory);
+                        }
+                        if ((inv.status === 'removed' || inv.status === 'extracted') && inv.removeDate) {
+                            logMetal(inv.removeDate, mWt, false, targetCategory);
+                        }
+                    }
+                });
+
+                let closingOld = openOld + todayOldIn - todayOldOut;
+                let closingNet = liveInventoryStockNet;
+                let closingMix = liveInventoryStockMix;
+
+                let openNet = closingNet - todayNetIn + todayNetOut;
+                let openMix = closingMix - todayMixIn + todayMixOut;
+
+                // --- 2. CASH & BANK OPENING / CLOSING ---
+                cFlows.forEach(c => {
+                    let amt = Math.abs(parseNum(c.amount));
+                    let cDate = c.date ? c.date.split('T')[0] : '';
+                    let mType = getMoneyType(c.mode);
+                    if(mType === 'none') return; 
+
+                    let type = c.type || 'OUT';
+                    if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
+
+                    if (cDate < today) {
+                        if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
+                        else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
+                    } else if (cDate === today) {
+                        if (type === 'IN') { if(mType==='bank') todayBankIn+=amt; else todayCashIn+=amt; }
+                        else { if(mType==='bank') todayBankOut+=amt; else todayCashOut+=amt; }
+                    }
+                });
+
+                let openingTotal = openCash + openBank;
+                let closingCash = openCash + todayCashIn - todayCashOut;
+                let closingBank = openBank + todayBankIn - todayBankOut;
+                let closingTotal = closingCash + closingBank;
+
+                // --- 3. BUILD JAMA & NAMA LEDGER ENTRIES ---
+                let jamaEntries = [];
+                let namaEntries = [];
+                let sumJamaCash = 0;
+                let sumNamaCash = 0;
+
+                const pushEntry = (isIN, badgeText, badgeClass, party, desc, amt, splitStr, metalFlows = [], amtOverride = null) => {
+                    if (amt === 0 && metalFlows.length === 0 && !amtOverride) return;
+                    let entry = { badgeText, badgeClass, party, desc, amt, splitStr, metalFlows, amtOverride };
+                    if (isIN) {
+                        jamaEntries.push(entry);
+                        sumJamaCash += amt;
+                    } else {
+                        namaEntries.push(entry);
+                        sumNamaCash += amt;
+                    }
+                };
+
+                // A. ORDERS & REPAIRS
+                orders.forEach(o => {
+                    if (o.status === 'cancelled') return;
+                    let oDate = (o.orderDate || o.date || '').split('T')[0];
+                    let cName = getCustName(o.customerId);
+                    
+                    if (oDate === today) {
+                        let itemN = o.itemName || o.item || o.jobType || 'Order';
+                        let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
+                        let ogWt = Math.abs(parseNum(o.oldGoldNet || o.oldGoldWt || o.oldGoldWeight || 0));
+                        let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
+                        let totalIn = advCash + ogAmt;
+                        
+                        let matchedMode = 'Cash';
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                if (cat.includes('order') || note.includes('ord-')) {
+                                    let cAmt = Math.abs(parseNum(c.amount));
+                                    if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || cAmt === advCash) {
+                                        c.alreadyHandled = true;
+                                        matchedMode = c.mode || matchedMode;
+                                    }
+                                }
+                            }
+                        });
+
+                        if (totalIn > 0) {
+                            let spl = getSplitStr(o.payments, matchedMode, advCash, totalIn);
+                            pushEntry(true, 'Order Advance', 'badge-in', cName, `${itemN} (Adv + OG)`, totalIn, spl);
+                        }
+                        if (ogAmt > 0) {
+                            pushEntry(false, 'Order Old Gold', 'badge-auto', cName, 'Order OG Exch', ogAmt, '', [{val: ogWt, label: 'Old'}]);
+                        }
+                    }
+
+                    let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
+                    if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
+                    let kName = kNameRaw + ' (Karigar)';
+
+                    if (isGold(o)) {
+                        if (o.jobType === 'Repair') {
+                            let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                            let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                            let fIssue = getSafeFine(o.repairMeta) || parseNum(o.repairMeta?.fineIssued || o.repairMeta?.issuedFineWt);
+                            
+                            let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                            if (iDate === today && shopIssued > 0) {
+                                pushEntry(false, 'Karigar Issue', 'badge-metal', kName, 'Repair Metal Issued', 0, '', [{val: -shopIssued, label: 'Net'}], `${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF`);
+                            }
+                            let aDate = o.repairMeta?.auditDate || o.orderDate;
+                            if (aDate === today && returnedRaw > 0) {
+                                let fRet = parseNum(o.repairMeta?.fineReturned || o.repairMeta?.returnedFineWt); 
+                                pushEntry(true, 'Karigar Recv', 'badge-metal', kName, 'Repair Metal Recv', 0, '', [{val: returnedRaw, label: 'Net'}], `${(fRet > 0 ? fRet : 0).toFixed(3)}gF`);
+                            }
+                        } else {
+                            let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                            let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight || o.expectedFine);
+                            if (o.orderDate === today && karigarIssuedWt > 0) {
+                                pushEntry(false, 'Karigar Issue', 'badge-metal', kName, `Order Issue (${karigarIssuedWt}g)`, 0, '', [{val: -karigarIssuedWt, label: 'Net'}], `${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF`);
+                            }
+                            let receivedFromKarigarWt = parseNum(o.finalNet);
+                            let fRecv = getSafeFine(o) || parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
+                            if (o.orderDate === today && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                                pushEntry(true, 'Karigar Recv', 'badge-metal', kName, 'Order Metal Recv', 0, '', [{val: receivedFromKarigarWt, label: 'Net'}], `${(fRecv > 0 ? fRecv : 0).toFixed(3)}gF`);
+                            }
+                        }
+                    }
+                });
+
+                // B. SALES
+                sales.filter(s => s.status !== 'cancelled' && s.date && s.date.startsWith(today)).forEach(s => {
+                    let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
+                    if (isRepairSale) return; 
+
+                    let advance = Math.abs(parseNum(s.advanceAmount || 0));
+                    let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
+                    let cName = getCustName(s.customerId);
+                    let currentUdhari = Math.abs(parseNum(s.pendingAmount));
+                    
+                    if (isOrderBill) {
+                        let udhariPaidToday = 0;
+                        cFlows.forEach(c => {
+                            if (c.date && c.date.startsWith(today) && c.type !== 'OUT') {
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                let isUdhariFlow = cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding');
+                                let isMatch = (c.saleId && String(c.saleId) === String(s.id)) || (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) || (c.orderId && String(c.orderId) === String(s.orderId || s.id));
+                                if (isUdhariFlow && isMatch) udhariPaidToday += Math.abs(parseNum(c.amount));
+                            }
+                        });
+                        let originalUdhari = currentUdhari + udhariPaidToday;
+                        if (originalUdhari > 0) {
+                            pushEntry(false, 'Customer Udhari', 'badge-out', cName, 'Order Bill Udhari', originalUdhari, '');
+                        }
+                        return; 
+                    }
+                    
+                    let udhari = currentUdhari;
+                    let paid = Math.abs(parseNum(s.paidAmount));
+                    let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
+                    
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            let isMatch = (c.saleId && String(c.saleId) === String(s.id)) || (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) || note.includes(String(s.id).toLowerCase());
+                            if (isMatch && (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || cat.includes('reversal') || cat.includes('due payment'))) {
+                                c.alreadyHandled = true;
+                            }
+                        }
+                    });
+                    
+                    let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Jewellery';
+                    let netWtSold = 0, oldWtRcv = 0;
+                    
+                    (s.items || []).forEach(i => {
+                        let net = getSafeNet(i);
+                        let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
+                        if (isItemOld) oldWtRcv += net; else netWtSold += net;
+                    });
+                    
+                    if (oldWtRcv === 0) oldWtRcv = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet);
+                    if (isOrderBill) oldWtRcv = 0; 
+
+                    let jamaAmt = paid + udhari + og;
+
+                    if(jamaAmt > 0) {
+                        let spl = getSplitStr(s.payments, s.mode, paid, jamaAmt);
+                        pushEntry(true, 'Sale (Bikri)', 'badge-in', cName, `Item: ${itemStr}`, jamaAmt, spl, [{val: -netWtSold, label:'Net'}]);
+                    } else if (netWtSold > 0) {
+                        pushEntry(true, 'Sale (Bikri)', 'badge-in', cName, `Delivered: ${itemStr}`, 0, '', [{val: -netWtSold, label:'Net'}], '₹0');
+                    }
+                    
+                    if(udhari > 0) pushEntry(false, 'Udhari Given', 'badge-out', cName, `Sale Bill Udhari`, udhari, '');
+                    if(og > 0) pushEntry(false, 'Old Gold Exch', 'badge-auto', cName, `Bill Exchange`, og, '', [{val: oldWtRcv, label:'Old'}]);
+                });
+
+                // C. PURCHASES
+                purchases.filter(p => p.date && p.date.startsWith(today)).forEach(p => {
+                    let mName = getMerchName(p.merchantId);
+                    let gross = Math.abs(parseNum(p.totalAmount || p.grandTotal)); 
+                    let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
+                    let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
+                    let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
+
+                    let netWtBought = 0;
+                    let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                    if (explicitTotal > 0) netWtBought = explicitTotal;
+                    else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => { if(isGold(i)) netWtBought += getSafeNet(i); });
+                    else {
+                        let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                        let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                        if (rootGross > 0) netWtBought = rootGross - rootStone;
+                        else netWtBought = parseNum(p.weight || p.netWt || p.netWeight);
+                    }
+
+                    let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt) || netWtBought;
+                    let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "Fine");
+                    let descText = `${itemStr} (Wt: ${parseFloat(actualWt).toFixed(3)}g × ${displayPurity})`;
+
+                    if (paid > 0) {
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                if (Math.abs(parseNum(c.amount)) === paid && (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi') || cat.includes('vyapari'))) {
+                                    c.alreadyHandled = true;
+                                }
+                            }
+                        });
+                    }
+
+                    if(gross > 0) {
+                        let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
+                        pushEntry(false, 'Purchase (Khareedi)', 'badge-out', mName, descText, gross, spl, [{val: netWtBought, label:'Net'}]);
+                    } else if (paid > 0) { 
+                        let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
+                        pushEntry(false, 'Vyapari Diya', 'badge-out', mName, `Unfixed Adv (${descText})`, paid, spl, [{val: netWtBought, label:'Net'}]);
+                    } else {
+                        let isDouble = false;
+                        mPayments.forEach(mp => {
+                            if (mp.goldType !== 'fixed' && mp.date && mp.date.startsWith(today) && parseNum(mp.gold) === netWtBought && String(mp.merchantId) === String(p.merchantId)) {
+                                isDouble = true;
+                            }
+                        });
+                        if (!isDouble && netWtBought > 0) {
+                            let f = getSafeFine(p);
+                            pushEntry(true, 'Vyapari Metal In', 'badge-metal', mName, `Unfixed Stock (${descText})`, 0, '', [{val: netWtBought, label:'Net'}], `${(f > 0 ? f : 0).toFixed(3)}gF`);
+                        }
+                    }
+                    if(due > 0) pushEntry(true, 'Vyapari Credit', 'badge-auto', mName, 'Purchase Credit (Baki)', due, '');
+                });
+
+                // D. MERCHANT PAYMENTS (METAL + CASH)
+                mPayments.forEach(mp => {
+                    if (!mp.date || !mp.date.startsWith(today)) return;
+                    let mName = getMerchName(mp.merchantId);
+
+                    if (isGold(mp)) {
+                        let net = parseNum(mp.gold); 
+                        if (mp.goldType !== 'fixed' && net > 0) {
+                            let actualWt = parseNum(mp.originalGrossWt) || net;
+                            let displayPurity = mp.purity || "Fine";
+                            if (!mp.purity && actualWt > net) displayPurity = ((net / actualWt) * 100).toFixed(1) + "%";
+                            let descText = `Wt: ${parseFloat(actualWt).toFixed(3)}g × ${displayPurity}`;
+
+                            if (mp.paymentType === 'OUT') {
+                                pushEntry(false, 'Vyapari Metal Out', 'badge-metal', mName, `Paid Unfixed (${descText})`, 0, '', [{val: -net, label: 'Net'}], `${net.toFixed(3)}gF`);
+                            } else {
+                                pushEntry(true, 'Vyapari Metal In', 'badge-metal', mName, `Recv Unfixed (${descText})`, 0, '', [{val: net, label: 'Net'}], `${net.toFixed(3)}gF`);
+                            }
+                        }
+                    }
+
+                    let cashAmt = Math.abs(parseNum(mp.cash || mp.amount || mp.cashAmount || mp.paidAmount));
+                    if (cashAmt > 0) {
+                        let matchedMode = mp.mode || mp.paymentMode || 'Cash';
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                let cAmt = Math.abs(parseNum(c.amount));
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                if (cAmt === cashAmt && (
+                                    cat.includes('merchant') || cat.includes('vyapari') || 
+                                    note.includes('settlement') || note.includes('merchant') || 
+                                    note.includes('vyapari') || String(c.merchantId) === String(mp.merchantId) ||
+                                    note.includes(String(mp.id))
+                                )) {
+                                    c.alreadyHandled = true;
+                                    if (c.mode) matchedMode = c.mode;
+                                }
+                            }
+                        });
+
+                        let spl = getSplitStr(mp.payments, matchedMode, cashAmt, cashAmt);
+                        if (mp.paymentType === 'IN') {
+                            pushEntry(true, 'Vyapari Aaya', 'badge-in', mName, mp.note || 'Merchant Recv', cashAmt, spl);
+                        } else {
+                            pushEntry(false, 'Vyapari Diya', 'badge-out', mName, mp.note || 'Merchant Paid', cashAmt, spl);
+                        }
+                    }
+                });
+
+                // E. LOANS (GIRVI)
+                loans.forEach(l => {
+                    let cName = getCustName(l.customerId);
+                    let cNameWithId = `${cName} [L-${l.id}]`; 
+                    let itemN = l.description || l.itemName || l.item || 'Item';
+                    
+                    if (l.date && String(l.date).startsWith(today)) {
+                        let amt = Math.abs(parseNum(l.amount));
+                        if(amt > 0) {
+                            let spl = `(₹${fmtNum(amt)}* Cash)`; 
+                            let wt = Math.abs(parseNum(l.weight));
+                            pushEntry(false, 'Girvi Diya', 'badge-out', cNameWithId, `${itemN} (${wt.toFixed(3)}g)`, amt, spl);
+
+                            cFlows.forEach(c => {
+                                if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                    let cAmt = Math.abs(parseNum(c.amount));
+                                    let cat = String(c.category || '').toLowerCase();
+                                    let note = String(c.note || '').toLowerCase();
+                                    let cType = (parseNum(c.amount) < 0 && c.type === 'IN') ? 'OUT' : (c.type || 'OUT');
+                                    if (cType === 'OUT' && cAmt === amt && (cat.includes('loan') || cat.includes('girvi') || note.includes('loan') || note.includes('girvi') || note.includes(String(l.id)))) {
+                                        c.alreadyHandled = true;
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    
+                    if (l.payments && l.payments.length > 0) {
+                        l.payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
+                            let intAmt = Math.abs(parseNum(p.interestPaid));
+                            let prinAmt = Math.abs(parseNum(p.principalPaid));
+                            let totalAmt = Math.abs(parseNum(p.totalAmount || p.amount));
+                            let cAmt = Math.abs(parseNum(p.cashAmount));
+                            let bAmt = Math.abs(parseNum(p.bankAmount));
+                            if(totalAmt === 0) return;
+
+                            let splParts = [];
+                            if(cAmt > 0) splParts.push(`₹${fmtNum(cAmt)}*`);
+                            if(bAmt > 0) splParts.push(`₹${fmtNum(bAmt)}#`);
+                            let splText = splParts.length > 0 ? `(${splParts.join(' + ')})` : `(₹${fmtNum(totalAmt)}* Cash)`;
+
+                            let isLastPayment = (p === l.payments[l.payments.length - 1]);
+                            let prinLabel = (l.status === 'closed' && isLastPayment) ? 'Girvi Chhudaya' : 'Girvi Jama Pete';
+
+                            if (intAmt > 0) pushEntry(true, 'Byaaj Jama', 'badge-in', cNameWithId, 'Loan Interest', intAmt, splText);
+                            if (prinAmt > 0) pushEntry(true, prinLabel, 'badge-in', cNameWithId, 'Loan Principal', prinAmt, intAmt > 0 ? '' : splText);
+                            if (intAmt === 0 && prinAmt === 0 && totalAmt > 0) pushEntry(true, 'Byaaj / Jama', 'badge-in', cNameWithId, 'Loan Payment', totalAmt, splText);
+
+                            cFlows.forEach(c => {
+                                if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                    let flowAmt = Math.abs(parseNum(c.amount));
+                                    let cat = String(c.category || '').toLowerCase();
+                                    let note = String(c.note || '').toLowerCase();
+                                    let cType = (parseNum(c.amount) < 0 && c.type === 'IN') ? 'OUT' : (c.type || 'OUT');
+                                    if (cType === 'IN' && flowAmt === totalAmt && (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || note.includes('loan') || note.includes('girvi') || cat.includes('payment') || note.includes(String(l.id)))) {
+                                        c.alreadyHandled = true;
+                                    }
+                                }
+                            });
+                        });
+                    }
+                });
+
+                // F. OLD GOLD & REFINERY MELTING
+                oldGold.filter(o => o.date && o.date.startsWith(today) && o.mode !== 'POS Exchange').forEach(o => {
+                    let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
+                    if(isMelt) {
+                        let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
+                        let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
+                        let loss = parseNum(o.lossWt);
+                        if (recv > 0 && loss === 0) loss = sent - recv;
+                        if (loss > 0 && recv === 0) recv = sent - loss;
+                        if (loss < 0) loss = 0;
+                        if (recv < 0) recv = 0;
+                        
+                        if (sent > 0) {
+                            if (loss > 0) {
+                                let converted = sent - loss;
+                                if (converted > 0) pushEntry(false, 'Refinery Sent', 'badge-metal', 'Refinery', 'Old Gold Sent for Melt', 0, '', [{val: -converted, label:'Old'}], 'SENT');
+                                pushEntry(false, 'Melting Loss', 'badge-out', 'Refinery', 'Ghat / Melting Loss', 0, '', [{val: -loss, label:'Old'}], 'LOSS');
+                            } else {
+                                pushEntry(false, 'Refinery Sent', 'badge-metal', 'Refinery', 'Old Gold Sent for Melt', 0, '', [{val: -sent, label:'Old'}], 'SENT');
+                            }
+                        }
+                        if (recv > 0) {
+                            pushEntry(true, 'Refinery Recv', 'badge-metal', 'Refinery', 'Pure / Langadi Received', 0, '', [{val: recv, label:'Mix'}], 'PURE');
+                        }
+                    } else {
+                        let amt = Math.abs(parseNum(o.amount || o.cash));
+                        let wt = parseNum(o.netWt || o.oldGoldWeight);
+                        if(amt > 0) {
+                            let spl = getSplitStr(null, o.mode, amt, amt);
+                            pushEntry(false, 'Old Gold Buy', 'badge-out', getCustName(o.customerId), 'Direct Old Gold Purchase', amt, spl, [{val: wt, label: 'Old'}]);
+                        }
+                    }
+                });
+
+                // G. BC SCHEMES
+                schemes.forEach(sch => {
+                    let cName = getCustName(sch.customerId);
+                    let schTitle = `${cName} [BC-${sch.id}]`;
+                    let payments = sch.payments || sch.installments || [];
+                    payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
+                        let pAmt = Math.abs(parseNum(p.amount || p.paidAmount || p.totalAmount));
+                        if (pAmt > 0) {
+                            let spl = getSplitStr([p], p.mode || p.paymentMode || 'Cash', pAmt, pAmt);
+                            pushEntry(true, 'BC Jama', 'badge-in', schTitle, 'Scheme Installment', pAmt, spl);
+                            cFlows.forEach(c => {
+                                if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                                    let cat = String(c.category || '').toLowerCase();
+                                    let note = String(c.note || '').toLowerCase();
+                                    if ((cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) && Math.abs(parseNum(c.amount)) === pAmt) {
+                                        c.alreadyHandled = true;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                });
+
+                // H. REMAINING CASHFLOWS (UDHARI, VYAPARI, EXPENSES, OTHER)
+                cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
+                    let amt = Math.abs(parseNum(c.amount));
+                    if(amt === 0 || getMoneyType(c.mode) === 'none') return;
+                    
+                    let cat = String(c.category || '').toLowerCase();
+                    let note = String(c.note || '').toLowerCase();
+                    let type = (parseNum(c.amount) < 0 && c.type === 'IN') ? 'OUT' : (c.type || 'OUT');
+                    let spl = getSplitStr(null, c.mode, amt, amt);
+
+                    let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement') || note.includes('vyapari') || note.includes('merchant') || Boolean(c.merchantId || c.merchant_id);
+
+                    let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
+                    let loanMatch = !isVyapariPayment ? (
+                        note.match(/\b(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || 
+                        cat.match(/\b(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) ||
+                        note.match(/\bL\s*[-#]\s*(\d+)/i) || 
+                        cat.match(/\bL\s*[-#]\s*(\d+)/i)
+                    ) : null;
+
+                    if (type === 'OUT' && !isVyapariPayment && (loanMatch || isTopUp)) {
+                        let lId = loanMatch ? loanMatch[1] : '';
+                        let cNameForLoan = '';
+                        if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameForLoan = getCustName(c.customerId);
+                        else if (c.customerName || c.partyName || c.name) cNameForLoan = c.customerName || c.partyName || c.name;
+
+                        if (!cNameForLoan && lId) {
+                            let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
+                            if (matchedLoan && matchedLoan.customerId) cNameForLoan = getCustName(matchedLoan.customerId);
+                        }
+                        if (!cNameForLoan) cNameForLoan = 'Customer';
+                        let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
+
+                        pushEntry(false, 'Girvi Top-Up', 'badge-out', displayTitle, 'Extra Loan Amount', amt, spl);
+                        return; 
+                    }
+
+                    // Merchant Name Resolution
+                    let vyapariName = '';
+                    let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
+
+                    if (!mId && (note.includes('settlement') || isVyapariPayment)) {
+                        let match = c.note ? c.note.match(/(?:#|id)\s*[:\-]?\s*([a-zA-Z0-9_-]+)/i) : null;
+                        if (match && match[1]) {
+                            let mp = mPayments.find(x => String(x.id) === String(match[1]));
+                            mId = (mp && mp.merchantId) ? mp.merchantId : match[1];
+                        }
+                    }
+                    if (mId) vyapariName = getMerchName(mId);
+                    if (!vyapariName || vyapariName === 'Merchant') {
+                        vyapariName = c.merchantName || c.merchant_name || c.partyName || c.party_name || c.party || c.ledgerName || c.name || '';
+                    }
+                    if (!vyapariName || vyapariName === 'Merchant') {
+                        let foundMerch = allMerchants.find(m => m.name && (note.includes(m.name.toLowerCase()) || cat.includes(m.name.toLowerCase())));
+                        if (foundMerch) { vyapariName = foundMerch.name; isVyapariPayment = true; }
+                    }
+                    if ((!vyapariName || vyapariName === 'Merchant') && isVyapariPayment && c.note) {
+                        let nameMatch = c.note.match(/(?:to|from|for|merchant|vyapari|settlement)\s*[:\-]?\s*([a-zA-Z\s]+)/i);
+                        if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 1) vyapariName = nameMatch[1].trim();
+                    }
+
+                    let cNameFromFlow = '';
+                    if (!isVyapariPayment) {
+                        if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameFromFlow = getCustName(c.customerId);
+                        else if (c.customerName) cNameFromFlow = c.customerName;
+                        else if (c.partyName) cNameFromFlow = c.partyName;
+                        else if (c.name) cNameFromFlow = c.name;
+                        
+                        if (!cNameFromFlow && note.includes('from ')) {
+                            let parts = c.note.split(/from\s+/i);
+                            if (parts.length > 1) cNameFromFlow = parts[1].trim();
+                        }
+                        if (!cNameFromFlow && (c.saleId || note.includes('bill'))) {
+                            let sId = c.saleId;
+                            if (!sId && c.note) {
+                                let bMatch = c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i);
+                                if (bMatch) sId = bMatch[1];
+                            }
+                            if (sId) {
+                                let matchedSale = sales.find(x => String(x.id) === String(sId) || String(x.invoiceNo) === String(sId) || String(x.id).endsWith(sId));
+                                if (matchedSale && matchedSale.customerId) {
+                                    let tempName = getCustName(matchedSale.customerId);
+                                    if (tempName !== 'Walk-in') cNameFromFlow = tempName;
+                                }
+                            }
+                        }
+                    }
+
+                    let entityName = (isVyapariPayment && vyapariName && vyapariName !== 'Merchant') ? vyapariName : (cNameFromFlow || c.note || c.category || (isVyapariPayment ? 'Vyapari' : 'Payment'));
+
+                    let isUdhariIn = (type === 'IN' && !isVyapariPayment && !cat.includes('purchase') && (
+                        cat.includes('udhari') || note.includes('udhari') || cat.includes('outstanding') || note.includes('outstanding') ||
+                        cat.includes('due') || note.includes('due') || cat.includes('sale') || note.includes('bill') || cat.includes('bikri')
+                    ));
+                    let isUdhariOut = (type === 'OUT' && !isVyapariPayment && !cat.includes('purchase') && (
+                        cat.includes('udhari') || note.includes('udhari') || cat.includes('outstanding') || note.includes('outstanding') || cat.includes('due') || note.includes('due')
+                    ));
+
+                    if (isUdhariIn) {
+                        let displayTitle = cNameFromFlow || (c.note && !c.note.toLowerCase().includes('payment for bill') ? c.note : 'Customer');
+                        let bMatch = c.note ? c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i) : null;
+                        pushEntry(true, 'Purani Udhari Aayi', 'badge-in', displayTitle, bMatch ? `Bill #${bMatch[1]} Jama` : 'Udhari Jama', amt, spl);
+                        return;
+                    }
+                    if (isUdhariOut) {
+                        let displayTitle = cNameFromFlow || (c.note && !c.note.toLowerCase().includes('payment for bill') ? c.note : 'Customer');
+                        let bMatch = c.note ? c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i) : null;
+                        pushEntry(false, 'Udhari Given', 'badge-out', displayTitle, bMatch ? `Bill #${bMatch[1]} Nama` : 'Udhari Diya', amt, spl);
+                        return;
+                    }
+
+                    if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') ||
+                        cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') ||
+                        cat.includes('old gold') || cat.includes('oldgold') || cat.includes('purchase') || cat.includes('khareedi'))) {
+                        return;
+                    }
+
+                    if (cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) {
+                        let bcTitle = c.note || 'BC Scheme';
+                        if (c.customerId && getCustName(c.customerId) !== 'Walk-in') bcTitle = `${getCustName(c.customerId)} - ${bcTitle}`;
+                        if (type === 'IN') pushEntry(true, 'BC Jama', 'badge-in', bcTitle, 'Installment', amt, spl);
+                        else pushEntry(false, 'BC Matured', 'badge-out', bcTitle, 'Payout', amt, spl);
+                    }
+                    else if (cat.includes('repair') || note.includes('repair') || note.includes('rep-')) {
+                        if (type === 'IN') pushEntry(true, 'Repair Jama', 'badge-in', entityName, 'Repair Inward', amt, spl);
+                        else pushEntry(false, 'Repair Refund', 'badge-out', entityName, 'Repair Outward', amt, spl);
+                    }
+                    else if (cat.includes('order') || note.includes('ord-') || cat.includes('job cancel')) {
+                        if (type === 'IN') pushEntry(true, 'Order Jama', 'badge-in', entityName, 'Order Payment', amt, spl);
+                        else pushEntry(false, 'Order Refund', 'badge-out', entityName, 'Order Refund', amt, spl);
+                    }
+                    else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
+                        if (type === 'IN') pushEntry(true, 'Vyapari Aaya', 'badge-in', entityName, c.note || 'Merchant Recv', amt, spl);
+                        else pushEntry(false, 'Vyapari Diya', 'badge-out', entityName, c.note || 'Merchant Paid', amt, spl);
+                    }
+                    else {
+                        if (type === 'IN') pushEntry(true, 'Other In', 'badge-in', entityName || 'Income', c.category || 'Cash In', amt, spl);
+                        else pushEntry(false, 'Expense / Out', 'badge-out', entityName || 'Kharcha', c.category || 'Expense', amt, spl);
+                    }
+                });
+
+                // --- 4. RENDER TABLES & TOTALS ---
+                renderLedgerTable('jamaBody', jamaEntries);
+                renderLedgerTable('namaBody', namaEntries);
+
+                let totalGoldIn = todayNetIn + todayOldIn + todayMixIn;
+                let totalGoldOut = todayNetOut + todayOldOut + todayMixOut;
+                let totalOpenGold = openNet + openOld + openMix;
+                let totalCloseGold = closingNet + closingOld + closingMix;
+
+                // Top Cards Update
+                document.getElementById('vOpenCash').innerText = `₹${fmtNum(openingTotal)}`;
+                document.getElementById('vOpenCashSplit').innerText = fmtNum(openCash);
+                document.getElementById('vOpenBankSplit').innerText = fmtNum(openBank);
+
+                document.getElementById('vOpenGold').innerText = `${totalOpenGold.toFixed(3)} g`;
+                document.getElementById('vOpenNet').innerText = openNet.toFixed(3);
+                document.getElementById('vOpenOld').innerText = openOld.toFixed(3);
+                document.getElementById('vOpenMix').innerText = openMix.toFixed(3);
+
+                document.getElementById('vTopCloseCash').innerText = `₹${fmtNum(closingTotal)}`;
+                document.getElementById('vCloseCashSplit').innerText = fmtNum(closingCash);
+                document.getElementById('vCloseBankSplit').innerText = fmtNum(closingBank);
+
+                document.getElementById('vTopCloseGold').innerText = `${totalCloseGold.toFixed(3)} g`;
+                document.getElementById('vCloseNet').innerText = closingNet.toFixed(3);
+                document.getElementById('vCloseOld').innerText = closingOld.toFixed(3);
+                document.getElementById('vCloseMix').innerText = closingMix.toFixed(3);
+
+                // Table Subbars & Footers
+                document.getElementById('subOpenJama').innerText = `₹${fmtNum(openingTotal)} (${fmtNum(openCash)}* + ${fmtNum(openBank)}#)`;
+                document.getElementById('subCountNama').innerText = `${namaEntries.length} Entries`;
+                document.getElementById('subCloseNama').innerText = `₹${fmtNum(closingTotal)} (${fmtNum(closingCash)}* + ${fmtNum(closingBank)}#)`;
+
+                document.getElementById('tJamaCash').innerText = fmtNum(sumJamaCash);
+                document.getElementById('tJamaGold').innerText = totalGoldIn.toFixed(3);
+                document.getElementById('tNamaCash').innerText = fmtNum(sumNamaCash);
+                document.getElementById('tNamaGold').innerText = totalGoldOut.toFixed(3);
+
+                document.getElementById('grandJamaCash').innerText = fmtNum(openingTotal + sumJamaCash);
+                document.getElementById('grandNamaCash').innerText = fmtNum(sumNamaCash + closingTotal);
+
+                // Bottom Summary Bar
+                document.getElementById('vCloseCash').innerText = `₹${fmtNum(closingTotal)}`;
+                document.getElementById('vCloseSplitInfo').innerText = `Cash: ₹${fmtNum(closingCash)}* | Bank: ₹${fmtNum(closingBank)}#`;
+                document.getElementById('vCloseGold').innerText = `${totalCloseGold.toFixed(3)} g`;
+                document.getElementById('vCloseGoldInfo').innerText = `Fine: ${closingNet.toFixed(3)}g | Old: ${closingOld.toFixed(3)}g | Mix: ${closingMix.toFixed(3)}g`;
+
+                window.currentClosing = {
+                    date: today,
+                    closeCash: closingTotal,
+                    cashSplit: closingCash,
+                    bankSplit: closingBank,
+                    closeGold: totalCloseGold,
+                    netGold: closingNet,
+                    oldGold: closingOld,
+                    mixGold: closingMix
+                };
+
+            } catch(e) {
+                console.error("Master Daybook Error:", e);
+            }
+        }
+
+        function renderLedgerTable(tbodyId, entries) {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = '';
             
             if(entries.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="empty-row">No entries found for this date</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-row">Aaj is side me koi entry nahi hai</td></tr>';
                 return;
             }
 
             entries.forEach(e => {
-                let cashStr = e.cash > 0 ? `₹${e.cash.toLocaleString('en-IN')}` : '-';
-                let goldStr = e.gold > 0 ? `${e.gold.toFixed(3)} g` : '-';
-                
+                let cashStr = e.amtOverride !== null ? e.amtOverride : (e.amt > 0 ? `₹${fmtNum(e.amt)}` : '-');
+                let splitHtml = e.splitStr ? `<span class="mode-split">${e.splitStr}</span>` : '';
+
+                let metalHtml = '-';
+                if (e.metalFlows && e.metalFlows.length > 0) {
+                    let pills = [];
+                    e.metalFlows.forEach(m => {
+                        if (m.val !== 0) {
+                            let sign = m.val > 0 ? '+' : '';
+                            let cls = m.label.toLowerCase() === 'old' ? 'wt-old' : (m.label.toLowerCase() === 'mix' ? 'wt-mix' : 'wt-net');
+                            pills.push(`<span class="wt-pill ${cls}">${sign}${m.val.toFixed(3)}g ${m.label}</span>`);
+                        }
+                    });
+                    if (pills.length > 0) metalHtml = pills.join('<br>');
+                }
+
                 tbody.innerHTML += `
                     <tr>
                         <td>
-                            <div class="type-badge">${e.title}</div>
-                            <div style="color:#555; font-size:0.75rem; font-weight:500;">${e.desc || '-'}</div>
+                            <span class="type-badge ${e.badgeClass}">${e.badgeText}</span>
+                            <div class="party-name">${e.party}</div>
+                            <div class="entry-desc">${e.desc || ''}</div>
                         </td>
-                        <td style="font-weight:700; color:#111;">${cashStr}</td>
-                        <td style="font-weight:700; color:#b8860b;">${goldStr}</td>
+                        <td style="font-weight:800; color:#111;">
+                            ${cashStr}
+                            ${splitHtml}
+                        </td>
+                        <td>${metalHtml}</td>
                     </tr>
                 `;
             });
         }
 
-        async function calculateBalances(jama, nama, targetDateStr) {
-            let tJamaCash = 0, tJamaGold = 0;
-            let tNamaCash = 0, tNamaGold = 0;
-
-            jama.forEach(e => { tJamaCash += e.cash; tJamaGold += e.gold; });
-            nama.forEach(e => { tNamaCash += e.cash; tNamaGold += e.gold; });
-
-            document.getElementById('tJamaCash').innerText = tJamaCash.toLocaleString('en-IN');
-            document.getElementById('tJamaGold').innerText = tJamaGold.toFixed(3);
-            document.getElementById('tNamaCash').innerText = tNamaCash.toLocaleString('en-IN');
-            document.getElementById('tNamaGold').innerText = tNamaGold.toFixed(3);
-
-            let openCash = 0;
-            let openGold = 0;
-            
-            try {
-                const closures = await safeFetch('daybook_closures');
-                if(closures.length > 0) {
-                    closures.sort((a,b) => new Date(b.date) - new Date(a.date));
-                    let selectedDateObj = new Date(targetDateStr);
-                    
-                    const prevClosure = closures.find(c => new Date(c.date) < selectedDateObj);
-                    if(prevClosure) {
-                        openCash = prevClosure.closeCash || 0;
-                        openGold = prevClosure.closeGold || 0;
-                    }
-                }
-            } catch(e) { console.log("No closures yet"); }
-
-            document.getElementById('vOpenCash').innerText = `₹${openCash.toLocaleString('en-IN')}`;
-            document.getElementById('vOpenGold').innerText = `${openGold.toFixed(3)} g`;
-
-            let closeCash = (openCash + tJamaCash) - tNamaCash;
-            let closeGold = (openGold + tJamaGold) - tNamaGold;
-
-            document.getElementById('vCloseCash').innerText = `₹${closeCash.toLocaleString('en-IN')}`;
-            document.getElementById('vCloseGold').innerText = `${closeGold.toFixed(3)} g`;
-
-            window.currentClosing = { cash: closeCash, gold: closeGold, date: targetDateStr };
-        }
-
         async function closeDay() {
-            if(!confirm("Kya aap aaj ka hisab Match karke Daybook lock karna chahte hain? Ye kal ka Opening Balance ban jayega.")) return;
+            if(!window.currentClosing) return;
+            if(!confirm(`Kya aap ${window.currentClosing.date} ka Rojmel Match karke Lock karna chahte hain?\n\nClosing Cash/Bank: ₹${fmtNum(window.currentClosing.closeCash)}\nClosing Gold: ${window.currentClosing.closeGold.toFixed(3)}g`)) return;
             
             try {
-                // Creates table dynamically if it doesn't exist through addItem handler in db.js
-                await addItem('daybook_closures', {
-                    date: window.currentClosing.date,
-                    closeCash: window.currentClosing.cash,
-                    closeGold: window.currentClosing.gold
-                });
-                alert("✅ Daybook Match & Closed! Kal ke liye Opening Balance set ho gaya hai.");
+                await addItem('daybook_closures', window.currentClosing);
+                alert("✅ Master Rojmel Match & Locked Successfully!");
             } catch (error) {
-                alert("Error: Shayad db.js update hone me samay lag raha hai.");
+                alert("Error: Database me save karne me samasya aayi.");
                 console.error(error);
             }
         }
