@@ -1876,11 +1876,13 @@
     // --- QUICK REMOVE (NAYA DESIGN) LOGIC ---
     let remModalMetal = 'Gold';
     let remModalType = 'Loose';
+    let selectedTaggedRemItems = [];
 
     function openQuickRemoveModal() {
         remModalMetal = currentMetalFilter === 'SILVER' ? 'Silver' : 'Gold';
         remModalType = 'Loose';
         document.getElementById('remSearchInput').value = '';
+        selectedTaggedRemItems = []; // Selection Reset on open
         updateQuickRemoveTabs();
         renderQuickRemoveList();
         openModal('quickRemoveModal');
@@ -1888,12 +1890,14 @@
 
     function setRemMetal(metal) {
         remModalMetal = metal;
+        selectedTaggedRemItems = [];
         updateQuickRemoveTabs();
         renderQuickRemoveList();
     }
 
     function setRemType(type) {
         remModalType = type;
+        selectedTaggedRemItems = [];
         updateQuickRemoveTabs();
         renderQuickRemoveList();
     }
@@ -1951,7 +1955,7 @@
             });
             
         } else {
-            // Tagged items logic - Checkboxes
+            // Tagged items logic - Checkboxes with array sync
             filtered = filtered.filter(i => !(i.barcode && String(i.barcode).startsWith('LOOSE')) && i.category !== 'MIX');
             
             const term = document.getElementById('remSearchInput').value.toUpperCase().trim();
@@ -1964,16 +1968,17 @@
 
             if(filtered.length === 0) {
                 container.innerHTML = `<div style="text-align:center; padding:20px; color:#888;">Koi tagged item nahi mila.</div>`;
-                document.getElementById('selectedTaggedRemCount').innerText = "0 Selected";
+                updateTaggedRemCount();
                 return;
             }
 
             const displayItems = filtered.slice(0, 300);
             displayItems.forEach(item => {
                 const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                const isChecked = selectedTaggedRemItems.includes(String(item.id)) ? 'checked' : '';
                 container.innerHTML += `
                     <label class="print-item-row" style="cursor:pointer; display:flex; align-items:center;">
-                        <input type="checkbox" class="tagged-rem-checkbox" value="${item.id}" onchange="updateTaggedRemCount()">
+                        <input type="checkbox" class="tagged-rem-checkbox" value="${item.id}" ${isChecked} onchange="updateTaggedRemList(this, '${item.id}')">
                         <div style="flex:1;">
                             <div style="font-weight:700; color:var(--active-red);">${item.barcode}</div>
                             <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${item.purity} | ${gross}g</div>
@@ -2035,30 +2040,40 @@
         renderQuickRemoveList(); 
     }
 
-    function toggleSelectAllTaggedRem() {
-        const isChecked = document.getElementById('selectAllTaggedRem').checked;
-        const checkboxes = document.querySelectorAll('.tagged-rem-checkbox');
-        checkboxes.forEach(cb => cb.checked = isChecked);
+    function updateTaggedRemList(checkbox, id) {
+        const strId = String(id);
+        if(checkbox.checked) { 
+            if(!selectedTaggedRemItems.includes(strId)) selectedTaggedRemItems.push(strId); 
+        } else { 
+            selectedTaggedRemItems = selectedTaggedRemItems.filter(i => i !== strId); 
+        }
         updateTaggedRemCount();
     }
 
+    function toggleSelectAllTaggedRem() {
+        const isChecked = document.getElementById('selectAllTaggedRem').checked;
+        const checkboxes = document.querySelectorAll('.tagged-rem-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+            updateTaggedRemList(cb, cb.value); 
+        });
+    }
+
     function updateTaggedRemCount() {
-        const count = document.querySelectorAll('.tagged-rem-checkbox:checked').length;
-        document.getElementById('selectedTaggedRemCount').innerText = `${count} Selected`;
+        document.getElementById('selectedTaggedRemCount').innerText = `${selectedTaggedRemItems.length} Selected`;
     }
 
     async function confirmTaggedRemove() {
-        const checkboxes = document.querySelectorAll('.tagged-rem-checkbox:checked');
-        if (checkboxes.length === 0) return appAlert("Koi item select nahi kiya!");
+        if (selectedTaggedRemItems.length === 0) return appAlert("Koi item select nahi kiya!");
 
-        const proceed = await appConfirm(`Kya aap sach me in ${checkboxes.length} items ko nikalna chahte hain?`);
+        const proceed = await appConfirm(`Kya aap sach me in ${selectedTaggedRemItems.length} items ko nikalna chahte hain?`);
         if(!proceed) return;
 
         const remDocNo = 'REM-' + Date.now();
         const dateStr = new Date().toISOString();
 
-        for(let cb of checkboxes) {
-            let item = allInventory.find(i => String(i.id) === String(cb.value));
+        for(let id of selectedTaggedRemItems) {
+            let item = allInventory.find(i => String(i.id) === String(id));
             if(item) {
                 item.status = 'removed';
                 item.removeDocNo = remDocNo;
@@ -2069,28 +2084,24 @@
         
         showToast("Tags Removed Successfully!", "success");
         document.getElementById('selectAllTaggedRem').checked = false;
+        selectedTaggedRemItems = []; 
         await loadInventory();
         renderQuickRemoveList();
     }
 
     // --- BATCH REMOVE LOGIC (PURANA) ---
-    // Keeping this in case you still use the old button, but pointing old button to new UI
     let removeBatchList = [];
     let removeSelectionList = [];
     function openRemoveStockModal() {
-        // Redirection: Purana Remove button ab naye Quick Remove modal ko khol dega
         openQuickRemoveModal();
     }
-    // ... [Rest of the old remove code logic kept for compatibility] ...
-    // Note: The rest of the `openRemoveStockModal` functions are bypassed because of the redirection above, keeping the UI clean.
-
-    function filterRemoveList() {} // bypassed
-    function renderRemoveCheckList(items) {} // bypassed
-    function updateRemoveBatchList(cb, id) {} // bypassed
-    function toggleSelectAllRemove() {} // bypassed
-    function quickSelectN() {} // bypassed
-    function updateSelectedRemoveCount() {} // bypassed
-    async function confirmBatchRemove() {} // bypassed
+    function filterRemoveList() {} 
+    function renderRemoveCheckList(items) {} 
+    function updateRemoveBatchList(cb, id) {} 
+    function toggleSelectAllRemove() {} 
+    function quickSelectN() {} 
+    function updateSelectedRemoveCount() {} 
+    async function confirmBatchRemove() {} 
 
     // --- BATCH RESTORE LOGIC ---
     let restoreBatchList = [];
