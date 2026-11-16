@@ -6,7 +6,6 @@
     <title>Inventory - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
     <style>
         :root {
             --header-bg: #000000; 
@@ -118,6 +117,10 @@
         .print-item-row:hover { background: #f8fafc; }
         .print-item-row input[type="checkbox"] { width: 20px; height: 20px; margin-right: 15px; accent-color: var(--info-blue); }
 
+        .item-detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.9rem; }
+        .item-detail-lbl { color: #64748b; font-weight: 600; }
+        .item-detail-val { color: #1e293b; font-weight: 700; }
+
         #toast {
             visibility: hidden; min-width: 250px; background-color: #1e293b; color: #fff;
             text-align: center; border-radius: 10px; padding: 16px 20px; position: fixed;
@@ -145,20 +148,73 @@
             .modal-content { padding: 20px; width: 95%; max-height: 90vh; }
         }
 
+        /* ====== UPDATED THERMAL TAG PRINT CSS (NO BARCODE LINES) ====== */
         #printContainer { display: none; }
         @media print {
-            @page { size: 55mm 10mm; margin: 0; }
+            @page { size: 55mm 12.4mm; margin: 0; }
             body * { visibility: hidden; }
-            html, body { margin: 0; padding: 0; width: 55mm; height: 10mm; overflow: hidden; background: white; }
+            html, body { 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                width: 55mm; 
+                height: 12.4mm; 
+                overflow: hidden; 
+                background: white; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
             #printContainer, #printContainer * { visibility: visible; }
-            #printContainer { display: block; position: absolute; left: 0; top: 0; width: 55mm; height: auto; background: white; padding: 0; margin: 0; }
-            .print-label { width: 55mm; height: 10mm; page-break-after: always; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; margin: 0; padding: 0; background: white; font-family: sans-serif; }
-            .print-half-left { width: 27.5mm; height: 10mm; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; padding-left: 2mm; padding-top: 0.5mm; }
-            .print-half-right { width: 27.5mm; height: 10mm; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; padding-right: 1.5mm; }
-            .t-shop { font-size: 5.5pt; font-weight: 900; line-height: 1; margin-bottom: 1px; color: #000; }
-            .t-wt { font-size: 5pt; font-weight: bold; line-height: 1.1; margin-bottom: 0px; color: #000; }
-            .t-code { font-size: 5.5pt; font-weight: bold; line-height: 1; color: #000; letter-spacing: 0.5px; }
-            .barcode-svg { max-height: 5mm !important; width: auto !important; max-width: 25mm; }
+            #printContainer { 
+                display: block; 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 55mm; 
+                height: auto; 
+                background: white; 
+                padding: 0; 
+                margin: 0; 
+            }
+            .print-label { 
+                width: 55mm; 
+                height: 12.4mm; 
+                page-break-after: always; 
+                box-sizing: border-box; 
+                display: flex; 
+                align-items: center; 
+                justify-content: flex-start; 
+                margin: 0; 
+                padding: 0; 
+                background: white; 
+                font-family: Arial, Helvetica, sans-serif; 
+                overflow: hidden;
+            }
+            /* Left Portion: Bharti Jew + GW + NW + Purity */
+            .print-half-left { 
+                width: 18.5mm; 
+                height: 12.4mm; 
+                display: flex; 
+                flex-direction: column; 
+                justify-content: center; 
+                align-items: flex-start;
+                box-sizing: border-box; 
+                padding-left: 1.5mm; 
+            }
+            /* Right/Middle Portion: Category (BALI) + Code (BAL099) */
+            .print-half-right { 
+                width: 18.5mm; 
+                height: 12.4mm; 
+                display: flex; 
+                flex-direction: column; 
+                justify-content: center; 
+                align-items: center; 
+                box-sizing: border-box; 
+                padding-left: 1mm;
+            }
+            .t-shop { font-size: 6pt; font-weight: 900; line-height: 1.15; margin-bottom: 1px; color: #000 !important; white-space: nowrap; }
+            .t-wt { font-size: 5.5pt; font-weight: 800; line-height: 1.15; margin-bottom: 0px; color: #000 !important; white-space: nowrap; }
+            .t-cat { font-size: 7pt; font-weight: 900; line-height: 1.2; margin-bottom: 2px; color: #000 !important; letter-spacing: 0.5px; white-space: nowrap; }
+            .t-code { font-size: 7.5pt; font-weight: 900; line-height: 1.2; color: #000 !important; letter-spacing: 0.5px; white-space: nowrap; }
             .modal, .fab, .app-header, .sidebar-drawer, .app-container, #toast { display: none !important; }
         }
     </style>
@@ -210,7 +266,7 @@
                 <button class="btn-history" style="background: #10b981;" onclick="openRestoreStockModal()"><i class="fas fa-undo"></i> Batch Restore</button>
                 <button class="btn-history" style="background: var(--active-red);" onclick="openQuickRemoveModal()"><i class="fas fa-minus-circle"></i> Quick Remove</button>
                 <button class="btn-history" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
-                <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
+                <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-tag"></i> Print Tags</button>
                 <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
             </div>
         </div>
@@ -290,7 +346,7 @@
     <div class="fab" onclick="openManualEntry()"><i class="fas fa-plus"></i></div>
 </div>
 
-<!-- NAYA QUICK REMOVE MODAL -->
+<!-- QUICK REMOVE MODAL -->
 <div id="quickRemoveModal" class="modal">
     <div class="modal-content" style="max-width: 700px; padding: 25px;">
         <button class="close-btn" onclick="closeModal('quickRemoveModal')">&times;</button>
@@ -311,9 +367,7 @@
             <input type="text" id="remSearchInput" class="search-box" placeholder="Search Barcode, Name..." onkeyup="renderQuickRemoveList()">
         </div>
 
-        <div id="quickRemoveListContainer" style="max-height: 450px; overflow-y: auto; padding-right: 5px;">
-            <!-- Items aayenge yahan -->
-        </div>
+        <div id="quickRemoveListContainer" style="max-height: 450px; overflow-y: auto; padding-right: 5px;"></div>
 
         <div id="taggedRemoveFooter" style="display:none; margin-top: 15px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -324,7 +378,6 @@
         </div>
     </div>
 </div>
-<!-- END NAYA QUICK REMOVE MODAL -->
 
 <!-- BATCH RESTORE MODAL -->
 <div id="restoreStockModal" class="modal">
@@ -371,7 +424,7 @@
     <div class="modal-content" style="max-width: 600px;">
         <button class="close-btn" onclick="closeModal('selectPrintModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--header-bg); font-size:1.4rem;"><i class="fas fa-print"></i> Select Tags to Print</h3>
-        <p style="font-size:0.85rem; color:#64748b;">Search and select the inventory items you want to print barcodes for.</p>
+        <p style="font-size:0.85rem; color:#64748b;">Search and select the inventory items you want to print tags for.</p>
         <input type="text" id="printSearchInput" class="search-box" placeholder="Search Barcode, Category or Purity..." onkeyup="filterPrintList()" style="margin-bottom:15px; width: 100%; box-sizing: border-box;">
         <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-size: 0.9rem;">
             <label style="cursor:pointer; color:var(--info-blue);"><input type="checkbox" id="selectAllPrint" onclick="toggleSelectAllPrint()" style="width:auto; display:inline-block; vertical-align:middle; margin-right:5px;"> Select All Found</label>
@@ -707,44 +760,44 @@
         }
     }
 
+    function printSingleById(id) {
+        const item = allInventory.find(i => String(i.id) === String(id));
+        if (item) autoPrint([item]);
+    }
+
+    /* ====== UPDATED AUTO PRINT (NO BARCODE LINES, TEXT ONLY) ====== */
     function autoPrint(items) {
         const container = document.getElementById('printContainer');
         container.innerHTML = '';
         let printItems = items.filter(i => i.category !== 'MIX' && !String(i.barcode || '').includes('MIX') && i.status !== 'sold' && i.status !== 'removed' && i.status !== 'cancelled' && i.status !== 'extracted' && !(i.barcode && String(i.barcode).startsWith('LOOSE')));
         if(printItems.length === 0) return;
-        printItems.forEach((item, index) => {
-            const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
-            const net = parseFloat(item.netWt || gross).toFixed(3);
+
+        printItems.forEach((item) => {
+            const grossVal = parseFloat(item.grossWt !== undefined ? item.grossWt : item.weight) || 0;
+            const netVal = parseFloat(item.netWt !== undefined ? item.netWt : grossVal) || grossVal;
+            const gross = grossVal.toFixed(3);
+            const net = netVal.toFixed(3);
+            const purityStr = item.purity || '22K';
+            const catStr = String(item.category || '').toUpperCase();
+            const codeStr = String(item.barcode || '').toUpperCase();
+
             container.innerHTML += `
                 <div class="print-label">
                     <div class="print-half-left">
                         <div class="t-shop">BHARTI JEW.</div>
                         <div class="t-wt">GW: ${gross}g</div>
                         <div class="t-wt">NW: ${net}g</div>
-                        <div class="t-wt">${item.purity}</div>
+                        <div class="t-wt">${purityStr}</div>
                     </div>
                     <div class="print-half-right">
-                        <div class="t-code" style="margin-bottom:1px;">${String(item.category || '').toUpperCase()}</div>
-                        <svg id="barcode-svg-${index}" class="barcode-svg"></svg>
-                        <div class="t-code" style="margin-top:1px;">${item.barcode}</div>
+                        <div class="t-cat">${catStr}</div>
+                        <div class="t-code">${codeStr}</div>
                     </div>
                 </div>
             `;
         });
-        setTimeout(() => {
-            printItems.forEach((item, index) => {
-                JsBarcode(`#barcode-svg-${index}`, item.barcode, {
-                    format: "CODE128", 
-                    displayValue: false, 
-                    height: 20,     
-                    width: 1.2,     
-                    margin: 0,
-                    background: "#ffffff",
-                    lineColor: "#000000"
-                });
-            });
-            setTimeout(() => { triggerPrint(); }, 400);
-        }, 100);
+
+        setTimeout(() => { triggerPrint(); }, 250);
     }
 
     let printSelectionList = [];
@@ -764,7 +817,7 @@
             return;
         }
         items.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0)).forEach(item => {
-            const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+            const gross = (parseFloat(item.grossWt || item.weight) || 0).toFixed(3);
             listContainer.innerHTML += `
                 <label class="print-item-row" style="cursor:pointer; display:flex;">
                     <input type="checkbox" class="print-checkbox" value="${item.id}" onchange="updateSelectedPrintCount()">
@@ -1165,13 +1218,13 @@
 
             if ((statusFilter === 'ALL' || statusFilter === 'SOLD' || statusFilter === 'REMOVED') && (fd || td)) {
                  filtered = filtered.filter(i => {
-                      const dStr = i.removeDate || i.soldDate || i.date || i.addedDate;
-                      if(!dStr) return false;
-                      const d = new Date(dStr);
-                      if (fd && td) return d >= fd && d <= td;
-                      if (fd) return d >= fd;
-                      if (td) return d <= td;
-                      return true;
+                       const dStr = i.removeDate || i.soldDate || i.date || i.addedDate;
+                       if(!dStr) return false;
+                       const d = new Date(dStr);
+                       if (fd && td) return d >= fd && d <= td;
+                       if (fd) return d >= fd;
+                       if (td) return d <= td;
+                       return true;
                  });
             }
 
@@ -1543,7 +1596,7 @@
                 existingItem.fineWt = parseFloat((parseFloat(existingItem.fineWt) + f).toFixed(3));
                 existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
                 existingItem.subFolder = finalFolderName;
-                existingItem.metal = metalType; // ensure metal is saved
+                existingItem.metal = metalType;
                 await updateItem('inventory', existingItem);
             } else {
                 const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
@@ -1601,8 +1654,9 @@
         
         document.getElementById('idmHuid').innerHTML = item.huid && String(item.huid).trim() !== '' ? item.huid : '<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>';
         
-        document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
-        document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g";
+        document.getElementById('idmGross').innerText = (parseFloat(item.grossWt||item.weight)||0).toFixed(3) + "g";
+        document.getElementById('idmStone').innerText = (parseFloat(item.stoneWt)||0).toFixed(3) + "g";
+        document.getElementById('idmNet').innerText = (parseFloat(item.netWt||item.grossWt||item.weight)||0).toFixed(3) + "g";
         document.getElementById('idmStatus').innerText = String(item.status).toUpperCase();
         document.getElementById('idmDate').innerHTML = item.addedDate ? new Date(item.addedDate).toLocaleString() : '-';
         document.getElementById('idmDocNo').innerHTML = item.docNo ? `<span class="badge badge-order">${item.docNo}</span>` : '-';
@@ -1700,7 +1754,7 @@
         }
         
         filteredItems.forEach(item => {
-            const g = parseFloat(item.grossWt||item.weight).toFixed(3);
+            const g = (parseFloat(item.grossWt||item.weight)||0).toFixed(3);
             let statusBadge = '';
             if(item.status === 'sold') statusBadge = '<br><span class="badge badge-pending">SOLD OUT</span>';
             if(item.status === 'removed' || item.status === 'extracted') statusBadge = '<br><span class="badge badge-silver">REMOVED</span>';
@@ -1716,7 +1770,7 @@
             } else if(item.barcode && String(item.barcode).startsWith('LOOSE') || item.category === 'MIX') {
                  actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${item.id}')"><i class="fas fa-tags"></i> Tag</button>`;
             } else {
-                 actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
+                 actionBtnHTML = `<button class="btn-sm btn-print" onclick="printSingleById('${item.id}')"><i class="fas fa-print"></i></button>`;
             }
             
             let rawSub = item.subFolder || "";
@@ -1727,7 +1781,7 @@
 
             let rowStyle = (item.status !== 'stock') ? 'background-color:#f8fafc; opacity:0.8;' : '';
 
-            tbody.innerHTML += `<tr style="${rowStyle}"><td style="cursor:pointer;" onclick="openItemDetails('${item.id}')"><div>${displayBc}</div></td><td>${subHtml}</td><td>${huidHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td></tr>`;
+            tbody.innerHTML += `<tr style="${rowStyle}"><td style="cursor:pointer;" onclick="openItemDetails('${item.id}')"><div>${displayBc}</div></td><td>${subHtml}</td><td>${huidHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${(parseFloat(item.netWt||g)||0).toFixed(3)}g</td><td>${(parseFloat(item.stoneWt)||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td></tr>`;
         });
     }
 
@@ -1873,7 +1927,7 @@
         setTimeout(() => { if(newlyAddedItems.length>0) autoPrint(newlyAddedItems); }, 1000);
     }
 
-    // --- QUICK REMOVE (NAYA DESIGN) LOGIC ---
+    // --- QUICK REMOVE LOGIC ---
     let remModalMetal = 'Gold';
     let remModalType = 'Loose';
     let selectedTaggedRemItems = [];
@@ -1882,7 +1936,7 @@
         remModalMetal = currentMetalFilter === 'SILVER' ? 'Silver' : 'Gold';
         remModalType = 'Loose';
         document.getElementById('remSearchInput').value = '';
-        selectedTaggedRemItems = []; // Selection Reset on open
+        selectedTaggedRemItems = [];
         updateQuickRemoveTabs();
         renderQuickRemoveList();
         openModal('quickRemoveModal');
@@ -1928,14 +1982,13 @@
         if (remModalType === 'Loose') {
             filtered = filtered.filter(i => i.barcode && String(i.barcode).startsWith('LOOSE'));
             
-            // Loose items logic - NO checkboxes
             if(filtered.length === 0) {
                 container.innerHTML = `<div style="text-align:center; padding:20px; color:#888;">Koi bulk/loose item nahi mila.</div>`;
                 return;
             }
             
             filtered.forEach(item => {
-                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                const gross = (parseFloat(item.grossWt || item.weight)||0).toFixed(3);
                 let rawSub = item.subFolder || "";
                 if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
                 const displayName = rawSub || item.category;
@@ -1955,7 +2008,6 @@
             });
             
         } else {
-            // Tagged items logic - Checkboxes with array sync
             filtered = filtered.filter(i => !(i.barcode && String(i.barcode).startsWith('LOOSE')) && i.category !== 'MIX');
             
             const term = document.getElementById('remSearchInput').value.toUpperCase().trim();
@@ -1974,7 +2026,7 @@
 
             const displayItems = filtered.slice(0, 300);
             displayItems.forEach(item => {
-                const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+                const gross = (parseFloat(item.grossWt || item.weight)||0).toFixed(3);
                 const isChecked = selectedTaggedRemItems.includes(String(item.id)) ? 'checked' : '';
                 container.innerHTML += `
                     <label class="print-item-row" style="cursor:pointer; display:flex; align-items:center;">
@@ -2008,7 +2060,6 @@
         const dateStr = new Date().toISOString();
 
         if (removeWt < currentWt - 0.005) {
-            // Partial
             const removedPortion = JSON.parse(JSON.stringify(item));
             delete removedPortion.id;
             removedPortion.barcode = item.barcode + '-REM-' + Date.now().toString().slice(-4);
@@ -2027,7 +2078,6 @@
             item.fineWt = Number((item.netWt * getPurityFactor(item.purity)).toFixed(3));
             await updateItem('inventory', item);
         } else {
-            // Full
             item.status = 'removed';
             item.removeDocNo = remDocNo;
             item.removeDate = dateStr;
@@ -2089,20 +2139,6 @@
         renderQuickRemoveList();
     }
 
-    // --- BATCH REMOVE LOGIC (PURANA) ---
-    let removeBatchList = [];
-    let removeSelectionList = [];
-    function openRemoveStockModal() {
-        openQuickRemoveModal();
-    }
-    function filterRemoveList() {} 
-    function renderRemoveCheckList(items) {} 
-    function updateRemoveBatchList(cb, id) {} 
-    function toggleSelectAllRemove() {} 
-    function quickSelectN() {} 
-    function updateSelectedRemoveCount() {} 
-    async function confirmBatchRemove() {} 
-
     // --- BATCH RESTORE LOGIC ---
     let restoreBatchList = [];
     let restoreSelectionList = [];
@@ -2137,7 +2173,7 @@
         }
         const displayItems = items.slice(0, 300);
         displayItems.sort((a,b) => new Date(b.removeDate || 0) - new Date(a.removeDate || 0)).forEach(item => {
-            const gross = parseFloat(item.grossWt || item.weight).toFixed(3);
+            const gross = (parseFloat(item.grossWt || item.weight)||0).toFixed(3);
             const strId = String(item.id);
             const isChecked = restoreBatchList.includes(strId) ? 'checked' : '';
             
@@ -2201,7 +2237,6 @@
         closeModal('restoreStockModal');
         loadInventory();
     }
-    // ------------------------------------
 
     function openDocHistoryModal() {
         const docs = {};
