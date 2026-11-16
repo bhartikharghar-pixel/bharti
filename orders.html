@@ -104,7 +104,7 @@
         .input-group input { border: none; flex: 1; border-radius: 0; }
         .input-group select { width: 100px; border: none; border-left: 1px solid #ddd; background: #eee; font-weight: 600; }
 
-        .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 20; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
         .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
         .search-item:hover { background: #fff5f5; color: var(--active-red); }
 
@@ -123,6 +123,8 @@
         .item-table td { color: #555; }
         .remove-btn { color: #d32f2f; cursor: pointer; border: none; background: none; font-size: 1.1rem; padding: 0; display: flex; align-items: center; justify-content: center; }
         .remove-btn:hover { color: #b71c1c; }
+
+        .stock-tag { display: inline-block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; margin-top: 2px; }
 
         .tracker { display: flex; justify-content: space-between; margin-bottom: 20px; position: relative; padding: 0 10px;}
         .tracker::before { content: ''; position: absolute; top: 15px; left: 10%; width: 80%; height: 3px; background: #eee; z-index: 1; }
@@ -172,14 +174,15 @@
     <aside id="app-sidebar" class="sidebar-drawer">
        <ul class="sidebar-menu">
             <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="quick.html"><i class="fas fa-bolt"></i> Quick Entry</a></li>
             <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
             <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
             <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
-            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="orders.html" class="active"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
             <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
             <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
             <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
-            <li><a href="loans.html" class="active"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
             <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
             <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Metal (UR)</a></li>
             <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
@@ -210,7 +213,7 @@
         </div>
 
         <div class="controls-row">
-            <input type="text" id="orderSearch" class="search-box" placeholder="Search Customer Name or Phone or Invoice No..." onkeyup="filterOrders()">
+            <input type="text" id="orderSearch" class="search-box" placeholder="Search Customer Name, Phone, Barcode or Invoice No..." onkeyup="filterOrders()">
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('pending', this)">Pending / In-Progress</button>
                 <button class="tab" onclick="switchTab('completed', this)">Ready (In Stock)</button>
@@ -224,7 +227,7 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- NEW ORDER MODAL (UPGRADED FOR MULTIPLE ITEMS + ROUND OFF) -->
+    <!-- NEW ORDER MODAL (UPGRADED FOR READY STOCK BARCODE + MULTIPLE ITEMS + ROUND OFF) -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -272,7 +275,7 @@
                 </div>
             </div>
 
-            <!-- NEW: MULTIPLE ORDER ITEMS -->
+            <!-- MULTIPLE ORDER ITEMS + STOCK BARCODE TRANSFER -->
             <div class="form-section">
                 <div class="form-section-title">Order Items</div>
 
@@ -291,6 +294,20 @@
 
                 <div style="background:#f9f9f9; padding:12px; border:1px dashed #ccc; border-radius:8px;">
                     <div style="font-size:0.8rem; font-weight:bold; margin-bottom:8px; color:#1976d2;"><i class="fas fa-plus-circle"></i> Add New Item to Order</div>
+
+                    <!-- 🔥 NEW: SCAN / SELECT READY STOCK BARCODE TO TRANSFER TO ORDER BOX -->
+                    <div style="background:#e8f5e9; padding:10px; border-radius:8px; border:1px dashed #4caf50; margin-bottom:12px; position:relative;">
+                        <label style="color:#2e7d32; font-size:0.8rem; margin-bottom:4px;"><i class="fas fa-barcode"></i> Book from Ready Stock (Transfers Stock Box ➔ Order Box)</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="oiStockSearch" placeholder="Scan Barcode or type Category/Weight..." oninput="searchStockForOrderIntake()" onkeydown="if(event.key==='Enter'){event.preventDefault(); triggerExactBarcodeMatch();}" autocomplete="off" style="border-color:#a5d6a7; background:#fff;">
+                            <button type="button" class="btn-outline" id="btnClearOiStock" style="display:none; padding:0 12px; border-color:#d32f2f; color:#d32f2f; background:#fff; font-weight:bold;" onclick="clearSelectedStockForOrder()">Clear</button>
+                        </div>
+                        <input type="hidden" id="oiSelectedStockId">
+                        <input type="hidden" id="oiSelectedBarcode">
+                        <div id="oiStockSearchResults" class="search-results"></div>
+                        <div id="oiStockSelectedBadge" style="display:none; margin-top:6px; font-size:0.8rem; color:#1b5e20; font-weight:700; background:#c8e6c9; padding:6px 10px; border-radius:6px;"></div>
+                    </div>
+
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Category</label>
@@ -300,6 +317,8 @@
                                 <option value="Bangle">Bangle</option>
                                 <option value="Necklace">Necklace</option>
                                 <option value="Earring">Earring</option>
+                                <option value="Pendant">Pendant</option>
+                                <option value="Mangalsutra">Mangalsutra</option>
                                 <option value="Other">Other</option>
                             </select>
                         </div>
@@ -332,7 +351,7 @@
                         <div class="form-group">
                             <label>Making Charge Logic</label>
                             <div class="input-group">
-                                <input type="number" id="oiMakingVal" value="0" oninput="calcOIItem()">
+                                <input type="number" id="oiMakingVal" value="12" oninput="calcOIItem()">
                                 <select id="oiMakingType" onchange="calcOIItem()">
                                     <option value="pct">%</option>
                                     <option value="per_gram">₹/g</option>
@@ -347,7 +366,7 @@
                 </div>
             </div>
 
-            <!-- NEW: MULTIPLE OLD GOLD ITEMS -->
+            <!-- MULTIPLE OLD GOLD ITEMS -->
             <div class="form-section" style="border-left: 4px solid var(--old-gold); background: #fdfaf6;">
                 <div class="form-section-title" style="color: var(--old-gold); border-color: #e1bee7;">Old Gold Exchanged</div>
 
@@ -568,7 +587,7 @@
                     </label>
                 </div>
                 <div id="aShopGoldSection" style="display: none; border-left: 4px solid var(--merchant-orange); padding: 10px 15px; background: #fffaf0; margin-bottom: 15px; border-radius: 0 6px 6px 0;">
-                    <div style="font-size:0.8rem; margin-bottom:10px; color:#d84315;">*Total Expected Fine required: <strong id="aTotalFineReq">0g</strong></div>
+                    <div style="font-size:0.8rem; margin-bottom:10px; color:#d84315;">*Total Expected Fine required (Custom items): <strong id="aTotalFineReq">0g</strong></div>
                     <div class="form-group" style="margin-bottom: 15px;"><label id="aSourceLabel" style="color:#d32f2f;"><i class="fas fa-boxes"></i> Select Inventory Source (Optional)</label><select id="aRepSourceSelect" style="border: 2px solid #ffcc80; padding: 10px; border-radius: 6px; width: 100%;" onchange="autoFillAssignSource()"></select></div>
                     <div class="form-grid"><div class="form-group" style="margin-bottom:0;"><label>Issued Purity</label><select id="aIssuedPurity" onchange="calcAssignFine()" style="font-weight:bold; color:#333; text-align:center; padding: 10px; border-radius: 6px; border: 1px solid #ccc; width: 100%;"></select></div><div class="form-group" style="margin-bottom:0;"><label>Weight to Issue (g)</label><input type="number" id="aIssuedWt" step="0.001" placeholder="e.g. 15.000" oninput="calcAssignFine()"></div></div>
                     <div class="form-group" style="margin-top:10px; margin-bottom:0;"><label>Calculated Fine Gold Liability (g)</label><input type="number" id="aIssuedFineWt" readonly style="background:#fff3e0; color:#e65100; font-weight:bold; border-color:#ffcc80;"></div>
@@ -877,7 +896,11 @@
                 else if (currentTab === 'billed') matchTab = (o.status === 'billed' || o.status === 'delivered');
                 else if (currentTab === 'cancelled') matchTab = (o.status === 'cancelled' || o.status === 'deleted');
 
-                const matchSearch = o.custName.toLowerCase().includes(term) || String(o.custMobile).includes(term) || (o.description||'').toLowerCase().includes(term) || String(o.invoiceNo||'').toLowerCase().includes(term);
+                const matchSearch = o.custName.toLowerCase().includes(term) || 
+                                    String(o.custMobile).includes(term) || 
+                                    (o.description||'').toLowerCase().includes(term) || 
+                                    String(o.invoiceNo||'').toLowerCase().includes(term) ||
+                                    String(o.barcode||'').toLowerCase().includes(term);
                 return matchTab && matchSearch;
             });
 
@@ -910,7 +933,7 @@
 
                 let cardClass = '';
                 if (o.status === 'billed' || o.status === 'delivered') cardClass = 'billed';
-                else if (o.status === 'completed' || o.status === 'ready') cardClass = 'completed';
+                else if (o.status === 'completed' || o.status === 'ready') cardClass = 'ready';
                 else if (o.status === 'deleted' || o.isDeleted) cardClass = 'deleted';
                 else if (o.status === 'cancelled') cardClass = 'cancelled';
                 else if (isOverdue) cardClass = 'overdue';
@@ -922,13 +945,15 @@
                 let netPayable = grandTotal - oldGoldVal - adv;
                 if (o.status === 'billed' || o.status === 'delivered' || o.status === 'deleted' || o.isDeleted) netPayable = 0; 
 
-                // Support new multiple items view
                 let displayDesc = o.description;
                 let displayCat = o.category;
                 if(o.orderItems && o.orderItems.length > 1) {
                     displayCat = 'Multiple Items';
                     displayDesc = `${o.orderItems[0].category} + ${o.orderItems.length-1} more...`;
                 }
+
+                let hasStockBooked = (o.orderItems || []).some(i => i.fromStock || i.stockId);
+                let stockBadgeHtml = hasStockBooked ? `<span class="stock-tag"><i class="fas fa-box"></i> Order Box (Stock)</span>` : '';
 
                 let displayWt = (o.status === 'completed' || o.status === 'ready' || o.status === 'billed' || o.status === 'delivered') 
                     ? `${o.finalGross || o.grossWt}g (Final)` 
@@ -940,6 +965,7 @@
                             <div>
                                 <div class="o-cust">${o.custName}</div>
                                 <div style="font-size:0.8rem; color:#888;">${o.custMobile} | <b style="color:var(--bill-blue);">${invoiceNo}</b></div>
+                                ${stockBadgeHtml}
                             </div>
                             <span class="badge ${badgeClass}">${badgeText}</span>
                         </div>
@@ -990,10 +1016,128 @@
             } else { resultsDiv.style.display = 'none'; }
         }
 
+        // ==================== 🔥 READY STOCK BARCODE SEARCH & TRANSFER LOGIC ====================
+        function searchStockForOrderIntake() {
+            const term = (document.getElementById('oiStockSearch').value || '').trim().toLowerCase();
+            const resultsDiv = document.getElementById('oiStockSearchResults');
+            resultsDiv.innerHTML = '';
+
+            if(term.length < 1) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            // Exclude items already added to current order list
+            const addedStockIds = newOrderItems.filter(x => x.stockId).map(x => String(x.stockId));
+
+            const matches = allInventoryGlobal.filter(i => {
+                if (i.status !== 'stock') return false;
+                if (addedStockIds.includes(String(i.id))) return false;
+                const net = parseFloat(i.netWt || i.weight) || 0;
+                if (net <= 0) return false;
+                return (i.barcode && String(i.barcode).toLowerCase().includes(term)) ||
+                       (i.category && String(i.category).toLowerCase().includes(term)) ||
+                       (i.name && String(i.name).toLowerCase().includes(term)) ||
+                       String(net).includes(term);
+            }).slice(0, 8);
+
+            if (matches.length > 0) {
+                resultsDiv.style.display = 'block';
+                matches.forEach(item => {
+                    const net = parseFloat(item.netWt || item.weight) || 0;
+                    const div = document.createElement('div');
+                    div.className = 'search-item';
+                    div.innerHTML = `<b>[${item.barcode}]</b> ${item.category || item.name || 'Item'} — <b>${net}g</b> <small>(${item.purity || '22K'})</small>`;
+                    div.onclick = () => selectStockItemForOrder(item);
+                    resultsDiv.appendChild(div);
+                });
+            } else {
+                resultsDiv.style.display = 'none';
+            }
+        }
+
+        function triggerExactBarcodeMatch() {
+            const term = (document.getElementById('oiStockSearch').value || '').trim().toLowerCase();
+            if (!term) return;
+            const addedStockIds = newOrderItems.filter(x => x.stockId).map(x => String(x.stockId));
+            const exact = allInventoryGlobal.find(i => 
+                i.status === 'stock' && 
+                !addedStockIds.includes(String(i.id)) && 
+                i.barcode && String(i.barcode).toLowerCase() === term
+            );
+            if (exact) {
+                selectStockItemForOrder(exact);
+            }
+        }
+
+        function selectStockItemForOrder(inv) {
+            document.getElementById('oiSelectedStockId').value = inv.id;
+            document.getElementById('oiSelectedBarcode').value = inv.barcode || '';
+            document.getElementById('oiStockSearch').value = `[${inv.barcode}] ${inv.category || inv.name || 'Item'}`;
+            document.getElementById('oiStockSearchResults').style.display = 'none';
+            document.getElementById('btnClearOiStock').style.display = 'inline-block';
+
+            const gross = parseFloat(inv.grossWt || inv.weight || inv.netWt) || 0;
+            const stone = parseFloat(inv.stoneWt) || 0;
+            const net = parseFloat(inv.netWt) || Math.max(0, gross - stone);
+
+            const badge = document.getElementById('oiStockSelectedBadge');
+            badge.style.display = 'block';
+            badge.innerHTML = `<i class="fas fa-check-circle"></i> Linked Stock: [${inv.barcode}] | Net Wt: ${net}g (${inv.purity || '22K'}) — Will move to Order Box`;
+
+            // Populate Category
+            const catEl = document.getElementById('oiCat');
+            const itemCat = inv.category || 'Other';
+            if (![...catEl.options].some(o => o.value.toLowerCase() === itemCat.toLowerCase())) {
+                catEl.innerHTML += `<option value="${itemCat}">${itemCat}</option>`;
+            }
+            catEl.value = itemCat;
+
+            // Populate Description
+            document.getElementById('oiDesc').value = `${inv.name || inv.category || 'Stock Item'} [${inv.barcode}]`;
+
+            // Populate Purity
+            const purEl = document.getElementById('oiPurity');
+            const itemPur = inv.purity || '22K';
+            if (![...purEl.options].some(o => o.value === itemPur)) {
+                purEl.innerHTML += `<option value="${itemPur}">${itemPur}</option>`;
+            }
+            purEl.value = itemPur;
+            autoFillOIRate();
+
+            // Populate Weights
+            document.getElementById('oiGross').value = gross;
+            document.getElementById('oiStone').value = stone;
+
+            // Default Making (12% for Gold, 25% for Silver, or item's saved making)
+            const isSilv = String(inv.barcode || '').toUpperCase().startsWith('SIL') || String(inv.metal || '').toLowerCase() === 'silver';
+            if (inv.makingVal || inv.makingPct) {
+                document.getElementById('oiMakingVal').value = inv.makingVal || inv.makingPct;
+                document.getElementById('oiMakingType').value = inv.makingType || 'pct';
+            } else {
+                document.getElementById('oiMakingVal').value = isSilv ? 25 : 12;
+                document.getElementById('oiMakingType').value = 'pct';
+            }
+
+            calcOIItem();
+        }
+
+        function clearSelectedStockForOrder() {
+            document.getElementById('oiSelectedStockId').value = '';
+            document.getElementById('oiSelectedBarcode').value = '';
+            document.getElementById('oiStockSearch').value = '';
+            document.getElementById('oiStockSearchResults').style.display = 'none';
+            document.getElementById('btnClearOiStock').style.display = 'none';
+            document.getElementById('oiStockSelectedBadge').style.display = 'none';
+        }
+
         // ==================== NEW ORDER MODAL LOGIC ====================
-        function openNewJobModal() { 
+        async function openNewJobModal() { 
+            await loadInventoryForDropdowns();
             openModal('newJobModal');
             resetCustSearch();
+            clearSelectedStockForOrder();
+
             document.getElementById('isNewCustomer').value = 'false';
             document.getElementById('newCustSection').style.display = 'none';
             document.getElementById('existingCustSection').style.display = 'block';
@@ -1012,6 +1156,7 @@
             document.getElementById('oAdv').value = '';
             document.getElementById('oMakingAdj').value = '';
             document.getElementById('oRoundOff').value = '';
+            document.getElementById('oiMakingVal').value = '12';
 
             autoFillOIRate();
             autoFillOGRate();
@@ -1054,24 +1199,45 @@
             const mkVal = parseFloat(document.getElementById('oiMakingVal').value) || 0;
             const mkType = document.getElementById('oiMakingType').value;
 
+            const stockId = document.getElementById('oiSelectedStockId').value || null;
+            const stockBarcode = document.getElementById('oiSelectedBarcode').value || null;
+
             if(!desc || gross <= 0) return showToast("Enter Description and Gross Weight", "error");
+
+            if (stockId && newOrderItems.some(x => String(x.stockId) === String(stockId))) {
+                return showToast("This stock item is already added to this order!", "error");
+            }
 
             const net = Math.max(0, gross - stone);
             const goldVal = net * rate;
             let mkTot = mkType === 'pct' ? goldVal * (mkVal/100) : net * mkVal;
 
-            newOrderItems.push({
+            let itemObj = {
                 id: 'oi_' + Date.now() + Math.random(),
                 category: cat, description: desc, purity: pur,
                 grossWt: gross, stoneWt: stone, netWt: net,
                 rate: rate, makingType: mkType, makingVal: mkVal,
-                makingTotal: mkTot, baseTotal: goldVal + mkTot
-            });
+                makingTotal: mkTot, baseTotal: goldVal + mkTot,
+                stockId: stockId,
+                barcode: stockBarcode,
+                fromStock: Boolean(stockId)
+            };
+
+            // If booked from stock, final weights are already known!
+            if (stockId) {
+                itemObj.finalGross = gross;
+                itemObj.finalStone = stone;
+                itemObj.finalNet = net;
+                itemObj.finalMaking = mkTot;
+            }
+
+            newOrderItems.push(itemObj);
 
             document.getElementById('oiDesc').value = '';
             document.getElementById('oiGross').value = '';
             document.getElementById('oiStone').value = '0';
-            document.getElementById('oiMakingVal').value = '0';
+            document.getElementById('oiMakingVal').value = '12';
+            clearSelectedStockForOrder();
 
             renderOrderItems();
             calcOrderGrandTotal();
@@ -1093,9 +1259,10 @@
             }
             table.style.display = 'table';
             newOrderItems.forEach(i => {
+                const stockBadge = i.fromStock ? `<br><span class="stock-tag"><i class="fas fa-barcode"></i> Stock: ${i.barcode}</span>` : '';
                 tbody.innerHTML += `
                     <tr>
-                        <td><b>${i.category}</b><br><small>${i.description}</small></td>
+                        <td><b>${i.category}</b><br><small>${i.description}</small>${stockBadge}</td>
                         <td>${i.netWt}g <br><small>(${i.purity})</small></td>
                         <td>₹${i.rate}/g</td>
                         <td>₹${Math.round(i.baseTotal).toLocaleString()}<br><small>(+₹${Math.round(i.makingTotal)} Mk)</small></td>
@@ -1229,7 +1396,7 @@
             }
         }
 
-        // --- Save Job ---
+        // --- Save Job (With Automatic Stock Box ➔ Order Box Transfer) ---
         async function saveJob() {
             if(newOrderItems.length === 0) return showToast("Please add at least one Order Item", "error");
 
@@ -1252,13 +1419,14 @@
                 const mkAdj = parseFloat(document.getElementById('oMakingAdj').value) || 0;
                 const roundOff = parseFloat(document.getElementById('oRoundOff').value) || 0;
 
-                // Apply making adjustment to the first item if exists
                 if (newOrderItems.length > 0 && mkAdj !== 0) {
                     newOrderItems[0].makingTotal = (newOrderItems[0].makingTotal || 0) + mkAdj;
                     newOrderItems[0].baseTotal = newOrderItems[0].baseTotal + mkAdj;
+                    if (newOrderItems[0].fromStock) {
+                        newOrderItems[0].finalMaking = newOrderItems[0].makingTotal;
+                    }
                 }
 
-                // Aggregate totals for the top-level object
                 let tGross = 0, tStone = 0, tNet = 0, tFine = 0, tMk = 0, tBase = 0;
                 newOrderItems.forEach(i => { 
                     tGross += i.grossWt; tStone += i.stoneWt; tNet += i.netWt; 
@@ -1278,36 +1446,60 @@
                 const inputOrderDate = document.getElementById('oDate').value;
                 const finalOrderDate = inputOrderDate ? new Date(inputOrderDate).toISOString() : new Date().toISOString();
 
+                // Check if ALL items in this order are from Ready Stock
+                const allFromStock = newOrderItems.every(i => i.fromStock && i.stockId);
+                const stockBarcodes = newOrderItems.filter(i => i.barcode).map(i => i.barcode).join(', ');
+
                 let jobObj = {
                     jobType: 'Order',
                     customerId: custId,
                     orderDate: finalOrderDate,
                     dueDate: new Date(document.getElementById('oDue').value).toISOString(),
 
-                    // Arrays to store multiple items
                     orderItems: newOrderItems,
                     oldGoldItems: newOldGoldItems,
 
-                    // Top-level fallbacks for summary views
                     category: newOrderItems.map(i=>i.category).join(', '),
                     description: newOrderItems.map(i=>i.description).join(' | '),
                     purity: newOrderItems.length === 1 ? newOrderItems[0].purity : 'Mixed',
                     grossWt: tGross, stoneWt: tStone, netWt: tNet, fineWt: tFine,
                     makingCharge: tMk, baseAmount: tBase, roundOff: roundOff,
 
+                    // If all items are from stock, set final weights and ready status right away!
+                    finalGross: allFromStock ? tGross : 0,
+                    finalNet: allFromStock ? tNet : 0,
+                    finalFineWt: allFromStock ? tFine : 0,
+                    barcode: stockBarcodes || '',
+
                     oldGoldGross: ogGross, oldGoldStone: ogStone, oldGoldNet: ogNet,
                     oldGoldFine: ogFine, oldGoldValue: ogVal,
+                    oldGoldPurity: newOldGoldItems.length > 0 ? newOldGoldItems[0].purity : '22K',
 
                     gstAmount: gst,
                     estAmount: grand, grandTotal: grand,
 
-                    status: 'pending', 
+                    status: allFromStock ? 'completed' : 'pending', 
                     advancePaid: adv,
                     payments: adv > 0 ? [{ date: new Date().toISOString(), amount: adv, mode: document.getElementById('oPayMode').value }] : []
                 };
 
                 const orderId = await addItem('orders', jobObj);
                 const invoiceNo = 'ORD-INV' + String(orderId).padStart(3, '0');
+
+                // 🔥 TRANSFER LINKED STOCK ITEMS FROM STOCK BOX ➔ ORDER BOX
+                for (let item of newOrderItems) {
+                    if (item.fromStock && item.stockId) {
+                        let invRecord = await getItem('inventory', item.stockId);
+                        if (invRecord) {
+                            invRecord.status = 'order_reserved';
+                            invRecord.reservedOrderId = orderId;
+                            invRecord.reservedInvoiceNo = invoiceNo;
+                            invRecord.reservedCustName = allCustomers.find(x => String(x.id) === String(custId))?.name || '';
+                            invRecord.reservedDate = finalOrderDate;
+                            await updateItem('inventory', invRecord);
+                        }
+                    }
+                }
 
                 let o = await getItem('orders', orderId);
                 if(o) {
@@ -1318,9 +1510,10 @@
                         await addItem('cashflow', { date: finalOrderDate, type: 'IN', mode: document.getElementById('oPayMode').value, category: 'Order Advance', amount: jobObj.advancePaid, note: `Adv for ${invoiceNo}`, orderId: orderId });
                     }
 
-                    showToast(`Order Logged Successfully!`, "success"); 
+                    showToast(allFromStock ? `Stock Transferred to Order Box & Marked Ready!` : `Order Logged Successfully!`, "success"); 
                     closeModal('newJobModal'); 
                     await loadOrders(); 
+                    await loadInventoryForDropdowns();
 
                     if(confirm("Order Saved Successfully!\n\nDo you want to send a WhatsApp Confirmation message to the customer?")) {
                         autoWhatsApp(o, 'intake');
@@ -1338,7 +1531,6 @@
             activeJobData = o;
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
 
-            // Handle legacy data fallback
             if(!o.orderItems || o.orderItems.length === 0) {
                 o.orderItems = [{
                     id: 'legacy_1', category: o.category, description: o.description, purity: o.purity,
@@ -1397,15 +1589,15 @@
 
             setText('vBreakdownTitle', isFinalized ? "Final Order Items Breakdown" : "Order Items (Est)");
 
-            // Render Order Items List in View Modal
             let orderItemsHtml = '';
             o.orderItems.forEach(i => {
                 let w = isFinalized ? (i.finalNet || i.netWt) : i.netWt;
                 let m = isFinalized ? (i.finalMaking || i.makingTotal) : i.makingTotal;
                 let b = isFinalized ? (w * i.rate + m) : i.baseTotal;
+                let stockBadge = (i.fromStock || i.stockId) ? `<span class="stock-tag" style="margin-left:6px;"><i class="fas fa-barcode"></i> Order Box: ${i.barcode}</span>` : '';
                 orderItemsHtml += `
                     <div style="background:#fff; border:1px solid #ddd; padding:8px; border-radius:6px; margin-bottom:5px; font-size:0.85rem;">
-                        <strong style="color:#1976d2;">${i.category}</strong> - ${i.description}<br>
+                        <strong style="color:#1976d2;">${i.category}</strong> - ${i.description} ${stockBadge}<br>
                         <div style="display:flex; justify-content:space-between; margin-top:4px;">
                             <span>${w}g (${i.purity}) @ ₹${i.rate}/g</span>
                             <strong>₹${Math.round(b).toLocaleString()}</strong>
@@ -1419,10 +1611,9 @@
             const grandTotal = o.grandTotal || o.estAmount || 0;
             const adv = o.advancePaid || 0;
 
-            // Calculate total base from items to show in summary
             let tBase = 0;
             o.orderItems.forEach(i => tBase += isFinalized ? ((i.finalNet || i.netWt) * i.rate + (i.finalMaking || i.makingTotal)) : i.baseTotal);
-            if(o.otherCharge) tBase += o.otherCharge; // Add other charges to base if exists
+            if(o.otherCharge) tBase += o.otherCharge;
 
             setText('vGoldValueBrk', `₹${Math.round(tBase).toLocaleString()}`);
             setText('vGSTBrk', `₹${gst.toLocaleString()}`);
@@ -1462,7 +1653,7 @@
             const isDone = (o.status === 'completed' || o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted || o.status === 'billed' || o.status === 'ready' || o.status === 'delivered');
 
             toggleDisplay('addPaySection', (o.status === 'billed' || o.status === 'delivered' || o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted) ? 'none' : 'block');
-            toggleDisplay('btnCancel', isDone ? 'none' : 'block');
+            toggleDisplay('btnCancel', (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted || o.status === 'billed' || o.status === 'delivered') ? 'none' : 'block');
             toggleDisplay('btnDeleteDirect', (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted || o.status === 'billed' || o.status === 'delivered') ? 'none' : 'flex');
 
             if (isDone) {
@@ -1522,9 +1713,15 @@
             const o = activeJobData;
             document.getElementById('aOrderId').value = o.id;
 
-            // Compute total required metal for all items
+            // Compute total required metal ONLY for custom items (not items already taken from stock)
             let totalFineReq = 0;
-            if(o.orderItems) { o.orderItems.forEach(i => totalFineReq += (i.netWt * getPurityFactor(i.purity))); }
+            if(o.orderItems) { 
+                o.orderItems.forEach(i => {
+                    if (!i.fromStock && !i.stockId) {
+                        totalFineReq += (i.netWt * getPurityFactor(i.purity));
+                    }
+                }); 
+            }
             document.getElementById('aTotalFineReq').innerText = totalFineReq.toFixed(3) + 'g';
 
             if (o.status === 'in_progress' || o.status === 'with_karigar') {
@@ -1607,12 +1804,14 @@
 
             let items = o.orderItems || [];
             items.forEach((item, idx) => {
+                const isStockBooked = item.fromStock || item.stockId;
+                const stockInfo = isStockBooked ? `<span class="stock-tag" style="margin-left:8px;"><i class="fas fa-box"></i> Already in Order Box (${item.barcode})</span>` : '';
                 listDiv.innerHTML += `
-                    <div class="receive-row" style="background:#fff; padding:12px; border:1px solid #ccc; margin-bottom:12px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-                        <strong style="display:block; margin-bottom:8px; color:#1976d2;"><i class="fas fa-ring"></i> ${item.category} - ${item.description} (Est: ${item.grossWt}g, ${item.purity})</strong>
+                    <div class="receive-row" style="background:${isStockBooked ? '#f1f8e9' : '#fff'}; padding:12px; border:1px solid #ccc; margin-bottom:12px; border-radius:8px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                        <strong style="display:block; margin-bottom:8px; color:#1976d2;"><i class="fas fa-ring"></i> ${item.category} - ${item.description} (Est: ${item.grossWt}g, ${item.purity}) ${stockInfo}</strong>
                         <div class="form-grid">
-                            <div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rGross_${idx}" value="${item.grossWt}" step="0.001" oninput="calcReceiveTotals()"></div>
-                            <div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rStone_${idx}" value="${item.stoneWt}" step="0.001" oninput="calcReceiveTotals()"></div>
+                            <div class="form-group"><label>Final Gross Wt (g)</label><input type="number" id="rGross_${idx}" value="${item.finalGross || item.grossWt}" step="0.001" ${isStockBooked ? 'readonly' : ''} oninput="calcReceiveTotals()"></div>
+                            <div class="form-group"><label>Final Stone Wt (g)</label><input type="number" id="rStone_${idx}" value="${item.finalStone || item.stoneWt}" step="0.001" ${isStockBooked ? 'readonly' : ''} oninput="calcReceiveTotals()"></div>
                         </div>
                         <div class="form-grid">
                             <div class="form-group"><label>Actual Making Logic</label>
@@ -1646,7 +1845,7 @@
             let items = o.orderItems || [];
 
             let totalBase = 0;
-            let totalNet = 0;
+            let totalCustomNet = 0;
             let totalFineForDiff = 0;
 
             items.forEach((item, idx) => {
@@ -1656,10 +1855,13 @@
                 let mkTyp = document.getElementById(`rMkTyp_${idx}`).value;
 
                 let fNet = Math.max(0, fGross - fStone);
-                totalNet += fNet;
-
                 let purityFact = getPurityFactor(item.purity);
-                totalFineForDiff += fNet * purityFact;
+
+                // Only count custom karigar-made items towards Karigar Fine Liability
+                if (!item.fromStock && !item.stockId) {
+                    totalCustomNet += fNet;
+                    totalFineForDiff += fNet * purityFact;
+                }
 
                 let itemGoldVal = fNet * item.rate;
                 let actualMk = mkTyp === 'pct' ? itemGoldVal * (mkInp/100) : fNet * mkInp;
@@ -1670,10 +1872,8 @@
 
             const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
             const wastageMode = document.getElementById('rWastageMode').value;
-            let wastageWt = (wastageMode === 'pct') ? totalNet * (wastageVal / 100) : wastageVal;
+            let wastageWt = (wastageMode === 'pct') ? totalCustomNet * (wastageVal / 100) : wastageVal;
 
-            // Assume wastage purity is 24K equivalent logic or average logic. 
-            // Simple approach: Apply wastage straight to total fine weight calculation for diff
             totalFineForDiff += wastageWt; 
 
             const issuedFine = o.issuedFineWt || 0;
@@ -1700,10 +1900,11 @@
             let items = o.orderItems || [];
 
             let totalGross = 0; let totalNet = 0; let totalFine = 0; let totalBase = 0;
+            let karigarCustomNet = 0; let karigarCustomFine = 0;
 
-            // Generate single shared barcode for the whole order 
-            // (Or individual barcodes. A single barcode grouping them is easier for billing).
-            const barcode = await generateBarcode('ORD-MTM');
+            const hasNewCustomItems = items.some(i => !i.fromStock && !i.stockId);
+            const generatedBarcode = hasNewCustomItems ? await generateBarcode('ORD-MTM') : '';
+            let allBarcodes = [];
 
             for (let idx = 0; idx < items.length; idx++) {
                 let item = items[idx];
@@ -1728,41 +1929,50 @@
                 totalFine += fNet * getPurityFactor(item.purity);
                 totalBase += (itemGoldVal + actualMk);
 
-                // Add to inventory
-                await addItem('inventory', {
-                    barcode: barcode, category: item.category, name: `Custom: ${item.description}`, purity: item.purity, 
-                    grossWt: fGross, stoneWt: fStone, netWt: fNet, weight: fGross, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
-                });
+                // Only create a new inventory entry for custom Karigar items (Stock items are already in inventory as 'order_reserved')
+                if (!item.fromStock && !item.stockId) {
+                    karigarCustomNet += fNet;
+                    karigarCustomFine += fNet * getPurityFactor(item.purity);
+                    item.barcode = generatedBarcode;
+                    allBarcodes.push(generatedBarcode);
+
+                    await addItem('inventory', {
+                        barcode: generatedBarcode, category: item.category, name: `Custom: ${item.description}`, purity: item.purity, 
+                        grossWt: fGross, stoneWt: fStone, netWt: fNet, weight: fGross, pieces: 1, status: 'stock', source: `order_${o.id}`, addedDate: new Date().toISOString()
+                    });
+                } else if (item.barcode) {
+                    allBarcodes.push(item.barcode);
+                }
             }
 
             const wastageVal = parseFloat(document.getElementById('rWastageVal').value) || 0;
             const wastageMode = document.getElementById('rWastageMode').value;
-            let wastageWt = (wastageMode === 'pct') ? totalNet * (wastageVal / 100) : wastageVal;
+            let wastageWt = (wastageMode === 'pct') ? karigarCustomNet * (wastageVal / 100) : wastageVal;
 
-            const metalDiffToKarigar = (totalFine + wastageWt) - (o.issuedFineWt || 0); 
+            const metalDiffToKarigar = (karigarCustomFine + wastageWt) - (o.issuedFineWt || 0); 
             const fOther = parseFloat(document.getElementById('rActualOther').value) || 0;
             const fGstAmt = parseFloat(document.getElementById('rGstAmountVal').value) || 0;
 
             totalBase += fOther;
             const fGrand = totalBase + fGstAmt;
 
-            o.status = 'completed'; o.barcode = barcode; 
+            o.status = 'completed'; 
+            o.barcode = [...new Set(allBarcodes)].join(', '); 
             o.finalGross = totalGross; o.finalNet = totalNet; o.finalFineWt = totalFine;
             o.wastageVal = wastageVal; o.wastageMode = wastageMode;
             o.gstAmount = fGstAmt; o.otherCharge = fOther; o.baseAmount = totalBase; o.grandTotal = fGrand;
 
-            // Re-assign the updated array back
             o.orderItems = items;
 
             await updateItem('orders', o);
 
-            if(o.merchantId && metalDiffToKarigar !== 0) {
+            if(o.merchantId && metalDiffToKarigar !== 0 && hasNewCustomItems) {
                 let m = await getItem('merchants', o.merchantId);
                 if (m) { m.goldBalance = (parseFloat(m.goldBalance)||0) + metalDiffToKarigar; await updateItem('merchants', m); }
                 await addItem('purchases', { merchantId: o.merchantId, date: new Date().toISOString(), type: 'Unfixed', category: `Jobwork Liability (Ord #${o.id})`, totalFineWeight: metalDiffToKarigar, paidAmount: 0, dueAmount: 0, totalAmount: 0 });
             }
 
-            showToast("Items Received to Stock!", "success"); closeModal('receiveModal'); await loadOrders(); 
+            showToast("Items Received to Stock!", "success"); closeModal('receiveModal'); await loadOrders(); await loadInventoryForDropdowns();
 
             if(confirm("Order is now Ready in Stock!\n\nSend a final WhatsApp message to the customer?")) {
                 autoWhatsApp(activeJobData, 'ready');
@@ -1782,28 +1992,29 @@
             document.getElementById('billCustDisplay').style.display = 'flex';
             document.getElementById('billCustSearch').style.display = 'none';
 
-            document.getElementById('billMakingAdj').value = 0; // Reset adjustment
-            document.getElementById('billRoundOff').value = o.roundOff || 0; // Reset round off
+            document.getElementById('billMakingAdj').value = 0;
+            document.getElementById('billRoundOff').value = o.roundOff || 0;
             document.getElementById('billOtherCharge').value = o.otherCharge || 0;
             document.getElementById('billDiscount').value = o.discount || 0; 
             document.getElementById('billApplyGST').checked = (o.gstAmount > 0);
 
             document.getElementById('bOrdAdv').innerText = "-₹" + (o.advancePaid || 0).toLocaleString();
 
-            // Show finalized items
             let itemsHtml = '';
             let items = o.orderItems || [];
             items.forEach(i => {
-                let val = (i.finalNet || i.netWt) * i.rate + (i.finalMaking || 0);
+                let w = i.finalNet || i.netWt;
+                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
+                let val = w * i.rate + mk;
+                let bcTag = i.barcode ? `[${i.barcode}] ` : '';
                 itemsHtml += `
                 <div class="breakdown-row" style="color:#555; padding-left:10px;">
-                    <span>- ${i.category} (${(i.finalNet || i.netWt)}g) @ ₹${i.rate}/g + Mk:</span>
+                    <span>- ${bcTag}${i.category} (${w}g) @ ₹${i.rate}/g + Mk:</span>
                     <strong>₹${Math.round(val).toLocaleString()}</strong>
                 </div>`;
             });
             document.getElementById('bMainItemsList').innerHTML = itemsHtml;
 
-            // Show total old gold deduction
             let totalOldGold = o.oldGoldValue || 0;
             document.getElementById('bOrdOld').innerText = "-₹" + totalOldGold.toLocaleString();
 
@@ -1831,7 +2042,7 @@
             resultsDiv.innerHTML = '';
             if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
 
-            const availableStock = allInventoryGlobal.filter(i => i.status === 'stock' && i.netWt > 0);
+            const availableStock = allInventoryGlobal.filter(i => i.status === 'stock' && (parseFloat(i.netWt || i.weight) || 0) > 0);
             const matches = availableStock.filter(i => 
                 (i.barcode && i.barcode.toLowerCase().includes(term)) || 
                 (i.category && i.category.toLowerCase().includes(term)) ||
@@ -1887,11 +2098,7 @@
             }
             document.getElementById('bExtraRow').style.display = 'flex';
 
-            // Assume extra items are billed at 22k rate as default fallback if not specified
-            const defaultRate = Math.round(goldRates.rate22k / 10);
-
             extraBillingItems.forEach(item => {
-                // If it has purity, calc rate
                 let rate = (goldRates.rate24k/10) * getPurityFactor(item.purity);
                 const itemVal = Math.round((item.weight * rate) + parseFloat(item.makingCharge || 0));
                 container.innerHTML += `
@@ -1911,7 +2118,10 @@
 
             let mainBase = 0;
             let items = o.orderItems || [];
-            items.forEach(i => { mainBase += Math.round((i.finalNet || i.netWt) * i.rate + (i.finalMaking || 0)); });
+            items.forEach(i => { 
+                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
+                mainBase += Math.round((i.finalNet || i.netWt) * i.rate + mk); 
+            });
 
             let extraTotal = 0;
             extraBillingItems.forEach(item => {
@@ -1979,16 +2189,19 @@
             o.discount = parseFloat(document.getElementById('billDiscount').value) || 0; 
             o.roundOff = parseFloat(document.getElementById('billRoundOff').value) || 0;
 
-            // Recalculate accurately for DB
             let items = o.orderItems || [];
             let makingAdj = parseFloat(document.getElementById('billMakingAdj').value) || 0;
 
             if (items.length > 0 && makingAdj !== 0) {
-                items[0].finalMaking = (items[0].finalMaking || 0) + makingAdj;
+                let currentMk = items[0].finalMaking !== undefined ? items[0].finalMaking : (items[0].makingTotal || 0);
+                items[0].finalMaking = currentMk + makingAdj;
             }
 
             let mainBase = 0;
-            items.forEach(i => { mainBase += Math.round((i.finalNet || i.netWt) * i.rate + (i.finalMaking || 0)); });
+            items.forEach(i => { 
+                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
+                mainBase += Math.round((i.finalNet || i.netWt) * i.rate + mk); 
+            });
             let extraTotal = 0;
             extraBillingItems.forEach(item => { let rate = (goldRates.rate24k/10) * getPurityFactor(item.purity); extraTotal += Math.round((item.weight * rate) + parseFloat(item.makingCharge || 0)); });
 
@@ -2004,23 +2217,45 @@
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
 
             let salesItems = [];
-            items.forEach(i => {
+            for (let i of items) {
+                let w = i.finalNet || i.netWt;
+                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
+                let itemBc = i.barcode || o.barcode || 'NO-BC';
+
                 salesItems.push({
-                    id: i.id, barcode: o.barcode || 'NO-BC', category: i.category, purity: i.purity,
-                    weight: (i.finalNet || i.netWt), rate: i.rate, makingAmount: (i.finalMaking || 0),
-                    total: Math.round((i.finalNet || i.netWt) * i.rate + (i.finalMaking || 0))
+                    id: i.stockId || i.id,
+                    stockId: i.stockId || null,
+                    fromInventory: true,
+                    barcode: itemBc,
+                    category: i.category,
+                    purity: i.purity,
+                    weight: w,
+                    netWt: w,
+                    rate: i.rate,
+                    makingAmount: mk,
+                    total: Math.round(w * i.rate + mk)
                 });
-            });
+
+                // Mark pre-booked stock item as SOLD
+                if (i.stockId) {
+                    let stockRecord = await getItem('inventory', i.stockId);
+                    if (stockRecord) {
+                        stockRecord.status = 'sold';
+                        stockRecord.soldDate = new Date().toISOString();
+                        await updateItem('inventory', stockRecord);
+                    }
+                }
+            }
 
             for (let ext of extraBillingItems) {
                 let rate = (goldRates.rate24k/10) * getPurityFactor(ext.purity);
                 salesItems.push({
-                    id: ext.id, barcode: ext.barcode, category: ext.category, purity: ext.purity,
-                    weight: ext.weight, rate: rate, makingAmount: ext.makingCharge || 0,
+                    id: ext.id, stockId: ext.id, fromInventory: true, barcode: ext.barcode, category: ext.category, purity: ext.purity,
+                    weight: ext.weight, netWt: ext.weight, rate: rate, makingAmount: ext.makingCharge || 0,
                     total: Math.round((ext.weight * rate) + parseFloat(ext.makingCharge || 0))
                 });
                 let invData = allInventoryGlobal.find(x => x.id === ext.id);
-                if(invData) { invData.status = 'sold'; await updateItem('inventory', invData); }
+                if(invData) { invData.status = 'sold'; invData.soldDate = new Date().toISOString(); await updateItem('inventory', invData); }
             }
 
             await addItem('sales', {
@@ -2029,13 +2264,16 @@
                 paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
             });
 
-            if(o.barcode) {
-                const allInventory = await getAllItems('inventory');
-                const invItem = allInventory.find(i => i.barcode === o.barcode);
-                if(invItem) { invItem.status = 'sold'; await updateItem('inventory', invItem); }
+            // Also mark any custom-generated order stock items (source: order_id) as sold
+            const allInventory = await getAllItems('inventory');
+            for (let invItem of allInventory) {
+                if (invItem.source === `order_${o.id}` || String(invItem.reservedOrderId) === String(o.id)) {
+                    invItem.status = 'sold';
+                    invItem.soldDate = new Date().toISOString();
+                    await updateItem('inventory', invItem);
+                }
             }
 
-            // Record old gold in old_gold db if exists
             if (o.oldGoldValue > 0 && o.oldGoldItems) {
                 for(let og of o.oldGoldItems) {
                     await addItem('old_gold', {
@@ -2051,13 +2289,30 @@
 
             for (const p of billingPayments) { await addItem('cashflow', { date: new Date().toISOString(), type: 'IN', mode: p.mode, category: 'Order Final Payment', amount: p.amount, note: `Final pay for ${invoiceNo}`, orderId: o.id }); }
 
-            showToast("Order Billed with Extra Items & Round Off!", "success"); 
+            showToast("Order Billed & Completed!", "success"); 
             closeModal('billingModal'); 
             printReceiptEngine(o.id); 
             await loadOrders(); await loadInventoryForDropdowns();
         }
 
-        // ==================== CANCEL & DIRECT DELETE ====================
+        // ==================== CANCEL & DIRECT DELETE (RETURNS STOCK TO MAIN STOCK BOX) ====================
+        async function releaseReservedStockToMainInventory(orderObj) {
+            if (!orderObj || !orderObj.orderItems) return;
+            for (let item of orderObj.orderItems) {
+                if (item.fromStock && item.stockId) {
+                    let invRecord = await getItem('inventory', item.stockId);
+                    if (invRecord && invRecord.status === 'order_reserved') {
+                        invRecord.status = 'stock';
+                        delete invRecord.reservedOrderId;
+                        delete invRecord.reservedInvoiceNo;
+                        delete invRecord.reservedCustName;
+                        delete invRecord.reservedDate;
+                        await updateItem('inventory', invRecord);
+                    }
+                }
+            }
+        }
+
         function openCancelModal() {
             const o = activeJobData;
             document.getElementById('cOrderId').value = o.id;
@@ -2077,25 +2332,33 @@
             const refundUPI = parseFloat(document.getElementById('cRefundUPI').value) || 0;
             const totalRefundAmt = refundCash + refundUPI;
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
-            const oldStatus = o.status; 
+            
             o.status = 'cancelled'; 
             o.isDeleted = false;
             o.refundedAmount = totalRefundAmt;
+            o.oldGoldReturned = document.getElementById('cReturnOldGold').checked;
             await updateItem('orders', o);
+
+            // Return any booked stock item back from Order Box to Main Stock Box
+            await releaseReservedStockToMainInventory(o);
 
             if(refundCash > 0) await addItem('cashflow', { date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundCash, note: `Cash Refund for ${invoiceNo}`, orderId: o.id });
             if(refundUPI > 0) await addItem('cashflow', { date: new Date().toISOString(), type: 'OUT', mode: 'UPI', category: 'Job Cancel Refund', amount: refundUPI, note: `UPI/GPay Refund for ${invoiceNo}`, orderId: o.id });
 
-            showToast("Order Cancelled & Refunded!", "success"); closeModal('cancelModal'); await loadOrders();
+            showToast("Order Cancelled & Stock Restored!", "success"); closeModal('cancelModal'); await loadOrders(); await loadInventoryForDropdowns();
         }
 
         async function deleteOrderDirectly() {
             const o = activeJobData;
             if(!o) return;
-            if(!confirm("Are you sure you want to DELETE this order?\n\n- No Cashflow transaction will be affected.\n- Order will move to 'Deleted' tab.")) return;
+            if(!confirm("Are you sure you want to DELETE this order?\n\n- Any linked stock item will return to Main Stock.\n- Order will move to 'Deleted' tab.")) return;
             o.status = 'deleted'; o.isDeleted = true; o.deletedAt = new Date().toISOString();
             await updateItem('orders', o);
-            showToast("Order Deleted!", "success"); closeModal('viewJobModal'); await loadOrders();
+
+            // Return any booked stock item back from Order Box to Main Stock Box
+            await releaseReservedStockToMainInventory(o);
+
+            showToast("Order Deleted & Stock Restored!", "success"); closeModal('viewJobModal'); await loadOrders(); await loadInventoryForDropdowns();
         }
 
         // ==================== PRINT & WHATSAPP ====================
@@ -2119,8 +2382,10 @@
             let items = o.orderItems || [];
             items.forEach(i => {
                 let w = isFinal ? (i.finalNet || i.netWt) : i.netWt;
-                let b = isFinal ? (w * i.rate + (i.finalMaking||0)) : i.baseTotal;
-                html += `<tr><td>${i.category}<br><small>(${i.purity})</small></td><td>${w}g</td><td>₹${Math.round(b)}</td></tr>`;
+                let mk = isFinal ? (i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0)) : i.makingTotal;
+                let b = isFinal ? (w * i.rate + mk) : i.baseTotal;
+                let bcStr = i.barcode ? ` [${i.barcode}]` : '';
+                html += `<tr><td>${i.category}${bcStr}<br><small>(${i.purity})</small></td><td>${w}g</td><td>₹${Math.round(b)}</td></tr>`;
             });
             html += `</table><hr>`;
 
@@ -2164,7 +2429,9 @@
 
             let items = o.orderItems || [];
             items.forEach(i => {
-                html += `<tr><td style="padding:8px;"><b>${i.category}</b><br><small>${i.description}</small></td><td style="padding:8px; text-align:center;">${i.purity}</td><td style="padding:8px; text-align:center;">${i.grossWt}g</td></tr>`;
+                if (!i.fromStock && !i.stockId) {
+                    html += `<tr><td style="padding:8px;"><b>${i.category}</b><br><small>${i.description}</small></td><td style="padding:8px; text-align:center;">${i.purity}</td><td style="padding:8px; text-align:center;">${i.grossWt}g</td></tr>`;
+                }
             });
 
             html += `</table>
