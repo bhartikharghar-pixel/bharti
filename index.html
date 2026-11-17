@@ -427,10 +427,10 @@
                 </div>
             </div>
 
-            <!-- B. QUICK SALE EXTRA FIELDS -->
+            <!-- B. QUICK SALE EXTRA FIELDS (WITH BARCODE OR MANUAL GOLD/SILVER + ITEM NAME) -->
             <div id="secQuickSale" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:12px; border-radius:10px; margin-bottom:13px;">
                 <div class="form-group" style="margin-bottom:10px;">
-                    <label style="color:#b45309;">Scan / Search Stock Item (Optional)</label>
+                    <label style="color:#b45309;">1. Scan / Search Barcode Stock (Optional)</label>
                     <input type="text" id="qsItemSearch" placeholder="Barcode or Category (e.g. Ring)..." onkeyup="searchQSItem()" autocomplete="off">
                     <div id="qsItemSuggestions" class="suggestions"></div>
                     <input type="hidden" id="qsItemId">
@@ -448,6 +448,22 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- MANUAL METAL (GOLD / SILVER) & ITEM NAME WHEN NO BARCODE IS SELECTED -->
+                <div id="qsManualMetalBox" style="display:grid; grid-template-columns: 1fr 1.6fr; gap:8px; margin-bottom:10px; background:#fff; padding:8px; border-radius:8px; border:1px dashed #fcd34d;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="color:#b45309; font-size:0.75rem;">Metal (Gold / Silver)</label>
+                        <select id="qsManualMetal" style="padding:8px; font-weight:700; font-size:0.85rem; background:#fffdf5; border-color:#fcd34d;">
+                            <option value="Gold">Gold</option>
+                            <option value="Silver">Silver</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label style="color:#b45309; font-size:0.75rem;">Item Name (e.g. Ring, Payal)</label>
+                        <input type="text" id="qsManualItemName" placeholder="Enter Item Name..." style="padding:8px; font-size:0.85rem; border-color:#fcd34d;" oninput="syncQSManualNote()">
+                    </div>
+                </div>
+
                 <div style="display:flex; align-items:center; justify-content:space-between;">
                     <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; color:#b45309; font-weight:700; font-size:0.85rem;">
                         <input type="checkbox" id="qsApplyGst" checked style="width:17px; height:17px; accent-color:#d97706;"> Apply GST Bill
@@ -639,7 +655,7 @@
             renderTodos();
         }
 
-        // --- KARIGAR REPAIRING / OUTWORK TRACKER (WITH DEFAULT & RECENT KARIGAR) ---
+        // --- KARIGAR REPAIRING / OUTWORK TRACKER ---
         function saveDefaultKarigar(name) {
             const clean = String(name || '').trim();
             if (clean) {
@@ -668,7 +684,6 @@
             const kInput = document.getElementById('krKarigarInput');
             list.innerHTML = '';
 
-            // Keep default / last used karigar pre-filled so user doesn't have to retype unless changing
             if (kInput && !kInput.value.trim() && defaultKarigarName) {
                 kInput.value = defaultKarigarName;
             }
@@ -729,7 +744,6 @@
             });
             localStorage.setItem('bj_karigar_repairs', JSON.stringify(karigarRepairs));
 
-            // Keep the active/recent Karigar name in kInput as default, clear only the item input
             kInput.value = finalKarigar;
             iInput.value = '';
             iInput.focus();
@@ -893,7 +907,7 @@
                 document.getElementById('secCustomer').style.display = 'block';
                 document.getElementById('lblCustSearch').innerText = 'Customer Name or Mobile (Optional - Default Walk-in)';
                 document.getElementById('secQuickSale').style.display = 'block';
-                document.getElementById('uniNote').value = 'Quick Retail Sale';
+                document.getElementById('uniNote').value = '';
                 saveBtn.innerHTML = `<i class="fas fa-print"></i> Save & Print Quick Bill`;
             } 
             else if (reasonId === 'merchant_in' || reasonId === 'merchant_out') {
@@ -1029,7 +1043,7 @@
             }
         }
 
-        // --- QUICK SALE ITEM SEARCH ---
+        // --- QUICK SALE ITEM SEARCH & MANUAL METAL/ITEM ---
         async function searchQSItem() {
             const term = document.getElementById('qsItemSearch').value.toUpperCase();
             const box = document.getElementById('qsItemSuggestions');
@@ -1057,6 +1071,10 @@
             document.getElementById('uniNote').value = `${i.category} (${i.barcode})`;
             document.getElementById('qsItemSearch').style.display = 'none';
             
+            // Hide manual metal/item box when a barcode item is selected
+            const manBox = document.getElementById('qsManualMetalBox');
+            if (manBox) manBox.style.display = 'none';
+
             const chip = document.getElementById('qsSelectedItemChip');
             chip.style.display = 'block';
             document.getElementById('qsSelectedText').innerHTML = `<b>${i.barcode}</b> - ${i.category} (${i.purity})`;
@@ -1086,9 +1104,25 @@
             document.getElementById('qsSelectedItemChip').style.display = 'none';
             document.getElementById('qsItemSearch').style.display = 'block';
             document.getElementById('qsItemSearch').value = '';
+            
+            // Show manual metal & item box again
+            const manBox = document.getElementById('qsManualMetalBox');
+            if (manBox) manBox.style.display = 'grid';
+            const manMetal = document.getElementById('qsManualMetal');
+            const manItem = document.getElementById('qsManualItemName');
+            if (manMetal) manMetal.value = 'Gold';
+            if (manItem) manItem.value = '';
+
             const wtInput = document.getElementById('qsWeight');
             wtInput.value = '';
             wtInput.removeAttribute('readonly');
+        }
+
+        function syncQSManualNote() {
+            const manItem = (document.getElementById('qsManualItemName')?.value || '').trim();
+            if (manItem) {
+                document.getElementById('uniNote').value = manItem;
+            }
         }
 
         function calcQSAmt() {
@@ -1390,7 +1424,11 @@
         async function executeQuickSaleFromUniversal(finalAmount, mode, note, dateIso) {
             const applyGst = document.getElementById('qsApplyGst').checked;
             const gstPct = parseFloat(document.getElementById('qsGstPct').value) || 3;
-            if (!note) note = 'Quick Retail Sale';
+
+            const manualMetal = document.getElementById('qsManualMetal')?.value || 'Gold';
+            const manualItemName = (document.getElementById('qsManualItemName')?.value || '').trim();
+            
+            let displayItemLabel = manualItemName || note || 'Quick Retail Sale';
 
             let baseAmount = finalAmount;
             let gstAmount = 0;
@@ -1427,6 +1465,7 @@
             let selItemDataStr = document.getElementById('qsItemDetails').value;
             let sellWt = getSafeNum(document.getElementById('qsWeight').value);
             let finalItem = null;
+            let passbookItemDesc = displayItemLabel;
 
             if (selItemId && selItemDataStr) {
                 let invItem = JSON.parse(selItemDataStr);
@@ -1438,14 +1477,16 @@
                     return;
                 }
 
+                const isSilvInv = checkIsSilver(invItem.purity) || String(invItem.barcode || '').toUpperCase().startsWith('SIL');
                 finalItem = {
                     id: invItem.id || `qs_item_${Date.now()}`, isOldGold: false,
-                    metal: (invItem.purity && invItem.purity.toUpperCase().includes('SIL')) ? 'Silver' : 'Gold',
-                    barcode: invItem.barcode || 'UNKNOWN', category: invItem.category || note, purity: invItem.purity || '-',
+                    metal: isSilvInv ? 'Silver' : 'Gold',
+                    barcode: invItem.barcode || 'UNKNOWN', category: invItem.category || displayItemLabel, purity: invItem.purity || (isSilvInv ? 'Silver' : '22K'),
                     weight: sellWt || 0, grossWt: sellWt || 0, stoneWt: 0, netWt: sellWt || 0, fineWt: sellWt || 0,
                     sellQty: 1, rate: baseAmount || 0, makingType: 'flat', makingRate: 0, makingAmount: 0,
                     baseAmount: baseAmount || 0, gstPct: applyGst ? gstPct : 0, gstAmount: gstAmount, total: finalAmount || 0
                 };
+                passbookItemDesc = `${invItem.category} (${invItem.barcode})`;
 
                 const isBulk = checkIsSilver(invItem.purity) || (invItem.category && (invItem.category.toUpperCase().includes('LOOSE') || invItem.category.toUpperCase().includes('MIX'))) || (invItem.barcode && invItem.barcode.toUpperCase().startsWith('LOOSE')) || availPcs > 1;
                 if (isBulk) {
@@ -1457,16 +1498,26 @@
                 } else { invItem.status = 'sold'; invItem.soldDate = dateIso; invItem.pieces = 0; }
                 await updateItem('inventory', invItem);
             } else {
+                // Bina barcode ke sale: User ke select kiye gaye Gold/Silver aur Item Name ke sath
+                const isManualSilver = (manualMetal === 'Silver');
                 finalItem = {
-                    id: 'qs_item_' + Date.now(), isOldGold: false, metal: 'Gold', barcode: 'QS-ITEM', category: note || 'Item', purity: '22K',
+                    id: 'qs_item_' + Date.now(),
+                    isOldGold: false,
+                    metal: manualMetal,
+                    barcode: isManualSilver ? 'QS-SILVER' : 'QS-GOLD',
+                    category: manualItemName || note || 'Item',
+                    itemName: manualItemName || note || 'Item',
+                    purity: isManualSilver ? 'Silver' : '22K',
                     weight: 0, grossWt: 0, stoneWt: 0, netWt: 0, fineWt: 0, sellQty: 1, 
                     rate: baseAmount || 0, makingType: 'flat', makingRate: 0, makingAmount: 0,
                     baseAmount: baseAmount || 0, gstPct: applyGst ? gstPct : 0, gstAmount: gstAmount, total: finalAmount || 0
                 };
+                passbookItemDesc = `${manualMetal} - ${manualItemName || note || 'Item'}`;
             }
 
             const saleData = {
                 invoiceNo: invoiceNo, date: dateIso, customerId: custId || 'Walk-in', customerName: customerObj.name || 'Walk-in',
+                metalType: finalItem.metal,
                 items: [finalItem], subTotal: baseAmount || 0, gst: gstAmount, oldGoldDeduction: 0, totalExchWt: 0,
                 discountMode: 'flat', discount: 0, bcWalletDeduction: 0, grandTotal: finalAmount || 0, paidAmount: finalAmount || 0, pendingAmount: 0, 
                 payments: [{ mode: mode, amount: finalAmount || 0, date: dateIso }], isGstBill: applyGst, status: 'completed', isQuickSale: true
@@ -1478,7 +1529,7 @@
             await addItem('cashflow', {
                 date: dateIso, type: 'IN', mode: mode, category: 'POS Sale', amount: finalAmount,
                 customerId: custId, customerName: customerObj.name,
-                note: `${customerObj.name} - ${note} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
+                note: `${customerObj.name} - ${passbookItemDesc} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
             });
 
             showToast("Quick Sale Saved!", "success");
@@ -1497,7 +1548,8 @@
                     if(saleDoc && saleDoc.isQuickSale) {
                         if(saleDoc.items && saleDoc.items.length > 0) {
                             const itemToRestore = saleDoc.items[0];
-                            if(itemToRestore.barcode !== 'QS-ITEM') {
+                            const bc = String(itemToRestore.barcode || '');
+                            if(bc && !bc.startsWith('QS-')) {
                                 const stockItem = await getItem('inventory', itemToRestore.id);
                                 if(stockItem) {
                                     const soldWt = getSafeNum(itemToRestore.weight);
@@ -1757,6 +1809,11 @@
             const gstRate = sale.items && sale.items.length > 0 ? getSafeNum(sale.items[0].gstPct) : 0;
             const halfGstRate = (gstRate / 2) + '%';
 
+            const firstItem = (sale.items && sale.items.length > 0) ? sale.items[0] : {};
+            const isSilverBill = (sale.metalType === 'Silver') || (firstItem.metal === 'Silver') || checkIsSilver(firstItem.purity);
+            const billMetalHeader = isSilverBill ? 'SILVER SALES BILL' : 'GOLD SALES BILL';
+            const hsnCode = isSilverBill ? '7114' : '7113';
+
             let html = `
             <div class="print-page front-page print-border-maroon">
                 <div class="inv-header-grid">
@@ -1770,7 +1827,7 @@
                         </div>
                         <div>Date &nbsp; ${new Date(sale.date).toLocaleDateString('en-IN')}</div>
                     </div>
-                    <div style="text-align:center; padding:10px 0; font-size:14px; font-weight:bold; color:#6c1122;">${titleText}<br>GOLD SALES BILL</div>
+                    <div style="text-align:center; padding:10px 0; font-size:14px; font-weight:bold; color:#6c1122;">${titleText}<br>${billMetalHeader}</div>
                     <div style="font-size:10px; font-weight:bold; text-align:right; padding-top:5px;">GSTN No. : 27BGYPJ5125N1ZM<br>GST Type : SGST + CGST</div>
                 </div>
                 <div style="border-top:1px solid #6c1122;">
@@ -1790,8 +1847,9 @@
                         </thead>
                         <tbody>`;
             sale.items.forEach(i => {
+                const itemHsn = (i.metal === 'Silver' || checkIsSilver(i.purity)) ? '7114' : '7113';
                 html += `<tr>
-                    <td>7113</td><td style="text-align:left;">${i.category}</td>
+                    <td>${itemHsn}</td><td style="text-align:left;">${i.itemName || i.category}</td>
                     <td>${i.purity}</td><td>1</td><td>${(i.grossWt || 0).toFixed(3)}</td>
                     <td>${(i.netWt || 0).toFixed(3)}</td><td>${i.rate}</td>
                     <td style="border-right:none;">${i.baseAmount.toLocaleString()}</td>
@@ -1801,7 +1859,7 @@
             if (isGst) {
                 html += `<table class="gst-summary-table">
                     <thead><tr><th>HSN</th><th>Taxable Value</th><th>CGST (${halfGstRate})</th><th>SGST (${halfGstRate})</th><th>Total Tax</th></tr></thead>
-                    <tbody><tr><td>7113</td><td>${sale.subTotal.toLocaleString()}</td><td>${cgstAmt}</td><td>${sgstAmt}</td><td><b>${totalGstAmt.toLocaleString()}</b></td></tr></tbody>
+                    <tbody><tr><td>${hsnCode}</td><td>${sale.subTotal.toLocaleString()}</td><td>${cgstAmt}</td><td>${sgstAmt}</td><td><b>${totalGstAmt.toLocaleString()}</b></td></tr></tbody>
                 </table>`;
             }
             html += `<div class="inv-footer-grid">
