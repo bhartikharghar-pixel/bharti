@@ -116,6 +116,12 @@
         .summary-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; align-items: center;}
         .summary-val { font-weight: 700; color: #fff; }
 
+        /* Design Photo Box Styles */
+        .photo-upload-box { border: 2px dashed #C5A059; background: #fffdf7; border-radius: 10px; padding: 12px; text-align: center; }
+        .photo-preview-img { max-width: 100%; max-height: 180px; border-radius: 8px; border: 2px solid #C5A059; object-fit: contain; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: zoom-in; }
+        .card-thumb-img { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; border: 1.5px solid var(--accent-gold); cursor: zoom-in; flex-shrink: 0; }
+        .photo-action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; }
+
         /* Item Tables for Multiple Inputs */
         .item-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 10px; background: #fff; border-radius: 6px; overflow: hidden; border: 1px solid #eee; }
         .item-table th, .item-table td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
@@ -227,7 +233,7 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- NEW ORDER MODAL (UPGRADED FOR READY STOCK BARCODE + MULTIPLE ITEMS + ROUND OFF) -->
+    <!-- NEW ORDER MODAL (WITH DESIGN PHOTO UPLOAD + STOCK BARCODE + MULTIPLE ITEMS) -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -295,7 +301,7 @@
                 <div style="background:#f9f9f9; padding:12px; border:1px dashed #ccc; border-radius:8px;">
                     <div style="font-size:0.8rem; font-weight:bold; margin-bottom:8px; color:#1976d2;"><i class="fas fa-plus-circle"></i> Add New Item to Order</div>
 
-                    <!-- 🔥 NEW: SCAN / SELECT READY STOCK BARCODE TO TRANSFER TO ORDER BOX -->
+                    <!-- SCAN / SELECT READY STOCK BARCODE TO TRANSFER TO ORDER BOX -->
                     <div style="background:#e8f5e9; padding:10px; border-radius:8px; border:1px dashed #4caf50; margin-bottom:12px; position:relative;">
                         <label style="color:#2e7d32; font-size:0.8rem; margin-bottom:4px;"><i class="fas fa-barcode"></i> Book from Ready Stock (Transfers Stock Box ➔ Order Box)</label>
                         <div style="display:flex; gap:8px;">
@@ -361,6 +367,31 @@
                         <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
                             <div style="font-size:0.8rem; text-align:right; margin-bottom:5px; font-weight:bold; color:var(--active-red);" id="oiItemEstDisplay">Item Est: ₹0</div>
                             <button type="button" class="btn-primary" style="margin:0; background:#333; padding:10px;" onclick="addOrderItem()"><i class="fas fa-plus"></i> Add Item</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DESIGN / REFERENCE PHOTO SECTION -->
+            <div class="form-section" style="border-left: 4px solid var(--accent-gold);">
+                <div class="form-section-title" style="color: #9e7b2f;"><i class="fas fa-camera"></i> Design / Item Photo (Optional)</div>
+                <div class="photo-upload-box">
+                    <input type="file" id="newOrderPhotoInput" accept="image/*" style="display:none;" onchange="handleNewOrderPhotoSelect(event)">
+                    <div id="newOrderPhotoEmpty">
+                        <p style="margin:0 0 8px 0; font-size:0.82rem; color:#666;">Customer ke design ya item ki photo lagayein (Yaad rakhne ke liye)</p>
+                        <button type="button" class="photo-action-btn" style="background:#111; color:#C5A059;" onclick="document.getElementById('newOrderPhotoInput').click()">
+                            <i class="fas fa-camera"></i> Take / Choose Photo
+                        </button>
+                    </div>
+                    <div id="newOrderPhotoPreviewWrap" style="display:none;">
+                        <img id="newOrderPhotoPreview" class="photo-preview-img" src="" alt="Design Preview" onclick="openFullPhotoModal(this.src)">
+                        <div style="margin-top:8px; display:flex; justify-content:center; gap:8px;">
+                            <button type="button" class="photo-action-btn" style="background:#1976d2; color:#fff;" onclick="document.getElementById('newOrderPhotoInput').click()">
+                                <i class="fas fa-sync-alt"></i> Change Photo
+                            </button>
+                            <button type="button" class="photo-action-btn" style="background:#ffebee; color:#c62828;" onclick="clearNewOrderPhoto()">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -505,6 +536,36 @@
                     </div>
                 </div>
 
+                <!-- DESIGN PHOTO PREVIEW & CHANGE OPTION INSIDE VIEW MODAL -->
+                <div class="photo-upload-box" style="margin-bottom:12px;">
+                    <div style="font-size:0.78rem; font-weight:700; color:#8c6d23; text-transform:uppercase; margin-bottom:6px;">
+                        <i class="fas fa-image"></i> Design / Item Reference Photo
+                    </div>
+                    <input type="file" id="vOrderPhotoInput" accept="image/*" style="display:none;" onchange="handleUpdateExistingOrderPhoto(event)">
+                    
+                    <div id="vPhotoEmptyState">
+                        <span style="font-size:0.8rem; color:#888; display:block; margin-bottom:6px;">No design photo attached yet.</span>
+                        <button type="button" class="photo-action-btn" style="background:#111; color:#C5A059;" onclick="document.getElementById('vOrderPhotoInput').click()">
+                            <i class="fas fa-camera"></i> Add Design Photo
+                        </button>
+                    </div>
+
+                    <div id="vPhotoPreviewWrap" style="display:none;">
+                        <img id="vOrderPhotoImg" class="photo-preview-img" src="" alt="Order Design" onclick="openFullPhotoModal(this.src)">
+                        <div style="margin-top:8px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="photo-action-btn" style="background:#333; color:#fff;" onclick="openFullPhotoModal(document.getElementById('vOrderPhotoImg').src)">
+                                <i class="fas fa-search-plus"></i> Zoom
+                            </button>
+                            <button type="button" class="photo-action-btn" style="background:#1976d2; color:#fff;" onclick="document.getElementById('vOrderPhotoInput').click()">
+                                <i class="fas fa-sync-alt"></i> Change Photo
+                            </button>
+                            <button type="button" class="photo-action-btn" style="background:#ffebee; color:#c62828;" onclick="removeExistingOrderPhoto()">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="vFinalBarcodeDiv" style="display:none; background:white; padding:10px; border-radius:6px; margin-bottom:10px; border:1px dashed #2e7d32; text-align:center;">
                     <span style="color:#888; font-size:0.75rem; font-weight:bold; text-transform:uppercase; margin-right:8px;">Barcode:</span>
                     <strong id="vFinalBarcode" style="color:var(--receive-green); font-family:monospace; font-size:1.1rem;"></strong>
@@ -569,6 +630,14 @@
 
                 <button type="button" class="btn-primary" id="btnDeleteDirect" style="background:#b71c1c; margin-top:0; grid-column: span 2;" onclick="deleteOrderDirectly()"><i class="fas fa-trash-alt"></i> Delete Order (No Impact)</button>
             </div>
+        </div>
+    </div>
+
+    <!-- FULLSCREEN PHOTO ZOOM MODAL -->
+    <div id="photoZoomModal" class="modal" style="z-index: 6000;" onclick="closeModal('photoZoomModal')">
+        <div style="position:relative; max-width:95%; max-height:95%; text-align:center;" onclick="event.stopPropagation()">
+            <button onclick="closeModal('photoZoomModal')" style="position:absolute; top:-15px; right:-15px; width:36px; height:36px; border-radius:50%; background:#fff; color:#000; border:none; font-size:1.3rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.4);">&times;</button>
+            <img id="zoomedPhotoImg" src="" style="max-width:100%; max-height:85vh; border-radius:12px; border:3px solid #C5A059; background:#fff;">
         </div>
     </div>
 
@@ -768,6 +837,40 @@
             setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
         }
 
+        function openFullPhotoModal(src) {
+            if (!src) return;
+            document.getElementById('zoomedPhotoImg').src = src;
+            openModal('photoZoomModal');
+        }
+
+        // Compress Image to light Base64 so Firebase / IndexedDB saves smoothly
+        function compressImageToDataURL(file, maxWidth = 800, quality = 0.72) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxWidth) {
+                            h = Math.round((h * maxWidth) / w);
+                            w = maxWidth;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = event.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         function getPurityFactor(key) {
             if(!key) return 1.0;
             if (key === '24K') return 1.000;
@@ -789,10 +892,89 @@
 
         let newOrderItems = []; 
         let newOldGoldItems = []; 
+        let newOrderPhotoBase64 = '';
 
         let billingPayments = []; 
         let extraBillingItems = []; 
         let activeJobData = null;
+
+        // ==================== PHOTO HANDLERS (NEW & EXISTING ORDER) ====================
+        async function handleNewOrderPhotoSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const compressed = await compressImageToDataURL(file);
+                newOrderPhotoBase64 = compressed;
+                document.getElementById('newOrderPhotoPreview').src = compressed;
+                document.getElementById('newOrderPhotoEmpty').style.display = 'none';
+                document.getElementById('newOrderPhotoPreviewWrap').style.display = 'block';
+                showToast("Photo attached!", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Could not load photo", "error");
+            }
+        }
+
+        function clearNewOrderPhoto() {
+            newOrderPhotoBase64 = '';
+            const inp = document.getElementById('newOrderPhotoInput');
+            if (inp) inp.value = '';
+            document.getElementById('newOrderPhotoPreview').src = '';
+            document.getElementById('newOrderPhotoPreviewWrap').style.display = 'none';
+            document.getElementById('newOrderPhotoEmpty').style.display = 'block';
+        }
+
+        async function handleUpdateExistingOrderPhoto(e) {
+            const file = e.target.files[0];
+            if (!file || !activeJobData) return;
+            try {
+                const compressed = await compressImageToDataURL(file);
+                let o = await getItem('orders', activeJobData.id);
+                if (!o) o = activeJobData;
+                o.designPhoto = compressed;
+                await updateItem('orders', o);
+
+                activeJobData.designPhoto = compressed;
+                const idx = allOrders.findIndex(x => String(x.id) === String(o.id));
+                if (idx !== -1) allOrders[idx].designPhoto = compressed;
+
+                document.getElementById('vOrderPhotoImg').src = compressed;
+                document.getElementById('vPhotoEmptyState').style.display = 'none';
+                document.getElementById('vPhotoPreviewWrap').style.display = 'block';
+                e.target.value = '';
+
+                renderOrders();
+                showToast("Order Design Photo Updated!", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Failed to update photo", "error");
+            }
+        }
+
+        async function removeExistingOrderPhoto() {
+            if (!activeJobData) return;
+            if (!confirm("Kya aap is order ki design photo hatana chahte hain?")) return;
+            try {
+                let o = await getItem('orders', activeJobData.id);
+                if (!o) o = activeJobData;
+                o.designPhoto = '';
+                await updateItem('orders', o);
+
+                activeJobData.designPhoto = '';
+                const idx = allOrders.findIndex(x => String(x.id) === String(o.id));
+                if (idx !== -1) allOrders[idx].designPhoto = '';
+
+                document.getElementById('vOrderPhotoImg').src = '';
+                document.getElementById('vPhotoPreviewWrap').style.display = 'none';
+                document.getElementById('vPhotoEmptyState').style.display = 'block';
+
+                renderOrders();
+                showToast("Photo Removed!", "success");
+            } catch (err) {
+                console.error(err);
+                showToast("Failed to remove photo", "error");
+            }
+        }
 
         // ==================== TOGGLE FIXES ====================
         function toggleNewCustomerMode() {
@@ -927,7 +1109,6 @@
                 else if(o.status === 'deleted' || o.isDeleted) { badgeClass = 'b-deleted'; badgeText = '<i class="fas fa-trash-alt"></i> Deleted'; } 
                 else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
                 else if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    const mId = o.merchantId; const m = allMerchants.find(x => x.id == mId);
                     badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned`;
                 } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
 
@@ -955,6 +1136,10 @@
                 let hasStockBooked = (o.orderItems || []).some(i => i.fromStock || i.stockId);
                 let stockBadgeHtml = hasStockBooked ? `<span class="stock-tag"><i class="fas fa-box"></i> Order Box (Stock)</span>` : '';
 
+                let thumbHtml = o.designPhoto 
+                    ? `<img src="${o.designPhoto}" class="card-thumb-img" alt="Design" onclick="openFullPhotoModal(this.src)" title="Click to view design">` 
+                    : `<i class="fas fa-ring" style="color:var(--accent-gold);"></i>`;
+
                 let displayWt = (o.status === 'completed' || o.status === 'ready' || o.status === 'billed' || o.status === 'delivered') 
                     ? `${o.finalGross || o.grossWt}g (Final)` 
                     : `${o.grossWt}g (Est)`;
@@ -969,7 +1154,7 @@
                             </div>
                             <span class="badge ${badgeClass}">${badgeText}</span>
                         </div>
-                        <div class="o-desc"><i class="fas fa-ring" style="color:var(--accent-gold);"></i> ${displayCat} - ${displayDesc}</div>
+                        <div class="o-desc">${thumbHtml} <span>${displayCat} - ${displayDesc}</span></div>
                         <div class="o-meta">
                             <div><span>Order Date</span><strong style="color:var(--bill-blue);">${orderDateStr}</strong></div>
                             <div><span>Due Date</span><strong style="${dateStyle}">${due.toLocaleDateString()}</strong></div>
@@ -1016,7 +1201,7 @@
             } else { resultsDiv.style.display = 'none'; }
         }
 
-        // ==================== 🔥 READY STOCK BARCODE SEARCH & TRANSFER LOGIC ====================
+        // ==================== READY STOCK BARCODE SEARCH & TRANSFER LOGIC ====================
         function searchStockForOrderIntake() {
             const term = (document.getElementById('oiStockSearch').value || '').trim().toLowerCase();
             const resultsDiv = document.getElementById('oiStockSearchResults');
@@ -1027,7 +1212,6 @@
                 return;
             }
 
-            // Exclude items already added to current order list
             const addedStockIds = newOrderItems.filter(x => x.stockId).map(x => String(x.stockId));
 
             const matches = allInventoryGlobal.filter(i => {
@@ -1085,7 +1269,6 @@
             badge.style.display = 'block';
             badge.innerHTML = `<i class="fas fa-check-circle"></i> Linked Stock: [${inv.barcode}] | Net Wt: ${net}g (${inv.purity || '22K'}) — Will move to Order Box`;
 
-            // Populate Category
             const catEl = document.getElementById('oiCat');
             const itemCat = inv.category || 'Other';
             if (![...catEl.options].some(o => o.value.toLowerCase() === itemCat.toLowerCase())) {
@@ -1093,10 +1276,8 @@
             }
             catEl.value = itemCat;
 
-            // Populate Description
             document.getElementById('oiDesc').value = `${inv.name || inv.category || 'Stock Item'} [${inv.barcode}]`;
 
-            // Populate Purity
             const purEl = document.getElementById('oiPurity');
             const itemPur = inv.purity || '22K';
             if (![...purEl.options].some(o => o.value === itemPur)) {
@@ -1105,11 +1286,9 @@
             purEl.value = itemPur;
             autoFillOIRate();
 
-            // Populate Weights
             document.getElementById('oiGross').value = gross;
             document.getElementById('oiStone').value = stone;
 
-            // Default Making (12% for Gold, 25% for Silver, or item's saved making)
             const isSilv = String(inv.barcode || '').toUpperCase().startsWith('SIL') || String(inv.metal || '').toLowerCase() === 'silver';
             if (inv.makingVal || inv.makingPct) {
                 document.getElementById('oiMakingVal').value = inv.makingVal || inv.makingPct;
@@ -1117,6 +1296,15 @@
             } else {
                 document.getElementById('oiMakingVal').value = isSilv ? 25 : 12;
                 document.getElementById('oiMakingType').value = 'pct';
+            }
+
+            // If the inventory item already has an image and user hasn't picked one yet, pre-fill it!
+            if ((inv.imageUrl || inv.imageLink) && !newOrderPhotoBase64) {
+                const invImg = inv.imageUrl || inv.imageLink;
+                newOrderPhotoBase64 = invImg;
+                document.getElementById('newOrderPhotoPreview').src = invImg;
+                document.getElementById('newOrderPhotoEmpty').style.display = 'none';
+                document.getElementById('newOrderPhotoPreviewWrap').style.display = 'block';
             }
 
             calcOIItem();
@@ -1137,6 +1325,7 @@
             openModal('newJobModal');
             resetCustSearch();
             clearSelectedStockForOrder();
+            clearNewOrderPhoto();
 
             document.getElementById('isNewCustomer').value = 'false';
             document.getElementById('newCustSection').style.display = 'none';
@@ -1223,7 +1412,6 @@
                 fromStock: Boolean(stockId)
             };
 
-            // If booked from stock, final weights are already known!
             if (stockId) {
                 itemObj.finalGross = gross;
                 itemObj.finalStone = stone;
@@ -1396,7 +1584,7 @@
             }
         }
 
-        // --- Save Job (With Automatic Stock Box ➔ Order Box Transfer) ---
+        // --- Save Job (With Design Photo + Stock Box ➔ Order Box Transfer) ---
         async function saveJob() {
             if(newOrderItems.length === 0) return showToast("Please add at least one Order Item", "error");
 
@@ -1446,7 +1634,6 @@
                 const inputOrderDate = document.getElementById('oDate').value;
                 const finalOrderDate = inputOrderDate ? new Date(inputOrderDate).toISOString() : new Date().toISOString();
 
-                // Check if ALL items in this order are from Ready Stock
                 const allFromStock = newOrderItems.every(i => i.fromStock && i.stockId);
                 const stockBarcodes = newOrderItems.filter(i => i.barcode).map(i => i.barcode).join(', ');
 
@@ -1455,6 +1642,8 @@
                     customerId: custId,
                     orderDate: finalOrderDate,
                     dueDate: new Date(document.getElementById('oDue').value).toISOString(),
+
+                    designPhoto: newOrderPhotoBase64 || '',
 
                     orderItems: newOrderItems,
                     oldGoldItems: newOldGoldItems,
@@ -1465,7 +1654,6 @@
                     grossWt: tGross, stoneWt: tStone, netWt: tNet, fineWt: tFine,
                     makingCharge: tMk, baseAmount: tBase, roundOff: roundOff,
 
-                    // If all items are from stock, set final weights and ready status right away!
                     finalGross: allFromStock ? tGross : 0,
                     finalNet: allFromStock ? tNet : 0,
                     finalFineWt: allFromStock ? tFine : 0,
@@ -1486,7 +1674,6 @@
                 const orderId = await addItem('orders', jobObj);
                 const invoiceNo = 'ORD-INV' + String(orderId).padStart(3, '0');
 
-                // 🔥 TRANSFER LINKED STOCK ITEMS FROM STOCK BOX ➔ ORDER BOX
                 for (let item of newOrderItems) {
                     if (item.fromStock && item.stockId) {
                         let invRecord = await getItem('inventory', item.stockId);
@@ -1556,6 +1743,19 @@
             if(o.orderItems && o.orderItems.length > 1) { displayCat = 'Multiple Items'; displayDesc = `${o.orderItems[0].category} + ${o.orderItems.length-1} more`; }
             setText('vDesc', `${displayCat} - ${displayDesc}`);
             setText('vOrderDateDisplay', o.orderDate ? new Date(o.orderDate).toLocaleDateString() : 'Unknown');
+
+            // Populate Design Photo inside View Modal
+            const vPhotoInput = document.getElementById('vOrderPhotoInput');
+            if (vPhotoInput) vPhotoInput.value = '';
+            if (o.designPhoto) {
+                document.getElementById('vOrderPhotoImg').src = o.designPhoto;
+                document.getElementById('vPhotoEmptyState').style.display = 'none';
+                document.getElementById('vPhotoPreviewWrap').style.display = 'block';
+            } else {
+                document.getElementById('vOrderPhotoImg').src = '';
+                document.getElementById('vPhotoPreviewWrap').style.display = 'none';
+                document.getElementById('vPhotoEmptyState').style.display = 'block';
+            }
 
             const steps = ['step1', 'step2', 'step3', 'step4'];
             steps.forEach(s => { document.getElementById(s).className = 'tracker-step'; });
@@ -1713,7 +1913,6 @@
             const o = activeJobData;
             document.getElementById('aOrderId').value = o.id;
 
-            // Compute total required metal ONLY for custom items (not items already taken from stock)
             let totalFineReq = 0;
             if(o.orderItems) { 
                 o.orderItems.forEach(i => {
@@ -1857,7 +2056,6 @@
                 let fNet = Math.max(0, fGross - fStone);
                 let purityFact = getPurityFactor(item.purity);
 
-                // Only count custom karigar-made items towards Karigar Fine Liability
                 if (!item.fromStock && !item.stockId) {
                     totalCustomNet += fNet;
                     totalFineForDiff += fNet * purityFact;
@@ -1929,7 +2127,6 @@
                 totalFine += fNet * getPurityFactor(item.purity);
                 totalBase += (itemGoldVal + actualMk);
 
-                // Only create a new inventory entry for custom Karigar items (Stock items are already in inventory as 'order_reserved')
                 if (!item.fromStock && !item.stockId) {
                     karigarCustomNet += fNet;
                     karigarCustomFine += fNet * getPurityFactor(item.purity);
@@ -2236,7 +2433,6 @@
                     total: Math.round(w * i.rate + mk)
                 });
 
-                // Mark pre-booked stock item as SOLD
                 if (i.stockId) {
                     let stockRecord = await getItem('inventory', i.stockId);
                     if (stockRecord) {
@@ -2264,7 +2460,6 @@
                 paidAmount: totalCashReceived, pendingAmount: remainingDue, status: 'completed'
             });
 
-            // Also mark any custom-generated order stock items (source: order_id) as sold
             const allInventory = await getAllItems('inventory');
             for (let invItem of allInventory) {
                 if (invItem.source === `order_${o.id}` || String(invItem.reservedOrderId) === String(o.id)) {
@@ -2295,7 +2490,7 @@
             await loadOrders(); await loadInventoryForDropdowns();
         }
 
-        // ==================== CANCEL & DIRECT DELETE (RETURNS STOCK TO MAIN STOCK BOX) ====================
+        // ==================== CANCEL & DIRECT DELETE ====================
         async function releaseReservedStockToMainInventory(orderObj) {
             if (!orderObj || !orderObj.orderItems) return;
             for (let item of orderObj.orderItems) {
@@ -2339,7 +2534,6 @@
             o.oldGoldReturned = document.getElementById('cReturnOldGold').checked;
             await updateItem('orders', o);
 
-            // Return any booked stock item back from Order Box to Main Stock Box
             await releaseReservedStockToMainInventory(o);
 
             if(refundCash > 0) await addItem('cashflow', { date: new Date().toISOString(), type: 'OUT', mode: 'Cash', category: 'Job Cancel Refund', amount: refundCash, note: `Cash Refund for ${invoiceNo}`, orderId: o.id });
@@ -2355,7 +2549,6 @@
             o.status = 'deleted'; o.isDeleted = true; o.deletedAt = new Date().toISOString();
             await updateItem('orders', o);
 
-            // Return any booked stock item back from Order Box to Main Stock Box
             await releaseReservedStockToMainInventory(o);
 
             showToast("Order Deleted & Stock Restored!", "success"); closeModal('viewJobModal'); await loadOrders(); await loadInventoryForDropdowns();
@@ -2411,6 +2604,13 @@
             const m = allMerchants.find(x => x.id == o.merchantId);
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
 
+            let photoHtml = o.designPhoto 
+                ? `<div style="text-align:center; margin:12px 0; padding:8px; border:1px dashed #000;">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:4px;">DESIGN REFERENCE PHOTO:</div>
+                    <img src="${o.designPhoto}" style="max-width:220px; max-height:180px; border:1px solid #000;">
+                   </div>` 
+                : '';
+
             let html = `<div class="receipt-card" style="border: 2px dashed #000; padding: 20px; max-width: 600px; margin: 0 auto; font-family:monospace;">
                 <div style="text-align:center; border-bottom:2px solid #000; margin-bottom:15px; padding-bottom:10px;">
                     <h2 style="margin:0;">BHARTI JEWELLERS</h2>
@@ -2422,6 +2622,7 @@
                     <div><b>Date:</b> ${new Date().toLocaleDateString()}</div>
                 </div>
                 <div style="margin-bottom:10px;"><b>Due By:</b> ${new Date(o.dueDate).toLocaleDateString()}</div>
+                ${photoHtml}
 
                 <h4 style="margin: 15px 0 5px 0; border-bottom: 1px dashed #000; padding-bottom: 5px;">Item Details to Build</h4>
                 <table style="width:100%; border-collapse: collapse; margin-top:10px;" border="1">
