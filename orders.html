@@ -207,11 +207,11 @@
 
         <div class="stats-grid">
             <div class="stat-card" style="border-left-color: var(--bill-blue);">
-                <div class="stat-lbl">Total All Orders</div>
+                <div class="stat-lbl">All Active Orders</div>
                 <div class="stat-val" id="statAllTotal" style="color: var(--bill-blue);">0</div>
             </div>
             <div class="stat-card">
-                <div class="stat-lbl">Active Orders</div>
+                <div class="stat-lbl">In-Progress / Pending</div>
                 <div class="stat-val" id="statPending">0</div>
             </div>
             <div class="stat-card" style="border-left-color: var(--receive-green);">
@@ -892,6 +892,12 @@
             return 1.0;
         }
 
+        // Helper to identify Active Orders (Pending, With Karigar, Ready) - excludes Billed/Delivered/Cancelled/Deleted
+        function isActiveOrderStatus(o) {
+            if (!o || o.isDeleted) return false;
+            return ['pending', 'in_progress', 'with_karigar', 'completed', 'ready'].includes(o.status);
+        }
+
         // ==================== GLOBAL STATE ====================
         let allOrders = []; let allCustomers = []; let allMerchants = []; let allInventoryGlobal = [];
         let currentTab = 'all';
@@ -1024,23 +1030,26 @@
 
         async function loadOrders() {
             const orders = await getAllItems('orders');
-            let totalAdv = 0; let pendingActiveCount = 0; let overdueCount = 0;
+            let totalAdv = 0; let inProgressCount = 0; let overdueCount = 0;
             const now = new Date(); now.setHours(0,0,0,0);
 
-            let cntAll = 0, cntPending = 0, cntKarigar = 0, cntCompleted = 0, cntBilled = 0, cntCancelled = 0;
+            let cntAllActive = 0, cntPending = 0, cntKarigar = 0, cntCompleted = 0, cntBilled = 0, cntCancelled = 0;
 
             allOrders = orders.filter(o => o.jobType === 'Order').map(o => {
                 const c = allCustomers.find(x => x.id == o.customerId);
-                cntAll++;
+
+                if (isActiveOrderStatus(o)) {
+                    cntAllActive++;
+                }
 
                 if (o.status === 'pending') {
                     cntPending++;
-                    pendingActiveCount++;
+                    inProgressCount++;
                     totalAdv += (o.advancePaid || 0);
                     if (new Date(o.dueDate) < now) overdueCount++;
                 } else if (o.status === 'in_progress' || o.status === 'with_karigar') {
                     cntKarigar++;
-                    pendingActiveCount++;
+                    inProgressCount++;
                     totalAdv += (o.advancePaid || 0);
                     if (new Date(o.dueDate) < now) overdueCount++;
                 } else if (o.status === 'completed' || o.status === 'ready') {
@@ -1054,12 +1063,12 @@
                 return { ...o, custName: c ? c.name : 'Unknown', custMobile: c ? c.mobile : '' };
             });
 
-            setText('statAllTotal', cntAll);
-            setText('statPending', pendingActiveCount);
+            setText('statAllTotal', cntAllActive);
+            setText('statPending', inProgressCount);
             setText('statAdvance', "₹" + totalAdv.toLocaleString());
             setText('statOverdue', overdueCount);
 
-            setText('cnt-all', cntAll);
+            setText('cnt-all', cntAllActive);
             setText('cnt-pending', cntPending);
             setText('cnt-karigar', cntKarigar);
             setText('cnt-completed', cntCompleted);
@@ -1106,11 +1115,12 @@
 
             const filtered = allOrders.filter(o => {
                 let matchTab = false;
-                if (currentTab === 'all') matchTab = true;
-                else if (currentTab === 'pending') matchTab = (o.status === 'pending');
-                else if (currentTab === 'karigar') matchTab = (o.status === 'in_progress' || o.status === 'with_karigar');
-                else if (currentTab === 'completed') matchTab = (o.status === 'completed' || o.status === 'ready');
-                else if (currentTab === 'billed') matchTab = (o.status === 'billed' || o.status === 'delivered');
+                // "All Orders" shows ONLY Active orders (Pending + With Karigar + Ready), NOT Billed/Delivered or Cancelled/Deleted
+                if (currentTab === 'all') matchTab = isActiveOrderStatus(o);
+                else if (currentTab === 'pending') matchTab = (o.status === 'pending' && !o.isDeleted);
+                else if (currentTab === 'karigar') matchTab = ((o.status === 'in_progress' || o.status === 'with_karigar') && !o.isDeleted);
+                else if (currentTab === 'completed') matchTab = ((o.status === 'completed' || o.status === 'ready') && !o.isDeleted);
+                else if (currentTab === 'billed') matchTab = ((o.status === 'billed' || o.status === 'delivered') && !o.isDeleted);
                 else if (currentTab === 'cancelled') matchTab = (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted);
 
                 const matchSearch = o.custName.toLowerCase().includes(term) || 
