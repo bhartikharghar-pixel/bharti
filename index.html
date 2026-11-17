@@ -328,7 +328,8 @@
                     <span id="krPendingBadge" class="kr-badge-pending">0 Out</span>
                 </div>
                 <div class="todo-input-group">
-                    <input type="text" id="krKarigarInput" placeholder="Karigar naam..." style="max-width: 38%;" autocomplete="off">
+                    <input type="text" id="krKarigarInput" list="krKarigarDatalist" placeholder="Karigar..." style="max-width: 38%; font-weight:600; color:#ea580c;" onchange="saveDefaultKarigar(this.value)" onfocus="this.select()" autocomplete="off" title="Default recent Karigar selected - click or type to change">
+                    <datalist id="krKarigarDatalist"></datalist>
                     <input type="text" id="krItemInput" placeholder="Item / Wt (e.g. Ring 5g)..." onkeypress="handleKarigarKeyPress(event)" autocomplete="off">
                     <button onclick="addKarigarRepair()" style="background:#ea580c;" title="Add Repair Item"><i class="fas fa-plus"></i></button>
                 </div>
@@ -405,7 +406,7 @@
 
             <!-- STEP 3: DYNAMIC FIELDS BASED ON REASON -->
 
-            <!-- A. CUSTOMER SEARCH (For Customer In / Udhari Given / Quick Sale) -->
+            <!-- A. CUSTOMER SEARCH -->
             <div id="secCustomer" class="form-group" style="display:none;">
                 <label id="lblCustSearch">Select Customer (Name or Mobile)</label>
                 <input type="text" id="uniCustSearch" placeholder="Type customer name or mobile..." onkeyup="searchUniCustomer()" autocomplete="off">
@@ -416,7 +417,6 @@
                     <span id="uniCustChipText"></span>
                     <i class="fas fa-times-circle" style="cursor:pointer; color:#ef4444;" onclick="clearUniCustomer()"></i>
                 </div>
-                <!-- Sub-type for Customer IN -->
                 <div id="secCustInType" style="margin-top:8px; display:flex; gap:8px;">
                     <select id="uniCustInSubType" style="font-size:0.85rem; padding:8px;">
                         <option value="Purani Udhari Jama">Purani Udhari Jama (Due Recovery)</option>
@@ -427,7 +427,7 @@
                 </div>
             </div>
 
-            <!-- B. QUICK SALE EXTRA FIELDS (Inventory Barcode + GST) -->
+            <!-- B. QUICK SALE EXTRA FIELDS -->
             <div id="secQuickSale" style="display:none; background:#fffbeb; border:1px solid #fde68a; padding:12px; border-radius:10px; margin-bottom:13px;">
                 <div class="form-group" style="margin-bottom:10px;">
                     <label style="color:#b45309;">Scan / Search Stock Item (Optional)</label>
@@ -537,6 +537,7 @@
         let goldRatesCache = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0 };
         let todos = JSON.parse(localStorage.getItem('bj_todos')) || [];
         let karigarRepairs = JSON.parse(localStorage.getItem('bj_karigar_repairs')) || [];
+        let defaultKarigarName = localStorage.getItem('bj_default_karigar') || (karigarRepairs.length > 0 ? karigarRepairs[0].karigar : '');
 
         // Passbook View State: Today only by default
         let showAllHistory = false;
@@ -638,11 +639,40 @@
             renderTodos();
         }
 
-        // --- KARIGAR REPAIRING / OUTWORK TRACKER ---
+        // --- KARIGAR REPAIRING / OUTWORK TRACKER (WITH DEFAULT & RECENT KARIGAR) ---
+        function saveDefaultKarigar(name) {
+            const clean = String(name || '').trim();
+            if (clean) {
+                defaultKarigarName = clean;
+                localStorage.setItem('bj_default_karigar', clean);
+            }
+        }
+
+        function refreshKarigarDatalist() {
+            const dl = document.getElementById('krKarigarDatalist');
+            if (!dl) return;
+            const namesSet = new Set();
+            if (defaultKarigarName) namesSet.add(defaultKarigarName);
+            karigarRepairs.forEach(r => { if (r.karigar) namesSet.add(r.karigar); });
+            merchantsCache.forEach(m => { if (m.name) namesSet.add(m.name); });
+
+            dl.innerHTML = '';
+            namesSet.forEach(n => {
+                dl.innerHTML += `<option value="${n}">`;
+            });
+        }
+
         function renderKarigarRepairs() {
             const list = document.getElementById('karigarRepairList');
             const badge = document.getElementById('krPendingBadge');
+            const kInput = document.getElementById('krKarigarInput');
             list.innerHTML = '';
+
+            // Keep default / last used karigar pre-filled so user doesn't have to retype unless changing
+            if (kInput && !kInput.value.trim() && defaultKarigarName) {
+                kInput.value = defaultKarigarName;
+            }
+            refreshKarigarDatalist();
 
             const pendingCount = karigarRepairs.filter(x => !x.done).length;
             if (badge) {
@@ -655,7 +685,6 @@
                 return;
             }
 
-            // Show pending items first, returned (ticked) items below
             const sorted = karigarRepairs.map((item, idx) => ({ ...item, origIdx: idx }))
                                          .sort((a, b) => Number(a.done) - Number(b.done));
 
@@ -681,25 +710,31 @@
         function addKarigarRepair() {
             const kInput = document.getElementById('krKarigarInput');
             const iInput = document.getElementById('krItemInput');
-            const karigar = kInput.value.trim();
+            const karigar = kInput.value.trim() || defaultKarigarName;
             const item = iInput.value.trim();
 
             if (!karigar && !item) return showToast("Karigar aur item ka naam likhein!", "error");
             if (!item) return showToast("Item / Weight likhein!", "error");
 
+            const finalKarigar = karigar || 'Karigar';
+            saveDefaultKarigar(finalKarigar);
+
             const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
             karigarRepairs.unshift({
-                karigar: karigar || 'Karigar',
+                karigar: finalKarigar,
                 item: item,
                 dateStr: todayStr,
                 done: false,
                 returnedDate: ''
             });
             localStorage.setItem('bj_karigar_repairs', JSON.stringify(karigarRepairs));
-            kInput.value = '';
+
+            // Keep the active/recent Karigar name in kInput as default, clear only the item input
+            kInput.value = finalKarigar;
             iInput.value = '';
+            iInput.focus();
             renderKarigarRepairs();
-            showToast("Karigar Repair Added!");
+            showToast(`Added under ${finalKarigar}!`);
         }
 
         function handleKarigarKeyPress(e) {
@@ -724,7 +759,7 @@
             renderKarigarRepairs();
         }
 
-        // --- PENDING UDHARI (TAP TO DIRECT SETTLE IN UNIVERSAL MODAL) ---
+        // --- PENDING UDHARI ---
         async function loadPendingUdhari() {
             try {
                 const listEl = document.getElementById('udhariList');
