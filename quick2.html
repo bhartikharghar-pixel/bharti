@@ -3,84 +3,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Master Ledger - Bharti Jewellers</title>
+    <title>Smart Quick Rojmel & Metal Flow - Bharti Jewellers</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; margin: 0; padding: 15px; color: #333; }
-        .master-container { padding: 20px; max-width: 1400px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        /* --- SIDEBAR & HEADER VARIABLES --- */
+        :root {
+            --header-bg: #000000; --sidebar-bg: #111111; --accent-gold: #C5A059;
+            --active-red: #D32F2F; --border-color: #2a2a2a;
+        }
+
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; padding-top: 70px; color: #333; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a { text-decoration: none; color: inherit; }
+
+        /* --- HEADER --- */
+        .app-header { position: fixed; top: 0; left: 0; width: 100%; height: 60px; background: var(--header-bg); display: flex; align-items: center; padding: 0 15px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); border-bottom: 2px solid var(--accent-gold); justify-content: space-between;}
+        .header-title { color: var(--accent-gold); font-size: 1.2rem; font-weight: 700; margin-left: 15px; text-transform: uppercase; display: flex; align-items: center;}
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px; }
+
+        /* --- SIDEBAR --- */
+        .sidebar-drawer { position: fixed; top: 60px; left: -280px; width: 280px; height: calc(100vh - 60px); background: var(--sidebar-bg); z-index: 1999; transition: left 0.3s ease-in-out; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar-drawer.open { left: 0; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1;}
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ccc; text-decoration: none; border-bottom: 1px solid var(--border-color); font-size: 1rem; transition: 0.2s; }
+        .sidebar-menu li a:hover { background: #222; color: #fff; padding-left: 25px; }
+        .sidebar-menu li a.active { background: linear-gradient(90deg, var(--active-red), transparent); color: white; border-left: 5px solid #fff; }
+        .sidebar-overlay { position: fixed; top: 60px; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1500; display: none; }
+        .sidebar-overlay.show { display: block; }
+        .sidebar-footer { padding: 20px; text-align: center; border-top: 1px solid var(--border-color); color: #666; font-size: 0.85rem; background: #0a0a0a; }
+
+        /* --- ORIGINAL STYLES --- */
+        .master-container { padding: 15px; max-width: 1100px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px;}
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
         .dashboard-title { margin: 0; color: #111; font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;}
         
-        .header-actions { display: flex; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
+        .date-input { border: 2px solid #C5A059; padding: 8px 12px; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.95rem; outline: none; background: #fdfdfd;}
         .refresh-btn { background: #111; color: #C5A059; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .refresh-btn:hover { background: #000; transform: scale(1.02); }
         .print-btn { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .print-btn:hover { background: #1565c0; transform: scale(1.02); }
         
-        .unified-ledger-print { background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; border: 1px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; font-family: 'Poppins', sans-serif; min-width: 1100px; }
+        /* --- 💰 LIVE CASH DASHBOARD --- */
+        .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media(max-width: 768px) { .cash-dashboard { grid-template-columns: 1fr 1fr; gap: 10px; } }
+        .cash-card { padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); position: relative; background: #fff; border: 1px solid #eee;}
+        .cash-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 5px; }
+        .card-open::before { background: #1976d2; }
+        .card-in::before { background: #4caf50; }
+        .card-out::before { background: #f44336; }
+        .card-close::before { background: #C5A059; }
         
-        thead th { position: sticky; top: 0; z-index: 10; }
+        .c-lbl { display: block; font-size: 0.8rem; color: #777; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;}
+        .c-amt { display: block; font-size: 1.4rem; font-weight: 800; margin-bottom: 5px;}
+        .card-open .c-amt { color: #1976d2; }
+        .card-in .c-amt { color: #2e7d32; }
+        .card-out .c-amt { color: #c62828; }
+        .card-close .c-amt { color: #b08d4a; }
         
-        @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: #fff; padding: 0; }
-            .header-actions { display: none !important; }
-            .master-container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; border: none; }
+        .split-bal { display: flex; justify-content: space-around; font-size: 0.75rem; color: #555; border-top: 1px dashed #ccc; padding-top: 5px; font-weight: 600;}
+
+        /* --- ⚡ ACTION GRID --- */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media(max-width: 768px) { .action-grid { grid-template-columns: 1fr; } }
+        
+        .column { border-radius: 12px; background: #fafafa; border: 1px solid #e0e0e0; display: flex; flex-direction: column; padding: 15px;}
+        .col-left { border-top: 5px solid #4caf50; } 
+        .col-right { border-top: 5px solid #f44336; } 
+        
+        .side-title { text-align: center; padding-bottom: 15px; font-size: 1.2rem; font-weight: 800; text-transform: uppercase; border-bottom: 1px dashed #ccc; margin-bottom: 15px;}
+        .col-left .side-title { color: #2e7d32; }
+        .col-right .side-title { color: #c62828; }
+
+        /* INLINE BALANCE BOXES */
+        .inline-bal-box { background: #fff; padding: 12px 15px; border-radius: 8px; font-size: 1.05rem; font-weight: 800; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 2px dashed #ccc; box-shadow: inset 0 2px 5px rgba(0,0,0,0.03);}
+        .box-open { border-color: #1976d2; background: #e3f2fd; color: #0d47a1; }
+        .box-close { border-color: #f57f17; background: #fffde7; color: #e65100; margin-top: 15px; margin-bottom: 0;}
+
+        /* Action Wrappers */
+        .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #ddd; }
+        .action-btn { width: 100%; padding: 14px; border: none; font-size: 1.05rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
+        .btn-in { background: #e8f5e9; color: #2e7d32; border-bottom: 2px solid #c8e6c9;}
+        .btn-in:hover { background: #c8e6c9; color: #1b5e20;}
+        .btn-out { background: #ffebee; color: #c62828; border-bottom: 2px solid #ffcdd2;}
+        .btn-out:hover { background: #ffcdd2; color: #b71c1c;}
+        
+        .btn-auto-in { background: #f1f8e9; color: #388e3c; border-bottom: 2px dashed #a5d6a7; cursor: default; }
+        .btn-auto-out { background: #fff3e0; color: #e65100; border-bottom: 2px dashed #ffcc80; cursor: default; }
+
+        /* --- 📝 MINI LOGS --- */
+        .mini-log { padding: 0 12px; max-height: 300px; overflow-y: auto; border-top: 1px solid #eee; display: none; background: #fdfdfd;}
+        .log-item { display: flex; flex-direction: column; border-bottom: 1px dashed #ccc; padding: 10px 0; }
+        .log-item:last-child { border-bottom: none; }
+        
+        .log-main { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: 700;}
+        .log-amt { min-width: 80px; }
+        .c-in { color: #2e7d32; }
+        .c-out { color: #c62828; }
+        .log-code { flex: 1; text-align: center; color: #444; font-size: 0.85rem; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 5px;}
+        .log-wt { min-width: 65px; text-align: right; font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px;}
+        
+        .wt-tag { font-size: 0.75rem; padding: 2px 5px; border-radius: 4px; display: inline-block; font-weight: 800; white-space: nowrap; }
+        .wt-plus { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .wt-minus { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        
+        .log-split { font-size: 0.75rem; color: #666; font-weight: 600; margin-top: 3px;}
+        .empty-log { text-align: center; color: #aaa; font-size: 0.85rem; padding: 12px; font-style: italic; }
+
+        /* --- GRAND TOTAL BARS --- */
+        .grand-totals-bar { display: flex; justify-content: space-between; align-items: center; background: #111; color: #fff; padding: 15px 25px; border-radius: 12px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); border: 2px solid #C5A059;}
+        @media(max-width: 600px) { .grand-totals-bar { flex-direction: column; gap: 10px; text-align: center; } }
+        .g-jama { color: #4caf50; font-size: 1.3rem; font-weight: 800; text-transform: uppercase;}
+        .g-nama { color: #f44336; font-size: 1.3rem; font-weight: 800; text-transform: uppercase;}
+
+        /* --- METAL DAYBOOK 3-COLUMN GRID --- */
+        .metal-3col-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media(max-width: 768px) { .metal-3col-grid { grid-template-columns: 1fr; gap: 25px; } }
+
+      @media print {
+            @page { size: A4 portrait; margin: 10mm; }
+            body { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                background-color: #fff !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+                font-size: 9pt !important;
+            }
+            .header-actions, .app-header, .sidebar-drawer, .sidebar-overlay, .menu-toggle { display: none !important; }
+            .master-container { box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; border: none !important; }
+            .cash-dashboard { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; margin-bottom: 15px !important; }
+            .metal-3col-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
+            .action-grid { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; justify-content: space-between !important; width: 100% !important; align-items: flex-start !important; gap: 0 !important; }
+            .column { width: 48.5% !important; padding: 10px !important; border: 1px solid #ddd !important; background: #fafafa !important; box-sizing: border-box !important; margin-bottom: 0 !important; }
+            .action-wrapper { margin-bottom: 8px !important; border: 1px solid #ccc !important; box-shadow: none !important; page-break-inside: avoid !important; break-inside: avoid !important; }
+            .action-btn { padding: 8px !important; font-size: 9.5pt !important; }
+            .mini-log { max-height: none !important; overflow: visible !important; padding: 0 8px !important; }
+            .log-item { padding: 4px 0 !important; }
+            .cash-card, .grand-totals-bar, .grand-metal-tally, .inline-bal-box { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .dashboard-title { font-size: 13pt !important; margin-bottom: 10px !important; }
+            .c-amt { font-size: 11pt !important; }
+            .g-jama, .g-nama { font-size: 11pt !important; }
+            a { text-decoration: none; color: inherit; }
         }
     </style>
 </head>
 <body>
 
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <header class="app-header">
+        <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="header-title">Bharti Jewellers</div>
+    </header>
+
+    <aside id="app-sidebar" class="sidebar-drawer">
+       <ul class="sidebar-menu">
+            <li><a href="index.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="quick.html" class="active"><i class="fas fa-bolt"></i> Quick Entry</a></li>
+            <li><a href="purchases.html"><i class="fas fa-cart-arrow-down"></i> Purchases (In)</a></li>
+            <li><a href="inventory.html"><i class="fas fa-boxes"></i> Inventory Stock</a></li>
+            <li><a href="sales.html"><i class="fas fa-file-invoice-dollar"></i> Sales & Billing</a></li>
+            <li><a href="orders.html"><i class="fas fa-concierge-bell"></i> Custom Orders</a></li>
+            <li><a href="repairs.html"><i class="fas fa-tools"></i> Repairs</a></li>
+            <li><a href="schemes.html"><i class="fas fa-hand-holding-heart"></i> BC Schemes (11+1)</a></li>
+            <li><a href="customers.html"><i class="fas fa-users"></i> Customers</a></li>
+            <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> Gold Loans</a></li>
+            <li><a href="deposits.html"><i class="fas fa-piggy-bank"></i> Customer Deposits</a></li>
+            <li><a href="oldgold.html"><i class="fas fa-ring"></i> Old Gold (UR)</a></li>
+            <li><a href="daybook.html"><i class="fas fa-book-open"></i> Daybook (Rojmel)</a></li>
+            <li><a href="cashflow.html"><i class="fas fa-wallet"></i> Cashbook</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-line"></i> Reports</a></li>
+            <li><a href="merchants.html"><i class="fas fa-truck"></i> Merchants</a></li>
+            <li><a href="ratecut.html"><i class="fas fa-percentage"></i> Rate Cuts</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            App Version 2.6 <br> <span style="color:#C5A059">● 100% Sync Validated</span>
+        </div>
+    </aside>
+
 <div class="master-container">
     
     <div class="dashboard-header">
-        <h2 class="dashboard-title"><i class="fas fa-book-open"></i> Ultimate Unified Master Ledger (Daybook)</h2>
+        <h2 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel</h2>
         <div class="header-actions">
+            <input type="date" id="selectedDate" class="date-input" onchange="updateDashboardAndLogs()" title="Select Date for Rojmel">
             <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
-            <button class="refresh-btn" onclick="location.reload()"><i class="fas fa-sync-alt"></i> Refresh</button>
+            <button class="refresh-btn" onclick="updateDashboardAndLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
         </div>
     </div>
 
-    <div class="unified-ledger-print">
-        <table>
-            <thead>
-                <tr style="background: #111; color: #fff;">
-                    <th rowspan="2" style="padding:10px; border-right:2px solid #555; text-align:left; min-width:150px;">Name</th>
-                    <th rowspan="2" style="padding:10px; border-right:2px solid #555; text-align:left; min-width:150px;">Items / Note</th>
-                    <th colspan="6" style="padding:10px; border-right:2px solid #555; background:#2e7d32; letter-spacing:1px;">⬇️ JAMA (AAYA)</th>
-                    <th colspan="6" style="padding:10px; background:#c62828; letter-spacing:1px;">⬆️ NAMA (GAYA)</th>
-                </tr>
-                <tr style="background: #222; color: #ccc;">
-                    <th style="padding:8px; border-right:1px solid #444;">Cash</th>
-                    <th style="padding:8px; border-right:1px solid #444;">Bank/UPI</th>
-                    <th style="padding:8px; border-right:1px solid #444;">Udhari</th>
-                    <th style="padding:8px; border-right:1px solid #444; color:#a5d6a7;">Fine(Net)</th>
-                    <th style="padding:8px; border-right:1px solid #444; color:#a5d6a7;">Old Gold</th>
-                    <th style="padding:8px; border-right:2px solid #555; color:#a5d6a7;">Langadi</th>
-                    
-                    <th style="padding:8px; border-right:1px solid #444;">Cash</th>
-                    <th style="padding:8px; border-right:1px solid #444;">Bank/UPI</th>
-                    <th style="padding:8px; border-right:1px solid #444;">Udhari</th>
-                    <th style="padding:8px; border-right:1px solid #444; color:#ef9a9a;">Fine(Net)</th>
-                    <th style="padding:8px; border-right:1px solid #444; color:#ef9a9a;">Old Gold</th>
-                    <th style="padding:8px;">Langadi</th>
-                </tr>
-            </thead>
-            <tbody id="ultimateLedgerBody">
-                <!-- Data will be populated here via JS -->
-            </tbody>
-        </table>
+    <div class="cash-dashboard">
+        <div class="cash-card card-open">
+            <span class="c-lbl">Opening Balance</span>
+            <strong class="c-amt" id="openBal">₹0</strong>
+            <div class="split-bal">
+                <span style="color:#2e7d32;">Cash: <span id="openCash">0</span>*</span>
+                <span style="color:#1976d2;">Bank: <span id="openBank">0</span>#</span>
+            </div>
+        </div>
+        <div class="cash-card card-in">
+            <span class="c-lbl">Today IN (Jama)</span>
+            <strong class="c-amt" id="todayIn">+₹0</strong>
+        </div>
+        <div class="cash-card card-out">
+            <span class="c-lbl">Today OUT (Nama)</span>
+            <strong class="c-amt" id="todayOut">-₹0</strong>
+        </div>
+        <div class="cash-card card-close">
+            <span class="c-lbl">Closing Balance</span>
+            <strong class="c-amt" id="closeBal">₹0</strong>
+            <div class="split-bal">
+                <span style="color:#2e7d32;">Cash: <span id="closeCash">0</span>*</span>
+                <span style="color:#1976d2;">Bank: <span id="closeBank">0</span>#</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-grid">
+        <div class="column col-left">
+            <div class="side-title">⬇️ CASH IN (Jama)</div>
+            <div class="inline-bal-box box-open" id="uiOpenBal">
+                <span style="font-size:0.9rem; color:#555; text-transform:uppercase;">Opening</span>
+                <span id="openBalText">₹0 T = 0* + 0#</span>
+            </div>
+            
+            <div class="action-wrapper"><a href="sales.html" class="action-btn btn-in"><i class="fas fa-shopping-bag"></i> Sale (Bikri)</a><div id="log-Sale" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="loans.html" class="action-btn btn-in"><i class="fas fa-coins"></i> Byaaj Jama</a><div id="log-Byaaj Jama" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="loans.html" class="action-btn btn-in"><i class="fas fa-unlock"></i> Girvi Chhudaya / Jama Pete</a><div id="log-Girvi Chhudaya" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="orders.html" class="action-btn btn-in"><i class="fas fa-concierge-bell"></i> Order Advance / Payment</a><div id="log-Order In" class="mini-log"></div></div>
+            
+            <div class="action-wrapper" id="wrap-SaleDueRecv"><a href="customers.html" class="action-btn btn-in"><i class="fas fa-hand-holding-usd"></i> Purani Udhari Aayi</a><div id="log-SaleDueRecv" class="mini-log"></div></div>
+            
+            <div class="action-wrapper"><a href="repairs.html" class="action-btn btn-in"><i class="fas fa-tools"></i> Repair Jama (In)</a><div id="log-Repair In" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="schemes.html" class="action-btn btn-in"><i class="fas fa-hand-holding-heart"></i> BC Jama (In)</a><div id="log-BC In" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="merchants.html" class="action-btn btn-in"><i class="fas fa-truck"></i> Payment Aaya / Vyapari</a><div id="log-Vyapari Aaya" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="cashflow.html" class="action-btn btn-in"><i class="fas fa-wallet"></i> Other Money IN</a><div id="log-Other In" class="mini-log"></div></div>
+            <div class="action-wrapper" id="wrap-PurchaseDue" style="display:none;"><div class="action-btn btn-auto-in"><i class="fas fa-truck-loading"></i> Vyapari Udhari (M. Credit)</div><div id="log-PurchaseDue" class="mini-log"></div></div>
+            <div class="action-wrapper" id="wrap-MeltIn" style="display:none;"><div class="action-btn btn-auto-in" style="background: #e1f5fe; color: #0277bd; border-bottom: 2px dashed #81d4fa; cursor: default;"><i class="fas fa-fire"></i> Refinery Recv (Pure/Mix)</div><div id="log-MeltIn" class="mini-log"></div></div>
+        </div>
+
+        <div class="column col-right">
+            <div class="side-title">⬆️ CASH OUT (Nama)</div>
+            <div class="action-wrapper"><a href="purchases.html" class="action-btn btn-out"><i class="fas fa-shopping-cart"></i> Purchase (Khareedi)</a><div id="log-Purchase" class="mini-log"></div></div>
+            
+            <div class="action-wrapper" id="wrap-SaleDueGiven"><a href="sales.html" class="action-btn btn-out"><i class="fas fa-book"></i> Customer Udhari Given</a><div id="log-SaleDueGiven" class="mini-log"></div></div>
+
+            <div class="action-wrapper"><a href="loans.html" class="action-btn btn-out"><i class="fas fa-hand-holding-usd"></i> Girvi Diya (New Loan)</a><div id="log-Girvi Diya" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="merchants.html" class="action-btn btn-out"><i class="fas fa-truck"></i> Payment Diya / Vyapari</a><div id="log-Vyapari Diya" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="repairs.html" class="action-btn btn-out"><i class="fas fa-wrench"></i> Repair Nama (Refund)</a><div id="log-Repair Out" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="schemes.html" class="action-btn btn-out"><i class="fas fa-gift"></i> BC Matured (Nama)</a><div id="log-BC Out" class="mini-log"></div></div>
+            <div class="action-wrapper"><a href="cashflow.html" class="action-btn btn-out"><i class="fas fa-file-invoice"></i> Expense / Other OUT</a><div id="log-Other Out" class="mini-log"></div></div>
+            
+            <div class="action-wrapper" id="wrap-OldGold" style="display:none;"><div class="action-btn btn-auto-out"><i class="fas fa-ring"></i> Old Gold (Bill Exch / Buy)</div><div id="log-OldGold" class="mini-log"></div></div>
+            <div class="action-wrapper" id="wrap-MeltOut" style="display:none;"><div class="action-btn btn-auto-out" style="background: #ffebee; color: #c62828; border-bottom: 2px dashed #ef9a9a; cursor: default;"><i class="fas fa-fire"></i> Refinery Sent & Loss</div><div id="log-MeltOut" class="mini-log"></div></div>
+            <div style="flex:1;"></div>
+            <div class="inline-bal-box box-close" id="uiCloseBal">
+                <span style="font-size:0.9rem; color:#555; text-transform:uppercase;">Closing</span>
+                <span id="closeBalText">₹0 T = 0* + 0#</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grand-totals-bar" style="margin-bottom: 40px;">
+        <div class="g-jama">Total Cash Jama: <span id="uiTotalJama">₹0</span></div>
+        <div class="g-nama">Total Cash Nama: <span id="uiTotalNama">₹0</span></div>
+    </div>
+
+    <div class="dashboard-header" style="border-bottom-color: #1976d2;">
+        <h2 class="dashboard-title"><i class="fas fa-balance-scale-right"></i> Metal Daybook (Gold Inventory Only)</h2>
+    </div>
+
+    <div class="metal-3col-grid">
+        
+        <div style="background: #fff; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column;">
+            <div style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; padding: 12px; text-align: center; font-weight: 800; font-size: 1.1rem; border-bottom: 4px solid #1976d2;">
+                Fine (Net)
+            </div>
+            <div style="background: #e3f2fd; padding: 10px; text-align: center; font-weight: 800; color: #0d47a1; border-bottom: 1px solid #ccc; font-size: 1.05rem;">
+                Opening: <span id="uiOpenNet">0.000g</span>
+            </div>
+            <div style="display: flex; flex: 1; background: #fafafa;">
+                <div style="flex: 1; border-right: 1px dashed #ccc; padding: 8px;">
+                    <div style="text-align: center; font-size: 0.85rem; font-weight: 800; color: #c62828; border-bottom: 1px dashed #ef9a9a; margin-bottom: 8px; padding-bottom: 4px;">⬆️ OUT (-)</div>
+                    <div id="mdNetOut"></div>
+                </div>
+                <div style="flex: 1; padding: 8px;">
+                    <div style="text-align: center; font-size: 0.85rem; font-weight: 800; color: #1976d2; border-bottom: 1px dashed #90caf9; margin-bottom: 8px; padding-bottom: 4px;">⬇️ IN (+)</div>
+                    <div id="mdNetIn"></div>
+                </div>
+            </div>
+            <div style="background: #fff3e0; padding: 10px; text-align: center; font-weight: 800; color: #e65100; border-top: 1px solid #ccc; font-size: 1.05rem;">
+                Closing: <span id="uiCloseNet">0.000g</span>
+            </div>
+        </div>
+
+        <div style="background: #fff; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column;">
+            <div style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; padding: 12px; text-align: center; font-weight: 800; font-size: 1.1rem; border-bottom: 4px solid #ce93d8;">
+                Old Gold
+            </div>
+            <div style="background: #f3e5f5; padding: 10px; text-align: center; font-weight: 800; color: #6a1b9a; border-bottom: 1px solid #ccc; font-size: 1.05rem;">
+                Opening: <span id="uiOpenOld">0.000g</span>
+            </div>
+            <div style="display: flex; flex: 1; background: #fafafa;">
+                <div style="flex: 1; border-right: 1px dashed #ccc; padding: 8px;">
+                    <div style="text-align: center; font-size: 0.85rem; font-weight: 800; color: #c62828; border-bottom: 1px dashed #ef9a9a; margin-bottom: 8px; padding-bottom: 4px;">⬆️ OUT (-)</div>
+                    <div id="mdOldOut"></div>
+                </div>
+                <div style="flex: 1; padding: 8px;">
+                    <div style="text-align: center; font-size: 0.85rem; font-weight: 800; color: #1976d2; border-bottom: 1px dashed #90caf9; margin-bottom: 8px; padding-bottom: 4px;">⬇️ IN (+)</div>
+                    <div id="mdOldIn"></div>
+                </div>
+            </div>
+            <div style="background: #fff3e0; padding: 10px; text-align: center; font-weight: 800; color: #e65100; border-top: 1px solid #ccc; font-size: 1.05rem;">
+                Closing: <span id="uiCloseOld">0.000g</span>
+            </div>
+        </div>
+
+        <div style="background: #fff; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column;">
+            <div style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; padding: 12px; text-align: center; font-weight: 800; font-size: 1.1rem; border-bottom: 4px solid #ffcc80;">
+                Langadi (Mix)
+            </div>
+            <div style="background: #fff8e1; padding: 10px; text-align: center; font-weight: 800; color: #f57f17; border-bottom: 1px solid #ccc; font-size: 1.05rem;">
+                Opening: <span id="uiOpenMix">0.000g</span>
+            </div>
+            <div style="display: flex; flex: 1; background: #fafafa;">
+                <div style="flex: 1; border-right: 1px dashed #ccc; padding: 8px;">
+                    <div style="text-align: center; font-size: 0.85rem; font-weight: 800; color: #c62828; border-bottom: 1px dashed #ef9a9a; margin-bottom: 8px; padding-bottom: 4px;">⬆️ OUT (-)</div>
+                    <div id="mdMixOut"></div>
+                </div>
+                <div style="flex: 1; padding: 8px;">
+                    <div style="text-align: center; font-size: 0.85rem; font-weight: 800; color: #1976d2; border-bottom: 1px dashed #90caf9; margin-bottom: 8px; padding-bottom: 4px;">⬇️ IN (+)</div>
+                    <div id="mdMixIn"></div>
+                </div>
+            </div>
+            <div style="background: #fff3e0; padding: 10px; text-align: center; font-weight: 800; color: #e65100; border-top: 1px solid #ccc; font-size: 1.05rem;">
+                Closing: <span id="uiCloseMix">0.000g</span>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="grand-metal-tally" style="background: #1e293b; color: #fff; padding: 15px 25px; border-radius: 12px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); border: 2px solid #C5A059;">
+        <div style="font-size: 1.1rem; text-transform: uppercase; margin-bottom: 12px; border-bottom: 1px dashed #555; padding-bottom: 8px; text-align: center; color: #C5A059; font-weight: 800;">
+            <i class="fas fa-balance-scale"></i> Gold Metal Grand Tally
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 20px;">
+            <div style="flex: 1; border-right: 1px dashed #555; padding-right: 15px;">
+                <div style="color: #4caf50; font-weight: 800; margin-bottom: 8px; font-size:1.05rem;">JAMA (Opening + IN)</div>
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Fine (Net):</span> <span id="tJamaNet">0.000g</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Old Gold:</span> <span id="tJamaOld">0.000g</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Langadi (Mix):</span> <span id="tJamaMix">0.000g</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 1.1rem; font-weight: bold; margin-top: 8px; border-top: 1px dashed #555; padding-top: 8px; color:#81c784;"><span>Total Gold Jama:</span> <span id="tJamaTotal">0.000g</span></div>
+            </div>
+            <div style="flex: 1; padding-left: 5px;">
+                <div style="color: #f44336; font-weight: 800; margin-bottom: 8px; font-size:1.05rem;">NAMA (OUT + Closing)</div>
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Fine (Net):</span> <span id="tNamaNet">0.000g</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Old Gold:</span> <span id="tNamaOld">0.000g</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 0.9rem; color:#ccc;"><span>Langadi (Mix):</span> <span id="tNamaMix">0.000g</span></div>
+                <div style="display:flex; justify-content:space-between; font-size: 1.1rem; font-weight: bold; margin-top: 8px; border-top: 1px dashed #555; padding-top: 8px; color:#e57373;"><span>Total Gold Nama:</span> <span id="tNamaTotal">0.000g</span></div>
+            </div>
+        </div>
     </div>
 
 </div>
 
-<script src="db.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="db.js?v=40"></script>
 
 <script>
+    // --- 🔥 TIMEZONE-SAFE LOCAL DATE HELPERS ---
+    function toLocalDateStr(dateVal) {
+        if (!dateVal) return '';
+        let str = String(dateVal).trim();
+        if (str.includes('T')) {
+            let d = new Date(str);
+            if (!isNaN(d.getTime())) {
+                let yyyy = d.getFullYear();
+                let mm = String(d.getMonth() + 1).padStart(2, '0');
+                let dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+        }
+        return str.split('T')[0].split(' ')[0].trim();
+    }
+
+    function isSameDay(dateVal, targetDate) {
+        return toLocalDateStr(dateVal) === targetDate;
+    }
+
+    function getTodayLocalStr() {
+        let d = new Date();
+        let yyyy = d.getFullYear();
+        let mm = String(d.getMonth() + 1).padStart(2, '0');
+        let dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function toggleSidebar() { 
+        document.getElementById('app-sidebar').classList.toggle('open'); 
+        document.getElementById('sidebar-overlay').classList.toggle('show'); 
+    }
+
     let allCustomers = [];
     let allMerchants = [];
+    let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
+    let goldCategories = ['Ring', 'Chain', 'Bangle', 'Necklace', 'Earring', 'Pendant', 'Mangalsutra'];
+    let silverCategories = ['Payal', 'Bracelet', 'Ring', 'Chain', 'Coin', 'Idol/Murti', 'Utensils'];
+
+    // EXACT SILVER CHECK FROM oldgold.html SO OLD GOLD MATCHES 100%
+    function checkIsSilver(purity) {
+        if(!purity) return false;
+        const p = String(purity).toUpperCase();
+        if (p.includes('SIL') || p.includes('92.5') || p.includes('99.9')) return true;
+        let customS = goldRates.customSilverPurities?.find(cp => cp.name.toUpperCase() === p);
+        if (customS) return true;
+        return false;
+    }
 
     function parseNum(val) {
         if (typeof val === 'number') return val;
@@ -94,7 +438,7 @@
         if(n > 0) return n;
         let g = parseNum(item.grossWt || item.totalGrossWeight || item.grossWeight || item.weight || item.totalWeight);
         let s = parseNum(item.stoneWt || item.totalStoneWeight || item.stoneWeight);
-        if(g > 0) return g - s;
+        if(g > 0) return Math.max(0, g - s);
         return 0;
     }
     
@@ -103,19 +447,56 @@
         return parseNum(item.finalFineWt || item.issuedFineWt || item.fineWt || item.fineWeight || item.totalFineWeight || item.fine || item.fineGold || item.fine_wt || item.pureWt || item.pureWeight);
     }
 
+    function isGold(item) {
+        if (!item) return true; 
+        if (item.barcode && (String(item.barcode).toUpperCase().startsWith('SIL') || String(item.barcode).toUpperCase().startsWith('BARSLV'))) return false;
+        if (item.metal && String(item.metal).toLowerCase() === 'silver') return false;
+        if (checkIsSilver(item.purity)) return false;
+
+        let text = String(
+            (item.metal || '') + ' ' +
+            (item.metalType || '') + ' ' +
+            (item.category || '') + ' ' +
+            (item.itemName || '') + ' ' +
+            (item.name || '') + ' ' +
+            (item.purity || '') + ' ' +
+            (item.type || '') + ' ' +
+            (item.oldGoldType || '') + ' ' +
+            (item.description || '')
+        ).toLowerCase();
+        
+        if (text.includes('silver') || text.includes('chandi') || text.includes('payal') || 
+            text.includes('sterling') || text.includes('imitation')) {
+            return false;
+        }
+
+        let cat = item.category || item.itemName || item.name || '';
+        if (cat) {
+            let isOnlySilverCat = silverCategories.some(c => c.toLowerCase() === cat.toLowerCase()) && 
+                                  !goldCategories.some(c => c.toLowerCase() === cat.toLowerCase());
+            if (isOnlySilverCat) return false;
+        }
+
+        return true; 
+    }
+
+    // Helper to identify if an inventory item is Langadi / Refinery Mix Bar
+    function isMixInventoryItem(inv) {
+        let catStr = String(inv.category || '').toUpperCase();
+        let srcStr = String(inv.source || '').toLowerCase();
+        let bcStr = String(inv.barcode || '').toUpperCase();
+        return catStr === 'LANGADI' || catStr === 'REFINERY' || catStr.includes('MIX') || srcStr.startsWith('melt_') || bcStr.startsWith('BARGLD');
+    }
+
     function fmtNum(num) { return Number(num || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
 
     async function safeGetAll(storeName) {
         try {
-            const db = await dbPromise;
-            if (!db.objectStoreNames.contains(storeName)) return [];
-            const tx = db.transaction(storeName, 'readonly');
-            return await new Promise((resolve) => {
-                const req = tx.objectStore(storeName).getAll();
-                req.onsuccess = e => resolve(e.target.result || []);
-                req.onerror = () => resolve([]);
-            });
-        } catch(e) { return []; }
+            return (await getAllItems(storeName)) || [];
+        } catch(e) { 
+            console.error("Error fetching " + storeName, e);
+            return []; 
+        }
     }
 
     function getCustName(id) { let c = allCustomers.find(x => String(x.id) === String(id)); return c ? c.name : 'Walk-in'; }
@@ -129,81 +510,97 @@
         return 'cash'; 
     }
 
-    function getMoneySplits(payments, defaultMode, paidAmt) {
-        let c = 0, u = 0;
+    function getSplitStr(payments, defaultMode, paidAmt, displayGrossAmt) {
+        let cAmt = 0, bAmt = 0;
         paidAmt = Math.abs(parseNum(paidAmt));
+        displayGrossAmt = Math.abs(parseNum(displayGrossAmt));
+
         if (paidAmt > 0) {
             if (payments && payments.length > 0) {
                 payments.forEach(p => {
                     let m = String(p.mode).toLowerCase();
                     let a = Math.abs(parseNum(p.amount));
-                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) u += a;
-                    else c += a;
+                    if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt += a;
+                    else cAmt += a;
                 });
             } else {
                 let m = String(defaultMode).toLowerCase();
-                if(m.includes('upi')||m.includes('bank')||m.includes('card')) u = paidAmt;
-                else c = paidAmt;
+                if(m.includes('upi')||m.includes('bank')||m.includes('card')) bAmt = paidAmt;
+                else cAmt = paidAmt;
             }
         }
-        return {c, u};
+        
+        if (cAmt === 0 && bAmt === 0) return ``; 
+        if (cAmt === displayGrossAmt && bAmt === 0) return `(₹${fmtNum(displayGrossAmt)}*)`;
+        if (bAmt === displayGrossAmt && cAmt === 0) return `(₹${fmtNum(displayGrossAmt)}#)`;
+        
+        let parts = [];
+        if(cAmt > 0) parts.push(`${fmtNum(cAmt)}*`);
+        if(bAmt > 0) parts.push(`${fmtNum(bAmt)}#`);
+        return `(${parts.join(' + ')})`;
     }
 
     window.onload = async function() {
-        try {
-            allCustomers = await safeGetAll('customers');
-            allMerchants = await safeGetAll('merchants');
-        } catch(e) {}
-        await generateUltimateLedger();
+        let dateEl = document.getElementById('selectedDate');
+        if(!dateEl.value) {
+            dateEl.value = getTodayLocalStr();
+        }
+        await updateDashboardAndLogs();
     };
 
-    async function generateUltimateLedger() {
+    // --- 🔥 MASTER ROJMEL & METAL ENGINE ---
+    async function updateDashboardAndLogs() {
         try {
-            let today = new Date().toISOString().split('T')[0];
+            let dateEl = document.getElementById('selectedDate');
+            let today = dateEl.value || getTodayLocalStr();
 
-            // Cash & Bank tracking
+            try {
+                const r = await getSetting('gold_rates');
+                if (r) goldRates = r;
+            } catch(e) {}
+
+            allCustomers = await safeGetAll('customers');
+            allMerchants = await safeGetAll('merchants');
+            try {
+                let settingsData = await safeGetAll('settings');
+                let gCatsItem = settingsData.find(x => x.id === 'gold_categories' || x.key === 'gold_categories');
+                if (gCatsItem && gCatsItem.value) goldCategories = gCatsItem.value;
+                let sCatsItem = settingsData.find(x => x.id === 'silver_categories' || x.key === 'silver_categories');
+                if (sCatsItem && sCatsItem.value) silverCategories = sCatsItem.value;
+            } catch(e) {}
+
             let openCash = 0, openBank = 0;
             let todayCashIn = 0, todayBankIn = 0;
             let todayCashOut = 0, todayBankOut = 0;
 
-            // Metal tracking
-            let openNet = 0, openOld = 0, openMix = 0;
             let todayNetIn = 0, todayNetOut = 0;
-            let todayOldIn = 0, todayOldOut = 0;
             let todayMixIn = 0, todayMixOut = 0;
+            let openOld = 0, todayOldIn = 0, todayOldOut = 0;
 
-            let ulMap = {};
-            
-            const logUL = (name, item, jCash, jUpi, jUdhari, jFine, jOld, jMix, nCash, nUpi, nUdhari, nFine, nOld, nMix) => {
-                let key = String(name).trim() || 'Walk-in';
-                if(!ulMap[key]) {
-                    ulMap[key] = { name: key, item: new Set(), jCash:0, jUpi:0, jUdhari:0, jFine:0, jOld:0, jMix:0, nCash:0, nUpi:0, nUdhari:0, nFine:0, nOld:0, nMix:0 };
-                }
-                if(item) ulMap[key].item.add(String(item).trim());
+            let dMetal = { Net: { in: [], out: [] }, Old: { in: [], out: [] }, Mix: { in: [], out: [] } };
+
+            const pushMetalLog = (val, type, entity, desc, isIN) => {
+                val = Math.abs(val);
+                if(val <= 0) return;
                 
-                ulMap[key].jCash += (jCash||0); ulMap[key].jUpi += (jUpi||0); ulMap[key].jUdhari += (jUdhari||0);
-                ulMap[key].jFine += (jFine||0); ulMap[key].jOld += (jOld||0); ulMap[key].jMix += (jMix||0);
-                ulMap[key].nCash += (nCash||0); ulMap[key].nUpi += (nUpi||0); ulMap[key].nUdhari += (nUdhari||0);
-                ulMap[key].nFine += (nFine||0); ulMap[key].nOld += (nOld||0); ulMap[key].nMix += (nMix||0);
+                let cType = 'Mix';
+                if(type.toUpperCase() === 'NET') cType = 'Net';
+                if(type.toUpperCase() === 'OLD') cType = 'Old';
+                
+                let color = isIN ? '#1976d2' : '#c62828';
+                let sign = isIN ? '+' : '-';
+                
+                let html = `
+                    <div style="padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 0.75rem;">
+                        <div style="color: ${color}; font-weight: 800; margin-bottom: 2px;">${sign}${val.toFixed(3)}g</div>
+                        <div style="color: #333; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${entity}">${entity}</div>
+                        <div style="color: #777; font-size: 0.7rem;">${desc}</div>
+                    </div>
+                `;
+                if(isIN) dMetal[cType].in.push(html);
+                else dMetal[cType].out.push(html);
             };
 
-            const logMetal = (dateStr, amt, isPos, category) => {
-                if(amt <= 0 || !dateStr) return;
-                let d = dateStr.split('T')[0];
-                let signedAmt = isPos ? amt : -amt;
-                
-                if (d < today) {
-                    if (category === 'OLD') openOld += signedAmt;
-                    else if (category === 'MIX') openMix += signedAmt;
-                    else openNet += signedAmt;
-                } else if (d === today) {
-                    if (category === 'OLD') { if(isPos) todayOldIn += amt; else todayOldOut += amt; }
-                    else if (category === 'MIX') { if(isPos) todayMixIn += amt; else todayMixOut += amt; }
-                    else { if(isPos) todayNetIn += amt; else todayNetOut += amt; }
-                }
-            };
-
-            // Fetch Data
             let cFlows = await safeGetAll('cashflow');
             let sales = await safeGetAll('sales');
             let purchases = await safeGetAll('purchases');
@@ -214,10 +611,315 @@
             let schemes = await safeGetAll('schemes');
             let inventory = await safeGetAll('inventory');
 
-            // --- 1. CASH / BANK OPENING CALCULATION ---
+            let liveInventoryStockNet = 0;
+            let liveInventoryStockMix = 0;
+
+            inventory.forEach(inv => {
+                if (inv.status === 'stock' && isGold(inv)) {
+                    let isMix = isMixInventoryItem(inv);
+                    let mWt = getSafeNet(inv); 
+                    if (isMix) {
+                        liveInventoryStockMix += mWt;
+                    } else {
+                        liveInventoryStockNet += mWt;
+                    }
+                }
+            });
+
+            const logMetal = (dateStr, amt, isPos, category) => {
+                if(amt <= 0 || !dateStr) return;
+                
+                let d = toLocalDateStr(dateStr);
+                if(!d || d === 'null' || d === 'undefined') return;
+
+                let signedAmt = isPos ? amt : -amt;
+                
+                if (d < today) {
+                    if (category === 'OLD') openOld += signedAmt;
+                } else if (d === today) {
+                    if (category === 'OLD') { if(isPos) todayOldIn += amt; else todayOldOut += amt; }
+                    else if (category === 'MIX') { if(isPos) todayMixIn += amt; else todayMixOut += amt; }
+                    else { if(isPos) todayNetIn += amt; else todayNetOut += amt; }
+                }
+            };
+
+            // =====================================================================
+            // 🔥 100% IDENTICAL OLD GOLD LEDGER ENGINE AS oldgold.html
+            // =====================================================================
+            let posOgTracker = [];
+
+            // 1. POS Sales Data (Old Gold IN + Fine Stock OUT)
+            sales.forEach(s => {
+                if (s.status === 'cancelled') return;
+                let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
+                let c = allCustomers.find(x => String(x.id) === String(s.customerId));
+                let custName = c ? c.name : (s.customerName || 'Unknown');
+
+                let metalOut = 0;
+
+                if (s.items && s.items.length > 0) {
+                    s.items.forEach(item => {
+                        if (item.isOldGold) {
+                            let isSilv = checkIsSilver(item.purity);
+                            let wt = parseFloat(item.weight) || 0;
+                            let amt = Math.abs(parseFloat(item.total) || 0);
+
+                            posOgTracker.push({
+                                dateStr: String(s.date || '').split('T')[0],
+                                netWt: wt,
+                                amount: amt,
+                                customerName: c ? c.name : 'Unknown'
+                            });
+
+                            if (!isSilv && wt > 0) {
+                                logMetal(s.date, wt, true, 'OLD');
+                                if (isSameDay(s.date, today)) {
+                                    pushMetalLog(wt, 'Old', custName, 'POS Exch OG', true);
+                                }
+                            }
+                        } else if (isGold(item)) {
+                            let isFromInventory = item.stockId || item.inventoryId || item.barcode || item.fromInventory || item.itemId || (item.id && !String(item.id).startsWith('qs_item_'));
+                            if (isFromInventory) {
+                                metalOut += getSafeNet(item);
+                            }
+                        }
+                    });
+                }
+
+                if (metalOut > 0 && (!isOrderBill || s.jobType !== 'Repair')) {
+                    logMetal(s.date, metalOut, false, 'NET');
+                    if (isSameDay(s.date, today)) {
+                        pushMetalLog(metalOut, 'Net', custName, 'Sale Delivered', false);
+                    }
+                }
+            });
+
+            // 2. Custom Orders Data (Old Gold IN + Karigar Metal Flow)
+            orders.forEach(o => {
+                // Exact Old Gold check from oldgold.html
+                if (!(o.status === 'cancelled' && o.oldGoldReturned)) {
+                    if (parseFloat(o.oldGoldValue) > 0) {
+                        let isSilv = checkIsSilver(o.oldGoldPurity);
+                        let wt = parseFloat(o.oldGoldNet) || 0;
+                        if (!isSilv && wt > 0) {
+                            logMetal(o.orderDate, wt, true, 'OLD');
+                            if (isSameDay(o.orderDate, today)) {
+                                let cName = getCustName(o.customerId);
+                                pushMetalLog(wt, 'Old', cName, 'Order Adv OG', true);
+                            }
+                        }
+                    }
+                }
+
+                // Karigar Metal Flow for Orders & Repairs
+                if (o.status === 'cancelled') return;
+                let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
+                if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
+                let kName = kNameRaw + ' (Karigar)';
+
+                if (isGold(o)) {
+                    if (o.jobType === 'Repair') {
+                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                        
+                        if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'NET');
+                        if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'NET');
+
+                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                        if (isSameDay(iDate, today) && shopIssued > 0) pushMetalLog(shopIssued, 'Net', kName, 'Repair Issue', false);
+                        let aDate = o.repairMeta?.auditDate || o.orderDate;
+                        if (isSameDay(aDate, today) && returnedRaw > 0) pushMetalLog(returnedRaw, 'Net', kName, 'Repair Recv', true);
+                    } else {
+                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                        if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, 'NET');
+
+                        let receivedFromKarigarWt = parseNum(o.finalNet);
+                        if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                            logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
+                        }
+
+                        if (isSameDay(o.orderDate, today)) {
+                            if (karigarIssuedWt > 0) pushMetalLog(karigarIssuedWt, 'Net', kName, 'Order Metal Issue', false);
+                            if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                                pushMetalLog(receivedFromKarigarWt, 'Net', kName, 'Order Metal Recv', true);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. Direct Buys & Refinery Melts from `old_gold` (100% Sync with oldgold.html)
+            oldGold.forEach(d => {
+                const isSilv = d.metal ? (d.metal === 'Silver') : checkIsSilver(d.purity);
+                if (isSilv) return; // Only Gold in Metal Daybook
+
+                if (d.type === 'MELT') {
+                    let sent = parseFloat(d.sentWt) || 0;
+                    let returnWt = parseFloat(d.returnWt || d.receivedWt) || 0;
+                    let cutWt = parseFloat(d.cutWt) || 0;
+                    let lossWt = parseFloat(d.lossWt) || 0;
+                    let barInvWt = Math.max(0, returnWt - cutWt);
+
+                    // Full `sentWt` leaves Old Gold box immediately (just like oldgold.html: netWt: -parseFloat(d.sentWt))
+                    if (sent > 0) {
+                        logMetal(d.date, sent, false, 'OLD');
+                    }
+
+                    if (isSameDay(d.date, today) && sent > 0) {
+                        if (lossWt > 0 || cutWt > 0) {
+                            let netMelted = Math.max(0, sent - lossWt);
+                            if (netMelted > 0) pushMetalLog(netMelted, 'Old', 'Refinery', `Melt Sent (#${d.id})`, false);
+                            if (lossWt > 0) pushMetalLog(lossWt, 'Old', 'Refinery', 'Melting Loss', false);
+                        } else {
+                            pushMetalLog(sent, 'Old', 'Refinery', `Melt Sent (#${d.id})`, false);
+                        }
+                    }
+                } else if (d.type === 'BUY') {
+                    const c = allCustomers.find(x => String(x.id) === String(d.customerId));
+                    const custName = c ? c.name : 'Unknown';
+                    const dDateStr = String(d.date || '').split('T')[0];
+                    const wt = parseFloat(d.netWt) || 0;
+                    const amt = parseFloat(d.amount) || 0;
+
+                    const isPosDuplicate = posOgTracker.some(posItem =>
+                        posItem.dateStr === dDateStr &&
+                        posItem.netWt === wt &&
+                        posItem.amount === amt &&
+                        posItem.customerName === custName
+                    );
+
+                    if (isPosDuplicate || d.saleId || d.isPos) return;
+
+                    if (wt > 0) {
+                        logMetal(d.date, wt, true, 'OLD');
+                        if (isSameDay(d.date, today)) {
+                            pushMetalLog(wt, 'Old', custName, 'Direct Cash Buy', true);
+                        }
+                    }
+                }
+            });
+
+            // 4. Purchases & Merchant Unfixed Metal
+            purchases.forEach(p => {
+                let mIn = 0;
+                let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                
+                if (explicitTotal > 0) {
+                    mIn = explicitTotal;
+                } else if (p.itemDetails && p.itemDetails.length > 0) {
+                    p.itemDetails.forEach(i => { 
+                        if(isGold(i)) mIn += getSafeNet(i); 
+                    });
+                } else {
+                    if (isGold(p)) {
+                        let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                        let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                        if (rootGross > 0) mIn = rootGross - rootStone;
+                        else mIn = parseNum(p.weight || p.netWt || p.netWeight);
+                    }
+                }
+                
+                let isDouble = false;
+                mPayments.forEach(mp => {
+                    let mpDate = toLocalDateStr(mp.date);
+                    let pDate = toLocalDateStr(p.date);
+                    if (mp.goldType !== 'fixed' && mpDate === pDate && parseNum(mp.gold) === mIn && String(mp.merchantId) === String(p.merchantId)) {
+                        isDouble = true;
+                    }
+                });
+                
+                if (mIn > 0 && !isDouble) {
+                    logMetal(p.date, mIn, true, 'NET');
+                    if (isSameDay(p.date, today)) {
+                        let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                        if (actualWt === 0) actualWt = mIn;
+                        let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                        let pDesc = `Purchase Stock <br><span style="font-size:0.7rem; color:#666;">Wt: ${parseFloat(actualWt).toFixed(3)}g | Tounch: ${displayPurity}</span>`;
+                        pushMetalLog(mIn, 'Net', getMerchName(p.merchantId), pDesc, true);
+                    }
+                }
+            });
+
+            mPayments.forEach(mp => {
+                if (!isGold(mp)) return; 
+                if (mp.goldType !== 'fixed') {
+                    let fineWt = parseNum(mp.gold);
+                    let isFromMixBar = mp.inventoryBarcode && (String(mp.inventoryBarcode).toUpperCase().startsWith('BARGLD') || String(mp.inventoryBarcode).toUpperCase().includes('MIX'));
+                    let targetCat = isFromMixBar ? 'MIX' : 'NET';
+                    let logCat = isFromMixBar ? 'Mix' : 'Net';
+
+                    if (mp.paymentType === 'OUT') logMetal(mp.date, fineWt, false, targetCat);
+                    else logMetal(mp.date, fineWt, true, targetCat);
+
+                    if (isSameDay(mp.date, today) && fineWt > 0) {
+                        let actualWt = parseNum(mp.originalGrossWt) || fineWt;
+                        let displayPurity = mp.purity || "Fine";
+                        if (!mp.purity && actualWt > fineWt) {
+                            displayPurity = ((fineWt / actualWt) * 100).toFixed(1) + "%";
+                        }
+
+                        let actionStr = mp.paymentType === 'OUT' ? 'Unfixed Paid' : 'Unfixed Recv';
+                        let mpDesc = `${actionStr} <br><span style="font-size:0.7rem; color:#666;">Wt: ${parseFloat(actualWt).toFixed(3)}g | Tounch: ${displayPurity}</span>`;
+                        
+                        pushMetalLog(fineWt, logCat, mp.merchantName || getMerchName(mp.merchantId), mpDesc, mp.paymentType !== 'OUT');
+                    }
+                }
+            });
+
+            // 5. Inventory Additions (including Refined Bars from `oldgold.html`) & Removals
+            inventory.forEach(inv => {
+                if (isGold(inv)) {
+                    let mWt = getSafeNet(inv); 
+                    let isMix = isMixInventoryItem(inv);
+                    let targetCategory = isMix ? 'MIX' : 'NET'; 
+                    
+                    if (inv.source !== 'purchase' && inv.status !== 'cancelled') {
+                        let itemDate = inv.addedDate || inv.date || '';
+                        logMetal(itemDate, mWt, true, targetCategory);
+
+                        if (isSameDay(itemDate, today) && mWt > 0) {
+                            let isMeltBar = String(inv.source || '').toLowerCase().startsWith('melt_') || String(inv.barcode || '').toUpperCase().startsWith('BARGLD');
+                            if (isMeltBar) {
+                                pushMetalLog(mWt, 'Mix', `Refinery (${inv.barcode})`, `Refined Bar (${inv.purity || 'Pending'})`, true);
+                            } else if (inv.source === 'manual' || !inv.source) {
+                                let displayName = inv.category || inv.name || 'Inventory';
+                                pushMetalLog(mWt, targetCategory === 'MIX' ? 'Mix' : 'Net', displayName, 'Custom Add', true);
+                            }
+                        }
+                    }
+
+                    if ((inv.status === 'removed' || inv.status === 'extracted') && inv.removeDate) {
+                        logMetal(inv.removeDate, mWt, false, targetCategory);
+                        
+                        if (isSameDay(inv.removeDate, today) && mWt > 0) {
+                            let displayName = inv.category || inv.name || 'Inventory';
+                            pushMetalLog(mWt, targetCategory === 'MIX' ? 'Mix' : 'Net', displayName, inv.status === 'extracted' ? 'Converted/Extracted' : 'Manual Remove', false);
+                        }
+                    }
+                }
+            });
+
+            let closingOld = openOld + todayOldIn - todayOldOut;
+            let closingNet = liveInventoryStockNet;
+            let closingMix = liveInventoryStockMix;
+
+            let openNet = closingNet - todayNetIn + todayNetOut;
+            let openMix = closingMix - todayMixIn + todayMixOut;
+
+            let jamaNet = openNet + todayNetIn;
+            let jamaOld = openOld + todayOldIn;
+            let jamaMix = openMix + todayMixIn;
+            let jamaTotalMetal = jamaNet + jamaOld + jamaMix;
+
+            let namaNet = todayNetOut + closingNet;
+            let namaOld = todayOldOut + closingOld;
+            let namaMix = todayMixOut + closingMix;
+            let namaTotalMetal = namaNet + namaOld + namaMix;
+
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
-                let cDate = c.date ? c.date.split('T')[0] : '';
+                let cDate = toLocalDateStr(c.date);
                 let mType = getMoneyType(c.mode);
                 if(mType === 'none') return; 
 
@@ -233,247 +935,402 @@
                 }
             });
 
-            // --- 2. SALES PROCESSING ---
-            sales.forEach(s => {
-                let isOrderBill = String(s.jobType || s.orderType || '').toLowerCase().includes('repair') || String(s.jobType || '').toLowerCase().includes('order');
-                let metalIn = 0, metalOut = 0;
+            let openingTotal = openCash + openBank;
+            let closingCash = openCash + todayCashIn - todayCashOut;
+            let closingBank = openBank + todayBankIn - todayBankOut;
+            let closingTotal = closingCash + closingBank;
+
+            document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
+            document.getElementById('openCash').innerText = fmtNum(openCash);
+            document.getElementById('openBank').innerText = fmtNum(openBank);
+
+            document.getElementById('todayIn').innerText = "+₹" + fmtNum(todayCashIn + todayBankIn);
+            document.getElementById('todayOut').innerText = "-₹" + fmtNum(todayCashOut + todayBankOut);
+            
+            document.getElementById('closeBal').innerText = "₹" + fmtNum(closingTotal);
+            document.getElementById('closeCash').innerText = fmtNum(closingCash);
+            document.getElementById('closeBank').innerText = fmtNum(closingBank);
+
+            document.getElementById('openBalText').innerHTML = `₹${fmtNum(openingTotal)} T = <span style="color:#2e7d32;">${fmtNum(openCash)}*</span> + <span style="color:#1976d2;">${fmtNum(openBank)}#</span>`;
+            document.getElementById('closeBalText').innerHTML = `₹${fmtNum(closingTotal)} T = <span style="color:#2e7d32;">${fmtNum(closingCash)}*</span> + <span style="color:#1976d2;">${fmtNum(closingBank)}#</span>`;
+
+            document.getElementById('uiOpenNet').innerText = openNet.toFixed(3) + "g";
+            document.getElementById('uiOpenOld').innerText = openOld.toFixed(3) + "g";
+            document.getElementById('uiOpenMix').innerText = openMix.toFixed(3) + "g";
+            
+            document.getElementById('uiCloseNet').innerText = closingNet.toFixed(3) + "g";
+            document.getElementById('uiCloseOld').innerText = closingOld.toFixed(3) + "g";
+            document.getElementById('uiCloseMix').innerText = closingMix.toFixed(3) + "g";
+
+            ['Net', 'Old', 'Mix'].forEach(cat => {
+                let elIn = document.getElementById(`md${cat}In`);
+                let elOut = document.getElementById(`md${cat}Out`);
+                if(elIn) elIn.innerHTML = dMetal[cat].in.length > 0 ? dMetal[cat].in.join('') : '<div class="empty-log" style="font-size:0.7rem; padding:10px 0; color:#aaa;">No Data</div>';
+                if(elOut) elOut.innerHTML = dMetal[cat].out.length > 0 ? dMetal[cat].out.join('') : '<div class="empty-log" style="font-size:0.7rem; padding:10px 0; color:#aaa;">No Data</div>';
+            });
+
+            document.getElementById('tJamaNet').innerText = jamaNet.toFixed(3) + "g";
+            document.getElementById('tJamaOld').innerText = jamaOld.toFixed(3) + "g";
+            document.getElementById('tJamaMix').innerText = jamaMix.toFixed(3) + "g";
+            document.getElementById('tJamaTotal').innerText = jamaTotalMetal.toFixed(3) + "g";
+
+            document.getElementById('tNamaNet').innerText = namaNet.toFixed(3) + "g";
+            document.getElementById('tNamaOld').innerText = namaOld.toFixed(3) + "g";
+            document.getElementById('tNamaMix').innerText = namaMix.toFixed(3) + "g";
+            document.getElementById('tNamaTotal').innerText = namaTotalMetal.toFixed(3) + "g";
+
+            // --- 5. CASH FLOW UI GENERATION ---
+            let logs = {
+                'Sale': [], 'Byaaj Jama': [], 'Girvi Chhudaya': [], 'Order In': [], 'Repair In': [], 'BC In': [], 'Vyapari Aaya': [], 'Other In': [], 
+                'SaleDueRecv': [], 'PurchaseDue': [], 'MeltIn': [],
+                'Purchase': [], 'Girvi Diya': [], 'Vyapari Diya': [], 'Repair Out': [], 'BC Out': [], 'Other Out': [], 'Expense': [],
+                'SaleDueGiven': [], 'OldGold': [], 'MeltOut': []
+            };
+
+            let sumJama = openingTotal;
+            let sumNama = 0;
+
+            const pushLog = (key, amt, midStr, rightStr, splitStr, isIN, metalFlows = [], amtOverride = null) => {
+                if(amt === 0 && metalFlows.length === 0 && !amtOverride) return;
                 
-                (s.items || []).forEach(i => {
-                    let net = getSafeNet(i);
-                    let isItemOld = i.isItemOld || i.isOldGold || String(i.category || '').toLowerCase().includes('old') || String(i.type || '').toLowerCase() === 'old';
-                    if (isItemOld) metalIn += net; else metalOut += net;
+                let c = isIN ? 'c-in' : 'c-out';
+                let splitHTML = splitStr ? `<div class="log-split">${splitStr}</div>` : '';
+                
+                let metalHTML = rightStr !== '' ? `<span>${rightStr}</span>` : '';
+                metalFlows.forEach(m => {
+                    if(m.val !== 0) {
+                        let isPos = m.val > 0;
+                        let sign = isPos ? '+' : '';
+                        let cssClass = isPos ? 'wt-plus' : 'wt-minus';
+                        metalHTML += `<span class="wt-tag ${cssClass}">${sign}${m.val.toFixed(3)}g ${m.label}</span>`;
+                    }
                 });
+
+                let displayAmt = amtOverride !== null ? amtOverride : `₹${fmtNum(amt)}`;
+
+                if(logs[key]) {
+                    logs[key].push(`
+                    <div class="log-item">
+                        <div class="log-main">
+                            <span class="log-amt ${c}">${displayAmt}</span>
+                            <span class="log-code">| ${midStr} |</span>
+                            <span class="log-wt">${metalHTML}</span>
+                        </div>
+                        ${splitHTML}
+                    </div>`);
+                }
                 
-                if (metalIn === 0) metalIn = parseNum(s.oldGoldWeight || s.oldGoldWt || s.oldGoldNet || s.oldGoldWtGrams);
-                if (isOrderBill) metalIn = 0; 
+                if(isIN) sumJama += amt;
+                else sumNama += amt;
+            };
 
-                logMetal(s.date, metalIn, true, 'OLD'); 
-                if (!isOrderBill && metalOut > 0) logMetal(s.date, metalOut, false, 'NET'); 
-                else if (isOrderBill && metalOut > 0 && s.jobType !== 'Repair') logMetal(s.date, metalOut, false, 'NET');
-
-                if (s.status !== 'cancelled' && s.date && s.date.startsWith(today)) {
-                    let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
-                    if (isRepairSale) return; 
-
-                    let advance = Math.abs(parseNum(s.advanceAmount || 0));
-                    let udhari = Math.abs(parseNum(s.pendingAmount));
-                    let paid = Math.abs(parseNum(s.paidAmount));
-                    
-                    if (paid > 0) {
-                        cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                                let cAmt = Math.abs(parseNum(c.amount));
-                                let cat = String(c.category || '').toLowerCase();
-                                let note = String(c.note || '').toLowerCase();
-                                if (cAmt === paid) {
-                                    if (cat.includes('sale') || note.includes('bill') || note.includes('inv-') || cat.includes('bikri') || String(c.saleId) === String(s.id)) c.alreadyHandled = true;
-                                    else if ((advance > 0 || isOrderBill) && (cat.includes('order') || note.includes('ord-'))) c.alreadyHandled = true;
-                                }
-                            }
-                        });
-                    }
-
-                    let cName = getCustName(s.customerId);
-                    let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
-                    let uSpl = getMoneySplits(s.payments, s.mode, paid);
-                    
-                    logUL(cName, itemStr, uSpl.c, uSpl.u, 0, 0, metalIn, 0, 0, 0, udhari, metalOut, 0, 0);
-                }
-            });
-
-            // --- 3. PURCHASES PROCESSING ---
-            purchases.forEach(p => {
-                let mIn = 0;
-                let rootNet = parseNum(p.totalNetWeight || p.netWt || p.netWeight);
-                let rootGross = parseNum(p.totalGrossWeight || p.grossWt);
-                let rootStone = parseNum(p.totalStoneWeight || p.stoneWt);
-                
-                if (rootNet > 0) mIn = rootNet;
-                else if (rootGross > 0) mIn = rootGross - rootStone;
-                else if (p.itemDetails && p.itemDetails.length > 0) p.itemDetails.forEach(i => mIn += getSafeNet(i));
-                else mIn = parseNum(p.totalWeight || p.weight);
-                
-                logMetal(p.date, mIn, true, 'NET');
-
-                if (p.date && p.date.startsWith(today)) {
-                    let mName = getMerchName(p.merchantId);
-                    let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
-                    let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
-                    let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Purchase';
-                    
-                    if (paid > 0) {
-                        cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                                let cat = String(c.category || '').toLowerCase();
-                                let note = String(c.note || '').toLowerCase();
-                                if (Math.abs(parseNum(c.amount)) === paid && (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi') || cat.includes('vyapari'))) {
-                                    c.alreadyHandled = true;
-                                }
-                            }
-                        });
-                    }
-
-                    let uSpl = getMoneySplits(p.payments, p.paymentMode||p.mode, paid);
-                    logUL(mName, itemStr, 0, 0, due, mIn, 0, 0, uSpl.c, uSpl.u, 0, 0, 0, 0);
-                }
-            });
-
-            // --- 4. MERCHANT UNFIXED PAYMENTS ---
-            mPayments.forEach(mp => {
-                if (mp.goldType !== 'fixed') {
-                    let net = parseNum(mp.gold);
-                    if (mp.paymentType === 'OUT') logMetal(mp.date, net, false, 'NET');
-                    else logMetal(mp.date, net, true, 'NET');
-
-                    if (mp.date && mp.date.startsWith(today) && net > 0) {
-                        let mName = getMerchName(mp.merchantId);
-                        if (mp.paymentType === 'OUT') logUL(mName, 'Unfixed Paid', 0,0,0, 0,0,0, 0,0,0, net,0,0);
-                        else logUL(mName, 'Unfixed Recv', 0,0,0, net,0,0, 0,0,0, 0,0,0);
-                    }
-                }
-            });
-
-            // --- 5. OLD GOLD & REFINERY ---
-            oldGold.forEach(o => {
-                if (o.mode !== 'POS Exchange') {
-                    let isMelt = String(o.type || o.category || '').toUpperCase().includes('MELT');
-                    if (isMelt) {
-                        let sent = parseNum(o.sentWt || o.issuedWt || o.grossWt);
-                        let recv = parseNum(o.receivedWt || o.meltedWt || o.netWt);
-                        let loss = parseNum(o.lossWt);
-                        if (recv > 0 && loss === 0) loss = sent - recv;
-                        if (loss > 0 && recv === 0) recv = sent - loss;
-                        if (loss < 0) loss = 0;
-                        if (recv < 0) recv = 0;
-
-                        if (recv > 0 || loss > 0) {
-                            if (recv > 0) { logMetal(o.date, recv, true, 'MIX'); logMetal(o.date, recv, false, 'OLD'); }
-                            if (loss > 0) { logMetal(o.date, loss, false, 'OLD'); }
-                        } else {
-                            logMetal(o.date, sent, false, 'OLD');
-                        }
-
-                        if (o.date && o.date.startsWith(today)) {
-                            if (sent > 0 && loss === 0 && recv === 0) logUL('Refinery', 'Melt Sent', 0,0,0, 0,0,0, 0,0,0, 0,sent,0);
-                            else if (sent > 0 && loss > 0) {
-                                let converted = sent - loss;
-                                if(converted > 0) logUL('Refinery', 'Melt Sent', 0,0,0, 0,0,0, 0,0,0, 0,converted,0);
-                                logUL('Refinery', 'Melting Loss', 0,0,0, 0,0,0, 0,0,0, 0,loss,0);
-                            }
-                            if (recv > 0) logUL('Refinery', 'Pure Recv', 0,0,0, 0,0,recv, 0,0,0, 0,0,0);
-                        }
-                    } else {
-                        let wt = getSafeNet(o);
-                        logMetal(o.date, wt, true, 'OLD');
-                        if (o.date && o.date.startsWith(today)) {
-                            let amt = Math.abs(parseNum(o.amount || o.cash));
-                            let uSpl = getMoneySplits(null, o.mode, amt);
-                            logUL(getCustName(o.customerId), 'Bought Old Gold', 0,0,0, 0,wt,0, uSpl.c, uSpl.u, 0, 0,0,0);
-                        }
-                    }
-                }
-            });
-
-            // --- 6. ORDERS & REPAIRS ---
             orders.forEach(o => {
-                if (o.status === 'cancelled') return;
+                if (o.status === 'cancelled' && o.oldGoldReturned) return;
+                let oDate = toLocalDateStr(o.orderDate || o.date);
+                let cName = getCustName(o.customerId);
                 
+                if (oDate === today && o.status !== 'cancelled') {
+                    let itemN = o.itemName || o.item || o.description || o.jobType || 'Order';
+                    let ogAmt = Math.abs(parseNum(o.oldGoldValue || o.oldGoldAmount || o.oldGoldAmt || 0));
+                    let ogWt = checkIsSilver(o.oldGoldPurity) ? 0 : Math.abs(parseNum(o.oldGoldNet || 0));
+                    let advCash = Math.abs(parseNum(o.advancePaid || o.advanceAmount || o.paidAmount || 0)); 
+                    let totalIn = advCash + ogAmt;
+                    
+                    let matchedMode = 'Cash';
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && isSameDay(c.date, today)) {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            if (cat.includes('order') || note.includes('ord-')) {
+                                let cAmt = Math.abs(parseNum(c.amount));
+                                if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || cAmt === advCash) {
+                                    c.alreadyHandled = true;
+                                    matchedMode = c.mode || matchedMode;
+                                }
+                            }
+                        }
+                    });
+
+                    if (totalIn > 0) {
+                        let spl = getSplitStr(o.payments, matchedMode, advCash, totalIn);
+                        pushLog('Order In', totalIn, `${cName} - ${itemN}`, 'Adv + OG', spl, true);
+                    }
+                    if (ogAmt > 0) {
+                        pushLog('OldGold', ogAmt, cName, 'Order OG Exch', '', false, ogWt > 0 ? [{val: ogWt, label: 'Old'}] : []);
+                    }
+                }
+                
+                if (o.status === 'cancelled') return;
                 let kNameRaw = o.karigarName || o.karigar || (o.karigarId ? getMerchName(o.karigarId) : null) || (o.merchantId ? getMerchName(o.merchantId) : 'Karigar');
                 if (kNameRaw === 'Walk-in' || kNameRaw === 'Merchant') kNameRaw = 'Karigar';
                 let kName = kNameRaw + ' (Karigar)';
 
-                if (o.jobType === 'Repair') {
-                    let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
-                    let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
-                    
-                    if (shopIssued > 0) logMetal(o.repairMeta?.issuedDate || o.orderDate, shopIssued, false, 'NET');
-                    if (returnedRaw > 0) logMetal(o.repairMeta?.auditDate || o.orderDate, returnedRaw, true, 'NET');
-
-                    let iDate = o.repairMeta?.issuedDate || o.orderDate;
-                    if (iDate && iDate.startsWith(today) && shopIssued > 0) logUL(kName, 'Repair Issue', 0,0,0, 0,0,0, 0,0,0, shopIssued,0,0);
-                    
-                    let aDate = o.repairMeta?.auditDate || o.orderDate;
-                    if (aDate && aDate.startsWith(today) && returnedRaw > 0) logUL(kName, 'Repair Recv', 0,0,0, returnedRaw,0,0, 0,0,0, 0,0,0);
-
-                } else {
-                    let inWt = parseNum(o.oldGoldNet);
-                    if (inWt > 0) logMetal(o.orderDate, inWt, true, 'OLD');
-
-                    let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
-                    let issueCategory = o.sourceStockId ? 'NET' : 'MIX';
-                    if (karigarIssuedWt > 0) logMetal(o.orderDate, karigarIssuedWt, false, issueCategory);
-
-                    let receivedFromKarigarWt = parseNum(o.finalNet);
-                    if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                        logMetal(o.orderDate, receivedFromKarigarWt, true, 'NET');
-                    }
-
-                    if (o.orderDate && o.orderDate.startsWith(today)) {
-                        let cName = getCustName(o.customerId);
-                        let itemN = o.itemName || o.item || o.jobType || 'Order';
+                if (isGold(o)) {
+                    if (o.jobType === 'Repair') {
+                        let shopIssued = parseNum(o.repairMeta?.shopIssuedWt || o.repairMeta?.shopGoldIssued);
+                        let returnedRaw = parseNum(o.repairMeta?.rawReturned || o.repairMeta?.rawMetalReturned);
+                        let fIssue = getSafeFine(o.repairMeta) || parseNum(o.repairMeta?.fineIssued || o.repairMeta?.issuedFineWt);
                         
-                        let advCash = Math.abs(parseNum(o.advanceAmount || o.paidAmount || o.advancePaid || 0));
-                        let matchedMode = 'Cash';
-                        cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                                let cat = String(c.category || '').toLowerCase();
-                                let note = String(c.note || '').toLowerCase();
-                                if (cat.includes('order') || note.includes('ord-')) {
-                                    if (note.includes(String(o.id)) || String(c.orderId) === String(o.id) || Math.abs(parseNum(c.amount)) === advCash) {
-                                        c.alreadyHandled = true;
-                                        matchedMode = c.mode || matchedMode;
-                                    }
-                                }
+                        let iDate = o.repairMeta?.issuedDate || o.orderDate;
+                        if (isSameDay(iDate, today) && shopIssued > 0) {
+                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Diya', 0, kName, 'Repair Metal Issued', '', false, [{val: shopIssued, label: 'NET'}], customAmt);
+                        }
+                        
+                        let aDate = o.repairMeta?.auditDate || o.orderDate;
+                        if (isSameDay(aDate, today) && returnedRaw > 0) {
+                            let fRet = parseNum(o.repairMeta?.fineReturned || o.repairMeta?.returnedFineWt); 
+                            let customAmt = `<span style="color:#000;">${(fRet > 0 ? fRet : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Aaya', 0, kName, 'Repair Metal Recv', '', true, [{val: returnedRaw, label: 'NET'}], customAmt);
+                        }
+                    } else {
+                        let karigarIssuedWt = parseNum(o.issuedGrossWt || o.assignedWt || o.karigarWt || o.mixMetalWt);
+                        let issueCategory = 'NET'; 
+                        let fIssue = parseNum(o.issuedFineWt || o.fineWt || o.fineWeight || o.expectedFine);
+
+                        if (isSameDay(o.orderDate, today) && karigarIssuedWt > 0) {
+                            let wtDesc = `${o.issuedGrossWt || karigarIssuedWt}g + Wst`;
+                            let customAmt = `<span style="color:#000;">${(fIssue > 0 ? fIssue : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Diya', 0, kName, `Metal Issue (${wtDesc})`, '', false, [{val: karigarIssuedWt, label: issueCategory}], customAmt);
+                        }
+
+                        let receivedFromKarigarWt = parseNum(o.finalNet);
+                        let fRecv = getSafeFine(o) || parseNum(o.finalFine || o.fineNet || o.totalFineWeight || o.receivedFine);
+                        if (isSameDay(o.orderDate, today) && receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
+                            let customAmt = `<span style="color:#000;">${(fRecv > 0 ? fRecv : 0).toFixed(3)}gF</span>`;
+                            pushLog('Vyapari Aaya', 0, kName, 'Order Metal Recv', '', true, [{val: receivedFromKarigarWt, label: 'NET'}], customAmt);
+                        }
+                    }
+                }
+            });
+
+            sales.filter(s => s.status !== 'cancelled' && isSameDay(s.date, today)).forEach(s => {
+                let isRepairSale = String(s.jobType || s.type || '').toLowerCase().includes('repair');
+                if (isRepairSale) return; 
+
+                let advance = Math.abs(parseNum(s.advanceAmount || 0));
+                let isOrderBill = advance > 0 || String(s.jobType || s.orderType || '').toLowerCase().includes('order');
+                let cName = s.customerName || getCustName(s.customerId);
+                let currentUdhari = Math.abs(parseNum(s.pendingAmount));
+                
+                if (isOrderBill) {
+                    let udhariPaidToday = 0;
+                    
+                    cFlows.forEach(c => {
+                        if (isSameDay(c.date, today) && c.type !== 'OUT') {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            let isUdhariFlow = cat.includes('udhari') || note.includes('udhari') || cat.includes('due') || note.includes('due') || cat.includes('outstanding');
+                            
+                            let isMatch = false;
+                            if (c.saleId && String(c.saleId) === String(s.id)) isMatch = true;
+                            else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isMatch = true;
+                            else if (c.orderId && String(c.orderId) === String(s.orderId || s.id)) isMatch = true;
+                            
+                            if (isUdhariFlow && isMatch) {
+                                udhariPaidToday += Math.abs(parseNum(c.amount));
                             }
-                        });
+                        }
+                    });
 
-                        if (advCash > 0 || inWt > 0) {
-                            let uSpl = getMoneySplits(o.payments, matchedMode, advCash);
-                            logUL(cName, itemN, uSpl.c, uSpl.u, 0, 0, inWt, 0, 0, 0, 0, 0, 0, 0);
-                        }
+                    let originalUdhari = currentUdhari + udhariPaidToday;
 
-                        if (karigarIssuedWt > 0) {
-                            logUL(kName, `Issue ${o.itemName||'Metal'}`, 0,0,0, 0,0,0, 0,0,0, issueCategory==='NET'?karigarIssuedWt:0, 0, issueCategory==='MIX'?karigarIssuedWt:0);
+                    if (originalUdhari > 0) {
+                        pushLog('SaleDueGiven', originalUdhari, cName, 'Order Udhari', '', false);
+                    }
+                    return; 
+                }
+                
+                let udhari = currentUdhari;
+                let paid = Math.abs(parseNum(s.paidAmount));
+                let og = isOrderBill ? 0 : Math.abs(parseNum(s.oldGoldDeduction));
+                
+                cFlows.forEach(c => {
+                    if (!c.alreadyHandled && isSameDay(c.date, today)) {
+                        let cat = String(c.category || '').toLowerCase();
+                        let note = String(c.note || '').toLowerCase();
+                        
+                        let isMatch = false;
+                        if (c.saleId && String(c.saleId) === String(s.id)) isMatch = true;
+                        else if (c.refId && String(c.refId) === String(s.id)) isMatch = true;
+                        else if (s.invoiceNo && note.includes(String(s.invoiceNo).toLowerCase())) isMatch = true;
+                        else if (note.includes(String(s.id).toLowerCase())) isMatch = true;
+
+                        if (isMatch) {
+                            let isRecoveryFlow = cat.includes('udhari') || note.includes('due payment');
+                            if (!isRecoveryFlow && (cat.includes('sale') || note.includes('bill') || note.includes('inv:') || note.includes('inv-') || cat.includes('bikri') || cat.includes('reversal'))) {
+                                c.alreadyHandled = true;
+                            }
                         }
-                        if (receivedFromKarigarWt > 0 && ['completed', 'ready', 'billed', 'delivered'].includes(o.status)) {
-                            logUL(kName, `Recv ${o.itemName||'Metal'}`, 0,0,0, receivedFromKarigarWt,0,0, 0,0,0, 0,0,0);
+                    }
+                });
+                
+                let itemStr = s.items && s.items.length > 0 ? s.items[0].barcode || s.items[0].category : 'Item';
+                let netWtSold = 0, oldWtRcv = 0;
+                
+                (s.items || []).forEach(i => {
+                    if (i.isOldGold) {
+                        if (!checkIsSilver(i.purity)) {
+                            oldWtRcv += (parseFloat(i.weight) || 0);
                         }
+                    } else if (isGold(i)) {
+                        netWtSold += getSafeNet(i);
+                    }
+                });
+
+                let jamaAmt = paid + udhari + og;
+
+                if(jamaAmt > 0) {
+                    let spl = getSplitStr(s.payments, s.mode, paid, jamaAmt);
+                    pushLog('Sale', jamaAmt, `${cName} - ${itemStr}`, '', spl, true, [{val: -netWtSold, label:'Net'}]);
+                } else if (netWtSold > 0) {
+                    pushLog('Sale', 0, `${cName} - ${itemStr}`, 'Delivered', '', true, [{val: -netWtSold, label:'Net'}], '₹0');
+                }
+                
+                if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
+                if(og > 0) pushLog('OldGold', og, cName, 'Bill Exch', '', false, oldWtRcv > 0 ? [{val: oldWtRcv, label:'Old'}] : []);
+            });
+
+            purchases.filter(p => isSameDay(p.date, today)).forEach(p => {
+                let mName = getMerchName(p.merchantId);
+                let gross = Math.abs(parseNum(p.totalAmount || p.grandTotal)); 
+                let due = Math.abs(parseNum(p.pendingAmount || p.dueAmount));
+                let paid = Math.abs(parseNum(p.paidAmount || p.advanceAmount));
+                let itemStr = p.items && p.items.length > 0 ? p.items[0].category : 'Stock';
+
+                let netWtBought = 0;
+                let explicitTotal = parseNum(p.totalWeight || p.totalNetWeight || p.totalNetWt);
+                
+                if (explicitTotal > 0) {
+                    netWtBought = explicitTotal;
+                } else if (p.itemDetails && p.itemDetails.length > 0) {
+                    p.itemDetails.forEach(i => { 
+                        if(isGold(i)) netWtBought += getSafeNet(i); 
+                    });
+                } else {
+                    let rootGross = parseNum(p.totalGrossWeight || p.totalGrossWt || p.grossWt || p.grossWeight);
+                    let rootStone = parseNum(p.totalStoneWeight || p.totalStoneWt || p.stoneWt || p.stoneWeight);
+                    if (rootGross > 0) netWtBought = rootGross - rootStone;
+                    else netWtBought = parseNum(p.weight || p.netWt || p.netWeight);
+                }
+
+                let actualWt = parseNum(p.totalNetWeight || p.totalWeight || p.totalGrossWeight || p.grossWt);
+                if(actualWt === 0) actualWt = netWtBought;
+                let displayPurity = p.purity || p.averagePurity || (p.itemDetails && p.itemDetails.length > 0 ? p.itemDetails[0].purity : "24K / Fine");
+
+                let mathDesc = `<br><span style="font-size:0.7rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Act Wt: ${parseFloat(actualWt).toFixed(3)}g × Purity: ${displayPurity}</span>`;
+                
+                itemStr += mathDesc;
+
+                if (paid > 0) {
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && isSameDay(c.date, today)) {
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            if (Math.abs(parseNum(c.amount)) === paid && (cat.includes('purchase') || note.includes('pur-') || cat.includes('khareedi') || cat.includes('vyapari'))) {
+                                c.alreadyHandled = true;
+                            }
+                        }
+                    });
+                }
+
+                if(gross > 0) {
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, gross);
+                    pushLog('Purchase', gross, mName, itemStr, spl, false, [{val: netWtBought, label:'Net'}]);
+                } else if (paid > 0) { 
+                    let spl = getSplitStr(p.payments, p.paymentMode||p.mode, paid, paid);
+                    pushLog('Vyapari Diya', paid, mName, 'Unfixed Adv' + mathDesc, spl, false, [{val: netWtBought, label:'Net'}]);
+                } else {
+                    let isDouble = false;
+                    mPayments.forEach(mp => {
+                        if (mp.goldType !== 'fixed' && isSameDay(mp.date, today) && parseNum(mp.gold) === netWtBought && String(mp.merchantId) === String(p.merchantId)) {
+                            isDouble = true;
+                        }
+                    });
+                    if (!isDouble && netWtBought > 0) {
+                        let f = getSafeFine(p);
+                        let customAmt = `<span style="color:#000;">${(f > 0 ? f : 0).toFixed(3)}gF</span>`;
+                        pushLog('Vyapari Aaya', 0, mName, 'Unfixed Metal Recv' + mathDesc, '', true, [{val: netWtBought, label:'Net'}], customAmt);
+                    }
+                }
+                if(due > 0) pushLog('PurchaseDue', due, mName, 'Credit', '', true);
+            });
+
+            // --- UPDATED MERCHANT PAYMENTS (METAL + CASH) ---
+            mPayments.forEach(mp => {
+                if (!isSameDay(mp.date, today)) return;
+                let mName = mp.merchantName || getMerchName(mp.merchantId);
+
+                if (isGold(mp)) {
+                    let net = parseNum(mp.gold); 
+                    if (mp.goldType !== 'fixed' && net > 0) {
+                        let actualWt = parseNum(mp.originalGrossWt) || net;
+                        let displayPurity = mp.purity || "Fine";
+                        if (!mp.purity && actualWt > net) {
+                            displayPurity = ((net / actualWt) * 100).toFixed(1) + "%";
+                        }
+                        let mathDesc = `<br><span style="font-size:0.7rem; color:#475569; background:#f8fafc; padding:2px 6px; border-radius:4px; margin-top:3px; display:inline-block; border:1px solid #cbd5e1;">Act Wt: ${parseFloat(actualWt).toFixed(3)}g × Purity: ${displayPurity}</span>`;
+                        let customAmt = `<span style="color:#000;">${net.toFixed(3)}gF</span>`;
+
+                        if (mp.paymentType === 'OUT') {
+                            pushLog('Vyapari Diya', 0, mName, `Paid Unfixed` + mathDesc, '', false, [{val: net, label: 'NET'}], customAmt);
+                        } else {
+                            pushLog('Vyapari Aaya', 0, mName, `Recv Unfixed` + mathDesc, '', true, [{val: net, label: 'NET'}], customAmt);
+                        }
+                    }
+                }
+
+                let cashAmt = Math.abs(parseNum(mp.cash || mp.amount || mp.cashAmount || mp.paidAmount));
+                if (cashAmt > 0) {
+                    let matchedMode = mp.mode || mp.paymentMode || 'Cash';
+                    
+                    cFlows.forEach(c => {
+                        if (!c.alreadyHandled && isSameDay(c.date, today)) {
+                            let cAmt = Math.abs(parseNum(c.amount));
+                            let cat = String(c.category || '').toLowerCase();
+                            let note = String(c.note || '').toLowerCase();
+                            if (cAmt === cashAmt && (
+                                String(c.refId) === String(mp.id) ||
+                                cat.includes('merchant') || cat.includes('vyapari') || 
+                                note.includes('settlement') || note.includes('merchant') || 
+                                note.includes('vyapari') || String(c.merchantId) === String(mp.merchantId) ||
+                                note.includes(String(mp.id))
+                            )) {
+                                c.alreadyHandled = true;
+                                if (c.mode) matchedMode = c.mode;
+                            }
+                        }
+                    });
+
+                    let spl = getSplitStr(mp.payments, matchedMode, cashAmt, cashAmt);
+                    if (mp.paymentType === 'IN') {
+                        pushLog('Vyapari Aaya', cashAmt, mName, mp.note || 'Recv', spl, true);
+                    } else {
+                        pushLog('Vyapari Diya', cashAmt, mName, mp.note || 'Paid', spl, false);
                     }
                 }
             });
 
-            // --- 7. INVENTORY CUSTOM STOCK ---
-            inventory.forEach(inv => {
-                if (inv.source !== 'purchase') {
-                    let mIn = getSafeNet(inv);
-                    let itemDate = inv.addedDate || inv.date || '';
-                    logMetal(itemDate, mIn, true, 'NET');
-                    if (itemDate.startsWith(today) && mIn > 0) {
-                        let displayName = inv.category || inv.name || 'Inventory';
-                        logUL(displayName, 'Custom Add', 0,0,0, mIn,0,0, 0,0,0, 0,0,0);
-                    }
-                }
-            });
-
-            // --- 8. LOANS ---
             loans.forEach(l => {
                 let cName = getCustName(l.customerId);
                 let cNameWithId = `${cName} [L-${l.id}]`; 
                 let itemN = l.description || l.itemName || l.item || 'Item';
                 
-                if (l.date && String(l.date).startsWith(today)) {
+                if (isSameDay(l.date, today)) {
                     let amt = Math.abs(parseNum(l.amount));
                     if(amt > 0) {
-                        let uSpl = getMoneySplits([], 'cash', amt);
-                        logUL(cNameWithId, itemN + ' (New)', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
+                        let spl = `(₹${fmtNum(amt)}*)`; 
+                        let wt = Math.abs(parseNum(l.weight));
+                        pushLog('Girvi Diya', amt, cNameWithId, `${itemN} ${wt.toFixed(3)}g`, spl, false);
 
                         cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                            if (!c.alreadyHandled && isSameDay(c.date, today)) {
                                 let cAmt = Math.abs(parseNum(c.amount));
                                 let cat = String(c.category || '').toLowerCase();
                                 let note = String(c.note || '').toLowerCase();
                                 let cType = c.type || 'OUT';
                                 if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
+                                
                                 if (cType === 'OUT' && cAmt === amt) {
                                     if (cat.includes('loan') || cat.includes('girvi') || note.includes('loan') || note.includes('girvi') || note.includes(String(l.id))) {
                                         c.alreadyHandled = true;
@@ -485,51 +1342,125 @@
                 }
                 
                 if (l.payments && l.payments.length > 0) {
-                    l.payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
+                    l.payments.filter(p => isSameDay(p.date, today)).forEach(p => {
                         let intAmt = Math.abs(parseNum(p.interestPaid));
                         let prinAmt = Math.abs(parseNum(p.principalPaid));
                         let totalAmt = Math.abs(parseNum(p.totalAmount || p.amount));
                         let cAmt = Math.abs(parseNum(p.cashAmount));
                         let bAmt = Math.abs(parseNum(p.bankAmount));
                         
-                        if(totalAmt > 0) {
-                            let isLastPayment = (p === l.payments[l.payments.length - 1]);
-                            let prinLabel = (l.status === 'closed' && isLastPayment) ? 'Chhudaya' : 'Jama Pete';
-                            logUL(cNameWithId, itemN + ' (' + prinLabel + ')', cAmt, bAmt, 0, 0,0,0, 0,0,0, 0,0,0);
+                        if(totalAmt === 0) return;
 
-                            cFlows.forEach(c => {
-                                if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
-                                    let flowAmt = Math.abs(parseNum(c.amount));
-                                    let cat = String(c.category || '').toLowerCase();
-                                    let note = String(c.note || '').toLowerCase();
-                                    let cType = c.type || 'OUT';
-                                    if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
-                                    if (cType === 'IN' && flowAmt === totalAmt) {
-                                        if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || note.includes('loan') || note.includes('girvi') || cat.includes('payment') || note.includes(String(l.id))) {
-                                            c.alreadyHandled = true;
-                                        }
+                        let splParts = [];
+                        if(cAmt > 0) splParts.push(`${fmtNum(cAmt)}*`);
+                        if(bAmt > 0) splParts.push(`${fmtNum(bAmt)}#`);
+                        let splText = splParts.length > 0 ? `(${splParts.join(' + ')})` : `(₹${fmtNum(totalAmt)}*)`;
+
+                        let isLastPayment = (p === l.payments[l.payments.length - 1]);
+                        let prinLabel = (l.status === 'closed' && isLastPayment) ? 'Chhudaya' : 'Jama Pete';
+
+                        if (intAmt > 0) {
+                            pushLog('Byaaj Jama', intAmt, cNameWithId, 'Byaaj', splText, true);
+                        }
+                        if (prinAmt > 0) {
+                            pushLog('Girvi Chhudaya', prinAmt, cNameWithId, prinLabel, intAmt > 0 ? '' : splText, true);
+                        }
+                        
+                        if (intAmt === 0 && prinAmt === 0 && totalAmt > 0) {
+                             pushLog('Byaaj Jama', totalAmt, cNameWithId, 'Byaaj / Jama', splText, true);
+                        }
+
+                        cFlows.forEach(c => {
+                            if (!c.alreadyHandled && isSameDay(c.date, today)) {
+                                let flowAmt = Math.abs(parseNum(c.amount));
+                                let cat = String(c.category || '').toLowerCase();
+                                let note = String(c.note || '').toLowerCase();
+                                let cType = c.type || 'OUT';
+                                if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
+                                
+                                if (cType === 'IN' && flowAmt === totalAmt) {
+                                    if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || note.includes('loan') || note.includes('girvi') || cat.includes('payment') || note.includes(String(l.id))) {
+                                        c.alreadyHandled = true;
                                     }
                                 }
-                            });
-                        }
+                            }
+                        });
                     });
                 }
             });
 
-            // --- 9. SCHEMES (BC) ---
+            // --- OLD GOLD CASH & MELT MINI-LOGS (MATCHED WITH oldgold.html) ---
+            oldGold.filter(d => isSameDay(d.date, today)).forEach(d => {
+                const isSilv = d.metal ? (d.metal === 'Silver') : checkIsSilver(d.purity);
+
+                if (d.type === 'MELT') {
+                    if (isSilv) return;
+                    let sent = parseFloat(d.sentWt) || 0;
+                    let returnWt = parseFloat(d.returnWt || d.receivedWt) || 0;
+                    let cutWt = parseFloat(d.cutWt) || 0;
+                    let loss = parseFloat(d.lossWt) || 0;
+                    let recvBarWt = Math.max(0, returnWt - cutWt);
+                    
+                    if (sent > 0) {
+                        if (loss > 0) {
+                            let converted = Math.max(0, sent - loss);
+                            if (converted > 0) {
+                                pushLog('MeltOut', 0, `Refinery #${d.id}`, 'Melt Sent', '', false, [{val: -converted, label:'Old'}], '<span style="color:#c62828;">SENT</span>');
+                            }
+                            pushLog('MeltOut', 0, `Refinery #${d.id}`, 'Melting Loss', '', false, [{val: -loss, label:'Old'}], '<span style="color:#d84315; font-weight:900;">LOSS</span>');
+                        } else {
+                            pushLog('MeltOut', 0, `Refinery #${d.id}`, 'Melt Sent', '', false, [{val: -sent, label:'Old'}], '<span style="color:#c62828;">SENT</span>');
+                        }
+                    }
+                    if (recvBarWt > 0) {
+                        pushLog('MeltIn', 0, `Refinery (${d.barcode || '#'+d.id})`, `Bar Recv (${d.purity || 'Pending'})`, '', true, [{val: recvBarWt, label:'Mix'}], '<span style="color:#0277bd;">BAR</span>');
+                    }
+                } else if (d.type === 'BUY') {
+                    const c = allCustomers.find(x => String(x.id) === String(d.customerId));
+                    const custName = c ? c.name : 'Unknown';
+                    const dDateStr = String(d.date || '').split('T')[0];
+                    const wt = parseFloat(d.netWt) || 0;
+                    const amt = Math.abs(parseFloat(d.amount) || 0);
+
+                    const isPosDuplicate = posOgTracker.some(posItem =>
+                        posItem.dateStr === dDateStr &&
+                        posItem.netWt === wt &&
+                        posItem.amount === amt &&
+                        posItem.customerName === custName
+                    );
+                    if (isPosDuplicate || d.saleId || d.isPos) return;
+
+                    if (amt > 0) {
+                        // Mark cashflow entry as handled so it doesn't duplicate in Other Out
+                        cFlows.forEach(cf => {
+                            if (!cf.alreadyHandled && isSameDay(cf.date, today)) {
+                                let cfCat = String(cf.category || '').toLowerCase();
+                                let cfNote = String(cf.note || '').toLowerCase();
+                                if (Math.abs(parseNum(cf.amount)) === amt && (cfCat.includes('old') || cfNote.includes(`ref #${d.id}`))) {
+                                    cf.alreadyHandled = true;
+                                }
+                            }
+                        });
+
+                        let spl = getSplitStr(null, d.mode, amt, amt);
+                        pushLog('OldGold', amt, custName, d.description || 'Direct Buy', spl, false, !isSilv && wt > 0 ? [{val: wt, label: 'Old'}] : []);
+                    }
+                }
+            });
+
             schemes.forEach(sch => {
                 let cName = getCustName(sch.customerId);
                 let schTitle = `${cName} [BC-${sch.id}]`;
                 
                 let payments = sch.payments || sch.installments || [];
-                payments.filter(p => p.date && String(p.date).startsWith(today)).forEach(p => {
+                payments.filter(p => isSameDay(p.date, today)).forEach(p => {
                     let pAmt = Math.abs(parseNum(p.amount || p.paidAmount || p.totalAmount));
                     if (pAmt > 0) {
-                        let uSpl = getMoneySplits([p], p.mode || p.paymentMode || 'Cash', pAmt);
-                        logUL(schTitle, 'BC Inst.', uSpl.c, uSpl.u, 0, 0,0,0, 0,0,0, 0,0,0);
-
+                        let spl = getSplitStr([p], p.mode || p.paymentMode || 'Cash', pAmt, pAmt);
+                        pushLog('BC In', pAmt, schTitle, 'Inst.', spl, true);
+                        
                         cFlows.forEach(c => {
-                            if (!c.alreadyHandled && c.date && c.date.startsWith(today)) {
+                            if (!c.alreadyHandled && isSameDay(c.date, today)) {
                                 let cat = String(c.category || '').toLowerCase();
                                 let note = String(c.note || '').toLowerCase();
                                 if ((cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) && Math.abs(parseNum(c.amount)) === pAmt) {
@@ -541,8 +1472,8 @@
                 });
             });
 
-            // --- 10. REMAINING CASHFLOWS (Refunds, Manual Entries, Kharcha) ---
-            cFlows.filter(c => c.date && c.date.startsWith(today) && !c.alreadyHandled).forEach(c => {
+            // --- ALL REMAINING CASHFLOW ENTRIES ---
+            cFlows.filter(c => isSameDay(c.date, today) && !c.alreadyHandled).forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 if(amt === 0 || getMoneyType(c.mode) === 'none') return;
                 
@@ -551,152 +1482,221 @@
                 let type = c.type || 'OUT';
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
                 
-                let uSpl = getMoneySplits(null, c.mode, amt);
+                let spl = getSplitStr(null, c.mode, amt, amt);
 
-                let loanMatch = note.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || cat.match(/(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i);
-                if (type === 'OUT' && loanMatch) {
-                    let lId = loanMatch[1];
-                    let matchedLoan = loans.find(x => String(x.id) === String(lId));
-                    let displayTitle = matchedLoan ? `${getCustName(matchedLoan.customerId)} [L-${lId}]` : (c.customerId && getCustName(c.customerId) !== 'Walk-in' ? `${getCustName(c.customerId)} [L-${lId}]` : `Customer [L-${lId}]`);
-                    logUL(displayTitle, 'Extra Amt', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
+                if (cat.includes('contra') || note.includes('contra-')) {
+                    let contraTitle = c.note ? c.note.split('[Ref:')[0].trim() : 'Bank Contra';
+                    if (type === 'IN') pushLog('Other In', amt, contraTitle, 'Contra In', spl, true);
+                    else pushLog('Other Out', amt, contraTitle, 'Contra Out', spl, false);
+                    return;
+                }
+
+                let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement') || note.includes('vyapari') || note.includes('merchant') || Boolean(c.merchantId || c.merchant_id || c.merchantName);
+
+                let isTopUp = cat.includes('top-up') || cat.includes('top up') || note.includes('extra money');
+                let loanMatch = !isVyapariPayment ? (
+                    note.match(/\b(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) || 
+                    cat.match(/\b(?:loan|girvi)\s*(?:#|-)?\s*(\d+)/i) ||
+                    note.match(/\bL\s*[-#]\s*(\d+)/i) || 
+                    cat.match(/\bL\s*[-#]\s*(\d+)/i)
+                ) : null;
+
+                if (type === 'OUT' && !isVyapariPayment && (loanMatch || isTopUp)) {
+                    let lId = loanMatch ? loanMatch[1] : '';
+                    let cNameForLoan = '';
+                    
+                    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+                        cNameForLoan = getCustName(c.customerId);
+                    } else if (c.customerName || c.partyName || c.name) {
+                        cNameForLoan = c.customerName || c.partyName || c.name;
+                    }
+
+                    if (!cNameForLoan && lId) {
+                        let matchedLoan = loans.find(x => String(x.id).trim() === String(lId).trim() || String(x.loanNo) === String(lId));
+                        if (matchedLoan && matchedLoan.customerId) {
+                            cNameForLoan = getCustName(matchedLoan.customerId);
+                        }
+                    }
+
+                    if (!cNameForLoan) cNameForLoan = 'Customer';
+                    let displayTitle = lId ? `${cNameForLoan} [L-${lId}]` : cNameForLoan;
+
+                    pushLog('Girvi Diya', amt, displayTitle, 'Extra Amt', spl, false);
                     return; 
                 }
 
-                let isVyapariPayment = cat.includes('vyapari') || cat.includes('merchant') || note.includes('settlement');
-                let vyapariName = '';
+                let vyapariName = c.merchantName || c.merchant_name || '';
                 let mId = c.merchantId || c.merchant_id || c.partyId || c.party_id || c.ledgerId || c.ledger_id || c.accountId || c.userId;
-                
-                if (!mId && (note.includes('settlement') || cat.includes('settlement'))) {
-                    let match = note.match(/(?:#|id)\s*(\d+)/i);
+
+                if (!vyapariName && mId) {
+                    vyapariName = getMerchName(mId);
+                }
+
+                if ((!vyapariName || vyapariName === 'Merchant') && (note.includes('settlement') || isVyapariPayment)) {
+                    let match = c.note ? c.note.match(/(?:#|id)\s*[:\-]?\s*([a-zA-Z0-9_-]+)/i) : null;
                     if (match && match[1]) {
                         let mp = mPayments.find(x => String(x.id) === String(match[1]));
-                        if (mp && mp.merchantId) mId = mp.merchantId;
+                        if (mp) vyapariName = mp.merchantName || getMerchName(mp.merchantId);
                     }
                 }
-                if (mId) vyapariName = getMerchName(mId);
-                if (!vyapariName || vyapariName === 'Merchant') vyapariName = c.merchantName || c.partyName || c.party || c.ledgerName || c.name || '';
 
-                let entityName = c.note || c.category || 'Payment';
-                if (c.customerId && getCustName(c.customerId) !== 'Walk-in') entityName = `${getCustName(c.customerId)} - ${entityName}`;
-                else if (isVyapariPayment) entityName = (vyapariName && vyapariName !== 'Merchant') ? vyapariName : 'Vyapari';
+                if (!vyapariName || vyapariName === 'Merchant') {
+                    vyapariName = c.partyName || c.party_name || c.party || c.ledgerName || c.name || '';
+                }
 
-                if (!isVyapariPayment && (cat.includes('sale') || note.includes('bill') || cat.includes('bikri') || cat === 'new gold loan' || cat === 'loan payment' || cat.includes('byaaj') || cat.includes('girvi') || cat.includes('old gold') || cat.includes('oldgold') || cat.includes('purchase') || cat.includes('khareedi'))) return;
+                if (!vyapariName || vyapariName === 'Merchant') {
+                    let foundMerch = allMerchants.find(m => m.name && (note.includes(m.name.toLowerCase()) || cat.includes(m.name.toLowerCase())));
+                    if (foundMerch) {
+                        vyapariName = foundMerch.name;
+                        isVyapariPayment = true;
+                    }
+                }
+
+                if ((!vyapariName || vyapariName === 'Merchant') && isVyapariPayment && c.note) {
+                    let nameMatch = c.note.match(/(?:to|from|for|merchant|vyapari|settlement)\s*[:\-]?\s*([a-zA-Z\s]+)/i);
+                    if (nameMatch && nameMatch[1] && nameMatch[1].trim().length > 1) {
+                        vyapariName = nameMatch[1].trim();
+                    }
+                }
+
+                let cNameFromFlow = '';
+                if (!isVyapariPayment) {
+                    if (c.customerName) cNameFromFlow = c.customerName;
+                    else if (c.customerId && getCustName(c.customerId) !== 'Walk-in') cNameFromFlow = getCustName(c.customerId);
+                    else if (c.partyName) cNameFromFlow = c.partyName;
+                    else if (c.name) cNameFromFlow = c.name;
+                    
+                    if (!cNameFromFlow && note.includes('from ')) {
+                        let parts = c.note.split(/from\s+/i);
+                        if (parts.length > 1) cNameFromFlow = parts[1].trim();
+                    }
+
+                    if (!cNameFromFlow && (c.saleId || note.includes('bill'))) {
+                        let sId = c.saleId;
+                        if (!sId && c.note) {
+                            let bMatch = c.note.match(/bill\s*(?:#|-)?\s*(\w+)/i);
+                            if (bMatch) sId = bMatch[1];
+                        }
+                        if (sId) {
+                            let matchedSale = sales.find(x => String(x.id) === String(sId) || String(x.invoiceNo) === String(sId) || String(x.id).endsWith(sId));
+                            if (matchedSale) {
+                                cNameFromFlow = matchedSale.customerName || getCustName(matchedSale.customerId);
+                            }
+                        }
+                    }
+                }
+
+                let entityName = '';
+                if (isVyapariPayment && vyapariName && vyapariName !== 'Merchant') {
+                    entityName = vyapariName; 
+                } else if (cNameFromFlow) {
+                    entityName = cNameFromFlow; 
+                } else {
+                    entityName = c.note || c.category || (isVyapariPayment ? 'Vyapari' : 'Payment');
+                }
+
+                let isOrderInFlow = cat.includes('order') || note.includes('ord-');
+                let isRepairFlow = cat.includes('repair') || note.includes('repair') || note.includes('rep-');
+                let isDepositFlow = cat.includes('deposit');
+
+                if (isOrderInFlow) {
+                    if (type === 'IN') pushLog('Order In', amt, entityName, 'Order Adv', spl, true);
+                    else pushLog('Other Out', amt, entityName, 'Order Refund', spl, false);
+                    return;
+                }
+
+                if (isRepairFlow) {
+                    if (type === 'IN') pushLog('Repair In', amt, entityName, 'Repair Jama', spl, true);
+                    else pushLog('Repair Out', amt, entityName, 'Repair Refund', spl, false);
+                    return;
+                }
+
+                if (isDepositFlow) {
+                    if (type === 'IN') pushLog('Other In', amt, entityName, 'Cust Deposit', spl, true);
+                    else pushLog('Other Out', amt, entityName, 'Deposit Return', spl, false);
+                    return;
+                }
+
+                let isUdhariIn = (type === 'IN' && !isVyapariPayment && !cat.includes('purchase') && (
+                    cat.includes('udhari') || note.includes('udhari') || 
+                    cat.includes('outstanding') || note.includes('outstanding') ||
+                    cat.includes('due') || note.includes('due')
+                ));
+                
+                let isUdhariOut = (type === 'OUT' && !isVyapariPayment && !cat.includes('purchase') && (
+                    cat.includes('udhari') || note.includes('udhari') ||
+                    cat.includes('outstanding') || note.includes('outstanding') ||
+                    cat.includes('due') || note.includes('due')
+                ));
+
+                if (isUdhariIn) {
+                    let displayTitle = cNameFromFlow || (c.note && !c.note.toLowerCase().includes('payment for bill') ? c.note : 'Customer');
+                    let desc = 'Purani Jama';
+                    let bMatch = c.note ? c.note.match(/bill\s*(?:#|-)?\s*([\w-]+)/i) : null;
+                    if (bMatch) desc = `Bill #${bMatch[1]} Jama`;
+
+                    pushLog('SaleDueRecv', amt, displayTitle, desc, spl, true);
+                    return;
+                }
+                
+                if (isUdhariOut) {
+                    let displayTitle = cNameFromFlow || (c.note && !c.note.toLowerCase().includes('payment for bill') ? c.note : 'Customer');
+                    let desc = 'Udhari Diya';
+                    let bMatch = c.note ? c.note.match(/bill\s*(?:#|-)?\s*([\w-]+)/i) : null;
+                    if (bMatch) desc = `Bill #${bMatch[1]} Nama`;
+
+                    pushLog('SaleDueGiven', amt, displayTitle, desc, spl, false);
+                    return;
+                }
 
                 if (cat.includes('scheme') || note.includes('sch-') || cat.includes('bc ')) {
                     let bcTitle = c.note || 'BC Scheme';
-                    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') bcTitle = `${getCustName(c.customerId)} - ${bcTitle}`;
-                    else {
-                        let match = note.match(/(?:sch|scheme|bc)\s*[-#]?\s*(\d+)/i);
-                        if (match && match[1]) {
-                            let sch = schemes.find(x => String(x.id) === String(match[1]));
-                            if (sch && sch.customerId) bcTitle = `${getCustName(sch.customerId)} [BC-${match[1]}]`;
-                        }
+                    if (c.customerId && getCustName(c.customerId) !== 'Walk-in') {
+                        bcTitle = `${getCustName(c.customerId)} - ${bcTitle}`;
                     }
-                    if (type === 'IN') logUL(bcTitle, 'Inst.', uSpl.c, uSpl.u, 0, 0,0,0, 0,0,0, 0,0,0);
-                    else logUL(bcTitle, 'Matured', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
-                }
-                else if (cat.includes('repair') || note.includes('repair') || note.includes('rep-')) {
-                    if (type === 'IN') logUL(entityName, 'Repair In', uSpl.c, uSpl.u, 0, 0,0,0, 0,0,0, 0,0,0);
-                    else logUL(entityName, 'Repair Refund', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
-                }
-                else if (cat.includes('order') || note.includes('ord-') || cat.includes('job cancel')) {
-                    if (type === 'IN') logUL(entityName, 'Order Payment', uSpl.c, uSpl.u, 0, 0,0,0, 0,0,0, 0,0,0);
-                    else logUL(entityName, 'Order Refund', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
+                    if (type === 'IN') pushLog('BC In', amt, bcTitle, 'Inst.', spl, true);
+                    else pushLog('BC Out', amt, bcTitle, 'Matured', spl, false);
                 }
                 else if (isVyapariPayment || cat.includes('vyapari') || cat.includes('merchant')) {
-                    if (type === 'IN') logUL(entityName, 'Payment Recv', uSpl.c, uSpl.u, 0, 0,0,0, 0,0,0, 0,0,0);
-                    else logUL(entityName, 'Payment Given', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
+                    if (type === 'IN') pushLog('Vyapari Aaya', amt, entityName, 'Recv', spl, true);
+                    else pushLog('Vyapari Diya', amt, entityName, 'Paid', spl, false);
                 }
                 else {
-                    if (type === 'IN') logUL(entityName, note || cat || 'Income', uSpl.c, uSpl.u, 0, 0,0,0, 0,0,0, 0,0,0);
-                    else logUL(entityName, note || cat || 'Paid', 0,0,0, 0,0,0, uSpl.c, uSpl.u, 0, 0,0,0);
+                    if (type === 'IN') {
+                        pushLog('Other In', amt, entityName || 'Income', c.category || '', spl, true);
+                    } else {
+                        let outLabel = (cat.includes('salary') || note.includes('staff')) ? 'Staff/Salary' : (c.category || 'Kharcha');
+                        pushLog('Other Out', amt, entityName || 'Kharcha', outLabel, spl, false);
+                    }
                 }
             });
 
-            // Calculate final balances
-            let closingCash = openCash + todayCashIn - todayCashOut;
-            let closingBank = openBank + todayBankIn - todayBankOut;
-            let closingNet = openNet + todayNetIn - todayNetOut;
-            let closingOld = openOld + todayOldIn - todayOldOut;
-            let closingMix = openMix + todayMixIn - todayMixOut;
-
-            // Generate HTML
-            let fmtMoney = (val) => val > 0 ? `<span style="font-weight:700;">₹${fmtNum(val)}</span>` : `<span style="color:#ddd;">-</span>`;
-            let fmtMetal = (val) => val > 0 ? `<span style="font-weight:800;">${val.toFixed(3)}g</span>` : `<span style="color:#ddd;">-</span>`;
+            sumNama += closingTotal; 
             
-            let ulRowsHtml = '';
+            document.getElementById('uiTotalJama').innerText = `₹${fmtNum(sumJama)}`;
+            document.getElementById('uiTotalNama').innerText = `₹${fmtNum(sumNama)}`;
 
-            // Opening Row
-            ulRowsHtml += `
-                <tr style="background:#e3f2fd; font-weight:800; color:#0d47a1; border-bottom:2px solid #1976d2;">
-                    <td style="padding:10px; border-right:2px solid #555;">*** OPENING BALANCE ***</td>
-                    <td style="padding:10px; border-right:2px solid #555; color:#666;">-</td>
-                    
-                    <td style="padding:10px; border-right:1px solid #ddd;">₹${fmtNum(openCash)}</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">₹${fmtNum(openBank)}</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">-</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">${openNet.toFixed(3)}g</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">${openOld.toFixed(3)}g</td>
-                    <td style="padding:10px; border-right:2px solid #555;">${openMix.toFixed(3)}g</td>
-                    
-                    <td colspan="6" style="padding:10px; color:#999; font-style:italic;">- Opening is always Jama -</td>
-                </tr>
-            `;
-
-            let hasTransactions = false;
-            for(let key in ulMap) {
-                hasTransactions = true;
-                let row = ulMap[key];
-                let itemStr = Array.from(row.item).join(', ') || '-';
-
-                ulRowsHtml += `
-                    <tr style="border-bottom:1px solid #e0e0e0; background: #fff; transition:0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
-                        <td style="padding:10px 5px; text-align:left; font-weight:700; color:#222; border-right:2px solid #555; max-width:150px; word-wrap:break-word;">${row.name}</td>
-                        <td style="padding:10px 5px; text-align:left; color:#666; font-size:0.8rem; border-right:2px solid #555; max-width:150px; word-wrap:break-word;">${itemStr}</td>
-                        
-                        <td style="padding:10px 5px; background:#f1f8e9; color:#2e7d32; border-right:1px solid #ddd;">${fmtMoney(row.jCash)}</td>
-                        <td style="padding:10px 5px; background:#f1f8e9; color:#1976d2; border-right:1px solid #ddd;">${fmtMoney(row.jUpi)}</td>
-                        <td style="padding:10px 5px; background:#f1f8e9; color:#f57f17; border-right:1px solid #ddd;">${fmtMoney(row.jUdhari)}</td>
-                        <td style="padding:10px 5px; background:#e8f5e9; color:#1b5e20; border-right:1px solid #ddd;">${fmtMetal(row.jFine)}</td>
-                        <td style="padding:10px 5px; background:#e8f5e9; color:#1b5e20; border-right:1px solid #ddd;">${fmtMetal(row.jOld)}</td>
-                        <td style="padding:10px 5px; background:#e8f5e9; color:#1b5e20; border-right:2px solid #555;">${fmtMetal(row.jMix)}</td>
-
-                        <td style="padding:10px 5px; background:#ffebee; color:#c62828; border-right:1px solid #ddd;">${fmtMoney(row.nCash)}</td>
-                        <td style="padding:10px 5px; background:#ffebee; color:#d32f2f; border-right:1px solid #ddd;">${fmtMoney(row.nUpi)}</td>
-                        <td style="padding:10px 5px; background:#ffebee; color:#f57f17; border-right:1px solid #ddd;">${fmtMoney(row.nUdhari)}</td>
-                        <td style="padding:10px 5px; background:#ffcdd2; color:#b71c1c; border-right:1px solid #ddd;">${fmtMetal(row.nFine)}</td>
-                        <td style="padding:10px 5px; background:#ffcdd2; color:#b71c1c; border-right:1px solid #ddd;">${fmtMetal(row.nOld)}</td>
-                        <td style="padding:10px 5px; background:#ffcdd2; color:#b71c1c;">${fmtMetal(row.nMix)}</td>
-                    </tr>
-                `;
+            for(let key in logs) {
+                let logElement = document.getElementById('log-' + key);
+                let wrapElement = document.getElementById('wrap-' + key);
+                if(logElement) {
+                    if(logs[key].length > 0) {
+                        logElement.innerHTML = logs[key].join('');
+                        logElement.style.display = 'block';
+                        if(wrapElement) wrapElement.style.display = 'block'; 
+                    } else {
+                        logElement.innerHTML = '<div class="empty-log">Aaj koi entry nahi</div>';
+                        if(wrapElement && ['PurchaseDue', 'OldGold', 'MeltOut', 'MeltIn'].includes(key)) {
+                            wrapElement.style.display = 'none';
+                        } else if(wrapElement) {
+                            logElement.style.display = 'block';
+                        }
+                    }
+                }
             }
 
-            if(!hasTransactions) {
-                ulRowsHtml += '<tr><td colspan="14" style="padding:20px; color:#aaa; font-style:italic;">Aaj koi transaction nahi hai</td></tr>';
-            }
-
-            // Closing Row
-            ulRowsHtml += `
-                <tr style="background:#fff3e0; font-weight:800; color:#e65100; border-top:2px solid #f57f17;">
-                    <td style="padding:10px; border-right:2px solid #555;">*** CLOSING BALANCE ***</td>
-                    <td style="padding:10px; border-right:2px solid #555; color:#666;">-</td>
-                    
-                    <td colspan="6" style="padding:10px; color:#999; font-style:italic; border-right:2px solid #555;">- Closing is always Nama -</td>
-                    
-                    <td style="padding:10px; border-right:1px solid #ddd;">₹${fmtNum(closingCash)}</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">₹${fmtNum(closingBank)}</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">-</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">${closingNet.toFixed(3)}g</td>
-                    <td style="padding:10px; border-right:1px solid #ddd;">${closingOld.toFixed(3)}g</td>
-                    <td style="padding:10px;">${closingMix.toFixed(3)}g</td>
-                </tr>
-            `;
-
-            document.getElementById('ultimateLedgerBody').innerHTML = ulRowsHtml;
-
-        } catch(e) { console.error("Ledger Generate Error:", e); }
+        } catch(e) { console.error("Rojmel Error:", e); }
     }
-</script>
-
+</script>   
 </body>
 </html>
