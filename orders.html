@@ -45,16 +45,18 @@
         .search-box:focus { border-color: var(--accent-gold); }
 
         .tabs { display: flex; background: #e0e0e0; border-radius: 10px; padding: 4px; gap: 5px; flex-wrap: wrap;}
-        .tab { flex: 1; min-width: 100px; text-align: center; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; }
+        .tab { flex: 1; min-width: 110px; text-align: center; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: #555; transition: 0.2s; border: none; background: transparent; white-space: nowrap; }
         .tab.active { background: white; color: var(--active-red); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tab-count { display: inline-block; background: rgba(0,0,0,0.08); color: #333; padding: 1px 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
+        .tab.active .tab-count { background: #ffebee; color: var(--active-red); }
 
         .order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 15px; }
         .order-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--bill-blue); transition: transform 0.2s; position: relative; display: flex; flex-direction: column;}
         .order-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
 
         .order-card.ready { border-top-color: var(--receive-green); opacity: 0.95; }
-        .order-card.billed { border-top-color: #333; opacity: 0.8; background:#fafafa;}
-        .order-card.cancelled { border-top-color: #888; opacity: 0.6; }
+        .order-card.billed { border-top-color: #333; opacity: 0.85; background:#fafafa;}
+        .order-card.cancelled { border-top-color: #888; opacity: 0.65; }
         .order-card.deleted { border-top-color: #b71c1c; opacity: 0.65; background: #fff5f5; }
         .order-card.overdue { border-top-color: #d32f2f; }
 
@@ -204,6 +206,10 @@
     <div class="app-container">
 
         <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: var(--bill-blue);">
+                <div class="stat-lbl">Total All Orders</div>
+                <div class="stat-val" id="statAllTotal" style="color: var(--bill-blue);">0</div>
+            </div>
             <div class="stat-card">
                 <div class="stat-lbl">Active Orders</div>
                 <div class="stat-val" id="statPending">0</div>
@@ -221,10 +227,12 @@
         <div class="controls-row">
             <input type="text" id="orderSearch" class="search-box" placeholder="Search Customer Name, Phone, Barcode or Invoice No..." onkeyup="filterOrders()">
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('pending', this)">Pending / In-Progress</button>
-                <button class="tab" onclick="switchTab('completed', this)">Ready (In Stock)</button>
-                <button class="tab" onclick="switchTab('billed', this)">Billed / Delivered</button>
-                <button class="tab" onclick="switchTab('cancelled', this)">Cancelled / Deleted</button>
+                <button class="tab active" onclick="switchTab('all', this)">All Orders <span class="tab-count" id="cnt-all">0</span></button>
+                <button class="tab" onclick="switchTab('pending', this)">Pending (Intake) <span class="tab-count" id="cnt-pending">0</span></button>
+                <button class="tab" onclick="switchTab('karigar', this)">With Karigar <span class="tab-count" id="cnt-karigar">0</span></button>
+                <button class="tab" onclick="switchTab('completed', this)">Ready (In Stock) <span class="tab-count" id="cnt-completed">0</span></button>
+                <button class="tab" onclick="switchTab('billed', this)">Billed / Delivered <span class="tab-count" id="cnt-billed">0</span></button>
+                <button class="tab" onclick="switchTab('cancelled', this)">Cancelled / Deleted <span class="tab-count" id="cnt-cancelled">0</span></button>
             </div>
         </div>
 
@@ -843,7 +851,6 @@
             openModal('photoZoomModal');
         }
 
-        // Compress Image to light Base64 so Firebase / IndexedDB saves smoothly
         function compressImageToDataURL(file, maxWidth = 800, quality = 0.72) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -887,7 +894,7 @@
 
         // ==================== GLOBAL STATE ====================
         let allOrders = []; let allCustomers = []; let allMerchants = []; let allInventoryGlobal = [];
-        let currentTab = 'pending';
+        let currentTab = 'all';
         let goldRates = { rate22k: 0, rate24k: 0, rate18k: 0, customPurities: [] };
 
         let newOrderItems = []; 
@@ -898,7 +905,7 @@
         let extraBillingItems = []; 
         let activeJobData = null;
 
-        // ==================== PHOTO HANDLERS (NEW & EXISTING ORDER) ====================
+        // ==================== PHOTO HANDLERS ====================
         async function handleNewOrderPhotoSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -1017,22 +1024,48 @@
 
         async function loadOrders() {
             const orders = await getAllItems('orders');
-            let totalAdv = 0; let pendingCount = 0; let overdueCount = 0;
+            let totalAdv = 0; let pendingActiveCount = 0; let overdueCount = 0;
             const now = new Date(); now.setHours(0,0,0,0);
+
+            let cntAll = 0, cntPending = 0, cntKarigar = 0, cntCompleted = 0, cntBilled = 0, cntCancelled = 0;
 
             allOrders = orders.filter(o => o.jobType === 'Order').map(o => {
                 const c = allCustomers.find(x => x.id == o.customerId);
-                if(o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar') {
-                    pendingCount++; 
+                cntAll++;
+
+                if (o.status === 'pending') {
+                    cntPending++;
+                    pendingActiveCount++;
                     totalAdv += (o.advancePaid || 0);
-                    if(new Date(o.dueDate) < now) overdueCount++;
+                    if (new Date(o.dueDate) < now) overdueCount++;
+                } else if (o.status === 'in_progress' || o.status === 'with_karigar') {
+                    cntKarigar++;
+                    pendingActiveCount++;
+                    totalAdv += (o.advancePaid || 0);
+                    if (new Date(o.dueDate) < now) overdueCount++;
+                } else if (o.status === 'completed' || o.status === 'ready') {
+                    cntCompleted++;
+                } else if (o.status === 'billed' || o.status === 'delivered') {
+                    cntBilled++;
+                } else if (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted) {
+                    cntCancelled++;
                 }
+
                 return { ...o, custName: c ? c.name : 'Unknown', custMobile: c ? c.mobile : '' };
             });
 
-            setText('statPending', pendingCount);
+            setText('statAllTotal', cntAll);
+            setText('statPending', pendingActiveCount);
             setText('statAdvance', "₹" + totalAdv.toLocaleString());
             setText('statOverdue', overdueCount);
+
+            setText('cnt-all', cntAll);
+            setText('cnt-pending', cntPending);
+            setText('cnt-karigar', cntKarigar);
+            setText('cnt-completed', cntCompleted);
+            setText('cnt-billed', cntBilled);
+            setText('cnt-cancelled', cntCancelled);
+
             renderOrders();
         }
 
@@ -1073,10 +1106,12 @@
 
             const filtered = allOrders.filter(o => {
                 let matchTab = false;
-                if (currentTab === 'pending') matchTab = (o.status === 'pending' || o.status === 'in_progress' || o.status === 'with_karigar');
+                if (currentTab === 'all') matchTab = true;
+                else if (currentTab === 'pending') matchTab = (o.status === 'pending');
+                else if (currentTab === 'karigar') matchTab = (o.status === 'in_progress' || o.status === 'with_karigar');
                 else if (currentTab === 'completed') matchTab = (o.status === 'completed' || o.status === 'ready');
                 else if (currentTab === 'billed') matchTab = (o.status === 'billed' || o.status === 'delivered');
-                else if (currentTab === 'cancelled') matchTab = (o.status === 'cancelled' || o.status === 'deleted');
+                else if (currentTab === 'cancelled') matchTab = (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted);
 
                 const matchSearch = o.custName.toLowerCase().includes(term) || 
                                     String(o.custMobile).includes(term) || 
@@ -1091,9 +1126,11 @@
                 return;
             }
 
-            filtered.sort((a,b) => {
-                if(currentTab === 'pending') return new Date(a.dueDate) - new Date(b.dueDate);
-                return new Date(b.orderDate) - new Date(a.orderDate);
+            // Always sort Latest Date First (Descending by orderDate, then by ID)
+            filtered.sort((a, b) => {
+                const dateDiff = new Date(b.orderDate || 0) - new Date(a.orderDate || 0);
+                if (dateDiff !== 0) return dateDiff;
+                return Number(b.id || 0) - Number(a.id || 0);
             });
 
             const now = new Date(); now.setHours(0,0,0,0);
@@ -1109,7 +1146,8 @@
                 else if(o.status === 'deleted' || o.isDeleted) { badgeClass = 'b-deleted'; badgeText = '<i class="fas fa-trash-alt"></i> Deleted'; } 
                 else if(o.status === 'cancelled') { badgeClass = 'b-cancelled'; badgeText = 'Cancelled'; } 
                 else if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> Assigned`;
+                    const m = allMerchants.find(x => x.id == o.merchantId);
+                    badgeClass = 'b-assigned'; badgeText = `<i class="fas fa-truck"></i> ${m ? m.name.substring(0,10) : 'Karigar'}`;
                 } else if(due < now) { badgeClass = 'b-overdue'; badgeText = 'Overdue'; isOverdue = true; }
 
                 let cardClass = '';
@@ -1298,7 +1336,6 @@
                 document.getElementById('oiMakingType').value = 'pct';
             }
 
-            // If the inventory item already has an image and user hasn't picked one yet, pre-fill it!
             if ((inv.imageUrl || inv.imageLink) && !newOrderPhotoBase64) {
                 const invImg = inv.imageUrl || inv.imageLink;
                 newOrderPhotoBase64 = invImg;
@@ -1744,7 +1781,6 @@
             setText('vDesc', `${displayCat} - ${displayDesc}`);
             setText('vOrderDateDisplay', o.orderDate ? new Date(o.orderDate).toLocaleDateString() : 'Unknown');
 
-            // Populate Design Photo inside View Modal
             const vPhotoInput = document.getElementById('vOrderPhotoInput');
             if (vPhotoInput) vPhotoInput.value = '';
             if (o.designPhoto) {
