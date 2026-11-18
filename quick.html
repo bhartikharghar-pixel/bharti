@@ -92,8 +92,23 @@
         .uchina-tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
         .uchina-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #ffb74d; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .uchina-chip-galla { background: #e8f5e9; border-color: #81c784; color: #1b5e20; }
-        .uchina-del-btn { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 4px; padding: 1px 5px; font-size: 0.7rem; cursor: pointer; font-weight: 800; }
+        .uchina-del-btn { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; cursor: pointer; font-weight: 800; display: inline-flex; align-items: center; gap: 3px; }
         .uchina-del-btn:hover { background: #ffcdd2; }
+
+        /* --- 🔒 PIN SECURITY MODAL --- */
+        .pin-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 3000; display: none; justify-content: center; align-items: center; padding: 15px; }
+        .pin-modal-overlay.show { display: flex; }
+        .pin-modal-box { background: #fff; border-radius: 12px; max-width: 360px; width: 100%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border-top: 5px solid #d32f2f; text-align: center; animation: popIn 0.2s ease-out; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .pin-modal-title { font-size: 1.1rem; font-weight: 800; color: #111; margin-bottom: 6px; display: flex; justify-content: center; align-items: center; gap: 6px; }
+        .pin-modal-sub { font-size: 0.85rem; color: #555; margin-bottom: 14px; font-weight: 600; background: #fff8e1; padding: 8px; border-radius: 6px; border: 1px dashed #ffb300; }
+        .pin-input-field { width: 100%; padding: 10px; font-size: 1.3rem; font-weight: 800; text-align: center; letter-spacing: 6px; border: 2px solid #ccc; border-radius: 8px; outline: none; margin-bottom: 8px; font-family: inherit; }
+        .pin-input-field:focus { border-color: #d32f2f; }
+        .pin-error-msg { color: #d32f2f; font-size: 0.78rem; font-weight: 700; min-height: 18px; margin-bottom: 8px; }
+        .pin-modal-actions { display: flex; gap: 10px; }
+        .pin-btn-cancel { flex: 1; padding: 10px; background: #eee; color: #333; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .pin-btn-confirm { flex: 1; padding: 10px; background: #2e7d32; color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .pin-btn-confirm:hover { background: #1b5e20; }
 
         .action-wrapper { margin-bottom: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #ddd; }
         .action-btn { width: 100%; padding: 14px; border: none; font-size: 1.05rem; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box;}
@@ -149,7 +164,7 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            .app-header, .sidebar-drawer, .sidebar-overlay, .menu-toggle, .master-container {
+            .app-header, .sidebar-drawer, .sidebar-overlay, .menu-toggle, .master-container, .pin-modal-overlay {
                 display: none !important;
             }
 
@@ -382,6 +397,24 @@
 <body>
 
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- 🔒 SECURITY PIN MODAL FOR UCHINA RETURN -->
+    <div id="uchinaPinModal" class="pin-modal-overlay">
+        <div class="pin-modal-box">
+            <div class="pin-modal-title">
+                <i class="fas fa-lock" style="color:#d32f2f;"></i> Security PIN Required
+            </div>
+            <div id="pinModalDesc" class="pin-modal-sub">
+                Uchina Wapas Jama Confirm Karein
+            </div>
+            <input type="password" id="uchinaPinInput" class="pin-input-field" maxlength="8" placeholder="••••" inputmode="numeric" onkeydown="if(event.key==='Enter') confirmUchinaPin()" />
+            <div id="uchinaPinError" class="pin-error-msg"></div>
+            <div class="pin-modal-actions">
+                <button type="button" class="pin-btn-cancel" onclick="closeUchinaPinModal()">Cancel</button>
+                <button type="button" class="pin-btn-confirm" onclick="confirmUchinaPin()"><i class="fas fa-check-circle"></i> Confirm</button>
+            </div>
+        </div>
+    </div>
 
     <header class="app-header">
         <button class="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
@@ -656,6 +689,10 @@
 <script src="db.js?v=40"></script>
 
 <script>
+    // --- 🔒 MASTER SECURITY PIN FOR UCHINA REMOVAL ---
+    const UCHINA_SECURITY_PIN = "1234";
+    let pendingUchinaReturnId = null;
+
     // --- 🔥 TIMEZONE-SAFE LOCAL DATE HELPERS ---
     function toLocalDateStr(dateVal) {
         if (!dateVal) return '';
@@ -729,16 +766,13 @@
         }
     }
 
-    // Active on date D: givenDate <= D and (!returnedDate || returnedDate > D)
     function getUchinaActiveOnDate(targetDate, isOpening = false) {
         return uchinaRecords.filter(u => {
             let gDate = u.givenDate || '2000-01-01';
             let rDate = u.returnedDate || null;
             if (isOpening) {
-                // For Opening Rokad of targetDate, it must have been given BEFORE targetDate and not returned before targetDate
                 return gDate < targetDate && (!rDate || rDate >= targetDate);
             } else {
-                // For Closing Rokad of targetDate, given on or before targetDate and not returned on or before targetDate
                 return gDate <= targetDate && (!rDate || rDate > targetDate);
             }
         });
@@ -756,7 +790,6 @@
             return;
         }
 
-        // Check if same person already has active uchina on this date; if so, add/update
         let existing = uchinaRecords.find(u =>
             u.name.toLowerCase() === name.toLowerCase() &&
             (!u.returnedDate || u.returnedDate > selectedDate)
@@ -780,12 +813,41 @@
         await updateDashboardAndLogs();
     }
 
-    async function markUchinaReturned(id) {
+    // --- 🔒 OPEN PIN MODAL BEFORE REMOVING UCHINA ---
+    function requestUchinaReturn(id) {
+        let item = uchinaRecords.find(u => u.id === id);
+        if (!item) return;
+
+        pendingUchinaReturnId = id;
+        document.getElementById('pinModalDesc').innerHTML = `<strong>${item.name}</strong> ka <strong>₹${fmtNum(item.amount)}</strong> wapas गल्ले में jama karne ke liye Security Code dalein:`;
+        document.getElementById('uchinaPinInput').value = '';
+        document.getElementById('uchinaPinError').innerText = '';
+        document.getElementById('uchinaPinModal').classList.add('show');
+        setTimeout(() => document.getElementById('uchinaPinInput').focus(), 100);
+    }
+
+    function closeUchinaPinModal() {
+        pendingUchinaReturnId = null;
+        document.getElementById('uchinaPinModal').classList.remove('show');
+    }
+
+    async function confirmUchinaPin() {
+        let enteredPin = (document.getElementById('uchinaPinInput').value || '').trim();
+        if (enteredPin !== UCHINA_SECURITY_PIN) {
+            document.getElementById('uchinaPinError').innerText = '❌ Galat Code! Sahi Security PIN dalein.';
+            document.getElementById('uchinaPinInput').value = '';
+            document.getElementById('uchinaPinInput').focus();
+            return;
+        }
+
+        let id = pendingUchinaReturnId;
+        closeUchinaPinModal();
+        if (!id) return;
+
         let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
         let item = uchinaRecords.find(u => u.id === id);
         if (!item) return;
 
-        // If given on the exact same day, remove it completely; if given earlier, mark returnedDate = selectedDate
         if (item.givenDate >= selectedDate) {
             uchinaRecords = uchinaRecords.filter(u => u.id !== id);
         } else {
@@ -1291,8 +1353,6 @@
             let namaMix = todayMixOut + closingMix;
             let namaTotalMetal = namaNet + namaOld + namaMix;
 
-            // Collect all today's Bank IN transactions (for right-side "बैंक में गया")
-            // AND Bank OUT transactions (for left-side "बैंक से गया")
             let printBankMeItems = [];
             let printBankSeItems = [];
 
@@ -2188,13 +2248,15 @@
                 openUchinaEl.style.display = 'none';
             }
 
-            // Update Screen Closing Uchina Chips & Galla Cash
+            // Update Screen Closing Uchina Chips & Galla Cash (Protected by PIN Modal)
             let uchinaListEl = document.getElementById('uchinaActiveList');
             if (closeUchinaList.length > 0) {
                 let chipsHtml = closeUchinaList.map(u => `
                     <span class="uchina-chip">
                         <span>${u.name}: ₹${fmtNum(u.amount)}</span>
-                        <button type="button" class="uchina-del-btn" onclick="markUchinaReturned('${u.id}')" title="Paisa Wapas Aaya">✕ Wapas</button>
+                        <button type="button" class="uchina-del-btn" onclick="requestUchinaReturn('${u.id}')" title="PIN daal kar Wapas Jama karein">
+                            <i class="fas fa-lock"></i> Wapas
+                        </button>
                     </span>
                 `).join('');
                 chipsHtml += `
@@ -2360,8 +2422,6 @@
 
             // =====================================================================
             // 🔥 EXACT BAHI-KHATA BOTTOM TALLY WITH UCHINA SPLIT:
-            // Left Bottom: "बैंक से गया" + Grand Total Jama
-            // Right Bottom: "रोकड़" (Total Rokad on Left + [Dinesh: 15000] [Galle Me: 185000] on Right) + Grand Total Nama
             // =====================================================================
             let jamaBottomHtml = '';
             if (printBankSeItems.length > 0) {
