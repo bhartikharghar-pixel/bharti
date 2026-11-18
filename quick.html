@@ -46,6 +46,8 @@
         .refresh-btn:hover { background: #000; transform: scale(1.02); }
         .print-btn { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .print-btn:hover { background: #1565c0; transform: scale(1.02); }
+        .milan-btn { background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s; box-shadow: 0 3px 8px rgba(5,150,105,0.3);}
+        .milan-btn:hover { background: #065f46; transform: scale(1.02); }
         
         /* --- 💰 LIVE CASH DASHBOARD --- */
         .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 16px; }
@@ -65,6 +67,30 @@
         .card-close .c-amt { color: #b08d4a; }
         
         .split-bal { display: flex; justify-content: space-around; font-size: 0.75rem; color: #555; border-top: 1px dashed #ccc; padding-top: 5px; font-weight: 600;}
+
+        /* --- 🚨 CASH MILAN DIFFERENCE BANNER (MIDDLE ALERT) --- */
+        .milan-diff-banner {
+            display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+            padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-weight: 800; font-size: 0.95rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .milan-diff-short { background: #fef2f2; border: 2px solid #ef4444; color: #991b1b; }
+        .milan-diff-excess { background: #f0fdf4; border: 2px solid #10b981; color: #065f46; }
+        .milan-diff-match { background: #eff6ff; border: 2px solid #3b82f6; color: #1e40af; }
+
+        /* --- 🧮 CASH MILAN DENOMINATION TABLE --- */
+        .denom-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        .denom-table th { background: #1e293b; color: #fff; padding: 7px 10px; font-size: 0.8rem; text-transform: uppercase; }
+        .denom-table td { border-bottom: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; font-weight: 700; font-size: 0.92rem; }
+        .denom-note-badge { display: inline-block; min-width: 65px; padding: 4px 8px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; color: #0f172a; font-weight: 800; }
+        .denom-qty-input { width: 85px; padding: 6px 8px; border: 2px solid #cbd5e1; border-radius: 6px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: inherit; outline: none; }
+        .denom-qty-input:focus { border-color: #059669; background: #ecfdf5; }
+        .denom-row-total { min-width: 90px; text-align: right !important; color: #0f172a; font-weight: 800; }
+        .milan-compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .milan-stat-card { padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #cbd5e1; background: #f8fafc; }
+        .milan-stat-card small { display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
+        .milan-stat-card strong { font-size: 1.2rem; font-weight: 800; }
+        .milan-live-verdict { padding: 12px; border-radius: 8px; text-align: center; font-weight: 800; font-size: 0.92rem; margin-bottom: 12px; }
 
         /* --- 🔥 MASTER MONEY IN / MONEY OUT BUTTONS --- */
         .master-action-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -503,6 +529,93 @@
 
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
+    <!-- 🧮 DAY-END CASH MILAN & NOTE CALCULATOR MODAL -->
+    <div id="cashMilanModal" class="modal">
+        <div class="modal-content" style="max-width: 470px; border-top: 5px solid #059669;">
+            <button class="close-btn" onclick="closeModal('cashMilanModal')">&times;</button>
+            <h3 style="margin-top:0; margin-bottom:4px; color:#0f172a; font-size:1.25rem;">
+                <i class="fas fa-calculator" style="color:#059669;"></i> आज का रोकड़ मिलान (Day-End Cash Milan)
+            </h3>
+            <p style="margin:0 0 12px 0; font-size:0.8rem; color:#64748b; font-weight:600;">
+                गल्ले के वास्तविक नोट गिनकर नीचे डालें, सिस्टम अपने आप हिसाब मैच करेगा:
+            </p>
+
+            <table class="denom-table">
+                <thead>
+                    <tr>
+                        <th>नोट (Note)</th>
+                        <th>संख्या (Pieces)</th>
+                        <th style="text-align:right;">रकम (Total ₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="denom-note-badge">₹ 500 ×</span></td>
+                        <td><input type="number" id="d500" class="denom-qty-input" min="0" placeholder="0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="tot500">₹0</td>
+                    </tr>
+                    <tr>
+                        <td><span class="denom-note-badge">₹ 200 ×</span></td>
+                        <td><input type="number" id="d200" class="denom-qty-input" min="0" placeholder="0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="tot200">₹0</td>
+                    </tr>
+                    <tr>
+                        <td><span class="denom-note-badge">₹ 100 ×</span></td>
+                        <td><input type="number" id="d100" class="denom-qty-input" min="0" placeholder="0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="tot100">₹0</td>
+                    </tr>
+                    <tr>
+                        <td><span class="denom-note-badge">₹ 50 ×</span></td>
+                        <td><input type="number" id="d50" class="denom-qty-input" min="0" placeholder="0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="tot50">₹0</td>
+                    </tr>
+                    <tr>
+                        <td><span class="denom-note-badge">₹ 20 ×</span></td>
+                        <td><input type="number" id="d20" class="denom-qty-input" min="0" placeholder="0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="tot20">₹0</td>
+                    </tr>
+                    <tr>
+                        <td><span class="denom-note-badge">₹ 10 ×</span></td>
+                        <td><input type="number" id="d10" class="denom-qty-input" min="0" placeholder="0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="tot10">₹0</td>
+                    </tr>
+                    <tr>
+                        <td><span class="denom-note-badge">Coins / चिल्लर</span></td>
+                        <td><input type="number" id="dCoins" class="denom-qty-input" min="0" placeholder="₹0" oninput="calcLiveCashMilan()"></td>
+                        <td class="denom-row-total" id="totCoins">₹0</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="milan-compare-grid">
+                <div class="milan-stat-card">
+                    <small id="milanExpectedLbl">सिस्टम अनुसार गल्ले में चाहिए</small>
+                    <strong id="milanExpectedVal" style="color:#1d4ed8;">₹0</strong>
+                </div>
+                <div class="milan-stat-card" style="background:#f0fdf4; border-color:#86efac;">
+                    <small>आपकी गिनी हुई कुल रोकड़</small>
+                    <strong id="milanActualVal" style="color:#047857;">₹0</strong>
+                </div>
+            </div>
+
+            <div id="milanVerdictBox" class="milan-live-verdict"></div>
+
+            <!-- Action Buttons inside Milan Modal -->
+            <div id="milanQuickAddWrap" style="display:none; margin-bottom:10px;">
+                <button type="button" onclick="jumpToMissedEntryFromMilan()" style="width:100%; padding:10px; border-radius:8px; border:2px dashed #d97706; background:#fffbeb; color:#b45309; font-weight:800; cursor:pointer; font-family:inherit; font-size:0.88rem;">
+                    <i class="fas fa-plus-circle"></i> + याद आ गया! अभी छूटी हुई Entry डालें
+                </button>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button type="button" class="pin-btn-cancel" onclick="closeModal('cashMilanModal')">बाद में (Cancel)</button>
+                <button type="button" class="pin-btn-confirm" style="flex:1.6; background:#059669;" onclick="confirmAndLockCashMilan()">
+                    <i class="fas fa-lock"></i> Save & Lock Actual Cash
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 🔒 SECURITY PIN MODAL FOR UCHINA RETURN -->
     <div id="uchinaPinModal" class="pin-modal-overlay">
         <div class="pin-modal-box">
@@ -722,6 +835,7 @@
         <h2 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel</h2>
         <div class="header-actions">
             <input type="date" id="selectedDate" class="date-input" onchange="updateDashboardAndLogs()" title="Select Date for Rojmel">
+            <button class="milan-btn" onclick="openCashMilanModal()"><i class="fas fa-calculator"></i> Day-End Cash Milan</button>
             <button class="print-btn" onclick="printBahiKhataRojmel()"><i class="fas fa-print"></i> Print</button>
             <button class="refresh-btn" onclick="updateDashboardAndLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
         </div>
@@ -753,6 +867,9 @@
             </div>
         </div>
     </div>
+
+    <!-- 🚨 AUTOMATIC MIDDLE ALERT BANNER FOR DAY-END SHORTAGE / EXCESS -->
+    <div id="milanStatusBanner" class="milan-diff-banner"></div>
 
     <!-- 🔥 MASTER MONEY IN & MONEY OUT BUTTONS -->
     <div class="master-action-bar">
@@ -980,6 +1097,12 @@
     const UCHINA_SECURITY_PIN = "1234";
     let pendingUchinaReturnId = null;
 
+    // --- 🧮 STATE VARIABLES FOR DAY-END CASH MILAN ---
+    let milanExpectedGallaCash = 0;   // Expected physical cash in Galla (before today's Milan adjustment)
+    let milanCurrentUchinaSum = 0;    // Active Uchina today
+    let milanExistingAdjEntry = null; // Existing Cash Milan Adjustment entry in cashflow for selected date
+    let cashMilanHistory = {};        // Saved note denominations per date
+
     // --- 🔥 TIMEZONE-SAFE LOCAL DATE HELPERS ---
     function toLocalDateStr(dateVal) {
         if (!dateVal) return '';
@@ -1066,6 +1189,207 @@
         { id: 'customer_out', icon: 'fa-hand-holding-usd', label: 'Customer Udhari / Out' },
         { id: 'bank_deposit', icon: 'fa-piggy-bank', label: 'Bank Me Jama Kiya' }
     ];
+
+    // =========================================================================
+    // 🧮 DAY-END CASH MILAN (NOTE DENOMINATION & AUTO ADJUSTMENT ENGINE)
+    // =========================================================================
+    async function loadCashMilanHistory() {
+        try {
+            let saved = await getSetting('cash_milan_history');
+            if (saved && typeof saved === 'object') {
+                cashMilanHistory = saved;
+                localStorage.setItem('bharti_cash_milan_history', JSON.stringify(saved));
+                return;
+            }
+        } catch(e) {}
+        try {
+            let local = JSON.parse(localStorage.getItem('bharti_cash_milan_history') || '{}');
+            cashMilanHistory = (local && typeof local === 'object') ? local : {};
+        } catch(e) {
+            cashMilanHistory = {};
+        }
+    }
+
+    async function saveCashMilanHistory() {
+        localStorage.setItem('bharti_cash_milan_history', JSON.stringify(cashMilanHistory));
+        try {
+            if (typeof saveSetting === 'function') await saveSetting('cash_milan_history', cashMilanHistory);
+            else if (typeof setSetting === 'function') await setSetting('cash_milan_history', cashMilanHistory);
+            else if (typeof addItem === 'function') await addItem('settings', { id: 'cash_milan_history', key: 'cash_milan_history', value: cashMilanHistory });
+        } catch(e) {}
+    }
+
+    function isCashMilanAdjFlow(c) {
+        if (!c) return false;
+        let cat = String(c.category || '').toLowerCase();
+        let note = String(c.note || '').toLowerCase();
+        return Boolean(c.isCashMilanAdj) || cat.includes('cash milan') || note.includes('[cash-milan-adj]');
+    }
+
+    function openCashMilanModal() {
+        let selDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        let savedDenom = cashMilanHistory[selDate]?.denoms || {};
+
+        document.getElementById('d500').value = savedDenom.d500 || '';
+        document.getElementById('d200').value = savedDenom.d200 || '';
+        document.getElementById('d100').value = savedDenom.d100 || '';
+        document.getElementById('d50').value = savedDenom.d50 || '';
+        document.getElementById('d20').value = savedDenom.d20 || '';
+        document.getElementById('d10').value = savedDenom.d10 || '';
+        document.getElementById('dCoins').value = savedDenom.dCoins || '';
+
+        if (milanCurrentUchinaSum > 0) {
+            document.getElementById('milanExpectedLbl').innerText = `गल्ले में अपेक्षित कैश (उछीना ₹${fmtNum(milanCurrentUchinaSum)} छोड़कर)`;
+        } else {
+            document.getElementById('milanExpectedLbl').innerText = `सिस्टम अनुसार गल्ले में चाहिए`;
+        }
+        document.getElementById('milanExpectedVal').innerText = `₹${fmtNum(milanExpectedGallaCash)}`;
+
+        calcLiveCashMilan();
+        openModal('cashMilanModal');
+        setTimeout(() => document.getElementById('d500').focus(), 100);
+    }
+
+    function getCountedDenomTotal() {
+        let n500 = Math.max(0, parseInt(document.getElementById('d500').value) || 0);
+        let n200 = Math.max(0, parseInt(document.getElementById('d200').value) || 0);
+        let n100 = Math.max(0, parseInt(document.getElementById('d100').value) || 0);
+        let n50  = Math.max(0, parseInt(document.getElementById('d50').value) || 0);
+        let n20  = Math.max(0, parseInt(document.getElementById('d20').value) || 0);
+        let n10  = Math.max(0, parseInt(document.getElementById('d10').value) || 0);
+        let coins = Math.max(0, parseNum(document.getElementById('dCoins').value) || 0);
+
+        document.getElementById('tot500').innerText = `₹${fmtNum(n500 * 500)}`;
+        document.getElementById('tot200').innerText = `₹${fmtNum(n200 * 200)}`;
+        document.getElementById('tot100').innerText = `₹${fmtNum(n100 * 100)}`;
+        document.getElementById('tot50').innerText  = `₹${fmtNum(n50 * 50)}`;
+        document.getElementById('tot20').innerText  = `₹${fmtNum(n20 * 20)}`;
+        document.getElementById('tot10').innerText  = `₹${fmtNum(n10 * 10)}`;
+        document.getElementById('totCoins').innerText = `₹${fmtNum(coins)}`;
+
+        return (n500 * 500) + (n200 * 200) + (n100 * 100) + (n50 * 50) + (n20 * 20) + (n10 * 10) + coins;
+    }
+
+    function calcLiveCashMilan() {
+        let actualCounted = getCountedDenomTotal();
+        document.getElementById('milanActualVal').innerText = `₹${fmtNum(actualCounted)}`;
+
+        let diff = actualCounted - milanExpectedGallaCash;
+        let verdictBox = document.getElementById('milanVerdictBox');
+        let quickAddWrap = document.getElementById('milanQuickAddWrap');
+
+        if (diff === 0) {
+            verdictBox.style.background = '#ecfdf5';
+            verdictBox.style.border = '2px solid #10b981';
+            verdictBox.style.color = '#065f46';
+            verdictBox.innerHTML = `<i class="fas fa-check-circle"></i> 100% रोकड़ मिलान सही है! एक रुपया भी कम या ज़्यादा नहीं है।`;
+            quickAddWrap.style.display = 'none';
+        } else if (diff < 0) {
+            let shortAmt = Math.abs(diff);
+            verdictBox.style.background = '#fef2f2';
+            verdictBox.style.border = '2px solid #ef4444';
+            verdictBox.style.color = '#991b1b';
+            verdictBox.innerHTML = `<i class="fas fa-exclamation-triangle"></i> गल्ले में <strong>₹${fmtNum(shortAmt)} कम पड़ रहे हैं (Shortage)!</strong><br><span style="font-size:0.78rem; font-weight:600;">सोचिए किसको पैसे दिए (या उधारी) जिसकी एंट्री छूट गई? अगर याद नहीं है तो Save दबाएं, यह ₹${fmtNum(shortAmt)} कम दिखाकर आज की असली रोकड़ कल के लिए आगे बढ़ा देगा।</span>`;
+            quickAddWrap.style.display = 'block';
+        } else {
+            let excessAmt = Math.abs(diff);
+            verdictBox.style.background = '#fffbeb';
+            verdictBox.style.border = '2px solid #f59e0b';
+            verdictBox.style.color = '#92400e';
+            verdictBox.innerHTML = `<i class="fas fa-info-circle"></i> गल्ले में <strong>₹${fmtNum(excessAmt)} ज़्यादा हैं (Excess)!</strong><br><span style="font-size:0.78rem; font-weight:600;">सोचिए किस ग्राहक से पैसे आए जिसकी एंट्री छूट गई? अगर याद नहीं है तो Save दबाएं, यह ₹${fmtNum(excessAmt)} ज़्यादा दिखाकर आज की असली रोकड़ कल के लिए आगे बढ़ा देगा।</span>`;
+            quickAddWrap.style.display = 'block';
+        }
+    }
+
+    function jumpToMissedEntryFromMilan() {
+        let actualCounted = getCountedDenomTotal();
+        let diff = actualCounted - milanExpectedGallaCash;
+        closeModal('cashMilanModal');
+        if (diff < 0) {
+            openUniversalModal('OUT', 'expense_out');
+            document.getElementById('uniAmt').value = Math.abs(diff);
+        } else if (diff > 0) {
+            openUniversalModal('IN', 'customer_in');
+            document.getElementById('uniAmt').value = Math.abs(diff);
+        } else {
+            openUniversalModal('IN');
+        }
+    }
+
+    async function confirmAndLockCashMilan() {
+        let selDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        let actualCounted = getCountedDenomTotal();
+        let diff = actualCounted - milanExpectedGallaCash;
+        let dateIso = getEntryIsoForSelectedDate();
+
+        cashMilanHistory[selDate] = {
+            date: selDate,
+            expectedGalla: milanExpectedGallaCash,
+            actualGalla: actualCounted,
+            diff: diff,
+            updatedAt: dateIso,
+            denoms: {
+                d500: parseInt(document.getElementById('d500').value) || 0,
+                d200: parseInt(document.getElementById('d200').value) || 0,
+                d100: parseInt(document.getElementById('d100').value) || 0,
+                d50:  parseInt(document.getElementById('d50').value) || 0,
+                d20:  parseInt(document.getElementById('d20').value) || 0,
+                d10:  parseInt(document.getElementById('d10').value) || 0,
+                dCoins: parseNum(document.getElementById('dCoins').value) || 0
+            }
+        };
+        await saveCashMilanHistory();
+
+        try {
+            if (diff === 0) {
+                if (milanExistingAdjEntry && milanExistingAdjEntry.id) {
+                    if (typeof deleteItem === 'function') {
+                        await deleteItem('cashflow', milanExistingAdjEntry.id);
+                    } else {
+                        milanExistingAdjEntry.amount = 0;
+                        await updateItem('cashflow', milanExistingAdjEntry);
+                    }
+                }
+                showToast("100% रोकड़ मिलान सेव हो गया!", "success");
+            } else {
+                let adjType = diff < 0 ? 'OUT' : 'IN';
+                let adjCategory = diff < 0 ? 'Cash Milan Shortage (रोकड़ कम पड़ी)' : 'Cash Milan Excess (रोकड़ ज़्यादा मिली)';
+                let adjNote = diff < 0
+                    ? `आज के दिन गल्ले में ₹${fmtNum(Math.abs(diff))} कम पड़ा [CASH-MILAN-ADJ]`
+                    : `आज के दिन गल्ले में ₹${fmtNum(Math.abs(diff))} ज़्यादा मिला [CASH-MILAN-ADJ]`;
+
+                if (milanExistingAdjEntry && milanExistingAdjEntry.id) {
+                    milanExistingAdjEntry.date = dateIso;
+                    milanExistingAdjEntry.type = adjType;
+                    milanExistingAdjEntry.mode = 'Cash';
+                    milanExistingAdjEntry.category = adjCategory;
+                    milanExistingAdjEntry.amount = Math.abs(diff);
+                    milanExistingAdjEntry.note = adjNote;
+                    milanExistingAdjEntry.isManual = true;
+                    milanExistingAdjEntry.isCashMilanAdj = true;
+                    await updateItem('cashflow', milanExistingAdjEntry);
+                } else {
+                    await addItem('cashflow', {
+                        date: dateIso,
+                        type: adjType,
+                        mode: 'Cash',
+                        category: adjCategory,
+                        amount: Math.abs(diff),
+                        note: adjNote,
+                        isManual: true,
+                        isCashMilanAdj: true
+                    });
+                }
+                showToast(`रोकड़ लॉक हो गई! कल के लिए ₹${fmtNum(actualCounted + milanCurrentUchinaSum)} कैरी फॉरवर्ड होगा।`, "success");
+            }
+        } catch (err) {
+            console.error("Cash Milan Save Error:", err);
+            showToast("Error saving Cash Milan!", "error");
+        }
+
+        closeModal('cashMilanModal');
+        await updateDashboardAndLogs();
+    }
 
     // --- 🤝 UCHINA (HATH-UDHAAR IN ROKAD) STORAGE HELPERS ---
     async function loadUchinaRecords() {
@@ -2163,6 +2487,7 @@
             dateEl.value = getTodayLocalStr();
         }
         await loadUchinaRecords();
+        await loadCashMilanHistory();
         await updateDashboardAndLogs();
     };
 
@@ -2173,6 +2498,7 @@
             let today = dateEl.value || getTodayLocalStr();
 
             await loadUchinaRecords();
+            await loadCashMilanHistory();
 
             try {
                 const r = await getSetting('gold_rates');
@@ -2529,6 +2855,9 @@
             let printBankMeItems = [];
             let printBankSeItems = [];
 
+            milanExistingAdjEntry = null;
+            let todayAdjSignedAmt = 0;
+
             cFlows.forEach(c => {
                 let amt = Math.abs(parseNum(c.amount));
                 let cDate = toLocalDateStr(c.date);
@@ -2542,6 +2871,11 @@
                     if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
                     else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
                 } else if (cDate === today) {
+                    if (isCashMilanAdjFlow(c) && amt > 0) {
+                        milanExistingAdjEntry = c;
+                        todayAdjSignedAmt += (type === 'IN' ? amt : -amt);
+                    }
+
                     let shortMode = String(c.mode || 'GP').toUpperCase();
                     if (shortMode.includes('UPI') || shortMode.includes('GPAY')) shortMode = 'GP';
 
@@ -3145,6 +3479,13 @@
                 
                 let spl = getSplitStr(null, c.mode, amt, amt);
 
+                if (isCashMilanAdjFlow(c)) {
+                    let cleanAdjTitle = c.note ? c.note.replace('[CASH-MILAN-ADJ]', '').trim() : c.category;
+                    if (type === 'IN') pushLog('Other In', amt, cleanAdjTitle, 'रोकड़ मिलान (Excess)', spl, true);
+                    else pushLog('Other Out', amt, cleanAdjTitle, 'रोकड़ मिलान (Shortage)', spl, false);
+                    return;
+                }
+
                 if (cat.includes('contra') || note.includes('contra-')) {
                     let contraTitle = c.note ? c.note.split('[Ref:')[0].trim() : 'Bank Contra';
                     if (type === 'IN') pushLog('Other In', amt, contraTitle, 'Contra In', spl, true);
@@ -3410,6 +3751,42 @@
 
             let closeUchinaSum = closeUchinaList.reduce((acc, u) => acc + parseNum(u.amount), 0);
             let closeGallaCash = finalRokadInHand - closeUchinaSum;
+
+            // Store Expected Galla Cash (excluding today's Cash Milan Adjustment) for Day-End Calculator
+            milanCurrentUchinaSum = closeUchinaSum;
+            milanExpectedGallaCash = closeGallaCash - todayAdjSignedAmt;
+
+            // Render Middle Alert Banner if Day-End Cash Milan was done or has Shortage/Excess
+            let milanBannerEl = document.getElementById('milanStatusBanner');
+            if (todayAdjSignedAmt !== 0) {
+                let isShort = todayAdjSignedAmt < 0;
+                let diffVal = Math.abs(todayAdjSignedAmt);
+                milanBannerEl.style.display = 'flex';
+                milanBannerEl.className = 'milan-diff-banner ' + (isShort ? 'milan-diff-short' : 'milan-diff-excess');
+                milanBannerEl.innerHTML = `
+                    <div>
+                        <i class="fas ${isShort ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
+                        <span>आज के दिन गल्ले में <strong>₹${fmtNum(diffVal)} ${isShort ? 'कम पड़ा (Cash Shortage)' : 'ज़्यादा मिला (Cash Excess)'}</strong> | आपकी गिनी हुई रोकड़ (₹${fmtNum(closeGallaCash)}) आगे कल के लिए Carry Forward हो गई है।</span>
+                    </div>
+                    <button type="button" onclick="openCashMilanModal()" style="background:#fff; border:1px solid currentColor; color:inherit; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer; font-family:inherit; font-size:0.8rem;">
+                        <i class="fas fa-edit"></i> फिर से मिलान करें
+                    </button>
+                `;
+            } else if (cashMilanHistory[today]) {
+                milanBannerEl.style.display = 'flex';
+                milanBannerEl.className = 'milan-diff-banner milan-diff-match';
+                milanBannerEl.innerHTML = `
+                    <div>
+                        <i class="fas fa-check-double"></i>
+                        <span>आज का रोकड़ मिलान पूरा हो चुका है (गल्ले में शुद्ध रोकड़: <strong>₹${fmtNum(closeGallaCash)}</strong> बिल्कुल बराबर मिली)।</span>
+                    </div>
+                    <button type="button" onclick="openCashMilanModal()" style="background:#fff; border:1px solid currentColor; color:inherit; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer; font-family:inherit; font-size:0.8rem;">
+                        <i class="fas fa-calculator"></i> नोट देखें
+                    </button>
+                `;
+            } else {
+                milanBannerEl.style.display = 'none';
+            }
 
             // Update Screen Opening Uchina Summary
             let openUchinaEl = document.getElementById('openUchinaSummary');
