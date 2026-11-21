@@ -424,10 +424,20 @@
                 <small style="color:#64748b; display:block; margin-top:6px;">Select Untagged or 24K pure metal from shop stock. You can edit the weight below for partial transfers.</small>
             </div>
 
-            <div class="form-group">
-                <label>Actual Metal Weight Given/Recv (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Physical Wt)</small></label>
-                <input type="number" id="payGold" placeholder="0.000" step="0.001" oninput="validateMetalInput()">
-                <div id="calculatedFineLabel" style="font-size:0.85rem; color:var(--receive-blue); margin-top:6px; font-weight:bold; display:none; background:#e0f2fe; padding:8px; border-radius:6px;">Fine Settled: <span id="lblPayFine">0.000g</span></div>
+            <div class="form-group" style="background:#fdfbf7; padding:14px; border-radius:10px; border:1px solid #e7dec8;">
+                <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px;">
+                    <div>
+                        <label>Actual Weight (g) <small style="color:#94a3b8; font-weight:normal;" id="maxWeightLabel">(Gross Wt)</small></label>
+                        <input type="number" id="payGold" placeholder="0.000" step="0.001" oninput="validateMetalInput()">
+                    </div>
+                    <div>
+                        <label style="color:#b45309;">Purity / Touch (%)</label>
+                        <input type="number" id="payPurity" value="100" placeholder="100" step="0.01" min="0" max="100" oninput="validateMetalInput()">
+                    </div>
+                </div>
+                <div id="calculatedFineLabel" style="font-size:0.88rem; color:var(--receive-blue); margin-top:10px; font-weight:700; display:none; background:#e0f2fe; padding:9px 12px; border-radius:8px; border:1px solid #bae6fd;">
+                    <i class="fas fa-calculator"></i> <span id="lblPayMath">0.000g × 100%</span> = <span id="lblPayFine" style="color:#0f172a; font-size:0.95rem;">0.000g Pure</span>
+                </div>
             </div>
 
             <div class="form-group" id="goldTypeGroup" style="display:none; background:#eff6ff; padding:15px; border-radius:10px; border:1px solid #bfdbfe; margin-top:15px;">
@@ -438,7 +448,7 @@
                 </select>
                 
                 <div id="rateGroup" style="display:none;">
-                    <label>Metal Rate (₹ per gram)</label>
+                    <label>Metal Rate (₹ per gram of Pure/Fine)</label>
                     <input type="number" id="payGoldRate" placeholder="e.g., 7000" oninput="calcFixedValue()">
                     <div style="margin-top:10px; font-size:0.9rem; color:var(--active-red); background:white; padding:12px; border-radius:8px; border:1px solid #fecaca;">
                         Cash Value Applied to Ledger:<br>
@@ -735,7 +745,6 @@
                     const activeTxs = txs.slice(lastClearIdx + 1);
                     let sumC = 0, sumG = 0, sumS = 0;
                     activeTxs.forEach(t => { sumC += t.cash; sumG += t.gold; sumS += t.silver; });
-                    // Clear ke baad dala gaya Opening Balance / Mismatch bhi shamil hoga
                     rC = openC + sumC;
                     rG = openG + sumG;
                     rS = openS + sumS;
@@ -772,7 +781,6 @@
                 m._pendingGold = pendingGoldAcc;
                 m._pendingSilver = pendingSilverAcc;
 
-                // Track latest clear date from either merchant doc or clear entry
                 let latestClearDate = m.lastClearDate ? new Date(m.lastClearDate) : null;
                 if (lastClearIdx !== -1) {
                     let txClearD = new Date(txs[lastClearIdx].date);
@@ -918,7 +926,6 @@
                     paymentType: 'OUT', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
                 });
 
-                // Clear ke saath Opening Balance ko bhi 0 reset karein taaki baad me naya Opening Balance dalne par fresh start se dikhe
                 await updateItem('merchants', m.id, {
                     balance: 0, goldBalance: 0, silverBalance: 0,
                     openingBalance: 0, openingGold: 0, openingSilver: 0,
@@ -951,7 +958,6 @@
             const sBal = parseFloat(m._netSilver || 0);
             document.getElementById('mmCurrentBalInfo').innerText = `Current Balance: Cash ₹${cBal.toLocaleString()} | Gold ${gBal.toFixed(3)}g | Silver ${sBal.toFixed(3)}g`;
 
-            // Default today's date in YYYY-MM-DD format
             const todayStr = new Date().toISOString().split('T')[0];
             document.getElementById('mmDate').value = todayStr;
             document.getElementById('mmCash').value = '';
@@ -985,7 +991,6 @@
                     return;
                 }
 
-                // Silent adjustment: Opening Balance me plus/minus karne se ledger me alag entry dikhe bina current hisab update ho jata hai
                 const curOpCash = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : 0;
                 const curOpGold = m.openingGold !== undefined ? parseFloat(m.openingGold) : 0;
                 const curOpSilver = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : 0;
@@ -1225,6 +1230,7 @@
         function handleInventorySelect() {
             const select = document.getElementById('payInventorySelect');
             const goldInput = document.getElementById('payGold');
+            const purityInput = document.getElementById('payPurity');
             const maxLabel = document.getElementById('maxWeightLabel');
             
             if (select.value) {
@@ -1233,12 +1239,15 @@
                 goldInput.dataset.maxWeight = selectedOpt.dataset.weight;
                 goldInput.readOnly = false;
                 goldInput.style.background = '#fff';
+
+                const factor = parseFloat(selectedOpt.dataset.factor) || 1.0;
+                purityInput.value = parseFloat((factor * 100).toFixed(2));
                 
                 if (selectedOpt.dataset.ispending === 'true') {
-                    maxLabel.innerText = `(Max Gross: ${selectedOpt.dataset.weight}g) ⚠️ PENDING`;
+                    maxLabel.innerText = `(Max: ${selectedOpt.dataset.weight}g) ⚠️ PENDING`;
                     maxLabel.style.color = '#d32f2f';
                 } else {
-                    maxLabel.innerText = `(Max Gross Available: ${selectedOpt.dataset.weight}g)`;
+                    maxLabel.innerText = `(Max: ${selectedOpt.dataset.weight}g)`;
                     maxLabel.style.color = 'var(--receive-blue)';
                 }
                 maxLabel.style.fontWeight = 'bold';
@@ -1247,7 +1256,8 @@
                 goldInput.dataset.maxWeight = '';
                 goldInput.readOnly = false;
                 goldInput.style.background = '#f8fafc';
-                maxLabel.innerText = `(Physical Wt)`;
+                purityInput.value = '100';
+                maxLabel.innerText = `(Gross Wt)`;
                 maxLabel.style.color = '#94a3b8';
                 maxLabel.style.fontWeight = 'normal';
             }
@@ -1266,7 +1276,6 @@
             let allPurchases = [];
             try { allPurchases = await getAllItems('purchases'); } catch(e) {}
 
-            // Agar hisab clear ho chuka hai, to clear date se pehle ke purane purchases On Account list me mat dikhao
             let clearCutoff = merchant._effectiveClearDate ? new Date(merchant._effectiveClearDate) : (merchant.lastClearDate ? new Date(merchant.lastClearDate) : null);
             
             const merchPurchases = allPurchases.filter(p => {
@@ -1294,6 +1303,7 @@
             document.getElementById('payAmount').value = '';
             document.getElementById('payModeSelect').value = 'Cash';
             document.getElementById('payGold').value = '';
+            document.getElementById('payPurity').value = '100';
             document.getElementById('payGold').readOnly = false;
             document.getElementById('payGold').style.background = '#f8fafc';
             document.getElementById('payGoldType').value = 'unfixed';
@@ -1318,6 +1328,14 @@
             document.getElementById('payModal').style.display = 'flex';
         }
 
+        function getActivePurityPercent() {
+            const purityEl = document.getElementById('payPurity');
+            let val = parseFloat(purityEl ? purityEl.value : 100);
+            if (isNaN(val) || val < 0) val = 100;
+            if (val > 100) val = 100;
+            return val;
+        }
+
         function validateMetalInput() {
             const goldInput = document.getElementById('payGold');
             const select = document.getElementById('payInventorySelect');
@@ -1334,14 +1352,13 @@
                 }
             }
             
-            let factor = 1.0;
-            if (select.value) {
-                factor = parseFloat(select.options[select.selectedIndex].dataset.factor) || 1.0;
-            }
-            
-            let fine = currentWt * factor;
-            if (currentWt > 0 && factor !== 1.0) {
-                document.getElementById('lblPayFine').innerText = fine.toFixed(3) + 'g';
+            const purityPct = getActivePurityPercent();
+            const factor = purityPct / 100;
+            const fine = currentWt * factor;
+
+            if (currentWt > 0) {
+                document.getElementById('lblPayMath').innerText = `${currentWt.toFixed(3)}g × ${purityPct}%`;
+                document.getElementById('lblPayFine').innerText = `${fine.toFixed(3)}g Pure`;
                 document.getElementById('calculatedFineLabel').style.display = 'block';
             } else {
                 document.getElementById('calculatedFineLabel').style.display = 'none';
@@ -1364,12 +1381,8 @@
 
         function calcFixedValue() {
             const inputWt = parseFloat(document.getElementById('payGold').value) || 0;
-            const select = document.getElementById('payInventorySelect');
-            let factor = 1.0;
-            if (select.value) {
-                factor = parseFloat(select.options[select.selectedIndex].dataset.factor) || 1.0;
-            }
-            const fineWt = inputWt * factor;
+            const factor = getActivePurityPercent() / 100;
+            const fineWt = parseFloat((inputWt * factor).toFixed(3));
             
             const rate = parseFloat(document.getElementById('payGoldRate').value) || 0;
             document.getElementById('payFixedTotal').innerText = "₹" + Math.round(fineWt * rate).toLocaleString();
@@ -1394,20 +1407,21 @@
                 const rate = parseFloat(document.getElementById('payGoldRate').value) || 0;
                 
                 const inputWt = parseFloat(document.getElementById('payGold').value) || 0; 
-                let factor = 1.0;
+                const purityPct = getActivePurityPercent();
+                const factor = purityPct / 100;
+
                 let inventoryId = null, inventoryBarcode = null, isPendingTransfer = false;
                 let transferredGrossWt = inputWt; 
-                let transferPurity = ''; 
+                let transferPurity = purityPct + '%'; 
                 
                 if (direction === 'OUT' && inventorySelect.value) {
                     inventoryId = inventorySelect.value;
                     const selOpt = inventorySelect.options[inventorySelect.selectedIndex];
                     inventoryBarcode = selOpt.dataset.barcode;
                     isPendingTransfer = selOpt.dataset.ispending === 'true';
-                    factor = parseFloat(selOpt.dataset.factor) || 1.0;
                     
                     let purityText = selOpt.innerText.split('|')[1];
-                    if (purityText) {
+                    if (purityText && purityPct === parseFloat(((parseFloat(selOpt.dataset.factor) || 1) * 100).toFixed(2))) {
                         transferPurity = purityText.trim();
                     }
                 }
@@ -1433,7 +1447,7 @@
                     merchantId: id, merchantName: merchName, purchaseId: selectedPurchaseId, amount: amt, cash: amt, gold: gold, metal: metal,
                     goldType: goldType, rate: rate, paymentType: direction,
                     inventoryId: inventoryId, inventoryBarcode: inventoryBarcode,
-                    purity: transferPurity,
+                    purity: transferPurity, purityPercent: purityPct,
                     wasPending: isPendingTransfer, originalGrossWt: transferredGrossWt, 
                     date: new Date().toISOString(), mode: payMode
                 });
@@ -1646,35 +1660,32 @@
                     
                     if (p.gold > 0) {
                         const metalName = p.metal || 'Gold';
-                        if (p.goldType === 'fixed') {
-                            let fVal = p.gold * p.rate;
-                            cashChange += (fVal * pmtMult);
-                            descParts.push(`Fixed ${metalName} ${p.gold}g @ ₹${p.rate}/g`);
-                        } else {
-                            let actualFineWt = parseFloat(p.gold || 0);
-                            let displayPurity = p.purity || "Fine";
-                            let grossWt = parseNum(p.originalGrossWt) || actualFineWt;
+                        let actualFineWt = parseFloat(p.gold || 0);
+                        let grossWt = parseNum(p.originalGrossWt) || actualFineWt;
+                        let displayPurity = p.purity || (p.purityPercent ? p.purityPercent + '%' : (grossWt > 0 ? ((actualFineWt / grossWt) * 100).toFixed(1) + '%' : '100%'));
 
-                            if (p.inventoryBarcode) {
-                                const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
-                                if (liveItem) {
-                                    if (liveItem.purity && liveItem.purity.toLowerCase() !== 'pending') {
-                                        displayPurity = liveItem.purity;
-                                    } else if (p.wasPending || (liveItem.purity && liveItem.purity.toLowerCase() === 'pending')) {
-                                        displayPurity = "Tounch Pending";
-                                        grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || p.originalGrossWt || grossWt);
-                                    }
-                                } else {
-                                    if (!p.wasPending && grossWt > actualFineWt) {
-                                        displayPurity = ((actualFineWt / grossWt) * 100).toFixed(1) + "%";
-                                    }
+                        if (p.inventoryBarcode) {
+                            const liveItem = allInventory.find(i => i.barcode === p.inventoryBarcode);
+                            if (liveItem) {
+                                if (liveItem.purity && liveItem.purity.toLowerCase() !== 'pending' && !p.purityPercent) {
+                                    displayPurity = liveItem.purity;
+                                } else if (p.wasPending || (liveItem.purity && liveItem.purity.toLowerCase() === 'pending')) {
+                                    displayPurity = "Tounch Pending";
+                                    grossWt = parseFloat(liveItem.grossWt || liveItem.netWt || liveItem.weight || p.originalGrossWt || grossWt);
                                 }
                             }
+                        }
 
+                        if (p.goldType === 'fixed') {
+                            let fVal = Math.round(actualFineWt * p.rate);
+                            cashChange += (fVal * pmtMult);
+                            let mathNote = grossWt !== actualFineWt ? ` (${parseFloat(grossWt).toFixed(3)}g × ${displayPurity} = ${actualFineWt.toFixed(3)}g Pure)` : '';
+                            descParts.push(`Fixed ${metalName} ${actualFineWt.toFixed(3)}g @ ₹${p.rate}/g${mathNote}`);
+                        } else {
                             if (metalName === 'Silver') silverChange = actualFineWt * pmtMult;
                             else goldChange = actualFineWt * pmtMult;
                             
-                            let mathDesc = `<br><span style="font-size:0.74rem; color:#0f172a; background:#f1f5f9; padding:3px 7px; border-radius:5px; margin-top:4px; display:inline-block; border:1px solid #cbd5e1; font-weight:600;">Actual Wt: ${parseFloat(grossWt).toFixed(3)}g | Purity: ${displayPurity} ➔ Fine: ${actualFineWt.toFixed(3)}g</span>`;
+                            let mathDesc = `<br><span style="font-size:0.74rem; color:#0f172a; background:#f1f5f9; padding:3px 7px; border-radius:5px; margin-top:4px; display:inline-block; border:1px solid #cbd5e1; font-weight:600;">Actual Wt: ${parseFloat(grossWt).toFixed(3)}g | Purity: ${displayPurity} ➔ Pure: ${actualFineWt.toFixed(3)}g</span>`;
                             descParts.push(`${metalName} ${pmtMult === 1 ? 'Received (IN)' : 'Given (OUT)'} ${mathDesc}`);
                         }
                     }
@@ -1703,7 +1714,6 @@
                 let baseOpenSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
                 let baseOpenCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
 
-                // Agar hisab clear ho chuka hai, to clear ke baad ka Opening Balance hi active opening balance hoga
                 let rG = lastClearIdx !== -1 ? 0 : baseOpenGold;
                 let rS = lastClearIdx !== -1 ? 0 : baseOpenSilver;
                 let rC = lastClearIdx !== -1 ? 0 : baseOpenCash;
@@ -1715,7 +1725,6 @@
                     
                     if (t.isClearEntry) {
                         if (idx === lastClearIdx) {
-                            // Aakhiri Clear ke baad dala gaya Opening Balance / Mismatch wapas shuru se apply hoga
                             rG = baseOpenGold;
                             rS = baseOpenSilver;
                             rC = baseOpenCash;
@@ -1779,14 +1788,12 @@
 
                 if (lastClearIdx !== -1) {
                     displayRows = currentReportData.slice(lastClearIdx + 1);
-                    // Clear ke baad agar naya Opening Balance ya Mismatch dala gaya hai to wo yahan dikhega!
                     pageOpenGold = currentReportMeta.openGold;
                     pageOpenSilver = currentReportMeta.openSilver;
                     pageOpenCash = currentReportMeta.openCash;
                     isFreshStart = true;
                 }
             } else if (currentReportMeta.hasClear) {
-                // Full history mode me purana opening 0 se shuru hota hai aur last clear ke baad naya opening lagta hai
                 pageOpenGold = 0;
                 pageOpenSilver = 0;
                 pageOpenCash = 0;
