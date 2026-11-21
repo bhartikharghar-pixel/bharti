@@ -634,6 +634,23 @@
             return parseFloat(String(val).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0;
         }
 
+        // Helper: Check if Opening Balance belongs AFTER the latest Hisab Clear
+        function getEffectiveOpeningBalances(m, txs, lastClearIdx) {
+            let rawOpC = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : (txs.length === 0 ? (parseFloat(m.balance) || 0) : 0);
+            let rawOpG = m.openingGold !== undefined ? parseFloat(m.openingGold) : (txs.length === 0 ? (parseFloat(m.goldBalance) || 0) : 0);
+            let rawOpS = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : (txs.length === 0 ? (parseFloat(m.silverBalance) || 0) : 0);
+
+            if (lastClearIdx !== -1) {
+                const clearTime = new Date(txs[lastClearIdx].date).getTime();
+                const opUpdateTime = m.openingUpdatedAt ? new Date(m.openingUpdatedAt).getTime() : 0;
+                // Agar opening balance clear karne se PEHLE ka hai, to clear ke baad wo 0 mana jayega
+                if (!opUpdateTime || opUpdateTime <= clearTime) {
+                    return { openC: 0, openG: 0, openS: 0, isStalePreClear: true };
+                }
+            }
+            return { openC: rawOpC, openG: rawOpG, openS: rawOpS, isStalePreClear: false };
+        }
+
         // ─── ROW SETTINGS DROPDOWN HANDLER ─────────────────────────────────────
         let activeDropdownMerchantId = null;
 
@@ -833,40 +850,47 @@
                     if (txs[i].isClearEntry) { lastClearIdx = i; break; }
                 }
 
-                let openC = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : (txs.length === 0 ? (parseFloat(m.balance) || 0) : 0);
-                let openG = m.openingGold !== undefined ? parseFloat(m.openingGold) : (txs.length === 0 ? (parseFloat(m.goldBalance) || 0) : 0);
-                let openS = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : (txs.length === 0 ? (parseFloat(m.silverBalance) || 0) : 0);
+                const effOp = getEffectiveOpeningBalances(m, txs, lastClearIdx);
 
                 let rC = 0, rG = 0, rS = 0;
                 if (lastClearIdx !== -1) {
                     const activeTxs = txs.slice(lastClearIdx + 1);
                     let sumC = 0, sumG = 0, sumS = 0;
                     activeTxs.forEach(t => { sumC += t.cash; sumG += t.gold; sumS += t.silver; });
-                    rC = openC + sumC;
-                    rG = openG + sumG;
-                    rS = openS + sumS;
+                    rC = effOp.openC + sumC;
+                    rG = effOp.openG + sumG;
+                    rS = effOp.openS + sumS;
                 } else {
                     let sumC = 0, sumG = 0, sumS = 0;
                     txs.forEach(t => { sumC += t.cash; sumG += t.gold; sumS += t.silver; });
-                    rC = openC + sumC;
-                    rG = openG + sumG;
-                    rS = openS + sumS;
+                    rC = effOp.openC + sumC;
+                    rG = effOp.openG + sumG;
+                    rS = effOp.openS + sumS;
                 }
 
                 rC = Math.abs(rC) < 0.5 ? 0 : Math.round(rC);
                 rG = Math.abs(rG) < 0.0005 ? 0 : parseFloat(rG.toFixed(3));
                 rS = Math.abs(rS) < 0.0005 ? 0 : parseFloat(rS.toFixed(3));
 
-                // Auto-heal stored DB balance if out of sync
+                // Auto-heal stored DB balance & stale pre-clear opening balance if out of sync
                 let storedGoldWithoutPending = parseFloat((rG + pendingGoldAcc).toFixed(3));
                 let storedSilverWithoutPending = parseFloat((rS + pendingSilverAcc).toFixed(3));
-                if (Math.abs((parseFloat(m.balance) || 0) - rC) >= 1 || Math.abs((parseFloat(m.goldBalance) || 0) - storedGoldWithoutPending) >= 0.001 || Math.abs((parseFloat(m.silverBalance) || 0) - storedSilverWithoutPending) >= 0.001) {
+                if (effOp.isStalePreClear || Math.abs((parseFloat(m.balance) || 0) - rC) >= 1 || Math.abs((parseFloat(m.goldBalance) || 0) - storedGoldWithoutPending) >= 0.001 || Math.abs((parseFloat(m.silverBalance) || 0) - storedSilverWithoutPending) >= 0.001) {
                     try {
-                        await updateItem('merchants', m.id, {
+                        const patch = {
                             balance: rC,
                             goldBalance: storedGoldWithoutPending,
                             silverBalance: storedSilverWithoutPending
-                        });
+                        };
+                        if (effOp.isStalePreClear) {
+                            patch.openingBalance = 0;
+                            patch.openingGold = 0;
+                            patch.openingSilver = 0;
+                            m.openingBalance = 0;
+                            m.openingGold = 0;
+                            m.openingSilver = 0;
+                        }
+                        await updateItem('merchants', m.id, patch);
                     } catch(e) {}
                 }
 
@@ -1024,6 +1048,7 @@
                 await updateItem('merchants', m.id, {
                     balance: 0, goldBalance: 0, silverBalance: 0,
                     openingBalance: 0, openingGold: 0, openingSilver: 0,
+                    openingUpdatedAt: clearDateISO,
                     lastClearDate: clearDateISO
                 });
 
@@ -1107,6 +1132,7 @@
                     openingBalance: newOpCash,
                     openingGold: newOpGold,
                     openingSilver: newOpSilver,
+                    openingUpdatedAt: new Date().toISOString(),
                     balance: Math.round((parseFloat(m.balance) || 0) + addCash),
                     goldBalance: parseFloat(((parseFloat(m.goldBalance) || 0) + addGold).toFixed(3)),
                     silverBalance: parseFloat(((parseFloat(m.silverBalance) || 0) + addSilver).toFixed(3)),
@@ -1191,7 +1217,7 @@
                     const diffGold = opGold - oldOpGold;
                     const diffSilver = opSilver - oldOpSilver;
 
-                    await updateItem('merchants', id, { 
+                    const patch = { 
                         name: name, 
                         mobile: mobile, 
                         category: category, 
@@ -1201,7 +1227,13 @@
                         balance: (parseFloat(m.balance) || 0) + diffBal, 
                         goldBalance: (parseFloat(m.goldBalance) || 0) + diffGold, 
                         silverBalance: (parseFloat(m.silverBalance) || 0) + diffSilver 
-                    });
+                    };
+
+                    if (diffBal !== 0 || diffGold !== 0 || diffSilver !== 0) {
+                        patch.openingUpdatedAt = new Date().toISOString();
+                    }
+
+                    await updateItem('merchants', id, patch);
 
                     closeModal('saveModal');
                     await loadMerchants();
@@ -1212,9 +1244,11 @@
                     }
 
                 } else {
+                    const nowISO = new Date().toISOString();
                     await addItem('merchants', { 
                         name, mobile, category, 
                         openingBalance: opBal, openingGold: opGold, openingSilver: opSilver,
+                        openingUpdatedAt: nowISO,
                         balance: opBal, goldBalance: opGold, silverBalance: opSilver 
                     });
                     closeModal('saveModal');
@@ -1798,20 +1832,14 @@
                     }
                 }
 
-                let sumGold = 0, sumSilver = 0, sumCash = 0;
-                transactions.forEach(t => { sumGold += t.gold; sumSilver += t.silver; sumCash += t.cash; });
-
+                const effOp = getEffectiveOpeningBalances(merchant, transactions, lastClearIdx);
                 const finalNetGold = (parseFloat(merchant.goldBalance) || 0) - pendingGoldAcc;
                 const finalNetSilver = (parseFloat(merchant.silverBalance) || 0) - pendingSilverAcc;
                 const finalCash = parseFloat(merchant.balance) || 0;
 
-                let baseOpenGold = merchant.openingGold !== undefined ? parseFloat(merchant.openingGold) : (finalNetGold - sumGold);
-                let baseOpenSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
-                let baseOpenCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
-
-                let rG = lastClearIdx !== -1 ? 0 : baseOpenGold;
-                let rS = lastClearIdx !== -1 ? 0 : baseOpenSilver;
-                let rC = lastClearIdx !== -1 ? 0 : baseOpenCash;
+                let rG = lastClearIdx !== -1 ? 0 : effOp.openG;
+                let rS = lastClearIdx !== -1 ? 0 : effOp.openS;
+                let rC = lastClearIdx !== -1 ? 0 : effOp.openC;
 
                 transactions.forEach((t, idx) => {
                     rG += t.gold;
@@ -1820,9 +1848,9 @@
                     
                     if (t.isClearEntry) {
                         if (idx === lastClearIdx) {
-                            rG = baseOpenGold;
-                            rS = baseOpenSilver;
-                            rC = baseOpenCash;
+                            rG = effOp.openG;
+                            rS = effOp.openS;
+                            rC = effOp.openC;
                         } else {
                             rG = 0; rS = 0; rC = 0;
                         }
@@ -1842,9 +1870,9 @@
                     cash: finalCash, 
                     gold: finalNetGold, 
                     silver: finalNetSilver,
-                    openGold: baseOpenGold,
-                    openSilver: baseOpenSilver,
-                    openCash: baseOpenCash,
+                    openGold: effOp.openG,
+                    openSilver: effOp.openS,
+                    openCash: effOp.openC,
                     lastClearDate: merchant.lastClearDate || null,
                     hasClear: lastClearIdx !== -1
                 };
