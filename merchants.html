@@ -50,7 +50,7 @@
 
         /* --- MERCHANT LIST VIEW STYLES --- */
         .merch-list-wrapper { background: white; border-radius: 14px; box-shadow: var(--card-shadow); border: 1px solid #e2e8f0; overflow-x: auto; }
-        .merch-list-table { width: 100%; border-collapse: collapse; min-width: 820px; }
+        .merch-list-table { width: 100%; border-collapse: collapse; min-width: 860px; }
         .merch-list-table th { background: #f8fafc; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 14px 16px; text-align: left; border-bottom: 2px solid #e2e8f0; }
         .merch-list-table th.text-right, .merch-list-table td.text-right { text-align: right; }
         .merch-list-table th.text-center, .merch-list-table td.text-center { text-align: center; }
@@ -75,8 +75,11 @@
         .btn-pay { background: #1e293b; color: #fff; padding: 7px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px;}
         .btn-pay:hover { background: #000; }
 
-        .btn-clear-neel { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; padding: 7px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-clear-neel { background: #fff7ed; color: #c2410c; border: 1px solid #fdba74; padding: 7px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; }
         .btn-clear-neel:hover { background: #ea580c; color: #fff; border-color: #ea580c; }
+
+        .btn-mismatch { background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; padding: 7px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+        .btn-mismatch:hover { background: #7e22ce; color: #fff; border-color: #7e22ce; }
         
         .c-edit:hover { color: #f59e0b; border-color: #f59e0b; background: #fffbeb;}
         .c-history:hover { color: var(--receive-blue); border-color: var(--receive-blue); background: #eff6ff;}
@@ -247,11 +250,11 @@
                 <thead>
                     <tr>
                         <th style="width: 5%;">#</th>
-                        <th style="width: 25%;">Merchant / Karigar</th>
-                        <th class="text-right" style="width: 16%;">Cash (₹)</th>
-                        <th class="text-right" style="width: 16%; color:#b45309;">Fine Gold (g)</th>
-                        <th class="text-right" style="width: 16%; color:#475569;">Fine Silver (g)</th>
-                        <th class="text-center" style="width: 22%;">Actions</th>
+                        <th style="width: 23%;">Merchant / Karigar</th>
+                        <th class="text-right" style="width: 15%;">Cash (₹)</th>
+                        <th class="text-right" style="width: 15%; color:#b45309;">Fine Gold (g)</th>
+                        <th class="text-right" style="width: 15%; color:#475569;">Fine Silver (g)</th>
+                        <th class="text-center" style="width: 27%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="merch-list"></tbody>
@@ -310,6 +313,52 @@
             </div>
 
             <button id="btnSaveMerchant" class="btn-block btn-primary" onclick="saveMerchant()" style="margin-top: 25px;">Save Details</button>
+        </div>
+    </div>
+
+    <!-- ADD MISMATCH / SILENT BALANCE ADJUSTMENT MODAL -->
+    <div id="mismatchModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('mismatchModal')">&times;</button>
+            <h3 style="margin-top:0; color:#7e22ce; font-size:1.35rem;"><i class="fas fa-sliders-h"></i> Add Balance Mismatch</h3>
+            
+            <div style="background:#f3e8ff; padding:12px 15px; border-radius:10px; margin-bottom:18px; border-left:4px solid #7e22ce;">
+                <div style="font-size:0.8rem; color:#6b21a8;">Party Name:</div>
+                <strong id="mmPartyName" style="color:#1e293b; font-size:1.15rem;"></strong>
+                <div id="mmCurrentBalInfo" style="font-size:0.78rem; color:#475569; margin-top:4px; font-weight:600;"></div>
+            </div>
+
+            <input type="hidden" id="mmMerchantId">
+
+            <div class="form-group">
+                <label><i class="fas fa-calendar-alt"></i> Adjustment Date</label>
+                <input type="date" id="mmDate">
+            </div>
+
+            <div class="form-group">
+                <label>Cash Adjustment (₹)</label>
+                <input type="number" id="mmCash" placeholder="0 (e.g. 5000 ya -2000)">
+                <small style="color:#64748b; font-size:0.75rem;">(+) Dena badhane ke liye | (-) Lena badhane / Dena kam karne ke liye</small>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group" id="mmGoldGroup">
+                    <label style="color:var(--accent-gold);">Fine Gold Mismatch (g)</label>
+                    <input type="number" id="mmGold" placeholder="0.000" step="0.001">
+                </div>
+                <div class="form-group" id="mmSilverGroup">
+                    <label style="color:#475569;">Fine Silver Mismatch (g)</label>
+                    <input type="number" id="mmSilver" placeholder="0.000" step="0.001">
+                </div>
+            </div>
+
+            <div style="background:#fffbeb; border:1px solid #fde68a; padding:10px 12px; border-radius:8px; font-size:0.78rem; color:#92400e; margin-bottom:10px;">
+                <i class="fas fa-info-circle"></i> <strong>Silent Adjustment:</strong> Yeh amount seedha chalu hisab (Opening/Current Balance) me plus/minus ho jayega. Khata table me alag se entry show nahi hogi.
+            </div>
+
+            <button id="btnSaveMismatch" class="btn-block" style="background:#7e22ce; color:white;" onclick="saveMismatch()">
+                <i class="fas fa-check-circle"></i> Update Mismatch Balance
+            </button>
         </div>
     </div>
 
@@ -418,6 +467,9 @@
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <button class="btn-pay" style="background:var(--accent-gold); color:#000;" onclick="openPay(currentReportMeta.id)">
                         <i class="fas fa-plus-circle"></i> Add Entry
+                    </button>
+                    <button class="btn-mismatch" onclick="openMismatchModal(currentReportMeta.id)" title="Add Mismatch Balance">
+                        <i class="fas fa-sliders-h"></i> Add Mismatch
                     </button>
                     <button class="btn-clear-neel" onclick="clearMerchantAccount(currentReportMeta.id)" title="Is Merchant ka poora hisab Zero (Neel) karein">
                         <i class="fas fa-broom"></i> Hisab Clear (Zero) Karein
@@ -536,7 +588,7 @@
 
         let allMerchants = [];
         let currentReportData = [];
-        let currentReportMeta = { id: '', name: '', mobile: '', category: 'Both', cash: 0, gold: 0, silver: 0, openGold: 0, openSilver: 0, openCash: 0, lastClearDate: null };
+        let currentReportMeta = { id: '', name: '', mobile: '', category: 'Both', cash: 0, gold: 0, silver: 0, openGold: 0, openSilver: 0, openCash: 0, lastClearDate: null, hasClear: false };
         let goldRates = { rate22k: 0, rate24k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
 
         let currentPaperPage = 1;
@@ -637,7 +689,7 @@
                     }
                 });
 
-                // 3. Payments / Settlements (Including entries from Cashbook Money In/Out)
+                // 3. Payments / Settlements
                 myPayments.forEach(p => {
                     let pmtMult = p.paymentType === 'IN' ? 1 : -1;
                     let rawCash = parseFloat(p.amount !== undefined ? p.amount : (p.cash || 0)) || 0;
@@ -674,18 +726,22 @@
                     if (txs[i].isClearEntry) { lastClearIdx = i; break; }
                 }
 
+                let openC = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : (txs.length === 0 ? (parseFloat(m.balance) || 0) : 0);
+                let openG = m.openingGold !== undefined ? parseFloat(m.openingGold) : (txs.length === 0 ? (parseFloat(m.goldBalance) || 0) : 0);
+                let openS = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : (txs.length === 0 ? (parseFloat(m.silverBalance) || 0) : 0);
+
                 let rC = 0, rG = 0, rS = 0;
                 if (lastClearIdx !== -1) {
                     const activeTxs = txs.slice(lastClearIdx + 1);
-                    activeTxs.forEach(t => { rC += t.cash; rG += t.gold; rS += t.silver; });
+                    let sumC = 0, sumG = 0, sumS = 0;
+                    activeTxs.forEach(t => { sumC += t.cash; sumG += t.gold; sumS += t.silver; });
+                    // Clear ke baad dala gaya Opening Balance / Mismatch bhi shamil hoga
+                    rC = openC + sumC;
+                    rG = openG + sumG;
+                    rS = openS + sumS;
                 } else {
                     let sumC = 0, sumG = 0, sumS = 0;
                     txs.forEach(t => { sumC += t.cash; sumG += t.gold; sumS += t.silver; });
-
-                    let openC = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : (txs.length === 0 ? (parseFloat(m.balance) || 0) : 0);
-                    let openG = m.openingGold !== undefined ? parseFloat(m.openingGold) : (txs.length === 0 ? (parseFloat(m.goldBalance) || 0) : 0);
-                    let openS = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : (txs.length === 0 ? (parseFloat(m.silverBalance) || 0) : 0);
-
                     rC = openC + sumC;
                     rG = openG + sumG;
                     rS = openS + sumS;
@@ -695,10 +751,10 @@
                 rG = Math.abs(rG) < 0.0005 ? 0 : parseFloat(rG.toFixed(3));
                 rS = Math.abs(rS) < 0.0005 ? 0 : parseFloat(rS.toFixed(3));
 
-                // Auto-heal stored DB balance if out of sync (e.g. after Cashbook Money Out entry)
+                // Auto-heal stored DB balance if out of sync
                 let storedGoldWithoutPending = parseFloat((rG + pendingGoldAcc).toFixed(3));
                 let storedSilverWithoutPending = parseFloat((rS + pendingSilverAcc).toFixed(3));
-                if (Math.abs((parseFloat(m.balance) || 0) - rC) >= 1 || Math.abs((parseFloat(m.goldBalance) || 0) - storedGoldWithoutPending) >= 0.001) {
+                if (Math.abs((parseFloat(m.balance) || 0) - rC) >= 1 || Math.abs((parseFloat(m.goldBalance) || 0) - storedGoldWithoutPending) >= 0.001 || Math.abs((parseFloat(m.silverBalance) || 0) - storedSilverWithoutPending) >= 0.001) {
                     try {
                         await updateItem('merchants', m.id, {
                             balance: rC,
@@ -715,6 +771,14 @@
                 m._netSilver = rS;
                 m._pendingGold = pendingGoldAcc;
                 m._pendingSilver = pendingSilverAcc;
+
+                // Track latest clear date from either merchant doc or clear entry
+                let latestClearDate = m.lastClearDate ? new Date(m.lastClearDate) : null;
+                if (lastClearIdx !== -1) {
+                    let txClearD = new Date(txs[lastClearIdx].date);
+                    if (!latestClearDate || txClearD > latestClearDate) latestClearDate = txClearD;
+                }
+                m._effectiveClearDate = latestClearDate ? latestClearDate.toISOString() : null;
 
                 globalCashOwe += rC;
                 if (rG > 0.0005) globalGoldOwe += rG;
@@ -795,8 +859,11 @@
                     <td class="text-right">${goldCellHtml}</td>
                     <td class="text-right">${silverCellHtml}</td>
                     <td class="text-center" onclick="event.stopPropagation()">
-                        <div style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:center;">
+                        <div style="display:inline-flex; gap:5px; align-items:center; flex-wrap:wrap; justify-content:center;">
                             <button class="btn-pay" onclick="openPay('${m.id}')" title="Add Payment / Metal"><i class="fas fa-exchange-alt"></i></button>
+                            <button class="btn-mismatch" onclick="openMismatchModal('${m.id}')" title="Add Mismatch (Silent Adjustment)">
+                                <i class="fas fa-sliders-h"></i> Mismatch
+                            </button>
                             <button class="btn-clear-neel" onclick="clearMerchantAccount('${m.id}')" title="Hisab Clear / Neel (Zero) Karein">
                                 <i class="fas fa-broom"></i> Clear
                             </button>
@@ -851,8 +918,11 @@
                     paymentType: 'OUT', date: clearDateISO, mode: 'Hisab Clear (Neel)', isClearEntry: true
                 });
 
+                // Clear ke saath Opening Balance ko bhi 0 reset karein taaki baad me naya Opening Balance dalne par fresh start se dikhe
                 await updateItem('merchants', m.id, {
-                    balance: 0, goldBalance: 0, silverBalance: 0, lastClearDate: clearDateISO
+                    balance: 0, goldBalance: 0, silverBalance: 0,
+                    openingBalance: 0, openingGold: 0, openingSilver: 0,
+                    lastClearDate: clearDateISO
                 });
 
                 showToast(`✅ ${m.name} ka hisab fresh Zero ho gaya!`, "success");
@@ -864,6 +934,99 @@
             } catch (err) {
                 console.error("Clear Account Error:", err);
                 showToast("Hisab clear karne me error aayi!", "error");
+            }
+        }
+
+        // ─── ADD MISMATCH (SILENT BALANCE ADJUSTMENT WITH CUSTOM DATE) ─────────
+        function openMismatchModal(id) {
+            const m = allMerchants.find(x => String(x.id) === String(id));
+            if (!m) return showToast("Merchant not found!", "error");
+
+            const cat = m.category || 'Both';
+            document.getElementById('mmMerchantId').value = m.id;
+            document.getElementById('mmPartyName').innerText = m.name;
+
+            const cBal = parseFloat(m.balance || 0);
+            const gBal = parseFloat(m._netGold || 0);
+            const sBal = parseFloat(m._netSilver || 0);
+            document.getElementById('mmCurrentBalInfo').innerText = `Current Balance: Cash ₹${cBal.toLocaleString()} | Gold ${gBal.toFixed(3)}g | Silver ${sBal.toFixed(3)}g`;
+
+            // Default today's date in YYYY-MM-DD format
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('mmDate').value = todayStr;
+            document.getElementById('mmCash').value = '';
+            document.getElementById('mmGold').value = '';
+            document.getElementById('mmSilver').value = '';
+
+            document.getElementById('mmGoldGroup').style.display = cat === 'Silver' ? 'none' : 'block';
+            document.getElementById('mmSilverGroup').style.display = cat === 'Gold' ? 'none' : 'block';
+
+            document.getElementById('mismatchModal').style.display = 'flex';
+        }
+
+        async function saveMismatch() {
+            const btn = document.getElementById('btnSaveMismatch');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                const id = document.getElementById('mmMerchantId').value;
+                const m = allMerchants.find(x => String(x.id) === String(id));
+                if (!m) return showToast("Merchant not found!", "error");
+
+                const cat = m.category || 'Both';
+                const mmDate = document.getElementById('mmDate').value || new Date().toISOString().split('T')[0];
+                const addCash = parseFloat(document.getElementById('mmCash').value) || 0;
+                const addGold = cat === 'Silver' ? 0 : (parseFloat(document.getElementById('mmGold').value) || 0);
+                const addSilver = cat === 'Gold' ? 0 : (parseFloat(document.getElementById('mmSilver').value) || 0);
+
+                if (addCash === 0 && addGold === 0 && addSilver === 0) {
+                    showToast("Cash, Gold ya Silver me koi value dalein", "error");
+                    return;
+                }
+
+                // Silent adjustment: Opening Balance me plus/minus karne se ledger me alag entry dikhe bina current hisab update ho jata hai
+                const curOpCash = m.openingBalance !== undefined ? parseFloat(m.openingBalance) : 0;
+                const curOpGold = m.openingGold !== undefined ? parseFloat(m.openingGold) : 0;
+                const curOpSilver = m.openingSilver !== undefined ? parseFloat(m.openingSilver) : 0;
+
+                const newOpCash = Math.round(curOpCash + addCash);
+                const newOpGold = parseFloat((curOpGold + addGold).toFixed(3));
+                const newOpSilver = parseFloat((curOpSilver + addSilver).toFixed(3));
+
+                const mismatchLogs = Array.isArray(m.mismatchLogs) ? [...m.mismatchLogs] : [];
+                mismatchLogs.push({
+                    date: mmDate,
+                    cash: addCash,
+                    gold: addGold,
+                    silver: addSilver,
+                    createdAt: new Date().toISOString()
+                });
+
+                await updateItem('merchants', m.id, {
+                    openingBalance: newOpCash,
+                    openingGold: newOpGold,
+                    openingSilver: newOpSilver,
+                    balance: Math.round((parseFloat(m.balance) || 0) + addCash),
+                    goldBalance: parseFloat(((parseFloat(m.goldBalance) || 0) + addGold).toFixed(3)),
+                    silverBalance: parseFloat(((parseFloat(m.silverBalance) || 0) + addSilver).toFixed(3)),
+                    lastMismatchDate: mmDate,
+                    mismatchLogs: mismatchLogs
+                });
+
+                closeModal('mismatchModal');
+                showToast(`✅ Mismatch balance updated (${mmDate})!`, "success");
+                await loadMerchants();
+
+                if (document.getElementById('reportModal').style.display === 'flex' && String(currentReportMeta.id) === String(id)) {
+                    await generateReport(id);
+                }
+            } catch (err) {
+                console.error("Mismatch Save Error:", err);
+                showToast("Mismatch save karne me error aayi!", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Update Mismatch Balance';
             }
         }
 
@@ -941,8 +1104,12 @@
                     });
 
                     closeModal('saveModal');
-                    loadMerchants();
+                    await loadMerchants();
                     showToast("Details Updated", "success");
+
+                    if (document.getElementById('reportModal').style.display === 'flex' && String(currentReportMeta.id) === String(id)) {
+                        await generateReport(id);
+                    }
 
                 } else {
                     await addItem('merchants', { 
@@ -951,7 +1118,7 @@
                         balance: opBal, goldBalance: opGold, silverBalance: opSilver 
                     });
                     closeModal('saveModal');
-                    loadMerchants();
+                    await loadMerchants();
                     showToast("Merchant Added!", "success");
                 }
             } finally {
@@ -1098,8 +1265,19 @@
 
             let allPurchases = [];
             try { allPurchases = await getAllItems('purchases'); } catch(e) {}
+
+            // Agar hisab clear ho chuka hai, to clear date se pehle ke purane purchases On Account list me mat dikhao
+            let clearCutoff = merchant._effectiveClearDate ? new Date(merchant._effectiveClearDate) : (merchant.lastClearDate ? new Date(merchant.lastClearDate) : null);
             
-            const merchPurchases = allPurchases.filter(p => String(p.merchantId) === String(id) && p.status !== 'cancelled');
+            const merchPurchases = allPurchases.filter(p => {
+                if (String(p.merchantId) !== String(id) || p.status === 'cancelled') return false;
+                if (clearCutoff && !isNaN(clearCutoff.getTime())) {
+                    const pDate = new Date(p.date);
+                    if (!isNaN(pDate.getTime()) && pDate <= clearCutoff) return false;
+                }
+                return true;
+            });
+
             const pSelect = document.getElementById('payPurchaseSelect');
             pSelect.innerHTML = '<option value="">-- On Account / General Ledger --</option>';
 
@@ -1506,6 +1684,14 @@
 
                 transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+                let lastClearIdx = -1;
+                for (let i = transactions.length - 1; i >= 0; i--) {
+                    if (transactions[i].isClearEntry || transactions[i].type === 'Hisab Clear (Zero)') {
+                        lastClearIdx = i;
+                        break;
+                    }
+                }
+
                 let sumGold = 0, sumSilver = 0, sumCash = 0;
                 transactions.forEach(t => { sumGold += t.gold; sumSilver += t.silver; sumCash += t.cash; });
 
@@ -1517,14 +1703,25 @@
                 let baseOpenSilver = merchant.openingSilver !== undefined ? parseFloat(merchant.openingSilver) : (finalNetSilver - sumSilver);
                 let baseOpenCash = merchant.openingBalance !== undefined ? parseFloat(merchant.openingBalance) : (finalCash - sumCash);
 
-                let rG = baseOpenGold, rS = baseOpenSilver, rC = baseOpenCash;
-                transactions.forEach(t => {
+                // Agar hisab clear ho chuka hai, to clear ke baad ka Opening Balance hi active opening balance hoga
+                let rG = lastClearIdx !== -1 ? 0 : baseOpenGold;
+                let rS = lastClearIdx !== -1 ? 0 : baseOpenSilver;
+                let rC = lastClearIdx !== -1 ? 0 : baseOpenCash;
+
+                transactions.forEach((t, idx) => {
                     rG += t.gold;
                     rS += t.silver;
                     rC += t.cash;
                     
                     if (t.isClearEntry) {
-                        rG = 0; rS = 0; rC = 0;
+                        if (idx === lastClearIdx) {
+                            // Aakhiri Clear ke baad dala gaya Opening Balance / Mismatch wapas shuru se apply hoga
+                            rG = baseOpenGold;
+                            rS = baseOpenSilver;
+                            rC = baseOpenCash;
+                        } else {
+                            rG = 0; rS = 0; rC = 0;
+                        }
                     }
                     
                     t.runGold = Math.abs(rG) < 0.0005 ? 0 : rG;
@@ -1544,7 +1741,8 @@
                     openGold: baseOpenGold,
                     openSilver: baseOpenSilver,
                     openCash: baseOpenCash,
-                    lastClearDate: merchant.lastClearDate || null
+                    lastClearDate: merchant.lastClearDate || null,
+                    hasClear: lastClearIdx !== -1
                 };
 
                 currentPaperPage = 1;
@@ -1581,11 +1779,17 @@
 
                 if (lastClearIdx !== -1) {
                     displayRows = currentReportData.slice(lastClearIdx + 1);
-                    pageOpenGold = 0;
-                    pageOpenSilver = 0;
-                    pageOpenCash = 0;
+                    // Clear ke baad agar naya Opening Balance ya Mismatch dala gaya hai to wo yahan dikhega!
+                    pageOpenGold = currentReportMeta.openGold;
+                    pageOpenSilver = currentReportMeta.openSilver;
+                    pageOpenCash = currentReportMeta.openCash;
                     isFreshStart = true;
                 }
+            } else if (currentReportMeta.hasClear) {
+                // Full history mode me purana opening 0 se shuru hota hai aur last clear ke baad naya opening lagta hai
+                pageOpenGold = 0;
+                pageOpenSilver = 0;
+                pageOpenCash = 0;
             }
 
             const totalPages = Math.max(1, Math.ceil(displayRows.length / ROWS_PER_PAPER_PAGE));
@@ -1656,7 +1860,7 @@
             tbody.appendChild(trOp);
 
             if (pageSlice.length === 0) {
-                tbody.innerHTML += '<tr><td colspan="11" style="text-align:center; padding:35px; color:#94a3b8; font-style:italic;">Abhi is khate me koi naya hisab darj nahi hai (Hisab Neel / Clear hai).</td></tr>';
+                tbody.innerHTML += '<tr><td colspan="11" style="text-align:center; padding:35px; color:#94a3b8; font-style:italic;">Abhi is khate me koi naya transaction darj nahi hai.</td></tr>';
             } else {
                 pageSlice.forEach(t => {
                     let gJ = t.gold > 0 ? t.gold : 0, gN = t.gold < 0 ? Math.abs(t.gold) : 0;
