@@ -93,17 +93,41 @@
 
         /* Form Styling */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 520px) { .form-grid { grid-template-columns: 1fr; gap: 10px; } }
         .form-group { margin-bottom: 15px; position: relative; }
         label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 5px; font-weight: 500; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fff; transition: border 0.2s; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; background: #fff; transition: border 0.2s; font-family: inherit; }
         input:focus, select:focus { border-color: #D32F2F; outline: none; }
         
         .search-results { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ddd; border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        .search-item { padding: 12px; cursor: pointer; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
         .search-item:hover { background: #fff5f5; color: #D32F2F; }
 
         .btn-primary { width: 100%; padding: 14px; background: #D32F2F; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;}
         .btn-primary:hover { background: #b71c1c; }
+
+        /* --- 📸 PHOTO UPLOAD & PREVIEW BOXES --- */
+        .photo-upload-card {
+            border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center;
+            background: #f8fafc; cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .photo-upload-card:hover { border-color: #C5A059; background: #fffdf5; }
+        .photo-preview-thumb {
+            width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 2px solid #C5A059;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12); cursor: pointer;
+        }
+        .cust-avatar-sm {
+            width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #C5A059; flex-shrink: 0; cursor: pointer;
+        }
+        .new-cust-inline-panel {
+            background: #f0f7ff; border: 1.5px solid #90caf9; border-radius: 10px; padding: 14px; margin-top: 10px;
+        }
+        .btn-inline-new-cust {
+            background: #e3f2fd; color: #1565c0; border: 1px dashed #1976d2; padding: 8px 12px;
+            border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex;
+            align-items: center; gap: 6px; margin-top: 6px;
+        }
+        .btn-inline-new-cust:hover { background: #bbdefb; }
 
         /* --- T-LEDGER STYLES (JAMA / UDHAR) --- */
         .t-ledger-container { display: flex; width: 100%; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
@@ -126,7 +150,7 @@
         /* Print Specifics */
         @media print {
             body { background: white; padding: 0; color: black; }
-            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .fab, .close-btn, #paymentBox, #btnSettleClose, #btnWaReminder, #btnPrintLedger, #btnDeleteLedgerLoan, #btnAddTopUp { display: none !important; }
+            .app-header, .sidebar-drawer, .sidebar-overlay, .app-container, .fab, .close-btn, #paymentBox, #btnSettleClose, #btnWaReminder, #btnPrintLedger, #btnDeleteLedgerLoan, #btnAddTopUp, .no-print { display: none !important; }
             .modal { position: static; display: block !important; background: none; }
             .modal-content { box-shadow: none; max-width: 100%; width: 100%; padding: 0; margin: 0; border: none; }
             .t-ledger-container { border: 1px solid #000; break-inside: avoid; }
@@ -166,6 +190,19 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
     </aside>
+
+    <!-- FULL SCREEN IMAGE ZOOM MODAL -->
+    <div id="imageZoomModal" class="modal" style="z-index: 3000;" onclick="closeModal('imageZoomModal')">
+        <div class="modal-content" style="max-width: 520px; text-align: center; padding: 15px;" onclick="event.stopPropagation()">
+            <button class="close-btn" onclick="closeModal('imageZoomModal')">&times;</button>
+            <h4 id="zoomModalTitle" style="margin: 0 0 10px 0; color: #333;">Photo Preview</h4>
+            <img id="zoomModalImg" src="" alt="Preview" style="max-width: 100%; max-height: 75vh; border-radius: 10px; border: 2px solid #C5A059;">
+        </div>
+    </div>
+
+    <!-- HIDDEN FILE INPUT FOR UPDATING EXISTING / OLD LOAN GOLD ITEM PHOTO -->
+    <input type="file" id="existingLoanItemPhotoInput" accept="image/*" style="display:none;" onchange="handleExistingLoanPhotoSelected(event)">
+
     <div class="app-container">
         <div class="stats-grid">
             <div class="stat-card" style="border-left-color: #1976d2;">
@@ -214,13 +251,19 @@
         <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- CUSTOMER LOANS MODAL WITH 4-BOX BREAKDOWN, AUDIT TICK, DELETE & GRAND TOTAL -->
+    <!-- CUSTOMER LOANS MODAL WITH ITEM PHOTO, AUDIT TICK, DELETE & GRAND TOTAL -->
     <div id="customerLoansModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('customerLoansModal')">&times;</button>
-            <h3 id="custListTitle" style="padding-right: 30px;">Customer Loans</h3>
-            <p style="font-size: 0.78rem; color: #666; margin-top: -5px; margin-bottom: 10px;">
-                <i class="fas fa-info-circle" style="color:#2e7d32;"></i> Paper diary se milane ke baad loan ke aage <strong>Right (✓)</strong> tick lagayein (7 din baad auto-reset).
+            <div id="custModalHeaderWrap" style="display:flex; align-items:center; gap:12px; padding-right:35px; margin-bottom:6px;">
+                <img id="custModalPhoto" src="" class="cust-avatar-sm" style="display:none; width:50px; height:50px;" onclick="zoomImage(this.src, 'Customer Photo')">
+                <div>
+                    <h3 id="custListTitle" style="margin:0;">Customer Loans</h3>
+                    <div id="custModalKycBadge" style="font-size:0.75rem; color:#1565c0; font-weight:600; margin-top:2px;"></div>
+                </div>
+            </div>
+            <p style="font-size: 0.78rem; color: #666; margin-top: 4px; margin-bottom: 10px;">
+                <i class="fas fa-info-circle" style="color:#2e7d32;"></i> Paper diary se milane ke baad <strong>Right (✓)</strong> tick lagayein, ya <strong><i class="fas fa-camera"></i> Photo</strong> par click karke गहने की फोटो लगाएं/देखें।
             </p>
             <div id="customerLoansContainer" style="margin-top:10px; display:grid; gap:10px; max-height: 52vh; overflow-y: auto; padding-right: 5px;"></div>
             <!-- Grand Total Summary Bar -->
@@ -228,8 +271,9 @@
         </div>
     </div>
 
+    <!-- BULK OLD LOANS MODAL -->
     <div id="bulkOldLoanModal" class="modal" style="z-index: 2150;">
-        <div class="modal-content" style="max-width: 800px; background: #fafafa;">
+        <div class="modal-content" style="max-width: 820px; background: #fafafa;">
             <button class="close-btn" onclick="closeModal('bulkOldLoanModal')">&times;</button>
             <h3><i class="fas fa-history" style="color:#5e35b1;"></i> Purane Loans Ki Bulk Entry</h3>
             <p style="font-size: 0.8rem; color: #d32f2f; margin-top:-5px;">* In loans ka amount Cashbook se minus nahi hoga.</p>
@@ -242,9 +286,8 @@
                 <div id="bulkSelectedCustDisplay" style="display:none; margin-top:5px; font-weight:bold; color:#1976d2; font-size: 1.1rem;"></div>
             </div>
 
-            <label style="margin-top: 15px; display: block; font-weight: 600;">2. Purane Loans Ki Details Daalein</label>
-            <div id="bulkRowsContainer" style="max-height: 40vh; overflow-y: auto; padding-right: 5px;">
-                </div>
+            <label style="margin-top: 15px; display: block; font-weight: 600;">2. Purane Loans Ki Details Daalein (Photo Optional)</label>
+            <div id="bulkRowsContainer" style="max-height: 40vh; overflow-y: auto; padding-right: 5px;"></div>
             
             <button type="button" style="margin-top:15px; background:white; color:#5e35b1; border:2px dashed #5e35b1; padding:10px; border-radius:8px; cursor:pointer; width:100%; font-weight:bold;" onclick="addBulkRow()">
                 <i class="fas fa-plus"></i> Ek Aur Loan Jodein
@@ -256,27 +299,104 @@
         </div>
     </div>
 
+    <!-- NEW GOLD LOAN MODAL (WITH INLINE NEW CUSTOMER + CUSTOMER PHOTO + KYC PHOTO + GOLD ITEM PHOTO) -->
     <div id="createModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('createModal')">&times;</button>
             <h3>New Gold Loan</h3>
 
+            <!-- 1. CUSTOMER SELECT OR CREATE NEW INLINE -->
             <div class="form-group">
-                <label>Select Customer</label>
-                <input type="text" id="customerSearchInput" placeholder="Type Name or Mobile to Search..." onkeyup="filterSelectableCustomers()" autocomplete="off">
-                <input type="hidden" id="selectedCustomerId">
-                <div id="customerSearchResults" class="search-results"></div>
-                <div id="selectedCustDisplay" style="display:none; margin-top:5px; font-weight:bold; color:#1976d2;"></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <label style="margin:0;">Select Customer *</label>
+                    <button type="button" id="btnToggleNewCust" class="btn-inline-new-cust" style="margin:0;" onclick="toggleInlineNewCustomer()">
+                        <i class="fas fa-user-plus"></i> + नया कस्टमर जोड़ें
+                    </button>
+                </div>
+
+                <!-- Existing Customer Search Box -->
+                <div id="existingCustSearchWrap">
+                    <input type="text" id="customerSearchInput" placeholder="Type Name or Mobile to Search..." onkeyup="filterSelectableCustomers()" autocomplete="off">
+                    <input type="hidden" id="selectedCustomerId">
+                    <div id="customerSearchResults" class="search-results"></div>
+                    <div id="selectedCustDisplay" style="display:none; margin-top:8px; background:#e3f2fd; padding:8px 12px; border-radius:8px; border:1px solid #90caf9; align-items:center; justify-content:space-between;"></div>
+                </div>
+
+                <!-- Inline New Customer Creation Form (Links directly to global Customers DB) -->
+                <div id="inlineNewCustomerBox" class="new-cust-inline-panel" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed #90caf9; padding-bottom:6px;">
+                        <strong style="color:#0d47a1; font-size:0.9rem;"><i class="fas fa-user-plus"></i> नया कस्टमर बनाएं (सभी जगह सेव होगा)</strong>
+                        <button type="button" onclick="toggleInlineNewCustomer(false)" style="background:none; border:none; color:#c62828; font-weight:700; cursor:pointer; font-size:0.8rem;">Cancel</button>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label style="font-size:0.78rem;">Customer Name *</label>
+                            <input type="text" id="newCustName" placeholder="Full Name" style="padding:9px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label style="font-size:0.78rem;">Mobile Number *</label>
+                            <input type="tel" id="newCustMobile" placeholder="10-digit Mobile" maxlength="15" style="padding:9px;">
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label style="font-size:0.78rem;">City / Address</label>
+                            <input type="text" id="newCustCity" placeholder="e.g. Kharghar / Village" style="padding:9px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label style="font-size:0.78rem;">Aadhaar / PAN / KYC No.</label>
+                            <input type="text" id="newCustKycNo" placeholder="Optional ID Number" style="padding:9px;">
+                        </div>
+                    </div>
+
+                    <!-- Customer Photo & KYC Document Photo -->
+                    <div class="form-grid" style="margin-top:4px;">
+                        <div>
+                            <label style="font-size:0.78rem; color:#0d47a1; font-weight:700;"><i class="fas fa-user-circle"></i> Customer Photo</label>
+                            <div class="photo-upload-card" onclick="document.getElementById('newCustPhotoInput').click()">
+                                <input type="file" id="newCustPhotoInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'newCustPhotoPreview', 'newCustPhotoData')">
+                                <input type="hidden" id="newCustPhotoData">
+                                <img id="newCustPhotoPreview" src="" class="photo-preview-thumb" style="display:none; margin:0 auto 5px auto;">
+                                <div style="font-size:0.75rem; color:#475569; font-weight:600;"><i class="fas fa-camera"></i> Tap to Add Photo</div>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem; color:#0d47a1; font-weight:700;"><i class="fas fa-id-card"></i> KYC Doc Photo (Aadhaar/ID)</label>
+                            <div class="photo-upload-card" onclick="document.getElementById('newCustKycPhotoInput').click()">
+                                <input type="file" id="newCustKycPhotoInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'newCustKycPreview', 'newCustKycData')">
+                                <input type="hidden" id="newCustKycData">
+                                <img id="newCustKycPreview" src="" class="photo-preview-thumb" style="display:none; margin:0 auto 5px auto;">
+                                <div style="font-size:0.75rem; color:#475569; font-weight:600;"><i class="fas fa-file-image"></i> Tap to Add KYC</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label style="color:#D32F2F;">Loan Start Date</label>
+                    <label style="color:#D32F2F;">Loan Start Date *</label>
                     <input type="date" id="loanStartDate" style="border-color:#D32F2F;">
                 </div>
                 <div class="form-group">
-                    <label>Item Description</label>
+                    <label>Item Description *</label>
                     <input type="text" id="loanDesc" placeholder="e.g. 2 Gold Bangles">
+                </div>
+            </div>
+
+            <!-- 📸 GOLD ITEM PHOTO UPLOAD FOR NEW LOAN -->
+            <div class="form-group">
+                <label style="color:#b45309; font-weight:700;"><i class="fas fa-ring"></i> Gold Item Photo (गहने की फोटो)</label>
+                <div class="photo-upload-card" style="display:flex; align-items:center; justify-content:space-between; text-align:left; padding:10px 14px;" onclick="document.getElementById('newLoanItemPhotoInput').click()">
+                    <input type="file" id="newLoanItemPhotoInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'newLoanItemPhotoPreview', 'newLoanItemPhotoData')">
+                    <input type="hidden" id="newLoanItemPhotoData">
+                    <div>
+                        <div style="font-size:0.85rem; font-weight:700; color:#333;"><i class="fas fa-camera" style="color:#C5A059;"></i> गिरवी रखे गहने की फोटो लें / चुनें</div>
+                        <div style="font-size:0.72rem; color:#64748b;">Camera या Gallery से फोटो अपलोड करें (Optional)</div>
+                    </div>
+                    <img id="newLoanItemPhotoPreview" src="" class="photo-preview-thumb" style="display:none;">
                 </div>
             </div>
 
@@ -324,11 +444,12 @@
                 </div>
             </div>
 
-            <button class="btn-primary" onclick="saveLoan()">Create Loan Account</button>
+            <button id="btnSaveNewLoan" class="btn-primary" onclick="saveLoan()">Create Loan Account</button>
             <p style="font-size: 0.75rem; color: #666; text-align: center; margin-top: 10px;">*The loan amount will be instantly deducted from your Shop Cashbook.</p>
         </div>
     </div>
 
+    <!-- VIEW T-LEDGER MODAL (WITH GOLD ITEM PHOTO VIEW & UPLOAD/CHANGE) -->
     <div id="viewModal" class="modal" style="z-index: 2200;">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
@@ -342,16 +463,34 @@
                 </div>
             </h3>
             
-            <div style="font-size: 0.9rem; color: #555; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
-                <div>
-                    <strong id="vCustNameDetail" style="color: #333; font-size: 1.05rem;">Customer Name</strong><br>
-                    <i class="fas fa-phone"></i> <span id="vCustPhoneDetail"></span>
+            <div style="font-size: 0.9rem; color: #555; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #ccc; padding-bottom: 10px; gap: 10px; flex-wrap: wrap;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img id="vCustPhotoThumb" src="" class="cust-avatar-sm" style="display:none;" onclick="zoomImage(this.src, 'Customer Photo')">
+                    <div>
+                        <strong id="vCustNameDetail" style="color: #333; font-size: 1.05rem;">Customer Name</strong><br>
+                        <i class="fas fa-phone"></i> <span id="vCustPhoneDetail"></span>
+                        <span id="vCustKycLink" class="no-print" style="display:none; margin-left:8px; color:#1565c0; font-size:0.78rem; font-weight:700; cursor:pointer; text-decoration:underline;">View KYC</span>
+                    </div>
                 </div>
                 <div style="text-align: right;">
                     <strong>Item:</strong> <span id="vItemDesc"></span> | <span id="vItemWeight" style="font-weight:600; color:#d84315;"></span><br>
                     <strong>Rate:</strong> <span id="vInterestRate"></span> 
                     <button onclick="editInterestRate()" style="background:none; border:1px solid #ccc; padding:2px 6px; border-radius:4px; font-size:0.7rem; cursor:pointer; margin-left:5px; color:#1976d2;"><i class="fas fa-edit"></i> Edit</button>
                 </div>
+            </div>
+
+            <!-- 📸 GOLD ITEM PHOTO STRIP IN LEDGER (FOR NEW & OLD LOANS) -->
+            <div id="ledgerItemPhotoBar" style="display:flex; justify-content:space-between; align-items:center; background:#fffbeb; border:1px solid #fde68a; padding:8px 12px; border-radius:8px; margin-bottom:14px; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img id="vLoanItemPhotoImg" src="" class="photo-preview-thumb" style="width:52px; height:52px; display:none;" onclick="zoomImage(this.src, 'Gold Loan Item Photo')">
+                    <div>
+                        <div style="font-size:0.82rem; font-weight:700; color:#92400e;"><i class="fas fa-ring"></i> गिरवी गहने की फोटो (Gold Item Photo)</div>
+                        <div id="vLoanItemPhotoStatus" style="font-size:0.74rem; color:#78350f;">फोटो अपलोड नहीं है</div>
+                    </div>
+                </div>
+                <button type="button" class="no-print" onclick="triggerExistingLoanPhotoUpload(currentLoanId)" style="background:#d97706; color:#fff; border:none; padding:7px 12px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    <i class="fas fa-camera"></i> <span id="vLoanPhotoBtnText">Add Photo</span>
+                </button>
             </div>
 
             <input type="hidden" id="viewLoanId">
@@ -458,11 +597,146 @@
         let currentTab = 'active';
         let goldRates = { rate22k: 0 };
         let currentCustomerViewId = null;
+        let isCreatingInlineCustomer = false;
+        let targetLoanIdForPhotoUpload = null;
 
         function getTodayISTDateStr() {
             const today = new Date();
             const istOffset = 5.5 * 60 * 60 * 1000;
             return new Date(today.getTime() + istOffset).toISOString().split('T')[0];
+        }
+
+        // --- 📸 IMAGE COMPRESSION & ZOOM HELPERS ---
+        function compressImageFile(file, maxWidth = 700, quality = 0.72) {
+            return new Promise((resolve, reject) => {
+                if (!file) return resolve('');
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handlePreviewImage(event, previewImgId, hiddenInputId) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            try {
+                const compressedBase64 = await compressImageFile(file, 720, 0.72);
+                const imgEl = document.getElementById(previewImgId);
+                const hiddenEl = document.getElementById(hiddenInputId);
+                if (imgEl) {
+                    imgEl.src = compressedBase64;
+                    imgEl.style.display = 'inline-block';
+                }
+                if (hiddenEl) {
+                    hiddenEl.value = compressedBase64;
+                }
+            } catch (err) {
+                console.error("Image processing error:", err);
+                alert("Photo process karne me problem aayi, dobara try karein.");
+            }
+        }
+
+        function zoomImage(src, title = 'Photo Preview') {
+            if (!src) return;
+            document.getElementById('zoomModalTitle').innerText = title;
+            document.getElementById('zoomModalImg').src = src;
+            document.getElementById('imageZoomModal').style.display = 'flex';
+        }
+
+        // --- 📸 UPLOAD / UPDATE GOLD ITEM PHOTO FOR EXISTING / OLD LOANS ---
+        function triggerExistingLoanPhotoUpload(loanId, event) {
+            if (event) event.stopPropagation();
+            if (!loanId) return;
+            targetLoanIdForPhotoUpload = loanId;
+            const input = document.getElementById('existingLoanItemPhotoInput');
+            input.value = '';
+            input.click();
+        }
+
+        async function handleExistingLoanPhotoSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file || !targetLoanIdForPhotoUpload) return;
+
+            try {
+                const compressedBase64 = await compressImageFile(file, 750, 0.75);
+                let dbLoan = await getItem('loans', targetLoanIdForPhotoUpload);
+                if (!dbLoan) {
+                    alert("Loan record database me nahi mila!");
+                    return;
+                }
+
+                dbLoan.itemPhoto = compressedBase64;
+                dbLoan.photo = compressedBase64;
+                await updateItem('loans', dbLoan);
+
+                // Update memory cache
+                const memLoan = allLoans.find(x => String(x.id) === String(targetLoanIdForPhotoUpload));
+                if (memLoan) {
+                    memLoan.itemPhoto = compressedBase64;
+                    memLoan.photo = compressedBase64;
+                }
+
+                if (currentCustomerViewId) {
+                    openCustomerLoans(currentCustomerViewId);
+                }
+                if (currentLoanId && String(currentLoanId) === String(targetLoanIdForPhotoUpload)) {
+                    openLedger(currentLoanId);
+                }
+
+                alert("✅ Gold Item ki photo save ho gayi!");
+            } catch (err) {
+                console.error("Error saving loan item photo:", err);
+                alert("Photo save karne me error aayi.");
+            } finally {
+                targetLoanIdForPhotoUpload = null;
+            }
+        }
+
+        // --- 👤 TOGGLE INLINE NEW CUSTOMER CREATION ---
+        function toggleInlineNewCustomer(forceState = null) {
+            isCreatingInlineCustomer = (forceState !== null) ? forceState : !isCreatingInlineCustomer;
+            const existingWrap = document.getElementById('existingCustSearchWrap');
+            const inlineBox = document.getElementById('inlineNewCustomerBox');
+            const toggleBtn = document.getElementById('btnToggleNewCust');
+
+            if (isCreatingInlineCustomer) {
+                existingWrap.style.display = 'none';
+                inlineBox.style.display = 'block';
+                toggleBtn.style.display = 'none';
+                document.getElementById('selectedCustomerId').value = '';
+                document.getElementById('newCustName').focus();
+            } else {
+                existingWrap.style.display = 'block';
+                inlineBox.style.display = 'none';
+                toggleBtn.style.display = 'inline-flex';
+                document.getElementById('newCustName').value = '';
+                document.getElementById('newCustMobile').value = '';
+                document.getElementById('newCustCity').value = '';
+                document.getElementById('newCustKycNo').value = '';
+                document.getElementById('newCustPhotoData').value = '';
+                document.getElementById('newCustKycData').value = '';
+                document.getElementById('newCustPhotoPreview').style.display = 'none';
+                document.getElementById('newCustKycPreview').style.display = 'none';
+            }
         }
 
         // --- 7 DAYS AUTO-EXPIRY AUDIT CHECK LOGIC ---
@@ -696,7 +970,6 @@
             if (elapsedMonths < 0) elapsedMonths = 0;
             const totalMainMonths = elapsedMonths + 1;
 
-            // Initialize Main Ledger Month 0
             const firstMonthStr = startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
             l.ledger = [{
                 month: firstMonthStr,
@@ -709,7 +982,6 @@
                 status: 'active'
             }];
 
-            // Initialize Top-Ups
             let topUpMeta = [];
             if (l.topUps && l.topUps.length > 0) {
                 l.topUps.forEach((t, idx) => {
@@ -723,7 +995,6 @@
                 });
             }
 
-            // Build timeline events (subsequent month cycles & TopUp starts)
             let events = [];
             for (let i = 1; i < totalMainMonths; i++) {
                 const mDate = new Date(startDate);
@@ -739,7 +1010,6 @@
                 }
             });
 
-            // Sort payments chronologically by date
             if (!l.payments) l.payments = [];
             l.payments.sort((a, b) => new Date(a.date) - new Date(b.date));
             l.payments.forEach((p, idx) => {
@@ -753,9 +1023,7 @@
                 return typePriority[a.type] - typePriority[b.type];
             });
 
-            // Replay all events chronologically across the timeline
             events.forEach(ev => {
-                // Stop generating future months if loan is already fully paid off
                 let curMainP = l.ledger[l.ledger.length - 1].closingPrincipal;
                 let curTopP = 0;
                 if (l.topUps) l.topUps.forEach(t => {
@@ -799,7 +1067,6 @@
                     let intPaidThis = 0;
                     let prinPaidThis = 0;
 
-                    // 1. Pay unpaid Main Interest accrued so far
                     for (let i = 0; i < l.ledger.length; i++) {
                         let unpaid = l.ledger[i].interestCharged - l.ledger[i].paidInterest;
                         if (unpaid > 0 && rem > 0) {
@@ -810,7 +1077,6 @@
                         }
                     }
 
-                    // 2. Pay unpaid Top-Up Interest accrued so far
                     if (l.topUps && rem > 0) {
                         for (let t = 0; t < l.topUps.length; t++) {
                             if (l.topUps[t].ledger) {
@@ -827,7 +1093,6 @@
                         }
                     }
 
-                    // 3. Pay Main Principal
                     if (rem > 0 && l.ledger.length > 0) {
                         let lastEntry = l.ledger[l.ledger.length - 1];
                         if (lastEntry.closingPrincipal > 0) {
@@ -839,7 +1104,6 @@
                         }
                     }
 
-                    // 4. Pay Top-Up Principal
                     if (rem > 0 && l.topUps) {
                         for (let t = 0; t < l.topUps.length; t++) {
                             let unpaidT = l.topUps[t].amount - (l.topUps[t].paidPrincipal || 0);
@@ -863,7 +1127,6 @@
 
         // --- DATE TO DATE INTEREST LOGIC (INCLUDING TOP-UPS) ---
         function syncLoanLedger(l) {
-            // Auto-check if an active loan is already paid off / zero
             if (l.status === 'active' && checkAndMarkClosed(l)) {
                 return true;
             }
@@ -871,7 +1134,6 @@
             let updated = false;
             const now = new Date();
             
-            // 1. Sync Main Principal Ledger
             const startDate = new Date(l.date);
             let elapsedMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
             if (now.getDate() < startDate.getDate()) { elapsedMonths--; }
@@ -903,7 +1165,6 @@
                 }
             }
 
-            // 2. Sync Top-Ups Ledger (Extra Money)
             if (l.topUps && l.topUps.length > 0) {
                 l.topUps.forEach(topUp => {
                     let currentTPrin = topUp.amount - (topUp.paidPrincipal || 0);
@@ -952,7 +1213,6 @@
                     
                     let needsDbUpdate = syncLoanLedger(l);
 
-                    // Auto-clean expired 7-day audit check from DB
                     if (l.auditCheckedAt && !isLoanAuditChecked(l)) {
                         l.auditCheckedAt = null;
                         needsDbUpdate = true;
@@ -962,7 +1222,6 @@
                         await updateItem('loans', l); 
                     }
 
-                    // Calculate total active principal (Main + Any Top-Ups)
                     let currentPrin = l.amount;
                     if(l.ledger && l.ledger.length > 0) {
                         currentPrin = l.ledger[l.ledger.length - 1].closingPrincipal;
@@ -995,11 +1254,11 @@
                         ...l, 
                         custName: c ? c.name : 'Unknown', 
                         custMobile: c ? c.mobile : '',
+                        custPhoto: c ? (c.photo || c.customerPhoto || '') : '',
                         currentPrincipal: currentPrin 
                     };
                 }));
 
-                // UI UPDATE KAREIN
                 let grandTotal = totalPrin + totalPendingInt;
                 const totalDueElement = document.getElementById('totalDueAmount');
                 if (totalDueElement) {
@@ -1031,6 +1290,7 @@
                         customerId: l.customerId,
                         custName: l.custName,
                         custMobile: l.custMobile,
+                        custPhoto: l.custPhoto || '',
                         activeCount: 0,
                         closedCount: 0,
                         totalActivePrincipal: 0,
@@ -1057,7 +1317,6 @@
                     }
                     groups[l.customerId].totalActiveInterest += pendingInt;
 
-                    // Gold value rule validation
                     let mktVal = getGoldValue(l.weight, l.purity);
                     if (mktVal > 0 && (l.currentPrincipal + pendingInt) > mktVal) {
                         groups[l.customerId].hasRiskyLoan = true;
@@ -1068,9 +1327,6 @@
                 }
             });
 
-            // Filter by Active vs Closed Tab:
-            // Active tab shows customers with >= 1 active loan.
-            // Closed (History) tab shows customers with >= 1 closed loan!
             let allTabGroups = Object.values(groups).filter(g => currentTab === 'active' ? g.activeCount > 0 : g.closedCount > 0);
             let verifiedCustCount = 0;
             allTabGroups.forEach(g => {
@@ -1113,6 +1369,10 @@
                     verifiedTagHtml = `<span class="verified-tag" style="background:#fff3e0; color:#e65100;"><i class="fas fa-clock"></i> ${checkedCount}/${relevantLoans.length} Checked</span>`;
                 }
 
+                let avatarHtml = g.custPhoto
+                    ? `<img src="${g.custPhoto}" class="cust-avatar-sm" onclick="event.stopPropagation(); zoomImage(this.src, '${g.custName.replace(/'/g, "\\'")}')" title="Customer Photo">`
+                    : '';
+
                 let amountSectionHtml = '';
                 if (!isClosedTab) {
                     amountSectionHtml = `
@@ -1137,6 +1397,7 @@
                                 <button class="check-tick-btn ${isCustVerified ? 'checked' : ''}" onclick="toggleCustomerAuditCheck('${g.customerId}', event)" title="Diary se milane ke baad Right (✓) lagayein">
                                     <i class="fas fa-check"></i>
                                 </button>
+                                ${avatarHtml}
                                 <div>
                                     <span class="l-cust">${g.custName}</span>
                                     <span class="l-sub"><i class="fas fa-phone"></i> ${g.custMobile || 'N/A'}</span>
@@ -1170,8 +1431,6 @@
             if(!foundCust) return alert("Customer not found.");
             
             currentCustomerViewId = foundCust.id;
-            // Filter strictly according to currentTab!
-            // Active tab shows ONLY active loans; History tab shows ONLY closed loans!
             const custLoans = allLoans.filter(l => 
                 String(l.customerId) === String(currentCustomerViewId) && 
                 (currentTab === 'active' ? l.status === 'active' : l.status === 'closed')
@@ -1184,6 +1443,27 @@
             
             const tabLabel = currentTab === 'active' ? 'Active Loans' : 'Closed Loans (History)';
             document.getElementById('custListTitle').innerText = `${foundCust.name} - ${tabLabel}`;
+
+            // Show Customer Photo & KYC Link in Header
+            const cPhotoEl = document.getElementById('custModalPhoto');
+            const cKycBadge = document.getElementById('custModalKycBadge');
+            const cPhotoUrl = foundCust.photo || foundCust.customerPhoto || '';
+            const cKycUrl = foundCust.kycPhoto || foundCust.idPhoto || '';
+
+            if (cPhotoUrl) {
+                cPhotoEl.src = cPhotoUrl;
+                cPhotoEl.style.display = 'block';
+            } else {
+                cPhotoEl.style.display = 'none';
+            }
+
+            let kycParts = [];
+            if (foundCust.mobile) kycParts.push(`Mob: ${foundCust.mobile}`);
+            if (foundCust.kycNo || foundCust.aadhaar) kycParts.push(`ID: ${foundCust.kycNo || foundCust.aadhaar}`);
+            if (cKycUrl) {
+                kycParts.push(`<span style="cursor:pointer; text-decoration:underline; color:#0d47a1;" onclick="zoomImage('${cKycUrl}', 'Customer KYC Document')"><i class="fas fa-id-card"></i> View KYC Doc</span>`);
+            }
+            cKycBadge.innerHTML = kycParts.join(' • ');
             
             const container = document.getElementById('customerLoansContainer');
             const summaryBox = document.getElementById('customerLoansTotalSummary');
@@ -1198,13 +1478,9 @@
                 let bClass = l.status === 'active' ? 'badge-active' : 'badge-closed';
                 let bText = l.status === 'active' ? 'Active' : 'Closed / Cleared';
                 
-                // 1. Main Principal (Original Loan Amount)
                 let mainPrin = parseFloat(l.amount) || 0;
-                
-                // 2. Current Principal (Remaining Main Principal + Remaining Top-Ups)
                 let currPrin = l.status === 'closed' ? 0 : (l.currentPrincipal !== undefined ? l.currentPrincipal : mainPrin);
 
-                // 3. Total Udhar & Total Jama Calculation
                 let totalUdhar = mainPrin;
                 if(l.ledger) l.ledger.forEach(row => totalUdhar += (row.interestCharged || 0));
                 if(l.topUps) {
@@ -1219,7 +1495,6 @@
                 let netPayable = totalUdhar - totalJama;
                 if(netPayable < 0 || l.status === 'closed') netPayable = 0;
 
-                // Pending Interest Calculation
                 let pendingInt = 0;
                 if(l.status === 'active') {
                     if(l.ledger) l.ledger.forEach(r => pendingInt += (r.interestCharged - (r.paidInterest || 0)));
@@ -1228,19 +1503,15 @@
                     });
                 }
 
-                // Add to Grand Totals
                 sumMainPrin += mainPrin;
                 sumCurrPrin += currPrin;
                 sumPendingInt += pendingInt;
                 sumGrandTotal += netPayable;
 
                 let wText = l.weight ? ` (${l.weight}g)` : '';
-
-                // Audit check status for this individual loan
                 const isChecked = isLoanAuditChecked(l);
                 const checkDaysLeft = isChecked ? getRemainingCheckDays(l.auditCheckedAt) : 0;
 
-                // Risk Highlight verification
                 let mktVal = getGoldValue(l.weight, l.purity);
                 let isLoanOverLimit = (l.status === 'active' && mktVal > 0 && netPayable > mktVal);
                 
@@ -1250,6 +1521,11 @@
 
                 let closedDateInfo = (l.status === 'closed' && l.closeDate) ? ` | Settled: <strong>${new Date(l.closeDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong>` : '';
 
+                const itemPhotoUrl = l.itemPhoto || l.photo || '';
+                const itemPhotoHtml = itemPhotoUrl
+                    ? `<img src="${itemPhotoUrl}" class="photo-preview-thumb" style="width:52px; height:52px;" onclick="zoomImage(this.src, 'Loan A/C #${l.loanNo || l.id} - ${l.description || 'Gold Item'}')" title="Click to Zoom Gold Item">`
+                    : `<div onclick="triggerExistingLoanPhotoUpload('${l.id}', event)" style="width:52px; height:52px; border:1.5px dashed #d97706; border-radius:8px; background:#fffbeb; color:#b45309; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; cursor:pointer; flex-shrink:0; text-align:center;" title="Gold Item ki photo add karein"><i class="fas fa-camera" style="font-size:0.95rem; margin-bottom:2px;"></i>Photo</div>`;
+
                 container.innerHTML += `
                     <div style="background:${cardBg}; padding:15px; border-radius:8px; border:1px solid ${isChecked ? '#a5d6a7' : '#e0e0e0'}; border-left: ${cardBorderLeft};">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px;">
@@ -1257,19 +1533,20 @@
                                 <button class="check-tick-btn ${isChecked ? 'checked' : ''}" onclick="toggleLoanAuditCheck('${l.id}', event)" title="Is loan ko diary se milane ke baad Right (✓) karein">
                                     <i class="fas fa-check"></i>
                                 </button>
+                                ${itemPhotoHtml}
                                 <div>
                                     <strong style="color:#222; font-size:0.95rem;">A/C #${l.loanNo || l.id} • ${l.description}${wText}</strong>
                                     ${isChecked ? `<span class="verified-tag" style="margin-left:6px;"><i class="fas fa-check-circle"></i> Checked (${checkDaysLeft}d left)</span>` : ''}
+                                    <div style="font-size:0.78rem; color:#666; margin-top:2px;">
+                                        Issued: <strong>${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong> | Int: <strong>${l.ratePercent}%</strong>${closedDateInfo}
+                                    </div>
                                 </div>
                             </div>
                             <span class="l-badge ${isLoanOverLimit ? 'badge-overdue' : bClass}">${isLoanOverLimit ? '⚠️ High Risk' : bText}</span>
                         </div>
-                        <div style="font-size:0.8rem; color:#666; margin-bottom:10px; padding-left:42px;">
-                            Issued: <strong>${new Date(l.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</strong> | Int Rate: <strong>${l.ratePercent}% / mo</strong>${closedDateInfo}
-                        </div>
 
                         <!-- 4-Box Breakdown Grid: Main Prin, Current Prin, Pending Int, Total Due -->
-                        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; background:#fff; padding:10px 8px; border-radius:6px; border:1px solid #ddd; text-align:center;">
+                        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; background:#fff; padding:10px 8px; border-radius:6px; border:1px solid #ddd; text-align:center; margin-top:8px;">
                             <div style="border-right:1px solid #eee; padding-right:4px;">
                                 <div style="font-size:0.68rem; color:#777;">Main Prin.</div>
                                 <div style="font-weight:700; color:#444; font-size:0.88rem;">₹${mainPrin.toLocaleString()}</div>
@@ -1289,9 +1566,12 @@
                         </div>
 
                         ${warningText}
-                        <div style="display:flex; gap:8px; margin-top:10px;">
+                        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
                             <button class="btn-primary" style="padding:10px; font-size:0.85rem; margin:0; background:#333; flex:1;" onclick="openLedger('${l.id}')">
                                 <i class="fas fa-book-open"></i> Open T-Ledger
+                            </button>
+                            <button type="button" onclick="triggerExistingLoanPhotoUpload('${l.id}', event)" style="background:#fffbeb; color:#b45309; border:1px solid #fcd34d; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px;" title="Gold Item ki photo add/change karein">
+                                <i class="fas fa-camera"></i> ${itemPhotoUrl ? 'Change Photo' : 'Add Photo'}
                             </button>
                             <button class="btn-delete-loan" onclick="deleteLoan('${l.id}', event)" title="Is Loan ko direct delete karein">
                                 <i class="fas fa-trash-alt"></i> Delete
@@ -1301,7 +1581,6 @@
                 `;
             });
 
-            // Grand Total Summary Box at Bottom of Modal
             if (summaryBox) {
                 summaryBox.innerHTML = `
                     <div style="font-size:0.8rem; font-weight:700; color:#b2872c; text-transform:uppercase; margin-bottom:8px; display:flex; justify-content:space-between;">
@@ -1342,29 +1621,53 @@
             resultsDiv.innerHTML = '';
             if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
 
-            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            const matches = allCustomers.filter(c => (c.name && c.name.toLowerCase().includes(term)) || String(c.mobile || '').includes(term)).slice(0, 6);
             if(matches.length > 0) {
                 resultsDiv.style.display = 'block';
                 matches.forEach(c => {
                     const div = document.createElement('div');
                     div.className = 'search-item';
-                    div.innerHTML = `<b>${c.name}</b> <small>(${c.mobile})</small>`;
-                    div.onclick = () => selectCustomer(c.id, c.name);
+                    const cPhoto = c.photo || c.customerPhoto || '';
+                    const thumb = cPhoto ? `<img src="${cPhoto}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">` : `<i class="fas fa-user-circle" style="font-size:1.3rem; color:#94a3b8;"></i>`;
+                    div.innerHTML = `${thumb} <div><b>${c.name}</b> <small>(${c.mobile || 'No Mob'})</small></div>`;
+                    div.onclick = () => selectCustomer(c);
                     resultsDiv.appendChild(div);
                 });
             } else { resultsDiv.style.display = 'none'; }
         }
 
-        function selectCustomer(id, name) {
-            document.getElementById('selectedCustomerId').value = id;
-            document.getElementById('customerSearchInput').value = name;
+        function selectCustomer(c) {
+            document.getElementById('selectedCustomerId').value = c.id;
+            document.getElementById('customerSearchInput').value = c.name;
             document.getElementById('customerSearchResults').style.display = 'none';
+            const disp = document.getElementById('selectedCustDisplay');
+            disp.style.display = 'flex';
+            const cPhoto = c.photo || c.customerPhoto || '';
+            const cKyc = c.kycPhoto || c.idPhoto || '';
+            disp.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px;">
+                    ${cPhoto ? `<img src="${cPhoto}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">` : `<i class="fas fa-check-circle" style="color:#1565c0;"></i>`}
+                    <span style="font-weight:700; color:#0d47a1; font-size:0.88rem;">${c.name} (${c.mobile || 'N/A'}) ${cKyc ? '• KYC Attached ✓' : ''}</span>
+                </div>
+                <i class="fas fa-times-circle" style="color:#c62828; cursor:pointer;" onclick="clearSelectedCust()"></i>
+            `;
+        }
+
+        function clearSelectedCust() {
+            document.getElementById('selectedCustomerId').value = '';
+            document.getElementById('customerSearchInput').value = '';
+            document.getElementById('selectedCustDisplay').style.display = 'none';
         }
 
         function openCreateModal() { 
             document.getElementById('createModal').style.display = 'flex'; 
-            document.getElementById('selectedCustomerId').value = '';
-            document.getElementById('customerSearchInput').value = '';
+            toggleInlineNewCustomer(false);
+            clearSelectedCust();
+
+            document.getElementById('loanDesc').value = '';
+            document.getElementById('newLoanItemPhotoData').value = '';
+            document.getElementById('newLoanItemPhotoPreview').style.display = 'none';
+            document.getElementById('newLoanItemPhotoInput').value = '';
             
             document.getElementById('loanCash').value = '';
             document.getElementById('loanBank').value = '';
@@ -1403,7 +1706,7 @@
         }
 
         async function saveLoan() {
-            const custId = document.getElementById('selectedCustomerId').value;
+            let custId = document.getElementById('selectedCustomerId').value;
             const cashAmt = parseFloat(document.getElementById('loanCash').value) || 0;
             const bankAmt = parseFloat(document.getElementById('loanBank').value) || 0;
             const amount = cashAmt + bankAmt; 
@@ -1411,74 +1714,138 @@
             const interest = parseFloat(document.getElementById('loanInterest').value);
             const durVal = parseInt(document.getElementById('loanDurationVal').value);
             const startDateVal = document.getElementById('loanStartDate').value;
+            const itemPhotoData = document.getElementById('newLoanItemPhotoData').value || '';
 
-            if(!custId) return alert("Please select a customer");
             if(amount <= 0) return alert("Enter Valid Loan Amount in Cash or Bank");
             if(!startDateVal) return alert("Please select a Start Date");
 
-            const startDate = new Date(startDateVal);
-            let dueDate = new Date(startDate);
-            dueDate.setMonth(dueDate.getMonth() + durVal);
+            const saveBtn = document.getElementById('btnSaveNewLoan');
+            const oldBtnHtml = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveBtn.disabled = true;
 
-            const monthStr = startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-            const firstMonthInterest = Math.round((amount * interest) / 100);
+            try {
+                // यदि नया कस्टमर फॉर्म खुला है तो पहले कस्टमर को मुख्य 'customers' डेटाबेस में सेव करें
+                if (isCreatingInlineCustomer) {
+                    const newName = (document.getElementById('newCustName').value || '').trim();
+                    const newMobile = (document.getElementById('newCustMobile').value || '').trim();
+                    const newCity = (document.getElementById('newCustCity').value || '').trim();
+                    const newKycNo = (document.getElementById('newCustKycNo').value || '').trim();
+                    const newCustPhoto = document.getElementById('newCustPhotoData').value || '';
+                    const newKycPhoto = document.getElementById('newCustKycData').value || '';
 
-            const ledger = [{
-                month: monthStr,
-                openPrincipal: amount,
-                interestCharged: firstMonthInterest,
-                paidInterest: 0,
-                paidPrincipal: 0,
-                closingPrincipal: amount, 
-                status: 'active'
-            }];
+                    if (!newName) {
+                        saveBtn.innerHTML = oldBtnHtml; saveBtn.disabled = false;
+                        return alert("नए कस्टमर का नाम (Customer Name) डालना ज़रूरी है!");
+                    }
 
-            let maxLoanNo = 0;
-            if(allLoans && allLoans.length > 0) {
-                maxLoanNo = Math.max(...allLoans.map(x => x.loanNo || 0));
+                    // Check if same mobile already exists to prevent duplicate customer
+                    let existingByMob = newMobile ? allCustomers.find(c => String(c.mobile || '').trim() === newMobile) : null;
+                    if (existingByMob) {
+                        custId = existingByMob.id;
+                        if (newCustPhoto) existingByMob.photo = newCustPhoto;
+                        if (newKycPhoto) existingByMob.kycPhoto = newKycPhoto;
+                        if (newKycNo) existingByMob.kycNo = newKycNo;
+                        if (newCity && !existingByMob.city) existingByMob.city = newCity;
+                        await updateItem('customers', existingByMob);
+                    } else {
+                        const newCustomerObj = {
+                            name: newName,
+                            mobile: newMobile,
+                            city: newCity,
+                            address: newCity,
+                            kycNo: newKycNo,
+                            aadhaar: newKycNo,
+                            photo: newCustPhoto,
+                            customerPhoto: newCustPhoto,
+                            kycPhoto: newKycPhoto,
+                            idPhoto: newKycPhoto,
+                            bcBalance: 0,
+                            createdAt: new Date().toISOString()
+                        };
+                        custId = await addItem('customers', newCustomerObj);
+                        allCustomers.push({ id: custId, ...newCustomerObj });
+                    }
+                }
+
+                if(!custId) {
+                    saveBtn.innerHTML = oldBtnHtml; saveBtn.disabled = false;
+                    return alert("Please select a customer or add a new customer!");
+                }
+
+                const startDate = new Date(startDateVal);
+                let dueDate = new Date(startDate);
+                dueDate.setMonth(dueDate.getMonth() + durVal);
+
+                const monthStr = startDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                const firstMonthInterest = Math.round((amount * interest) / 100);
+
+                const ledger = [{
+                    month: monthStr,
+                    openPrincipal: amount,
+                    interestCharged: firstMonthInterest,
+                    paidInterest: 0,
+                    paidPrincipal: 0,
+                    closingPrincipal: amount, 
+                    status: 'active'
+                }];
+
+                let maxLoanNo = 0;
+                if(allLoans && allLoans.length > 0) {
+                    maxLoanNo = Math.max(...allLoans.map(x => x.loanNo || 0));
+                }
+                const nextLoanNo = maxLoanNo + 1;
+
+                const loan = {
+                    loanNo: nextLoanNo,
+                    customerId: custId,
+                    description: document.getElementById('loanDesc').value || 'Gold Item',
+                    weight: parseFloat(document.getElementById('loanWeight').value) || 0,
+                    purity: document.getElementById('loanPurity').value,
+                    itemPhoto: itemPhotoData,
+                    photo: itemPhotoData,
+                    amount: amount,
+                    ratePercent: interest,
+                    durationVal: durVal,
+                    durationUnit: 'Months',
+                    date: startDate.toISOString(), 
+                    dueDate: dueDate.toISOString(),
+                    status: 'active',
+                    ledger: ledger,
+                    topUps: [], 
+                    payments: [] 
+                };
+
+                syncLoanLedger(loan);
+                const loanId = await addItem('loans', loan);
+                
+                if (cashAmt > 0) {
+                    await addItem('cashflow', {
+                        date: startDate.toISOString(), type: 'OUT', mode: 'Cash',
+                        category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${nextLoanNo}`,
+                        customerId: custId
+                    });
+                }
+                if (bankAmt > 0) {
+                    await addItem('cashflow', {
+                        date: startDate.toISOString(), type: 'OUT', mode: 'Bank',
+                        category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${nextLoanNo}`,
+                        customerId: custId
+                    });
+                }
+
+                alert("✅ Loan Created Successfully!");
+                closeModal('createModal');
+                await loadCustomers();
+                await loadCashBalance(); 
+                await loadLoans();
+            } catch (err) {
+                console.error("Save Loan Error:", err);
+                alert("Loan save karne me error aayi!");
+            } finally {
+                saveBtn.innerHTML = oldBtnHtml;
+                saveBtn.disabled = false;
             }
-            const nextLoanNo = maxLoanNo + 1;
-
-            const loan = {
-                loanNo: nextLoanNo,
-                customerId: custId,
-                description: document.getElementById('loanDesc').value,
-                weight: parseFloat(document.getElementById('loanWeight').value),
-                purity: document.getElementById('loanPurity').value,
-                amount: amount,
-                ratePercent: interest,
-                durationVal: durVal,
-                durationUnit: 'Months',
-                date: startDate.toISOString(), 
-                dueDate: dueDate.toISOString(),
-                status: 'active',
-                ledger: ledger,
-                topUps: [], 
-                payments: [] 
-            };
-
-            syncLoanLedger(loan);
-            const loanId = await addItem('loans', loan);
-            
-            if (cashAmt > 0) {
-                await addItem('cashflow', {
-                    date: startDate.toISOString(), type: 'OUT', mode: 'Cash',
-                    category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${nextLoanNo}`,
-                    customerId: custId
-                });
-            }
-            if (bankAmt > 0) {
-                await addItem('cashflow', {
-                    date: startDate.toISOString(), type: 'OUT', mode: 'Bank',
-                    category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${nextLoanNo}`,
-                    customerId: custId
-                });
-            }
-
-            alert("Loan Created Successfully!");
-            closeModal('createModal');
-            await loadCashBalance(); 
-            await loadLoans();
         }
 
         let currentLoanId = null;
@@ -1497,10 +1864,47 @@
                 document.getElementById('vLoanIdHeader').innerText = l.loanNo || l.id;
                 document.getElementById('viewLoanId').value = l.id;
                 document.getElementById('vCustNameDetail').innerText = c ? c.name : 'Unknown Customer';
-                document.getElementById('vCustPhoneDetail').innerText = c ? c.mobile : 'No Number';
+                document.getElementById('vCustPhoneDetail').innerText = c ? (c.mobile || 'No Number') : 'No Number';
                 document.getElementById('vItemDesc').innerText = l.description || 'Gold Item';
                 document.getElementById('vItemWeight').innerText = l.weight ? l.weight + "g" : "N/A";
                 document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
+
+                // Customer Photo & KYC Doc in Ledger Header
+                const vCustPhotoEl = document.getElementById('vCustPhotoThumb');
+                const vCustKycEl = document.getElementById('vCustKycLink');
+                const cPhoto = c ? (c.photo || c.customerPhoto || '') : '';
+                const cKyc = c ? (c.kycPhoto || c.idPhoto || '') : '';
+
+                if (cPhoto) {
+                    vCustPhotoEl.src = cPhoto;
+                    vCustPhotoEl.style.display = 'block';
+                } else {
+                    vCustPhotoEl.style.display = 'none';
+                }
+
+                if (cKyc) {
+                    vCustKycEl.style.display = 'inline';
+                    vCustKycEl.onclick = () => zoomImage(cKyc, `${c.name} - KYC Document`);
+                } else {
+                    vCustKycEl.style.display = 'none';
+                }
+
+                // Gold Item Photo Bar in Ledger
+                const itemPhotoUrl = l.itemPhoto || l.photo || '';
+                const itemPhotoImg = document.getElementById('vLoanItemPhotoImg');
+                const itemPhotoStatus = document.getElementById('vLoanItemPhotoStatus');
+                const itemPhotoBtnText = document.getElementById('vLoanPhotoBtnText');
+
+                if (itemPhotoUrl) {
+                    itemPhotoImg.src = itemPhotoUrl;
+                    itemPhotoImg.style.display = 'block';
+                    itemPhotoStatus.innerText = 'फोटो सेव है (बड़ा देखने के लिए फोटो पर क्लिक करें)';
+                    itemPhotoBtnText.innerText = 'Change Photo';
+                } else {
+                    itemPhotoImg.style.display = 'none';
+                    itemPhotoStatus.innerText = 'अभी तक इस गहने की फोटो नहीं लगी है';
+                    itemPhotoBtnText.innerText = 'Add Photo';
+                }
 
                 const todayStr = getTodayISTDateStr();
                 document.getElementById('topUpBox').style.display = 'none';
@@ -1598,7 +2002,7 @@
                     uiJama.innerHTML = `<li style="padding:15px; text-align:center; color:#999; font-size:0.8rem;">No Jama entries yet</li>`;
                 } else {
                     paymentsList.forEach(p => {
-                        const pDateStr = p.date ? new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : 'N/A';
+                        const pDateStr = p.date ? new Date(p.date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year: 'numeric' }) : 'N/A';
                         
                         let modes = [];
                         if(p.cashAmount > 0) modes.push(`Cash: ₹${p.cashAmount.toLocaleString()}`);
@@ -1766,9 +2170,7 @@
                     principalPaid: 0
                 });
 
-                // Chronologically recalculate entire loan ledger & check if settled
                 recalculateLoanLedger(l);
-
                 await updateItem('loans', l);
 
                 const formattedPayDate = payDateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1867,7 +2269,7 @@
             }
         }
 
-        // Bulk Entry UI Functions
+        // Bulk Entry UI Functions (With Optional Item Photo per Row)
         let bulkRowIndex = 0;
 
         function openBulkModal() {
@@ -1883,29 +2285,39 @@
 
         function addBulkRow() {
             bulkRowIndex++;
+            const idx = bulkRowIndex;
             const html = `
-                <div class="bulk-row" id="bulkRow_${bulkRowIndex}" style="display:flex; gap:10px; margin-top:10px; padding:15px; background:white; border:1px solid #ccc; border-radius:8px; flex-wrap:wrap; position:relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <button type="button" onclick="document.getElementById('bulkRow_${bulkRowIndex}').remove()" style="position:absolute; top:-10px; right:-10px; background:#c62828; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);">&times;</button>
+                <div class="bulk-row" id="bulkRow_${idx}" style="display:flex; gap:10px; margin-top:10px; padding:15px; background:white; border:1px solid #ccc; border-radius:8px; flex-wrap:wrap; position:relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); align-items:flex-end;">
+                    <button type="button" onclick="document.getElementById('bulkRow_${idx}').remove()" style="position:absolute; top:-10px; right:-10px; background:#c62828; color:white; border:none; border-radius:50%; width:24px; height:24px; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2);">&times;</button>
                     
-                    <div style="flex:1; min-width:130px;">
+                    <div style="flex:1; min-width:125px;">
                         <label style="font-size:0.75rem; color:#D32F2F; font-weight:bold;">Old Date *</label>
                         <input type="date" class="bulk-date" required style="padding:8px; border:1px solid #D32F2F;">
                     </div>
-                    <div style="flex:2; min-width:150px;">
+                    <div style="flex:1.8; min-width:140px;">
                         <label style="font-size:0.75rem;">Item Details</label>
                         <input type="text" class="bulk-desc" placeholder="e.g. 2 Bangles" style="padding:8px;">
                     </div>
-                    <div style="flex:1; min-width:80px;">
+                    <div style="flex:0.8; min-width:75px;">
                         <label style="font-size:0.75rem;">Wt (g)</label>
                         <input type="number" class="bulk-wt" placeholder="0" step="0.01" style="padding:8px;">
                     </div>
-                    <div style="flex:1; min-width:120px;">
+                    <div style="flex:1; min-width:110px;">
                         <label style="font-size:0.75rem; color:#1976d2; font-weight:bold;">Amount (₹) *</label>
                         <input type="number" class="bulk-amt" placeholder="0" style="padding:8px; border:1px solid #1976d2; font-weight:bold; color:#1976d2;">
                     </div>
-                    <div style="flex:1; min-width:70px;">
+                    <div style="flex:0.7; min-width:65px;">
                         <label style="font-size:0.75rem;">Int (%)</label>
                         <input type="number" class="bulk-int" value="2.0" step="0.1" style="padding:8px;">
+                    </div>
+                    <div style="min-width:68px; text-align:center;">
+                        <label style="font-size:0.72rem; color:#b45309; font-weight:700;">Photo</label>
+                        <input type="file" id="bulkFile_${idx}" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'bulkPrev_${idx}', 'bulkPhotoData_${idx}')">
+                        <input type="hidden" id="bulkPhotoData_${idx}" class="bulk-photo">
+                        <button type="button" onclick="document.getElementById('bulkFile_${idx}').click()" style="padding:8px 10px; background:#fffbeb; border:1px dashed #d97706; border-radius:8px; color:#b45309; cursor:pointer; font-weight:700; width:100%;">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <img id="bulkPrev_${idx}" src="" style="display:none; width:36px; height:36px; object-fit:cover; border-radius:6px; margin-top:4px; border:1px solid #C5A059;">
                     </div>
                 </div>
             `;
@@ -1918,7 +2330,7 @@
             resultsDiv.innerHTML = '';
             if(term.length < 1) { resultsDiv.style.display = 'none'; return; }
 
-            const matches = allCustomers.filter(c => c.name.toLowerCase().includes(term) || String(c.mobile).includes(term)).slice(0, 5);
+            const matches = allCustomers.filter(c => (c.name && c.name.toLowerCase().includes(term)) || String(c.mobile || '').includes(term)).slice(0, 5);
             if(matches.length > 0) {
                 resultsDiv.style.display = 'block';
                 matches.forEach(c => {
@@ -1952,6 +2364,7 @@
                 let wt = parseFloat(row.querySelector('.bulk-wt').value) || 0;
                 let amt = parseFloat(row.querySelector('.bulk-amt').value) || 0;
                 let intRate = parseFloat(row.querySelector('.bulk-int').value) || 2.0;
+                let itemPhoto = row.querySelector('.bulk-photo')?.value || '';
 
                 if(!dateStr) return alert("Sabhi loans mein Date daalna zaroori hai!");
                 if(amt <= 0) return alert("Sabhi loans mein valid Amount daalna zaroori hai!");
@@ -1968,6 +2381,8 @@
                     description: desc || 'Purana Gold Loan',
                     weight: wt,
                     purity: '22',
+                    itemPhoto: itemPhoto,
+                    photo: itemPhoto,
                     amount: amt,
                     ratePercent: intRate,
                     durationVal: 6,
