@@ -38,8 +38,14 @@
         .master-container { padding: 15px; max-width: 1100px; margin: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         
         .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #C5A059; padding-bottom: 15px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
-        .dashboard-title { margin: 0; color: #111; font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;}
+        .dashboard-title { margin: 0; color: #111; font-size: 1.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;}
         
+        .day-locked-badge {
+            display: none; align-items: center; gap: 6px; background: #1e293b; color: #fbbf24;
+            border: 1.5px solid #f59e0b; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+        }
+
         .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;}
         .date-input { border: 2px solid #C5A059; padding: 8px 12px; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.95rem; outline: none; background: #fdfdfd;}
         .refresh-btn { background: #111; color: #C5A059; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
@@ -48,6 +54,7 @@
         .print-btn:hover { background: #1565c0; transform: scale(1.02); }
         .milan-btn { background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; transition: 0.2s; box-shadow: 0 3px 8px rgba(5,150,105,0.3);}
         .milan-btn:hover { background: #065f46; transform: scale(1.02); }
+        .milan-btn.locked-state { background: linear-gradient(135deg, #334155, #0f172a); color: #fbbf24; border: 1.5px solid #f59e0b; box-shadow: 0 3px 8px rgba(15,23,42,0.25); }
         
         /* --- 💰 LIVE CASH DASHBOARD --- */
         .cash-dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 16px; }
@@ -71,7 +78,7 @@
         /* --- 🚨 CASH MILAN DIFFERENCE BANNER (MIDDLE ALERT) --- */
         .milan-diff-banner {
             display: none; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
-            padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-weight: 800; font-size: 0.95rem;
+            padding: 12px 18px; border-radius: 10px; margin-bottom: 18px; font-weight: 800; font-size: 0.92rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.06);
         }
         .milan-diff-short { background: #fef2f2; border: 2px solid #ef4444; color: #991b1b; }
@@ -85,12 +92,13 @@
         .denom-note-badge { display: inline-block; min-width: 65px; padding: 4px 8px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; color: #0f172a; font-weight: 800; }
         .denom-qty-input { width: 85px; padding: 6px 8px; border: 2px solid #cbd5e1; border-radius: 6px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: inherit; outline: none; }
         .denom-qty-input:focus { border-color: #059669; background: #ecfdf5; }
+        .denom-qty-input:disabled { background: #e2e8f0; color: #475569; cursor: not-allowed; }
         .denom-row-total { min-width: 90px; text-align: right !important; color: #0f172a; font-weight: 800; }
         .milan-compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
         .milan-stat-card { padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #cbd5e1; background: #f8fafc; }
         .milan-stat-card small { display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; }
         .milan-stat-card strong { font-size: 1.2rem; font-weight: 800; }
-        .milan-live-verdict { padding: 12px; border-radius: 8px; text-align: center; font-weight: 800; font-size: 0.92rem; margin-bottom: 12px; }
+        .milan-live-verdict { padding: 12px; border-radius: 8px; text-align: center; font-weight: 800; font-size: 0.9rem; margin-bottom: 12px; }
 
         /* --- 🔥 MASTER MONEY IN / MONEY OUT BUTTONS --- */
         .master-action-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -529,15 +537,15 @@
 
     <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
-    <!-- 🧮 DAY-END CASH MILAN & NOTE CALCULATOR MODAL -->
+    <!-- 🧮 DAY-END CASH MILAN & LOCK CALCULATOR MODAL -->
     <div id="cashMilanModal" class="modal">
         <div class="modal-content" style="max-width: 470px; border-top: 5px solid #059669;">
             <button class="close-btn" onclick="closeModal('cashMilanModal')">&times;</button>
             <h3 style="margin-top:0; margin-bottom:4px; color:#0f172a; font-size:1.25rem;">
-                <i class="fas fa-calculator" style="color:#059669;"></i> आज का रोकड़ मिलान (Day-End Cash Milan)
+                <i class="fas fa-calculator" style="color:#059669;"></i> आज का रोकड़ मिलान व लॉक (Day-End Lock)
             </h3>
-            <p style="margin:0 0 12px 0; font-size:0.8rem; color:#64748b; font-weight:600;">
-                गल्ले के वास्तविक नोट गिनकर नीचे डालें, सिस्टम अपने आप हिसाब मैच करेगा:
+            <p id="milanSubHelp" style="margin:0 0 12px 0; font-size:0.8rem; color:#64748b; font-weight:600;">
+                गल्ले के वास्तविक नोट गिनकर नीचे डालें। लॉक करने के बाद इस दिन का हिसाब किसी भी कारण से नहीं बदलेगा:
             </p>
 
             <table class="denom-table">
@@ -607,29 +615,36 @@
                 </button>
             </div>
 
-            <div style="display:flex; gap:10px;">
+            <div id="milanNormalActions" style="display:flex; gap:10px;">
                 <button type="button" class="pin-btn-cancel" onclick="closeModal('cashMilanModal')">बाद में (Cancel)</button>
                 <button type="button" class="pin-btn-confirm" style="flex:1.6; background:#059669;" onclick="confirmAndLockCashMilan()">
-                    <i class="fas fa-lock"></i> Save & Lock Actual Cash
+                    <i class="fas fa-lock"></i> Save & Permanent Lock Day
+                </button>
+            </div>
+
+            <div id="milanLockedActions" style="display:none; gap:10px;">
+                <button type="button" class="pin-btn-cancel" onclick="closeModal('cashMilanModal')">बंद करें (Close)</button>
+                <button type="button" class="pin-btn-confirm" style="flex:1.6; background:#b45309;" onclick="requestUnlockDayWithPin()">
+                    <i class="fas fa-unlock-alt"></i> PIN डालकर Unlock करें
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- 🔒 SECURITY PIN MODAL FOR UCHINA RETURN -->
+    <!-- 🔒 SECURITY PIN MODAL (FOR UCHINA RETURN & DAY UNLOCK) -->
     <div id="uchinaPinModal" class="pin-modal-overlay">
         <div class="pin-modal-box">
             <div class="pin-modal-title">
                 <i class="fas fa-lock" style="color:#d32f2f;"></i> Security PIN Required
             </div>
             <div id="pinModalDesc" class="pin-modal-sub">
-                Uchina Wapas Jama Confirm Karein
+                Action Confirm Karein
             </div>
-            <input type="password" id="uchinaPinInput" class="pin-input-field" maxlength="8" placeholder="••••" inputmode="numeric" onkeydown="if(event.key==='Enter') confirmUchinaPin()" />
+            <input type="password" id="uchinaPinInput" class="pin-input-field" maxlength="8" placeholder="••••" inputmode="numeric" onkeydown="if(event.key==='Enter') confirmSecurityPin()" />
             <div id="uchinaPinError" class="pin-error-msg"></div>
             <div class="pin-modal-actions">
                 <button type="button" class="pin-btn-cancel" onclick="closeUchinaPinModal()">Cancel</button>
-                <button type="button" class="pin-btn-confirm" onclick="confirmUchinaPin()"><i class="fas fa-check-circle"></i> Confirm</button>
+                <button type="button" class="pin-btn-confirm" onclick="confirmSecurityPin()"><i class="fas fa-check-circle"></i> Confirm</button>
             </div>
         </div>
     </div>
@@ -825,17 +840,20 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
         <div class="sidebar-footer">
-            App Version 2.6 <br> <span style="color:#C5A059">● 100% Sync Validated</span>
+            App Version 2.7 <br> <span style="color:#C5A059">● Permanent Day-Lock Enabled</span>
         </div>
     </aside>
 
 <div class="master-container">
     
     <div class="dashboard-header">
-        <h2 class="dashboard-title"><i class="fas fa-bolt"></i> Smart Quick Rojmel</h2>
+        <h2 class="dashboard-title">
+            <span><i class="fas fa-bolt"></i> Smart Quick Rojmel</span>
+            <span id="dayLockedBadge" class="day-locked-badge"><i class="fas fa-lock"></i> Day Locked</span>
+        </h2>
         <div class="header-actions">
             <input type="date" id="selectedDate" class="date-input" onchange="updateDashboardAndLogs()" title="Select Date for Rojmel">
-            <button class="milan-btn" onclick="openCashMilanModal()"><i class="fas fa-calculator"></i> Day-End Cash Milan</button>
+            <button id="milanBtnMain" class="milan-btn" onclick="openCashMilanModal()"><i class="fas fa-calculator"></i> Day-End Cash Milan</button>
             <button class="print-btn" onclick="printBahiKhataRojmel()"><i class="fas fa-print"></i> Print</button>
             <button class="refresh-btn" onclick="updateDashboardAndLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
         </div>
@@ -868,11 +886,11 @@
         </div>
     </div>
 
-    <!-- 🚨 AUTOMATIC MIDDLE ALERT BANNER FOR DAY-END SHORTAGE / EXCESS -->
+    <!-- 🚨 AUTOMATIC MIDDLE ALERT BANNER FOR DAY-END LOCK / SHORTAGE / EXCESS -->
     <div id="milanStatusBanner" class="milan-diff-banner"></div>
 
     <!-- 🔥 MASTER MONEY IN & MONEY OUT BUTTONS -->
-    <div class="master-action-bar">
+    <div id="masterActionBar" class="master-action-bar">
         <button type="button" class="btn-master btn-master-in" onclick="openUniversalModal('IN')">
             <i class="fas fa-arrow-down-left" style="font-size:1.4rem;"></i>
             <div>
@@ -942,10 +960,11 @@
             <div class="uchina-panel">
                 <div class="uchina-header">
                     <span><i class="fas fa-hand-holding-usd"></i> रोकड़ उछीना / हाथ-उधार (Rokad Split)</span>
+                    <span id="uchinaLockTag" style="display:none; font-size:0.72rem; background:#1e293b; color:#fbbf24; padding:2px 7px; border-radius:4px;"><i class="fas fa-lock"></i> Locked</span>
                 </div>
-                <div class="uchina-form">
-                    <input type="text" id="uchinaPersonName" class="uchina-input" placeholder="Naam (e.g. Dinesh)" />
-                    <input type="number" id="uchinaPersonAmt" class="uchina-input" placeholder="Rakam (e.g. 15000)" />
+                <div id="uchinaFormWrap" class="uchina-form">
+                    <input type="text" id="uchinaPersonName" class="uchina-input" placeholder="Naam (e.g. Khushbu)" />
+                    <input type="number" id="uchinaPersonAmt" class="uchina-input" placeholder="Rakam (e.g. 4000)" />
                     <button type="button" class="uchina-add-btn" onclick="addUchinaEntry()"><i class="fas fa-plus"></i> Add</button>
                 </div>
                 <div id="uchinaActiveList" class="uchina-tags-wrap"></div>
@@ -1093,15 +1112,16 @@
 <script src="db.js?v=40"></script>
 
 <script>
-    // --- 🔒 MASTER SECURITY PIN FOR UCHINA REMOVAL ---
+    // --- 🔒 MASTER SECURITY PIN ---
     const UCHINA_SECURITY_PIN = "1234";
-    let pendingUchinaReturnId = null;
+    let pendingPinAction = null; // { type: 'uchina_return' | 'unlock_day', id: ... }
 
-    // --- 🧮 STATE VARIABLES FOR DAY-END CASH MILAN ---
+    // --- 🧮 STATE VARIABLES FOR DAY-END CASH MILAN & PERMANENT LOCK ---
     let milanExpectedGallaCash = 0;   // Expected physical cash in Galla (before today's Milan adjustment)
     let milanCurrentUchinaSum = 0;    // Active Uchina today
     let milanExistingAdjEntry = null; // Existing Cash Milan Adjustment entry in cashflow for selected date
-    let cashMilanHistory = {};        // Saved note denominations per date
+    let cashMilanHistory = {};        // Saved note denominations + Permanent Snapshot Lock per date
+    let currentComputedSnapshot = null; // Holds live computed figures so they can be permanently locked on Day-End
 
     // --- 🔥 TIMEZONE-SAFE LOCAL DATE HELPERS ---
     function toLocalDateStr(dateVal) {
@@ -1191,8 +1211,29 @@
     ];
 
     // =========================================================================
-    // 🧮 DAY-END CASH MILAN (NOTE DENOMINATION & AUTO ADJUSTMENT ENGINE)
+    // 🔒 PERMANENT DAY-END SNAPSHOT LOCK HELPERS
     // =========================================================================
+    function isDayLocked(dateStr) {
+        return Boolean(cashMilanHistory && cashMilanHistory[dateStr] && cashMilanHistory[dateStr].isLocked === true);
+    }
+
+    function getLockedSnapshot(dateStr) {
+        if (!isDayLocked(dateStr)) return null;
+        return cashMilanHistory[dateStr].snapshot || null;
+    }
+
+    // किसी भी भविष्य की तारीख के लिए सबसे नज़दीकी पिछले लॉक हुए दिन का Snapshot ढूँढना
+    // ताकि पिछले लॉक हो चुके दिन का बैलेंस कभी भी दूसरी तारीख की वजह से न बदले
+    function getLatestLockedSnapshotBefore(targetDate) {
+        if (!cashMilanHistory) return null;
+        let dates = Object.keys(cashMilanHistory)
+            .filter(d => d < targetDate && cashMilanHistory[d] && cashMilanHistory[d].isLocked === true && cashMilanHistory[d].snapshot)
+            .sort();
+        if (dates.length === 0) return null;
+        let lastDate = dates[dates.length - 1];
+        return { date: lastDate, snapshot: cashMilanHistory[lastDate].snapshot };
+    }
+
     async function loadCashMilanHistory() {
         try {
             let saved = await getSetting('cash_milan_history');
@@ -1228,15 +1269,15 @@
 
     function openCashMilanModal() {
         let selDate = document.getElementById('selectedDate').value || getTodayLocalStr();
-        let savedDenom = cashMilanHistory[selDate]?.denoms || {};
+        let record = cashMilanHistory[selDate] || {};
+        let savedDenom = record.denoms || {};
+        let locked = isDayLocked(selDate);
 
-        document.getElementById('d500').value = savedDenom.d500 || '';
-        document.getElementById('d200').value = savedDenom.d200 || '';
-        document.getElementById('d100').value = savedDenom.d100 || '';
-        document.getElementById('d50').value = savedDenom.d50 || '';
-        document.getElementById('d20').value = savedDenom.d20 || '';
-        document.getElementById('d10').value = savedDenom.d10 || '';
-        document.getElementById('dCoins').value = savedDenom.dCoins || '';
+        ['d500','d200','d100','d50','d20','d10','dCoins'].forEach(id => {
+            let el = document.getElementById(id);
+            el.value = savedDenom[id] || '';
+            el.disabled = locked;
+        });
 
         if (milanCurrentUchinaSum > 0) {
             document.getElementById('milanExpectedLbl').innerText = `गल्ले में अपेक्षित कैश (उछीना ₹${fmtNum(milanCurrentUchinaSum)} छोड़कर)`;
@@ -1245,9 +1286,19 @@
         }
         document.getElementById('milanExpectedVal').innerText = `₹${fmtNum(milanExpectedGallaCash)}`;
 
+        if (locked) {
+            document.getElementById('milanSubHelp').innerHTML = `<span style="color:#b45309;"><i class="fas fa-lock"></i> यह दिन स्थायी रूप से लॉक है। इसमें कोई बदलाव नहीं हो सकता।</span>`;
+            document.getElementById('milanNormalActions').style.display = 'none';
+            document.getElementById('milanLockedActions').style.display = 'flex';
+        } else {
+            document.getElementById('milanSubHelp').innerText = `गल्ले के वास्तविक नोट गिनकर नीचे डालें। लॉक करने के बाद इस दिन का हिसाब किसी भी कारण से नहीं बदलेगा:`;
+            document.getElementById('milanNormalActions').style.display = 'flex';
+            document.getElementById('milanLockedActions').style.display = 'none';
+        }
+
         calcLiveCashMilan();
         openModal('cashMilanModal');
-        setTimeout(() => document.getElementById('d500').focus(), 100);
+        if (!locked) setTimeout(() => document.getElementById('d500').focus(), 100);
     }
 
     function getCountedDenomTotal() {
@@ -1271,6 +1322,8 @@
     }
 
     function calcLiveCashMilan() {
+        let selDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        let locked = isDayLocked(selDate);
         let actualCounted = getCountedDenomTotal();
         document.getElementById('milanActualVal').innerText = `₹${fmtNum(actualCounted)}`;
 
@@ -1289,19 +1342,24 @@
             verdictBox.style.background = '#fef2f2';
             verdictBox.style.border = '2px solid #ef4444';
             verdictBox.style.color = '#991b1b';
-            verdictBox.innerHTML = `<i class="fas fa-exclamation-triangle"></i> गल्ले में <strong>₹${fmtNum(shortAmt)} कम पड़ रहे हैं (Shortage)!</strong><br><span style="font-size:0.78rem; font-weight:600;">सोचिए किसको पैसे दिए (या उधारी) जिसकी एंट्री छूट गई? अगर याद नहीं है तो Save दबाएं, यह ₹${fmtNum(shortAmt)} कम दिखाकर आज की असली रोकड़ कल के लिए आगे बढ़ा देगा।</span>`;
-            quickAddWrap.style.display = 'block';
+            verdictBox.innerHTML = `<i class="fas fa-exclamation-triangle"></i> गल्ले में <strong>₹${fmtNum(shortAmt)} कम पड़ रहे हैं (Shortage)!</strong><br><span style="font-size:0.78rem; font-weight:600;">${locked ? 'यह अंतर इस दिन के रिकॉर्ड में स्थायी रूप से लॉक है।' : 'लॉक दबाने पर यह ₹' + fmtNum(shortAmt) + ' कम दिखाकर आज की असली रोकड़ स्थायी रूप से लॉक कर देगा।'}</span>`;
+            quickAddWrap.style.display = locked ? 'none' : 'block';
         } else {
             let excessAmt = Math.abs(diff);
             verdictBox.style.background = '#fffbeb';
             verdictBox.style.border = '2px solid #f59e0b';
             verdictBox.style.color = '#92400e';
-            verdictBox.innerHTML = `<i class="fas fa-info-circle"></i> गल्ले में <strong>₹${fmtNum(excessAmt)} ज़्यादा हैं (Excess)!</strong><br><span style="font-size:0.78rem; font-weight:600;">सोचिए किस ग्राहक से पैसे आए जिसकी एंट्री छूट गई? अगर याद नहीं है तो Save दबाएं, यह ₹${fmtNum(excessAmt)} ज़्यादा दिखाकर आज की असली रोकड़ कल के लिए आगे बढ़ा देगा।</span>`;
-            quickAddWrap.style.display = 'block';
+            verdictBox.innerHTML = `<i class="fas fa-info-circle"></i> गल्ले में <strong>₹${fmtNum(excessAmt)} ज़्यादा हैं (Excess)!</strong><br><span style="font-size:0.78rem; font-weight:600;">${locked ? 'यह अंतर इस दिन के रिकॉर्ड में स्थायी रूप से लॉक है।' : 'लॉक दबाने पर यह ₹' + fmtNum(excessAmt) + ' ज़्यादा दिखाकर आज की असली रोकड़ स्थायी रूप से लॉक कर देगा।'}</span>`;
+            quickAddWrap.style.display = locked ? 'none' : 'block';
         }
     }
 
     function jumpToMissedEntryFromMilan() {
+        let selDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        if (isDayLocked(selDate)) {
+            showToast("यह दिन लॉक है! पहले Unlock करें।", "error");
+            return;
+        }
         let actualCounted = getCountedDenomTotal();
         let diff = actualCounted - milanExpectedGallaCash;
         closeModal('cashMilanModal');
@@ -1322,25 +1380,8 @@
         let diff = actualCounted - milanExpectedGallaCash;
         let dateIso = getEntryIsoForSelectedDate();
 
-        cashMilanHistory[selDate] = {
-            date: selDate,
-            expectedGalla: milanExpectedGallaCash,
-            actualGalla: actualCounted,
-            diff: diff,
-            updatedAt: dateIso,
-            denoms: {
-                d500: parseInt(document.getElementById('d500').value) || 0,
-                d200: parseInt(document.getElementById('d200').value) || 0,
-                d100: parseInt(document.getElementById('d100').value) || 0,
-                d50:  parseInt(document.getElementById('d50').value) || 0,
-                d20:  parseInt(document.getElementById('d20').value) || 0,
-                d10:  parseInt(document.getElementById('d10').value) || 0,
-                dCoins: parseNum(document.getElementById('dCoins').value) || 0
-            }
-        };
-        await saveCashMilanHistory();
-
         try {
+            // 1. यदि कोई कम/ज़्यादा अंतर है तो Cashflow में Adjustment एंट्री सेव करें
             if (diff === 0) {
                 if (milanExistingAdjEntry && milanExistingAdjEntry.id) {
                     if (typeof deleteItem === 'function') {
@@ -1350,7 +1391,6 @@
                         await updateItem('cashflow', milanExistingAdjEntry);
                     }
                 }
-                showToast("100% रोकड़ मिलान सेव हो गया!", "success");
             } else {
                 let adjType = diff < 0 ? 'OUT' : 'IN';
                 let adjCategory = diff < 0 ? 'Cash Milan Shortage (रोकड़ कम पड़ी)' : 'Cash Milan Excess (रोकड़ ज़्यादा मिली)';
@@ -1380,18 +1420,86 @@
                         isCashMilanAdj: true
                     });
                 }
-                showToast(`रोकड़ लॉक हो गई! कल के लिए ₹${fmtNum(actualCounted + milanCurrentUchinaSum)} कैरी फॉरवर्ड होगा।`, "success");
             }
+
+            // 2. आज के दिन का पूरा Snapshot तैयार करें ताकि भविष्य में यह कभी न बदले
+            let snap = currentComputedSnapshot ? JSON.parse(JSON.stringify(currentComputedSnapshot)) : {};
+            let lockedClosingGalla = actualCounted;
+            let lockedClosingUchinaSum = snap.closeUchinaSum || 0;
+            let lockedClosingCashTotal = lockedClosingGalla + lockedClosingUchinaSum;
+            let lockedClosingBank = snap.closingBank || 0;
+            let lockedClosingTotal = lockedClosingCashTotal + lockedClosingBank;
+
+            let todayAdjCashOut = diff < 0 ? Math.abs(diff) : 0;
+            let todayAdjCashIn  = diff > 0 ? Math.abs(diff) : 0;
+
+            let finalSnapshot = {
+                date: selDate,
+                openCash: snap.openCash || 0,
+                openBank: snap.openBank || 0,
+                openingTotal: snap.openingTotal || 0,
+                todayCashIn: (snap.baseTodayCashIn || 0) + todayAdjCashIn,
+                todayBankIn: snap.todayBankIn || 0,
+                todayCashOut: (snap.baseTodayCashOut || 0) + todayAdjCashOut,
+                todayBankOut: snap.todayBankOut || 0,
+                closingCash: lockedClosingCashTotal,
+                closingBank: lockedClosingBank,
+                closingTotal: lockedClosingTotal,
+                closeGallaCash: lockedClosingGalla,
+                closeUchinaSum: lockedClosingUchinaSum,
+                openUchinaList: snap.openUchinaList || [],
+                closeUchinaList: snap.closeUchinaList || [],
+                openNet: snap.openNet || 0,
+                openOld: snap.openOld || 0,
+                openMix: snap.openMix || 0,
+                closingNet: snap.closingNet || 0,
+                closingOld: snap.closingOld || 0,
+                closingMix: snap.closingMix || 0,
+                diff: diff
+            };
+
+            cashMilanHistory[selDate] = {
+                date: selDate,
+                isLocked: true,
+                lockedAt: dateIso,
+                expectedGalla: milanExpectedGallaCash,
+                actualGalla: actualCounted,
+                diff: diff,
+                snapshot: finalSnapshot,
+                denoms: {
+                    d500: parseInt(document.getElementById('d500').value) || 0,
+                    d200: parseInt(document.getElementById('d200').value) || 0,
+                    d100: parseInt(document.getElementById('d100').value) || 0,
+                    d50:  parseInt(document.getElementById('d50').value) || 0,
+                    d20:  parseInt(document.getElementById('d20').value) || 0,
+                    d10:  parseInt(document.getElementById('d10').value) || 0,
+                    dCoins: parseNum(document.getElementById('dCoins').value) || 0
+                }
+            };
+            await saveCashMilanHistory();
+
+            showToast(`🔒 ${selDate} स्थायी रूप से लॉक हो गया! अब इसका हिसाब कभी नहीं बदलेगा।`, "success");
         } catch (err) {
-            console.error("Cash Milan Save Error:", err);
-            showToast("Error saving Cash Milan!", "error");
+            console.error("Cash Milan Lock Error:", err);
+            showToast("Error locking Day-End!", "error");
         }
 
         closeModal('cashMilanModal');
         await updateDashboardAndLogs();
     }
 
-    // --- 🤝 UCHINA (HATH-UDHAAR IN ROKAD) STORAGE HELPERS ---
+    function requestUnlockDayWithPin() {
+        let selDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        closeModal('cashMilanModal');
+        pendingPinAction = { type: 'unlock_day', date: selDate };
+        document.getElementById('pinModalDesc').innerHTML = `<strong>${selDate}</strong> का Day-End Lock खोलने (Unlock) के लिए Security PIN डालें:`;
+        document.getElementById('uchinaPinInput').value = '';
+        document.getElementById('uchinaPinError').innerText = '';
+        document.getElementById('uchinaPinModal').classList.add('show');
+        setTimeout(() => document.getElementById('uchinaPinInput').focus(), 100);
+    }
+
+    // --- 🤝 UCHINA (HATH-UDHAAR IN ROKAD) STORAGE & DATE-WISE MERGE HELPERS ---
     async function loadUchinaRecords() {
         try {
             let saved = await getSetting('rokad_uchina_list');
@@ -1424,8 +1532,9 @@
         }
     }
 
+    // तारीख के हिसाब से उछीना जोड़कर (Merge करके) दिखाना ताकि पुरानी तारीख का हिसाब कभी न बदले
     function getUchinaActiveOnDate(targetDate, isOpening = false) {
-        return uchinaRecords.filter(u => {
+        let filtered = uchinaRecords.filter(u => {
             let gDate = u.givenDate || '2000-01-01';
             let rDate = u.returnedDate || null;
             if (isOpening) {
@@ -1434,27 +1543,50 @@
                 return gDate <= targetDate && (!rDate || rDate > targetDate);
             }
         });
+
+        let groupedMap = {};
+        filtered.forEach(u => {
+            let key = u.name.trim().toLowerCase();
+            if (!groupedMap[key]) {
+                groupedMap[key] = {
+                    id: u.id,
+                    name: u.name.trim(),
+                    amount: 0,
+                    givenDate: u.givenDate
+                };
+            }
+            groupedMap[key].amount += parseNum(u.amount);
+        });
+
+        return Object.values(groupedMap);
     }
 
     async function addUchinaEntry() {
+        let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        if (isDayLocked(selectedDate)) {
+            showToast("यह दिन लॉक है! उछीना जोड़ने के लिए पहले Unlock करें।", "error");
+            return;
+        }
+
         let nameEl = document.getElementById('uchinaPersonName');
         let amtEl = document.getElementById('uchinaPersonAmt');
         let name = (nameEl.value || '').trim();
         let amt = Math.abs(parseNum(amtEl.value));
-        let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
 
         if (!name || amt <= 0) {
             alert('Kripya Naam aur Rakam dono bharein!');
             return;
         }
 
-        let existing = uchinaRecords.find(u =>
-            u.name.toLowerCase() === name.toLowerCase() &&
+        // सिर्फ़ उसी तारीख (same day) की एंट्री में जोड़ें; पिछले दिन की एंट्री को कभी न छेड़ें
+        let sameDayExisting = uchinaRecords.find(u =>
+            u.name.trim().toLowerCase() === name.toLowerCase() &&
+            u.givenDate === selectedDate &&
             (!u.returnedDate || u.returnedDate > selectedDate)
         );
 
-        if (existing) {
-            existing.amount = parseNum(existing.amount) + amt;
+        if (sameDayExisting) {
+            sameDayExisting.amount = parseNum(sameDayExisting.amount) + amt;
         } else {
             uchinaRecords.push({
                 id: 'uch_' + Date.now(),
@@ -1473,11 +1605,20 @@
 
     // --- 🔒 OPEN PIN MODAL BEFORE REMOVING UCHINA ---
     function requestUchinaReturn(id) {
-        let item = uchinaRecords.find(u => u.id === id);
-        if (!item) return;
+        let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        if (isDayLocked(selectedDate)) {
+            showToast("यह दिन लॉक है! पहले Unlock करें।", "error");
+            return;
+        }
 
-        pendingUchinaReturnId = id;
-        document.getElementById('pinModalDesc').innerHTML = `<strong>${item.name}</strong> ka <strong>₹${fmtNum(item.amount)}</strong> wapas गल्ले में jama karne ke liye Security Code dalein:`;
+        let rawItem = uchinaRecords.find(u => u.id === id);
+        if (!rawItem) return;
+
+        let activeList = getUchinaActiveOnDate(selectedDate, false);
+        let groupedItem = activeList.find(u => u.name.toLowerCase() === rawItem.name.trim().toLowerCase()) || rawItem;
+
+        pendingPinAction = { type: 'uchina_return', id: id };
+        document.getElementById('pinModalDesc').innerHTML = `<strong>${groupedItem.name}</strong> ka कुल <strong>₹${fmtNum(groupedItem.amount)}</strong> wapas गल्ले में jama karne ke liye Security Code dalein:`;
         document.getElementById('uchinaPinInput').value = '';
         document.getElementById('uchinaPinError').innerText = '';
         document.getElementById('uchinaPinModal').classList.add('show');
@@ -1485,11 +1626,11 @@
     }
 
     function closeUchinaPinModal() {
-        pendingUchinaReturnId = null;
+        pendingPinAction = null;
         document.getElementById('uchinaPinModal').classList.remove('show');
     }
 
-    async function confirmUchinaPin() {
+    async function confirmSecurityPin() {
         let enteredPin = (document.getElementById('uchinaPinInput').value || '').trim();
         if (enteredPin !== UCHINA_SECURITY_PIN) {
             document.getElementById('uchinaPinError').innerText = '❌ Galat Code! Sahi Security PIN dalein.';
@@ -1498,28 +1639,54 @@
             return;
         }
 
-        let id = pendingUchinaReturnId;
+        let action = pendingPinAction;
         closeUchinaPinModal();
-        if (!id) return;
+        if (!action) return;
 
-        let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
-        let item = uchinaRecords.find(u => u.id === id);
-        if (!item) return;
-
-        if (item.givenDate >= selectedDate) {
-            uchinaRecords = uchinaRecords.filter(u => u.id !== id);
-        } else {
-            item.returnedDate = selectedDate;
+        if (action.type === 'unlock_day') {
+            let d = action.date;
+            if (cashMilanHistory[d]) {
+                cashMilanHistory[d].isLocked = false;
+                await saveCashMilanHistory();
+                showToast(`🔓 ${d} अब Unlock हो गया है।`, "success");
+                await updateDashboardAndLogs();
+            }
+            return;
         }
 
-        await saveUchinaRecords();
-        await updateDashboardAndLogs();
+        if (action.type === 'uchina_return') {
+            let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+            let targetItem = uchinaRecords.find(u => u.id === action.id);
+            if (!targetItem) return;
+
+            let targetNameKey = targetItem.name.trim().toLowerCase();
+
+            uchinaRecords = uchinaRecords.filter(u => {
+                if (u.name.trim().toLowerCase() === targetNameKey && (!u.returnedDate || u.returnedDate > selectedDate)) {
+                    if (u.givenDate >= selectedDate) {
+                        return false;
+                    } else {
+                        u.returnedDate = selectedDate;
+                    }
+                }
+                return true;
+            });
+
+            await saveUchinaRecords();
+            await updateDashboardAndLogs();
+        }
     }
 
     // =========================================================================
-    // 🔥 UNIVERSAL SMART MODAL LOGIC (FROM CASHBOOK)
+    // 🔥 UNIVERSAL SMART MODAL LOGIC
     // =========================================================================
     function openUniversalModal(direction, defaultReason = null) {
+        let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        if (isDayLocked(selectedDate)) {
+            showToast(`🔒 ${selectedDate} लॉक है! नई एंट्री के लिए पहले Day-End Unlock करें।`, "error");
+            return;
+        }
+
         document.getElementById('uniDirection').value = direction;
         document.getElementById('uniAmt').value = '';
         document.getElementById('uniMode').value = 'Cash';
@@ -1872,6 +2039,12 @@
 
     // --- MASTER SAVE UNIVERSAL ENTRY & SYNC WITH ROJMEL ---
     async function saveUniversalEntry() {
+        let selectedDate = document.getElementById('selectedDate').value || getTodayLocalStr();
+        if (isDayLocked(selectedDate)) {
+            showToast(`🔒 ${selectedDate} लॉक है! पहले Unlock करें।`, "error");
+            return;
+        }
+
         const direction = document.getElementById('uniDirection').value;
         const reason = document.getElementById('uniReason').value;
         const amount = parseFloat(document.getElementById('uniAmt').value);
@@ -2491,7 +2664,7 @@
         await updateDashboardAndLogs();
     };
 
-    // --- 🔥 MASTER ROJMEL & METAL ENGINE ---
+    // --- 🔥 MASTER ROJMEL & METAL ENGINE (WITH PERMANENT LOCK ISOLATION) ---
     async function updateDashboardAndLogs() {
         try {
             let dateEl = document.getElementById('selectedDate');
@@ -2499,6 +2672,33 @@
 
             await loadUchinaRecords();
             await loadCashMilanHistory();
+
+            const dayIsLocked = isDayLocked(today);
+            const lockedSnap = getLockedSnapshot(today);
+            const prevLockInfo = getLatestLockedSnapshotBefore(today);
+
+            // Toggle Locked UI State
+            const lockedBadge = document.getElementById('dayLockedBadge');
+            const milanBtnMain = document.getElementById('milanBtnMain');
+            const masterActionBar = document.getElementById('masterActionBar');
+            const uchinaFormWrap = document.getElementById('uchinaFormWrap');
+            const uchinaLockTag = document.getElementById('uchinaLockTag');
+
+            if (dayIsLocked) {
+                lockedBadge.style.display = 'inline-flex';
+                milanBtnMain.classList.add('locked-state');
+                milanBtnMain.innerHTML = `<i class="fas fa-lock"></i> Locked (View / Unlock)`;
+                masterActionBar.style.opacity = '0.6';
+                uchinaFormWrap.style.display = 'none';
+                uchinaLockTag.style.display = 'inline-block';
+            } else {
+                lockedBadge.style.display = 'none';
+                milanBtnMain.classList.remove('locked-state');
+                milanBtnMain.innerHTML = `<i class="fas fa-calculator"></i> Day-End Cash Milan`;
+                masterActionBar.style.opacity = '1';
+                uchinaFormWrap.style.display = 'flex';
+                uchinaLockTag.style.display = 'none';
+            }
 
             try {
                 const r = await getSetting('gold_rates');
@@ -2516,13 +2716,19 @@
                 if (sCatsItem && sCatsItem.value) silverCategories = sCatsItem.value;
             } catch(e) {}
 
-            let openCash = 0, openBank = 0;
+            // यदि कोई पिछला दिन लॉक है तो वहाँ से Opening उठाएं, वरना शुरू से गिनें
+            let openCash = prevLockInfo ? parseNum(prevLockInfo.snapshot.closingCash) : 0;
+            let openBank = prevLockInfo ? parseNum(prevLockInfo.snapshot.closingBank) : 0;
+            let calcStartDate = prevLockInfo ? prevLockInfo.date : '0000-00-00';
+
             let todayCashIn = 0, todayBankIn = 0;
             let todayCashOut = 0, todayBankOut = 0;
+            let baseTodayCashIn = 0, baseTodayCashOut = 0;
 
             let todayNetIn = 0, todayNetOut = 0;
             let todayMixIn = 0, todayMixOut = 0;
-            let openOld = 0, todayOldIn = 0, todayOldOut = 0;
+            let openOld = prevLockInfo ? parseNum(prevLockInfo.snapshot.closingOld) : 0;
+            let todayOldIn = 0, todayOldOut = 0;
 
             let dMetal = { Net: { in: [], out: [] }, Old: { in: [], out: [] }, Mix: { in: [], out: [] } };
 
@@ -2582,7 +2788,7 @@
 
                 let signedAmt = isPos ? amt : -amt;
                 
-                if (d < today) {
+                if (d > calcStartDate && d < today) {
                     if (category === 'OLD') openOld += signedAmt;
                 } else if (d === today) {
                     if (category === 'OLD') { if(isPos) todayOldIn += amt; else todayOldOut += amt; }
@@ -2835,12 +3041,16 @@
                 }
             });
 
-            let closingOld = openOld + todayOldIn - todayOldOut;
-            let closingNet = liveInventoryStockNet;
-            let closingMix = liveInventoryStockMix;
+            let closingOld = lockedSnap ? parseNum(lockedSnap.closingOld) : (openOld + todayOldIn - todayOldOut);
+            let closingNet = lockedSnap ? parseNum(lockedSnap.closingNet) : liveInventoryStockNet;
+            let closingMix = lockedSnap ? parseNum(lockedSnap.closingMix) : liveInventoryStockMix;
 
-            let openNet = closingNet - todayNetIn + todayNetOut;
-            let openMix = closingMix - todayMixIn + todayMixOut;
+            if (lockedSnap) {
+                openOld = parseNum(lockedSnap.openOld);
+            }
+
+            let openNet = lockedSnap ? parseNum(lockedSnap.openNet) : (closingNet - todayNetIn + todayNetOut);
+            let openMix = lockedSnap ? parseNum(lockedSnap.openMix) : (closingMix - todayMixIn + todayMixOut);
 
             let jamaNet = openNet + todayNetIn;
             let jamaOld = openOld + todayOldIn;
@@ -2867,11 +3077,12 @@
                 let type = c.type || 'OUT';
                 if(parseNum(c.amount) < 0 && c.type === 'IN') type = 'OUT';
 
-                if (cDate < today) {
+                if (cDate > calcStartDate && cDate < today) {
                     if (type === 'IN') { if(mType==='bank') openBank+=amt; else openCash+=amt; }
                     else { if(mType==='bank') openBank-=amt; else openCash-=amt; }
                 } else if (cDate === today) {
-                    if (isCashMilanAdjFlow(c) && amt > 0) {
+                    let isAdj = isCashMilanAdjFlow(c) && amt > 0;
+                    if (isAdj) {
                         milanExistingAdjEntry = c;
                         todayAdjSignedAmt += (type === 'IN' ? amt : -amt);
                     }
@@ -2887,6 +3098,7 @@
                             }
                         } else {
                             todayCashIn += amt;
+                            if (!isAdj) baseTodayCashIn += amt;
                         }
                     } else {
                         if (mType === 'bank') {
@@ -2896,14 +3108,25 @@
                             }
                         } else {
                             todayCashOut += amt;
+                            if (!isAdj) baseTodayCashOut += amt;
                         }
                     }
                 }
             });
 
+            // यदि आज का दिन लॉक हो चुका है तो सीधे परमानेंट लॉक किए गए Snapshot से Opening/Closing लें
+            if (lockedSnap) {
+                openCash = parseNum(lockedSnap.openCash);
+                openBank = parseNum(lockedSnap.openBank);
+                todayCashIn = parseNum(lockedSnap.todayCashIn);
+                todayBankIn = parseNum(lockedSnap.todayBankIn);
+                todayCashOut = parseNum(lockedSnap.todayCashOut);
+                todayBankOut = parseNum(lockedSnap.todayBankOut);
+            }
+
             let openingTotal = openCash + openBank;
-            let closingCash = openCash + todayCashIn - todayCashOut;
-            let closingBank = openBank + todayBankIn - todayBankOut;
+            let closingCash = lockedSnap ? parseNum(lockedSnap.closingCash) : (openCash + todayCashIn - todayCashOut);
+            let closingBank = lockedSnap ? parseNum(lockedSnap.closingBank) : (openBank + todayBankIn - todayBankOut);
             let closingTotal = closingCash + closingBank;
 
             document.getElementById('openBal').innerText = "₹" + fmtNum(openingTotal);
@@ -3728,7 +3951,7 @@
             }
 
             // =====================================================================
-            // 🤝 CALCULATE ROKAD & UCHINA SPLIT (FOR BOTH SCREEN & BAHI-KHATA PRINT)
+            // 🤝 CALCULATE ROKAD & UCHINA SPLIT (USING LOCKED SNAPSHOT IF LOCKED)
             // =====================================================================
             let allJamaTodayOnly = sumJama - openingTotal;
             let jamaBeforeBankSe = openCash + allJamaTodayOnly;
@@ -3739,26 +3962,73 @@
             let totalNamaWithBankMe = totalNamaBeforeClosing + totalBankMeGaya;
 
             // Total Physical Rokad (Galla + Uchina combined)
-            let finalRokadInHand = finalBahiJamaTotal - totalNamaWithBankMe;
+            let finalRokadInHand = lockedSnap ? parseNum(lockedSnap.closingCash) : (finalBahiJamaTotal - totalNamaWithBankMe);
             let finalBahiNamaTotal = totalNamaWithBankMe + finalRokadInHand;
 
             // Opening & Closing Uchina Lists for `today`
-            let openUchinaList = getUchinaActiveOnDate(today, true);
-            let closeUchinaList = getUchinaActiveOnDate(today, false);
+            let openUchinaList = (lockedSnap && Array.isArray(lockedSnap.openUchinaList))
+                ? lockedSnap.openUchinaList
+                : getUchinaActiveOnDate(today, true);
+            let closeUchinaList = (lockedSnap && Array.isArray(lockedSnap.closeUchinaList))
+                ? lockedSnap.closeUchinaList
+                : getUchinaActiveOnDate(today, false);
 
             let openUchinaSum = openUchinaList.reduce((acc, u) => acc + parseNum(u.amount), 0);
             let openGallaCash = openCash - openUchinaSum;
 
             let closeUchinaSum = closeUchinaList.reduce((acc, u) => acc + parseNum(u.amount), 0);
-            let closeGallaCash = finalRokadInHand - closeUchinaSum;
+            let closeGallaCash = lockedSnap ? parseNum(lockedSnap.closeGallaCash) : (finalRokadInHand - closeUchinaSum);
 
             // Store Expected Galla Cash (excluding today's Cash Milan Adjustment) for Day-End Calculator
             milanCurrentUchinaSum = closeUchinaSum;
-            milanExpectedGallaCash = closeGallaCash - todayAdjSignedAmt;
+            milanExpectedGallaCash = lockedSnap
+                ? parseNum(cashMilanHistory[today]?.expectedGalla ?? (closeGallaCash - todayAdjSignedAmt))
+                : (closeGallaCash - todayAdjSignedAmt);
 
-            // Render Middle Alert Banner if Day-End Cash Milan was done or has Shortage/Excess
+            // Save live snapshot candidate for when user clicks "Save & Permanent Lock Day"
+            currentComputedSnapshot = {
+                openCash: openCash,
+                openBank: openBank,
+                openingTotal: openingTotal,
+                baseTodayCashIn: baseTodayCashIn,
+                todayBankIn: todayBankIn,
+                baseTodayCashOut: baseTodayCashOut,
+                todayBankOut: todayBankOut,
+                closingCash: closingCash,
+                closingBank: closingBank,
+                closingTotal: closingTotal,
+                closeGallaCash: closeGallaCash,
+                closeUchinaSum: closeUchinaSum,
+                openUchinaList: openUchinaList,
+                closeUchinaList: closeUchinaList,
+                openNet: openNet,
+                openOld: openOld,
+                openMix: openMix,
+                closingNet: closingNet,
+                closingOld: closingOld,
+                closingMix: closingMix
+            };
+
+            // Render Middle Alert Banner for Day-End Lock / Shortage / Excess
             let milanBannerEl = document.getElementById('milanStatusBanner');
-            if (todayAdjSignedAmt !== 0) {
+            if (dayIsLocked) {
+                let lockedDiff = parseNum(lockedSnap?.diff ?? todayAdjSignedAmt);
+                let isShort = lockedDiff < 0;
+                milanBannerEl.style.display = 'flex';
+                milanBannerEl.className = 'milan-diff-banner ' + (lockedDiff !== 0 ? (isShort ? 'milan-diff-short' : 'milan-diff-excess') : 'milan-diff-match');
+                let diffText = lockedDiff === 0
+                    ? `100% रोकड़ मिलान बराबर`
+                    : `गल्ले में ₹${fmtNum(Math.abs(lockedDiff))} ${isShort ? 'कम पड़ा (Shortage)' : 'ज़्यादा मिला (Excess)'}`;
+                milanBannerEl.innerHTML = `
+                    <div>
+                        <i class="fas fa-lock"></i>
+                        <span><strong>यह दिन स्थायी रूप से लॉक है (Permanent Locked):</strong> ${diffText} | गल्ले की शुद्ध रोकड़: <strong>₹${fmtNum(closeGallaCash)}</strong> (अब किसी दूसरी तारीख से यह नहीं बदलेगा)।</span>
+                    </div>
+                    <button type="button" onclick="openCashMilanModal()" style="background:#fff; border:1px solid currentColor; color:inherit; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer; font-family:inherit; font-size:0.8rem;">
+                        <i class="fas fa-eye"></i> विवरण / Unlock
+                    </button>
+                `;
+            } else if (todayAdjSignedAmt !== 0) {
                 let isShort = todayAdjSignedAmt < 0;
                 let diffVal = Math.abs(todayAdjSignedAmt);
                 milanBannerEl.style.display = 'flex';
@@ -3766,22 +4036,10 @@
                 milanBannerEl.innerHTML = `
                     <div>
                         <i class="fas ${isShort ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
-                        <span>आज के दिन गल्ले में <strong>₹${fmtNum(diffVal)} ${isShort ? 'कम पड़ा (Cash Shortage)' : 'ज़्यादा मिला (Cash Excess)'}</strong> | आपकी गिनी हुई रोकड़ (₹${fmtNum(closeGallaCash)}) आगे कल के लिए Carry Forward हो गई है।</span>
+                        <span>गल्ले में <strong>₹${fmtNum(diffVal)} ${isShort ? 'कम पड़ा (Cash Shortage)' : 'ज़्यादा मिला (Cash Excess)'}</strong> | शुद्ध रोकड़: ₹${fmtNum(closeGallaCash)}</span>
                     </div>
                     <button type="button" onclick="openCashMilanModal()" style="background:#fff; border:1px solid currentColor; color:inherit; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer; font-family:inherit; font-size:0.8rem;">
-                        <i class="fas fa-edit"></i> फिर से मिलान करें
-                    </button>
-                `;
-            } else if (cashMilanHistory[today]) {
-                milanBannerEl.style.display = 'flex';
-                milanBannerEl.className = 'milan-diff-banner milan-diff-match';
-                milanBannerEl.innerHTML = `
-                    <div>
-                        <i class="fas fa-check-double"></i>
-                        <span>आज का रोकड़ मिलान पूरा हो चुका है (गल्ले में शुद्ध रोकड़: <strong>₹${fmtNum(closeGallaCash)}</strong> बिल्कुल बराबर मिली)।</span>
-                    </div>
-                    <button type="button" onclick="openCashMilanModal()" style="background:#fff; border:1px solid currentColor; color:inherit; padding:5px 12px; border-radius:6px; font-weight:800; cursor:pointer; font-family:inherit; font-size:0.8rem;">
-                        <i class="fas fa-calculator"></i> नोट देखें
+                        <i class="fas fa-lock"></i> मिलान व लॉक करें
                     </button>
                 `;
             } else {
@@ -3798,15 +4056,15 @@
                 openUchinaEl.style.display = 'none';
             }
 
-            // Update Screen Closing Uchina Chips & Galla Cash (Protected by PIN Modal)
+            // Update Screen Closing Uchina Chips & Galla Cash
             let uchinaListEl = document.getElementById('uchinaActiveList');
             if (closeUchinaList.length > 0) {
                 let chipsHtml = closeUchinaList.map(u => `
                     <span class="uchina-chip">
                         <span>${u.name}: ₹${fmtNum(u.amount)}</span>
-                        <button type="button" class="uchina-del-btn" onclick="requestUchinaReturn('${u.id}')" title="PIN daal kar Wapas Jama karein">
+                        ${dayIsLocked ? '' : `<button type="button" class="uchina-del-btn" onclick="requestUchinaReturn('${u.id}')" title="PIN daal kar Wapas Jama karein">
                             <i class="fas fa-lock"></i> Wapas
-                        </button>
+                        </button>`}
                     </span>
                 `).join('');
                 chipsHtml += `
