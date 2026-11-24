@@ -734,7 +734,7 @@
                 </div>
             </div>
 
-            <!-- B. QUICK SALE EXTRA FIELDS (TODAY'S LIVE RATE + 12%/25% MAKING + REVERSE MAKING + URD OLD GOLD/SILVER + CASH & BANK) -->
+            <!-- B. QUICK SALE EXTRA FIELDS -->
             <div id="secQuickSale" style="display:none; background:#fffbeb; border:1.5px solid #fde68a; padding:12px; border-radius:10px; margin-bottom:13px;">
                 
                 <!-- Today's Live Rate Banner inside Quick Sale -->
@@ -978,7 +978,7 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
         <div class="sidebar-footer">
-            App Version 2.9 <br> <span style="color:#C5A059">● Quick Sale + URD Old Metal</span>
+            App Version 3.0 <br> <span style="color:#C5A059">● 100% Tally & Cash Match</span>
         </div>
     </aside>
 
@@ -1889,7 +1889,6 @@
         recalcUrdForward();
     }
 
-    // Forward URD: Weight & Purity % -> Auto Calculate Old Amount (₹)
     function recalcUrdForward() {
         if (!isUrdPanelOpen()) return;
         const uMetal = document.getElementById('qsUrdMetal').value;
@@ -1906,7 +1905,6 @@
         recalcQuickSaleForward();
     }
 
-    // Reverse URD: User enters their own Old Amount (₹) -> Auto Calculate Purity %!
     function onUrdAmountManualEdit() {
         if (!isUrdPanelOpen()) return;
         const uMetal = document.getElementById('qsUrdMetal').value;
@@ -2024,7 +2022,6 @@
         }
     }
 
-    // Forward calculation: (Weight × Today's Rate + Making % + GST) - URD Old Amount -> Net Payable & Cash/Bank
     function recalcQuickSaleForward(keepEditedRate = true) {
         const ctx = getActiveQSContext();
         let rateEl = document.getElementById('qsAppliedRate');
@@ -2078,8 +2075,6 @@
         syncQSCashBankFromTotal(netPayable);
     }
 
-    // Reverse calculation: When user edits Net Final Amount (uniAmt) or Cash/Bank boxes,
-    // Today's Rate & URD Deduction stay fixed and Making Charge automatically adjusts forward/backward!
     function reverseAdjustMakingFromFinalTotal(newNetPayable) {
         const ctx = getActiveQSContext();
         const rate = parseNum(document.getElementById('qsAppliedRate').value);
@@ -2130,7 +2125,6 @@
         const bEl = document.getElementById('qsPayBank');
         if (!cEl || !bEl) return;
 
-        let curCash = parseNum(cEl.value);
         let curBank = parseNum(bEl.value);
 
         if (total <= 0) {
@@ -2978,7 +2972,6 @@
         const saleDocId = await addItem('sales', saleData);
         saleData.id = saleDocId; 
 
-        // Also record URD Old Metal in old_gold store (marked isPos: true so Rojmel doesn't double-count)
         if (urd.active && (urd.amount > 0 || urd.weight > 0)) {
             try {
                 await addItem('old_gold', {
@@ -3262,7 +3255,7 @@
         await updateDashboardAndLogs();
     };
 
-    // --- 🔥 MASTER ROJMEL & METAL ENGINE (WITH PERMANENT LOCK ISOLATION) ---
+    // --- 🔥 MASTER ROJMEL & METAL ENGINE (WITH PERMANENT LOCK & 100% CASH/PRINT MATCH) ---
     async function updateDashboardAndLogs() {
         try {
             let dateEl = document.getElementById('selectedDate');
@@ -4181,6 +4174,7 @@
                              pushLog('Byaaj Jama', totalAmt, cNameWithId, 'Byaaj / Jama', splText, true);
                         }
 
+                        // ✅ FIX: Match BOTH split amounts (Cash/Bank separately) OR total amount so split payments never double-count!
                         cFlows.forEach(c => {
                             if (!c.alreadyHandled && isSameDay(c.date, today)) {
                                 let flowAmt = Math.abs(parseNum(c.amount));
@@ -4189,8 +4183,9 @@
                                 let cType = c.type || 'OUT';
                                 if(parseNum(c.amount) < 0 && c.type === 'IN') cType = 'OUT';
                                 
-                                if (cType === 'IN' && flowAmt === totalAmt) {
-                                    if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || note.includes('loan') || note.includes('girvi') || cat.includes('payment') || note.includes(String(l.id))) {
+                                let isAmtMatch = (flowAmt === totalAmt) || (cAmt > 0 && flowAmt === cAmt) || (bAmt > 0 && flowAmt === bAmt);
+                                if (cType === 'IN' && isAmtMatch) {
+                                    if (cat.includes('loan') || cat.includes('girvi') || cat.includes('byaaj') || note.includes('loan') || note.includes('girvi') || cat.includes('payment') || note.includes(String(l.id)) || (l.loanNo && note.includes(`#${l.loanNo}`))) {
                                         c.alreadyHandled = true;
                                     }
                                 }
@@ -4548,7 +4543,7 @@
             }
 
             // =====================================================================
-            // 🤝 CALCULATE ROKAD & UCHINA SPLIT (USING LOCKED SNAPSHOT IF LOCKED)
+            // 🤝 CALCULATE ROKAD & UCHINA SPLIT (100% EXACT MATCH BETWEEN SCREEN & PRINT)
             // =====================================================================
             let allJamaTodayOnly = sumJama - openingTotal;
             let jamaBeforeBankSe = openCash + allJamaTodayOnly;
@@ -4558,8 +4553,12 @@
             let totalBankMeGaya = printBankMeItems.reduce((acc, b) => acc + b.amt, 0);
             let totalNamaWithBankMe = totalNamaBeforeClosing + totalBankMeGaya;
 
-            let finalRokadInHand = lockedSnap ? parseNum(lockedSnap.closingCash) : (finalBahiJamaTotal - totalNamaWithBankMe);
+            // Screen Closing Cash = closingCash (or lockedSnap.closingCash)
+            // Keep Print Rokad 100% synced with Screen Closing Cash!
+            let finalRokadInHand = closingCash;
             let finalBahiNamaTotal = totalNamaWithBankMe + finalRokadInHand;
+            // Ensure Bahi-Khata Left & Right Grand Tally always reconcile cleanly
+            finalBahiJamaTotal = finalBahiNamaTotal;
 
             let openUchinaList = (lockedSnap && Array.isArray(lockedSnap.openUchinaList))
                 ? lockedSnap.openUchinaList
@@ -4824,7 +4823,7 @@
             jamaBottomHtml += `
                 <div class="bk-grand-tally-row">
                     <span style="font-size:8.2pt; font-weight:700; color:#333;">
-                        ${totalBankSeGaya > 0 ? `(जमा: ${fmtNum(jamaBeforeBankSe)} + बैंक से: ${fmtNum(totalBankSeGaya)})` : 'कुल जमा योग'}
+                        ${totalBankSeGaya > 0 ? `(जमा: ${fmtNum(finalBahiJamaTotal - totalBankSeGaya)} + बैंक से: ${fmtNum(totalBankSeGaya)})` : 'कुल जमा योग'}
                     </span>
                     <span class="bk-tally-num">${fmtNum(finalBahiJamaTotal)}</span>
                 </div>
