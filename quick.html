@@ -164,7 +164,7 @@
 
         /* --- UNIVERSAL SMART MODAL --- */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); justify-content: center; align-items: center; z-index: 3000; backdrop-filter: blur(2px); padding: 12px;}
-        .modal-content { background: white; width: 100%; max-width: 520px; border-radius: 14px; padding: 20px; position: relative; animation: slideUp 0.25s ease; max-height: 92vh; overflow-y: auto;}
+        .modal-content { background: white; width: 100%; max-width: 530px; border-radius: 14px; padding: 20px; position: relative; animation: slideUp 0.25s ease; max-height: 92vh; overflow-y: auto;}
         @keyframes slideUp { from { transform: translateY(25px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .close-btn { position: absolute; top: 12px; right: 16px; font-size: 1.6rem; background: none; border: none; cursor: pointer; color: #64748b; }
         
@@ -186,6 +186,23 @@
         .amt-big-input { font-size: 1.5rem !important; font-weight: 800 !important; padding: 12px 15px !important; text-align: center; letter-spacing: 0.5px; }
         .amt-in-border { border: 2px solid var(--in-green) !important; color: #065f46; background: #f0fdf4; }
         .amt-out-border { border: 2px solid var(--out-red) !important; color: #991b1b; background: #fef2f2; }
+
+        /* --- 💍 URD OLD GOLD / SILVER EXCHANGE PANEL --- */
+        .urd-toggle-btn {
+            width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px dashed #9333ea;
+            background: #faf5ff; color: #6b21a8; font-weight: 800; font-size: 0.82rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+            margin-bottom: 10px; font-family: inherit; transition: 0.15s;
+        }
+        .urd-toggle-btn:hover { background: #f3e8ff; }
+        .urd-panel-box {
+            display: none; background: #faf5ff; border: 1.5px solid #d8b4fe; border-radius: 9px;
+            padding: 10px; margin-bottom: 10px;
+        }
+        .urd-panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.8rem; font-weight: 800; color: #6b21a8; margin-bottom: 8px;
+        }
 
         .qs-split-pay-box {
             display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
@@ -717,7 +734,7 @@
                 </div>
             </div>
 
-            <!-- B. QUICK SALE EXTRA FIELDS (TODAY'S LIVE GOLD/SILVER RATE + 12%/25% MAKING + REVERSE MAKING + CASH & BANK SPLIT + CARAT) -->
+            <!-- B. QUICK SALE EXTRA FIELDS (TODAY'S LIVE RATE + 12%/25% MAKING + REVERSE MAKING + URD OLD GOLD/SILVER + CASH & BANK) -->
             <div id="secQuickSale" style="display:none; background:#fffbeb; border:1.5px solid #fde68a; padding:12px; border-radius:10px; margin-bottom:13px;">
                 
                 <!-- Today's Live Rate Banner inside Quick Sale -->
@@ -787,6 +804,48 @@
                     </div>
                 </div>
 
+                <!-- 💍 URD OLD GOLD / SILVER EXCHANGE SECTION -->
+                <button type="button" id="btnToggleUrd" class="urd-toggle-btn" onclick="toggleUrdPanel()">
+                    <i class="fas fa-ring"></i> + Old Gold / Silver (URD) जोड़ें (यदि ग्राहक पुराना लाया है)
+                </button>
+
+                <div id="qsUrdPanel" class="urd-panel-box">
+                    <div class="urd-panel-header">
+                        <span><i class="fas fa-exchange-alt"></i> Old Gold / Silver (URD) Exchange</span>
+                        <button type="button" onclick="clearAndHideUrdPanel()" style="background:#fee2e2; color:#b91c1c; border:none; padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:800; cursor:pointer;">Remove</button>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:7px; margin-bottom:7px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.72rem; color:#6b21a8;">Old Metal</label>
+                            <select id="qsUrdMetal" style="padding:6px; font-weight:700; font-size:0.82rem; border-color:#d8b4fe;" onchange="onUrdMetalChange()">
+                                <option value="Gold">Old Gold</option>
+                                <option value="Silver">Old Silver</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.72rem; color:#6b21a8;">Net Weight (g)</label>
+                            <input type="number" id="qsUrdWeight" step="0.001" placeholder="0.000" style="padding:6px; font-weight:700; font-size:0.84rem; border-color:#d8b4fe;" oninput="recalcUrdForward()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.72rem; color:#6b21a8;">Purity (%)</label>
+                            <input type="number" id="qsUrdPurityPct" step="0.01" value="85" placeholder="e.g. 85" style="padding:6px; font-weight:800; font-size:0.84rem; color:#6b21a8; border-color:#d8b4fe;" oninput="recalcUrdForward()">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:7px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.72rem; color:#6b21a8;">Old Item Name</label>
+                            <input type="text" id="qsUrdItemName" placeholder="e.g. Old Ring, Payal" style="padding:6px; font-size:0.82rem; border-color:#d8b4fe;">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label style="font-size:0.72rem; color:#6b21a8;">Old Amount (₹) - Edit = Auto Purity</label>
+                            <input type="number" id="qsUrdAmount" step="1" placeholder="0" style="padding:6px; font-weight:800; font-size:0.9rem; color:#6b21a8; background:#fff; border:1.5px solid #9333ea;" oninput="onUrdAmountManualEdit()">
+                        </div>
+                    </div>
+                    <div style="font-size:0.7rem; color:#6b21a8; margin-top:4px; font-weight:600;" id="qsUrdFineHint">
+                        Fine Wt: 0.000g | Rate: ₹0/g
+                    </div>
+                </div>
+
                 <!-- LIVE BREAKDOWN SUMMARY -->
                 <div id="qsBreakdownBox" class="qs-live-breakdown">
                     <div class="qs-live-breakdown-row">
@@ -800,6 +859,10 @@
                     <div class="qs-live-breakdown-row">
                         <span>GST (<span id="qsBrkGstPct">3</span>%):</span>
                         <span id="qsBrkGstAmt">₹0</span>
+                    </div>
+                    <div id="qsBrkUrdRow" class="qs-live-breakdown-row" style="display:none; color:#7e22ce; border-top:1px dashed #d8b4fe; padding-top:3px; margin-top:2px;">
+                        <span>Less: URD Old (<span id="qsBrkUrdDesc">0g</span>):</span>
+                        <span id="qsBrkUrdAmt">-₹0</span>
                     </div>
                 </div>
 
@@ -915,7 +978,7 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
         <div class="sidebar-footer">
-            App Version 2.8 <br> <span style="color:#C5A059">● Live Rate & Auto-Making Sync</span>
+            App Version 2.9 <br> <span style="color:#C5A059">● Quick Sale + URD Old Metal</span>
         </div>
     </aside>
 
@@ -1746,7 +1809,7 @@
     }
 
     // =========================================================================
-    // 🔥 QUICK SALE TODAY'S RATE, MAKING (12%/25%), REVERSE MAKING & CASH+BANK
+    // 🔥 QUICK SALE TODAY'S RATE, MAKING (12%/25%), REVERSE MAKING, URD & CASH+BANK
     // =========================================================================
     function getTodayPerGramRate(metal, purity) {
         const p = String(purity || '').toUpperCase();
@@ -1775,6 +1838,113 @@
             }
             return parseFloat((r22 > 0 ? r22 : r24).toFixed(2));
         }
+    }
+
+    function getPure24KPerGramRate() {
+        let r24 = (parseNum(goldRates.rate24k) || 0) / 10;
+        if (r24 > 0) return r24;
+        let r22 = (parseNum(goldRates.rate22k) || 0) / 10;
+        return r22 > 0 ? (r22 / 0.9166) : 0;
+    }
+
+    function getPureSilverPerGramRate() {
+        return (parseNum(goldRates.rateSilver) || 0) / 1000;
+    }
+
+    // --- 💍 URD OLD GOLD / SILVER HELPERS ---
+    function isUrdPanelOpen() {
+        const panel = document.getElementById('qsUrdPanel');
+        return panel && panel.style.display !== 'none';
+    }
+
+    function toggleUrdPanel() {
+        const panel = document.getElementById('qsUrdPanel');
+        const btn = document.getElementById('btnToggleUrd');
+        if (!panel) return;
+        panel.style.display = 'block';
+        if (btn) btn.style.display = 'none';
+        onUrdMetalChange();
+        setTimeout(() => document.getElementById('qsUrdWeight').focus(), 80);
+    }
+
+    function clearAndHideUrdPanel() {
+        const panel = document.getElementById('qsUrdPanel');
+        const btn = document.getElementById('btnToggleUrd');
+        if (panel) panel.style.display = 'none';
+        if (btn) btn.style.display = 'flex';
+        document.getElementById('qsUrdMetal').value = 'Gold';
+        document.getElementById('qsUrdWeight').value = '';
+        document.getElementById('qsUrdPurityPct').value = '85';
+        document.getElementById('qsUrdItemName').value = '';
+        document.getElementById('qsUrdAmount').value = '';
+        document.getElementById('qsUrdFineHint').innerText = 'Fine Wt: 0.000g | Rate: ₹0/g';
+        if (document.getElementById('uniReason').value === 'quick_sale') {
+            recalcQuickSaleForward();
+        }
+    }
+
+    function onUrdMetalChange() {
+        const uMetal = document.getElementById('qsUrdMetal').value;
+        document.getElementById('qsUrdPurityPct').value = (uMetal === 'Silver') ? '70' : '85';
+        recalcUrdForward();
+    }
+
+    // Forward URD: Weight & Purity % -> Auto Calculate Old Amount (₹)
+    function recalcUrdForward() {
+        if (!isUrdPanelOpen()) return;
+        const uMetal = document.getElementById('qsUrdMetal').value;
+        const uWt = Math.max(0, parseNum(document.getElementById('qsUrdWeight').value));
+        const uPurityPct = Math.max(0, parseNum(document.getElementById('qsUrdPurityPct').value));
+        const pureRate = (uMetal === 'Silver') ? getPureSilverPerGramRate() : getPure24KPerGramRate();
+
+        const fineWt = (uWt * uPurityPct) / 100;
+        const urdAmt = Math.round(fineWt * pureRate);
+
+        document.getElementById('qsUrdAmount').value = urdAmt > 0 ? urdAmt : '';
+        document.getElementById('qsUrdFineHint').innerText = `Fine Wt: ${fineWt.toFixed(3)}g | Pure Rate: ₹${fmtNum(parseFloat(pureRate.toFixed(2)))}/g`;
+
+        recalcQuickSaleForward();
+    }
+
+    // Reverse URD: User enters their own Old Amount (₹) -> Auto Calculate Purity %!
+    function onUrdAmountManualEdit() {
+        if (!isUrdPanelOpen()) return;
+        const uMetal = document.getElementById('qsUrdMetal').value;
+        const uWt = Math.max(0, parseNum(document.getElementById('qsUrdWeight').value));
+        const uAmt = Math.max(0, parseNum(document.getElementById('qsUrdAmount').value));
+        const pureRate = (uMetal === 'Silver') ? getPureSilverPerGramRate() : getPure24KPerGramRate();
+
+        if (uWt > 0 && pureRate > 0) {
+            const impliedFine = uAmt / pureRate;
+            const impliedPurityPct = parseFloat(((impliedFine / uWt) * 100).toFixed(2));
+            document.getElementById('qsUrdPurityPct').value = impliedPurityPct;
+            document.getElementById('qsUrdFineHint').innerText = `Fine Wt: ${impliedFine.toFixed(3)}g | Auto Purity: ${impliedPurityPct}% (Rate: ₹${fmtNum(parseFloat(pureRate.toFixed(2)))}/g)`;
+        } else {
+            document.getElementById('qsUrdFineHint').innerText = `Weight (g) डालें ताकि Purity (%) अपने आप निकल सके`;
+        }
+
+        recalcQuickSaleForward();
+    }
+
+    function getActiveUrdData() {
+        if (!isUrdPanelOpen()) {
+            return { active: false, metal: 'Gold', weight: 0, purityPct: 0, fineWt: 0, amount: 0, itemName: '' };
+        }
+        const uMetal = document.getElementById('qsUrdMetal').value || 'Gold';
+        const uWt = Math.max(0, parseNum(document.getElementById('qsUrdWeight').value));
+        const uPurityPct = Math.max(0, parseNum(document.getElementById('qsUrdPurityPct').value));
+        const uAmt = Math.max(0, parseNum(document.getElementById('qsUrdAmount').value));
+        const uItem = (document.getElementById('qsUrdItemName').value || '').trim() || (uMetal === 'Silver' ? 'Old Silver' : 'Old Gold');
+        const fineWt = parseFloat(((uWt * uPurityPct) / 100).toFixed(3));
+        return {
+            active: (uWt > 0 || uAmt > 0),
+            metal: uMetal,
+            weight: uWt,
+            purityPct: uPurityPct,
+            fineWt: fineWt,
+            amount: uAmt,
+            itemName: uItem
+        };
     }
 
     function populateQSManualPurityDropdown(metal) {
@@ -1819,7 +1989,6 @@
     function onQSManualMetalChange() {
         const metal = document.getElementById('qsManualMetal').value;
         populateQSManualPurityDropdown(metal);
-        // Set Default Making: Gold = 12%, Silver = 25%
         document.getElementById('qsMakingPct').value = (metal === 'Silver') ? 25 : 12;
         const purity = document.getElementById('qsManualPurity').value;
         document.getElementById('qsAppliedRate').value = getTodayPerGramRate(metal, purity);
@@ -1855,7 +2024,7 @@
         }
     }
 
-    // Forward calculation: Weight × Today's Rate + Making (%) + GST -> Total & Cash/Bank
+    // Forward calculation: (Weight × Today's Rate + Making % + GST) - URD Old Amount -> Net Payable & Cash/Bank
     function recalcQuickSaleForward(keepEditedRate = true) {
         const ctx = getActiveQSContext();
         let rateEl = document.getElementById('qsAppliedRate');
@@ -1875,16 +2044,17 @@
 
         const subTotal = metalValue + makingAmt;
         const gstAmt = Math.round((subTotal * gstPct) / 100);
-        const finalGrandTotal = Math.round(subTotal + gstAmt);
+        const grossGrandTotal = Math.round(subTotal + gstAmt);
 
-        updateQSBreakdownUI(ctx.weight, rate, metalValue, mkPct, makingAmt, gstPct, gstAmt);
+        const urd = getActiveUrdData();
+        const netPayable = Math.max(0, grossGrandTotal - urd.amount);
 
-        // Sync Total Amount & Cash/Bank Boxes
-        document.getElementById('uniAmt').value = finalGrandTotal > 0 ? finalGrandTotal : '';
-        syncQSCashBankFromTotal(finalGrandTotal);
+        updateQSBreakdownUI(ctx.weight, rate, metalValue, mkPct, makingAmt, gstPct, gstAmt, urd);
+
+        document.getElementById('uniAmt').value = netPayable > 0 ? netPayable : '';
+        syncQSCashBankFromTotal(netPayable);
     }
 
-    // If user manually edits Making (₹) box directly
     function onQSMakingAmtManualChange() {
         const ctx = getActiveQSContext();
         const rate = parseNum(document.getElementById('qsAppliedRate').value);
@@ -1898,39 +2068,45 @@
         const gstPct = applyGst ? (parseNum(document.getElementById('qsGstPct').value) || 0) : 0;
         const subTotal = metalValue + makingAmt;
         const gstAmt = Math.round((subTotal * gstPct) / 100);
-        const finalGrandTotal = Math.round(subTotal + gstAmt);
+        const grossGrandTotal = Math.round(subTotal + gstAmt);
 
-        updateQSBreakdownUI(ctx.weight, rate, metalValue, mkPct, makingAmt, gstPct, gstAmt);
-        document.getElementById('uniAmt').value = finalGrandTotal > 0 ? finalGrandTotal : '';
-        syncQSCashBankFromTotal(finalGrandTotal);
+        const urd = getActiveUrdData();
+        const netPayable = Math.max(0, grossGrandTotal - urd.amount);
+
+        updateQSBreakdownUI(ctx.weight, rate, metalValue, mkPct, makingAmt, gstPct, gstAmt, urd);
+        document.getElementById('uniAmt').value = netPayable > 0 ? netPayable : '';
+        syncQSCashBankFromTotal(netPayable);
     }
 
-    // Reverse calculation: When user edits Final Amount (uniAmt) or Cash/Bank boxes,
-    // Today's Rate stays fixed and Making Charge automatically adjusts forward/backward!
-    function reverseAdjustMakingFromFinalTotal(newGrandTotal) {
+    // Reverse calculation: When user edits Net Final Amount (uniAmt) or Cash/Bank boxes,
+    // Today's Rate & URD Deduction stay fixed and Making Charge automatically adjusts forward/backward!
+    function reverseAdjustMakingFromFinalTotal(newNetPayable) {
         const ctx = getActiveQSContext();
         const rate = parseNum(document.getElementById('qsAppliedRate').value);
         const metalValue = ctx.weight * rate;
+        const urd = getActiveUrdData();
+
+        const targetGrossGrandTotal = newNetPayable + urd.amount;
 
         const applyGst = document.getElementById('qsApplyGst').checked;
         const gstPct = applyGst ? (parseNum(document.getElementById('qsGstPct').value) || 0) : 0;
 
-        const targetSubTotal = applyGst ? (newGrandTotal / (1 + (gstPct / 100))) : newGrandTotal;
-        const targetGstAmt = Math.round(newGrandTotal - targetSubTotal);
+        const targetSubTotal = applyGst ? (targetGrossGrandTotal / (1 + (gstPct / 100))) : targetGrossGrandTotal;
+        const targetGstAmt = Math.round(targetGrossGrandTotal - targetSubTotal);
 
         if (metalValue > 0) {
             const newMakingAmt = Math.round(targetSubTotal - metalValue);
             const newMakingPct = parseFloat(((newMakingAmt / metalValue) * 100).toFixed(2));
             document.getElementById('qsMakingAmt').value = newMakingAmt;
             document.getElementById('qsMakingPct').value = newMakingPct;
-            updateQSBreakdownUI(ctx.weight, rate, metalValue, newMakingPct, newMakingAmt, gstPct, targetGstAmt);
+            updateQSBreakdownUI(ctx.weight, rate, metalValue, newMakingPct, newMakingAmt, gstPct, targetGstAmt, urd);
         } else {
             document.getElementById('qsMakingAmt').value = 0;
-            updateQSBreakdownUI(0, rate, 0, parseNum(document.getElementById('qsMakingPct').value), 0, gstPct, targetGstAmt);
+            updateQSBreakdownUI(0, rate, 0, parseNum(document.getElementById('qsMakingPct').value), 0, gstPct, targetGstAmt, urd);
         }
     }
 
-    function updateQSBreakdownUI(wt, rate, metalVal, mkPct, mkAmt, gstPct, gstAmt) {
+    function updateQSBreakdownUI(wt, rate, metalVal, mkPct, mkAmt, gstPct, gstAmt, urd) {
         document.getElementById('qsBrkWt').innerText = `${(wt || 0).toFixed(3)}g`;
         document.getElementById('qsBrkRate').innerText = fmtNum(rate);
         document.getElementById('qsBrkMetalVal').innerText = `₹${fmtNum(Math.round(metalVal))}`;
@@ -1938,6 +2114,15 @@
         document.getElementById('qsBrkMkAmt').innerText = `₹${fmtNum(mkAmt)}`;
         document.getElementById('qsBrkGstPct').innerText = gstPct;
         document.getElementById('qsBrkGstAmt').innerText = `₹${fmtNum(gstAmt)}`;
+
+        const urdRow = document.getElementById('qsBrkUrdRow');
+        if (urd && urd.active && urd.amount > 0) {
+            urdRow.style.display = 'flex';
+            document.getElementById('qsBrkUrdDesc').innerText = `${urd.itemName} ${urd.weight.toFixed(3)}g @ ${urd.purityPct}%`;
+            document.getElementById('qsBrkUrdAmt').innerText = `-₹${fmtNum(urd.amount)}`;
+        } else {
+            urdRow.style.display = 'none';
+        }
     }
 
     function syncQSCashBankFromTotal(total) {
@@ -1954,7 +2139,6 @@
             return;
         }
 
-        // If user had already entered Bank amount, keep Bank and put remainder in Cash; otherwise put full in Cash
         if (curBank > 0 && curBank <= total) {
             cEl.value = Math.max(0, total - curBank);
         } else {
@@ -2000,6 +2184,7 @@
         clearUniCustomer();
         clearUniMerchant();
         clearQSItem();
+        clearAndHideUrdPanel();
         document.getElementById('uniEmpSearch').value = '';
         document.getElementById('uniEmpId').value = '';
 
@@ -2059,7 +2244,6 @@
         document.getElementById('secExpenseCat').style.display = 'none';
         document.getElementById('secContraInfo').style.display = 'none';
 
-        // Default Top Grid Layout (Amount + Single Mode)
         const topGrid = document.getElementById('uniTopAmtGrid');
         const modeGroup = document.getElementById('uniModeGroup');
         const amtLabel = document.getElementById('uniAmtLabel');
@@ -2081,10 +2265,9 @@
             document.getElementById('secQuickSale').style.display = 'block';
             document.getElementById('uniNote').value = '';
 
-            // Full-width Final Amount at top because Cash & Bank split boxes are inside Quick Sale
             topGrid.style.gridTemplateColumns = '1fr';
             modeGroup.style.display = 'none';
-            amtLabel.innerText = 'Final Bill Amount (₹) - Edit करेंगे तो Making अपने आप Adjust होगी *';
+            amtLabel.innerText = 'Net Payable Amount (₹) - Edit करेंगे तो Making अपने आप Adjust होगी *';
 
             updateQSLiveRateStrip();
             onQSManualMetalChange();
@@ -2287,7 +2470,6 @@
         const isSilv = checkIsSilver(i.purity) || String(i.barcode || '').toUpperCase().startsWith('SIL');
         const isBulk = isSilv || (i.category && (i.category.toUpperCase().includes('LOOSE') || i.category.toUpperCase().includes('MIX'))) || (i.barcode && i.barcode.toUpperCase().startsWith('LOOSE')) || parseInt(i.pieces) > 1;
 
-        // Auto set today's rate & default making (25% Silver, 12% Gold)
         document.getElementById('qsMakingPct').value = isSilv ? 25 : 12;
         document.getElementById('qsAppliedRate').value = getTodayPerGramRate(isSilv ? 'Silver' : 'Gold', i.purity);
 
@@ -2361,12 +2543,14 @@
 
         const direction = document.getElementById('uniDirection').value;
         const reason = document.getElementById('uniReason').value;
-        const amount = parseFloat(document.getElementById('uniAmt').value);
+        const amount = parseFloat(document.getElementById('uniAmt').value) || 0;
         const mode = document.getElementById('uniMode').value || 'Cash';
         const rawNote = document.getElementById('uniNote').value.trim();
         const dateIso = getEntryIsoForSelectedDate();
 
-        if (!amount || amount <= 0) return showToast("Please enter a valid amount!", "error");
+        if (reason !== 'quick_sale' && amount <= 0) {
+            return showToast("Please enter a valid amount!", "error");
+        }
 
         const btn = document.getElementById('uniSaveBtn');
         const oldHtml = btn.innerHTML;
@@ -2627,20 +2811,26 @@
         }
     }
 
-    async function executeQuickSaleFromUniversal(finalAmount, note, dateIso) {
+    async function executeQuickSaleFromUniversal(netPayableAmount, note, dateIso) {
         const applyGst = document.getElementById('qsApplyGst').checked;
         const gstPct = parseFloat(document.getElementById('qsGstPct').value) || 3;
+        const urd = getActiveUrdData();
+
+        if (netPayableAmount <= 0 && (!urd.active || urd.amount <= 0)) {
+            showToast("Please enter a valid Sale or Old Metal amount!", "error");
+            return;
+        }
 
         let cashPaid = Math.max(0, parseNum(document.getElementById('qsPayCash').value));
         let bankPaid = Math.max(0, parseNum(document.getElementById('qsPayBank').value));
 
-        if (cashPaid === 0 && bankPaid === 0) {
-            cashPaid = finalAmount;
+        if (netPayableAmount > 0 && cashPaid === 0 && bankPaid === 0) {
+            cashPaid = netPayableAmount;
         }
 
         const splitSum = cashPaid + bankPaid;
-        if (Math.abs(splitSum - finalAmount) > 1) {
-            showToast(`Cash (₹${cashPaid}) + Bank (₹${bankPaid}) = ₹${splitSum}, जो कि Bill Total (₹${finalAmount}) के बराबर होना चाहिए!`, "error");
+        if (Math.abs(splitSum - netPayableAmount) > 1) {
+            showToast(`Cash (₹${cashPaid}) + Bank (₹${bankPaid}) = ₹${splitSum}, जो कि Net Payable (₹${netPayableAmount}) के बराबर होना चाहिए!`, "error");
             return;
         }
 
@@ -2660,11 +2850,13 @@
         
         let displayItemLabel = manualItemName || note || 'Quick Retail Sale';
 
-        let baseAmount = finalAmount;
+        const grossGrandTotal = netPayableAmount + (urd.active ? urd.amount : 0);
+
+        let baseAmount = grossGrandTotal;
         let gstAmount = 0;
         if (applyGst) {
-            baseAmount = Math.round(finalAmount / (1 + (gstPct / 100)));
-            gstAmount = finalAmount - baseAmount;
+            baseAmount = Math.round(grossGrandTotal / (1 + (gstPct / 100)));
+            gstAmount = grossGrandTotal - baseAmount;
         }
 
         const dObj = new Date(dateIso);
@@ -2714,11 +2906,11 @@
                 barcode: invItem.barcode || 'UNKNOWN', category: invItem.category || displayItemLabel, purity: invItem.purity || (isSilvInv ? 'Silver' : '22K'),
                 weight: sellWt || 0, grossWt: sellWt || 0, stoneWt: 0, netWt: sellWt || 0, fineWt: sellWt || 0,
                 sellQty: 1, rate: appliedRate || baseAmount || 0, makingType: 'pct', makingRate: makingPct, makingAmount: makingAmt,
-                baseAmount: baseAmount || 0, gstPct: applyGst ? gstPct : 0, gstAmount: gstAmount, total: finalAmount || 0
+                baseAmount: baseAmount || 0, gstPct: applyGst ? gstPct : 0, gstAmount: gstAmount, total: grossGrandTotal || 0
             };
             passbookItemDesc = `${invItem.category} (${invItem.barcode})`;
 
-            const isBulk = isSilvInv || (invItem.category && (invItem.category.toUpperCase().includes('LOOSE') || invItem.category.toUpperCase().includes('MIX'))) || (invItem.barcode && i.barcode.toUpperCase().startsWith('LOOSE')) || availPcs > 1;
+            const isBulk = isSilvInv || (invItem.category && (invItem.category.toUpperCase().includes('LOOSE') || invItem.category.toUpperCase().includes('MIX'))) || (invItem.barcode && invItem.barcode.toUpperCase().startsWith('LOOSE')) || availPcs > 1;
             if (isBulk) {
                 invItem.grossWt = Math.max(0, (parseFloat(invItem.grossWt) || 0) - sellWt);
                 invItem.netWt = Math.max(0, (parseFloat(invItem.netWt) || 0) - sellWt);
@@ -2739,34 +2931,88 @@
                 purity: manualPurity,
                 weight: manualWeight || 0, grossWt: manualWeight || 0, stoneWt: 0, netWt: manualWeight || 0, fineWt: manualWeight || 0, sellQty: 1, 
                 rate: appliedRate || baseAmount || 0, makingType: 'pct', makingRate: makingPct, makingAmount: makingAmt,
-                baseAmount: baseAmount || 0, gstPct: applyGst ? gstPct : 0, gstAmount: gstAmount, total: finalAmount || 0
+                baseAmount: baseAmount || 0, gstPct: applyGst ? gstPct : 0, gstAmount: gstAmount, total: grossGrandTotal || 0
             };
             passbookItemDesc = `${manualMetal} (${manualPurity}) - ${manualItemName || note || 'Item'}`;
+        }
+
+        const saleItemsList = [finalItem];
+        if (urd.active && (urd.amount > 0 || urd.weight > 0)) {
+            const urdPurityLabel = urd.metal === 'Silver' ? `Silver ${urd.purityPct}%` : `${urd.purityPct}%`;
+            saleItemsList.push({
+                id: 'urd_item_' + Date.now(),
+                isOldGold: true,
+                metal: urd.metal,
+                barcode: urd.metal === 'Silver' ? 'URD-SILVER' : 'URD-GOLD',
+                category: urd.itemName,
+                itemName: `${urd.itemName} (URD ${urd.purityPct}%)`,
+                purity: urdPurityLabel,
+                weight: urd.weight,
+                grossWt: urd.weight,
+                stoneWt: 0,
+                netWt: urd.weight,
+                fineWt: urd.fineWt,
+                sellQty: 1,
+                rate: urd.weight > 0 ? Math.round(urd.amount / urd.weight) : 0,
+                makingType: 'flat',
+                makingRate: 0,
+                makingAmount: 0,
+                baseAmount: -urd.amount,
+                gstPct: 0,
+                gstAmount: 0,
+                total: -urd.amount
+            });
         }
 
         const saleData = {
             invoiceNo: invoiceNo, date: dateIso, customerId: custId || 'Walk-in', customerName: customerObj.name || 'Walk-in',
             metalType: finalItem.metal,
-            items: [finalItem], subTotal: baseAmount || 0, gst: gstAmount, oldGoldDeduction: 0, totalExchWt: 0,
-            discountMode: 'flat', discount: 0, bcWalletDeduction: 0, grandTotal: finalAmount || 0, paidAmount: finalAmount || 0, pendingAmount: 0, 
+            items: saleItemsList, subTotal: baseAmount || 0, gst: gstAmount,
+            oldGoldDeduction: urd.active ? urd.amount : 0,
+            totalExchWt: urd.active ? urd.weight : 0,
+            discountMode: 'flat', discount: 0, bcWalletDeduction: 0,
+            grandTotal: netPayableAmount || 0, paidAmount: netPayableAmount || 0, pendingAmount: 0, 
             mode: primaryMode, payments: paymentsArr, isGstBill: applyGst, status: 'completed', isQuickSale: true
         };
         
         const saleDocId = await addItem('sales', saleData);
         saleData.id = saleDocId; 
 
+        // Also record URD Old Metal in old_gold store (marked isPos: true so Rojmel doesn't double-count)
+        if (urd.active && (urd.amount > 0 || urd.weight > 0)) {
+            try {
+                await addItem('old_gold', {
+                    date: dateIso,
+                    type: 'BUY',
+                    metal: urd.metal,
+                    customerId: custId,
+                    customerName: customerObj.name,
+                    description: urd.itemName,
+                    category: urd.itemName,
+                    grossWt: urd.weight,
+                    netWt: urd.weight,
+                    purity: urd.metal === 'Silver' ? `Silver ${urd.purityPct}%` : `${urd.purityPct}%`,
+                    fineWt: urd.fineWt,
+                    amount: urd.amount,
+                    saleId: saleDocId,
+                    isPos: true
+                });
+            } catch(e) {}
+        }
+
+        const urdNoteSuffix = (urd.active && urd.amount > 0) ? ` + URD ₹${urd.amount}` : '';
         if (cashPaid > 0) {
             await addItem('cashflow', {
                 date: dateIso, type: 'IN', mode: 'Cash', category: 'POS Sale', amount: cashPaid,
                 customerId: custId, customerName: customerObj.name,
-                note: `${customerObj.name} - ${passbookItemDesc} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
+                note: `${customerObj.name} - ${passbookItemDesc}${urdNoteSuffix} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
             });
         }
         if (bankPaid > 0) {
             await addItem('cashflow', {
                 date: dateIso, type: 'IN', mode: 'Bank Transfer', category: 'POS Sale', amount: bankPaid,
                 customerId: custId, customerName: customerObj.name,
-                note: `${customerObj.name} - ${passbookItemDesc} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
+                note: `${customerObj.name} - ${passbookItemDesc}${urdNoteSuffix} [Inv: ${invoiceNo}]`, isManual: false, refId: saleDocId
             });
         }
 
@@ -2833,13 +3079,13 @@
                     <thead class="bg-maroon">
                         <tr>
                             <th>HSN</th><th>Particular</th><th>Purity</th><th>Pcs</th>
-                            <th>Gross Wt</th><th>Net Wt</th><th>Rate</th><th>Making</th><th style="border-right:none;">Taxable Amt</th>
+                            <th>Gross Wt</th><th>Net Wt</th><th>Rate</th><th>Making</th><th style="border-right:none;">Amount</th>
                         </tr>
                     </thead>
                     <tbody>`;
         sale.items.forEach(i => {
             const itemHsn = (i.metal === 'Silver' || checkIsSilver(i.purity)) ? '7114' : '7113';
-            const mkLabel = i.makingAmount ? `₹${Number(i.makingAmount).toLocaleString()} (${i.makingRate || 0}%)` : '-';
+            const mkLabel = i.isOldGold ? 'URD Exch' : (i.makingAmount ? `₹${Number(i.makingAmount).toLocaleString()} (${i.makingRate || 0}%)` : '-');
             html += `<tr>
                 <td>${itemHsn}</td><td style="text-align:left;">${i.itemName || i.category}</td>
                 <td>${i.purity}</td><td>1</td><td>${(i.grossWt || 0).toFixed(3)}</td>
@@ -2854,12 +3100,16 @@
                 <tbody><tr><td>${hsnCode}</td><td>${sale.subTotal.toLocaleString()}</td><td>${cgstAmt}</td><td>${sgstAmt}</td><td><b>${totalGstAmt.toLocaleString()}</b></td></tr></tbody>
             </table>`;
         }
+        const ogRowHtml = (sale.oldGoldDeduction && sale.oldGoldDeduction > 0)
+            ? `<div class="inv-summary-row" style="color:#6b21a8;"><span>Less: Old Metal (URD)</span> <span>-₹${Number(sale.oldGoldDeduction).toLocaleString()}</span></div>`
+            : '';
         html += `<div class="inv-footer-grid">
             <div class="inv-footer-left"><div style="padding:8px;"><strong>In Words :</strong> Rupees ${numberToWords(sale.grandTotal)}</div></div>
             <div class="inv-footer-right">
                 <div class="inv-summary-row"><span>Taxable Amt</span> <span>${sale.subTotal.toLocaleString()}</span></div>
                 <div class="inv-summary-row"><span>Total GST</span> <span>${isGst ? totalGstAmt : '0'}</span></div>
-                <div class="inv-summary-row bold"><span>Grand Total</span> <span>₹${sale.grandTotal.toLocaleString()}</span></div>
+                ${ogRowHtml}
+                <div class="inv-summary-row bold"><span>Net Payable</span> <span>₹${sale.grandTotal.toLocaleString()}</span></div>
             </div>
         </div>
         <div style="border-top:1px solid #6c1122; text-align:right; padding:20px 10px 5px 10px; font-weight:bold; font-size:12px; color:#6c1122;">For Bharti Jewellers</div>
@@ -3025,7 +3275,6 @@
             const lockedSnap = getLockedSnapshot(today);
             const prevLockInfo = getLatestLockedSnapshotBefore(today);
 
-            // Toggle Locked UI State
             const lockedBadge = document.getElementById('dayLockedBadge');
             const milanBtnMain = document.getElementById('milanBtnMain');
             const masterActionBar = document.getElementById('masterActionBar');
@@ -3747,7 +3996,9 @@
                 
                 if(udhari > 0) pushLog('SaleDueGiven', udhari, cName, 'Udhari', '', false);
                 if(og > 0) {
-                    let ogTopLbl = `Old Gold ${oldWtRcv > 0 ? oldWtRcv.toFixed(3) : ''}`.trim();
+                    let ogItemObj = (s.items || []).find(i => i.isOldGold);
+                    let isOgSilv = ogItemObj && (ogItemObj.metal === 'Silver' || checkIsSilver(ogItemObj.purity));
+                    let ogTopLbl = `${isOgSilv ? 'Old Silver' : 'Old Gold'} ${oldWtRcv > 0 ? oldWtRcv.toFixed(3) : ''}`.trim();
                     pushLog('OldGold', og, cName, 'Bill Exch', '', false, oldWtRcv > 0 ? [{val: oldWtRcv, label:'Old'}] : [], null, ogTopLbl);
                 }
             });
