@@ -55,6 +55,8 @@
 
         .btn-export { background: #10b981; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
         .btn-history { background: #8e24aa; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;}
+        .btn-track { background: #0284c7; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; box-shadow: 0 3px 8px rgba(2, 132, 199, 0.25);}
+        .btn-track:hover { background: #0369a1; }
         
         .filter-bar-new { display: flex; gap: 15px; align-items: flex-end; background: white; padding: 15px 20px; border-radius: 12px; box-shadow: var(--card-shadow); margin-bottom: 20px; border: 1px solid #eee; flex-wrap: wrap;}
         .filter-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px;}
@@ -114,6 +116,21 @@
             transition: 0.2s;
         }
         .photo-drop-zone:hover { border-color: #C5A059; background: #fffdf5; }
+
+        /* --- 🔍 BARCODE TRACKING TIMELINE --- */
+        .track-search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+        .track-search-row input { flex: 1; padding: 12px 15px; font-size: 1rem; font-weight: 700; text-transform: uppercase; border: 2px solid #0284c7; border-radius: 10px; background: #f0f9ff; }
+        .track-timeline { border-left: 3px solid #0284c7; padding-left: 16px; margin: 14px 0; display: flex; flex-direction: column; gap: 14px; }
+        .track-step { position: relative; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; }
+        .track-step::before {
+            content: ''; position: absolute; left: -23px; top: 16px; width: 12px; height: 12px;
+            border-radius: 50%; background: #0284c7; border: 2px solid #fff; box-shadow: 0 0 0 2px #0284c7;
+        }
+        .track-step.step-in::before { background: #10b981; box-shadow: 0 0 0 2px #10b981; }
+        .track-step.step-out::before { background: #ef4444; box-shadow: 0 0 0 2px #ef4444; }
+        .track-step.step-order::before { background: #0284c7; box-shadow: 0 0 0 2px #0284c7; }
+        .track-step-title { font-weight: 800; font-size: 0.92rem; color: #0f172a; margin-bottom: 4px; }
+        .track-step-meta { font-size: 0.8rem; color: #475569; line-height: 1.45; }
 
         /* Filter Pill Tabs inside Details Modal */
         .detail-mode-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -239,6 +256,30 @@
 <!-- HIDDEN GLOBAL FILE INPUT FOR QUICK ITEM PHOTO UPLOAD -->
 <input type="file" id="quickItemPhotoInput" accept="image/*" style="display:none;" onchange="handleQuickItemPhotoSelected(event)">
 
+<!-- 🔍 BARCODE TRACKING MODAL -->
+<div id="barcodeTrackingModal" class="modal" style="z-index: 2600;">
+    <div class="modal-content" style="max-width: 620px; border-top: 5px solid #0284c7;">
+        <button class="close-btn" onclick="closeModal('barcodeTrackingModal')">&times;</button>
+        <h3 style="margin-top:0; color:#0f172a; font-size:1.35rem;"><i class="fas fa-barcode" style="color:#0284c7;"></i> Barcode Tracking (कब आया, कब बिका / हटा)</h3>
+        <p style="font-size:0.82rem; color:#64748b; margin-top:-6px; margin-bottom:12px;">
+            Barcode नंबर डालें या स्कैन करें — तुरंत उसकी पूरी History (Add Date, Sale Bill / Customer, Remove Date) दिख जाएगी:
+        </p>
+
+        <div class="track-search-row">
+            <input type="text" id="trackBarcodeInput" placeholder="Enter / Scan Barcode (e.g. BRA023, RNG001)..." onkeydown="if(event.key==='Enter') executeBarcodeTrack()">
+            <button type="button" class="btn-track" style="padding:0 20px; border-radius:10px;" onclick="executeBarcodeTrack()">
+                <i class="fas fa-search"></i> Track
+            </button>
+        </div>
+
+        <div id="barcodeTrackResult">
+            <div style="text-align:center; padding:24px; color:#94a3b8; font-size:0.88rem; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">
+                ऊपर Barcode डालकर <strong>Track</strong> दबाएं।
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- FULL SCREEN PHOTO ZOOM MODAL -->
 <div id="photoZoomModal" class="modal" style="z-index: 3500;" onclick="closeModal('photoZoomModal')">
     <div class="modal-content" style="max-width: 520px; text-align: center; padding: 18px;" onclick="event.stopPropagation()">
@@ -264,6 +305,7 @@
                 <div class="metal-tab" id="metal-tab-all" onclick="setMetalFilter('ALL')"><i class="fas fa-boxes"></i> All Metals</div>
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-track" onclick="openBarcodeTrackingModal()"><i class="fas fa-search-location"></i> Barcode Tracking</button>
                 <button class="btn-history" style="background: #10b981;" onclick="openRestoreStockModal()"><i class="fas fa-undo"></i> Batch Restore</button>
                 <button class="btn-history" style="background: var(--active-red);" onclick="openQuickRemoveModal()"><i class="fas fa-minus-circle"></i> Quick Remove</button>
                 <button class="btn-history" style="background: #8e24aa;" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
@@ -483,7 +525,6 @@
         <button class="close-btn" onclick="closeModal('itemDetailsModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--header-bg); display:flex; align-items:center; gap:10px;"><i class="fas fa-search"></i> Item Details</h3>
 
-        <!-- Item Photo Preview & Direct Camera Upload Bar -->
         <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:12px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
             <div style="display:flex; align-items:center; gap:12px;">
                 <img id="idmPhotoPreview" src="" alt="Item Photo" style="width:68px; height:68px; border-radius:8px; object-fit:cover; border:2px solid #C5A059; display:none; cursor:pointer;" onclick="openPhotoZoom(this.src, document.getElementById('idmBarcode').innerText)">
@@ -510,7 +551,6 @@
         <div class="item-detail-row"><span class="item-detail-lbl">Net Weight:</span><span class="item-detail-val" id="idmNet">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Current Status:</span><span class="item-detail-val" id="idmStatus">...</span></div>
 
-        <!-- IN HISTORY BOX (WHEN & HOW ADDED) -->
         <div style="background:#f5f3ff; padding:11px 12px; border-radius:8px; margin-top:12px; border:1px solid #ddd6fe;">
             <div style="color:#6d28d9; font-weight:700; margin-bottom:6px; font-size:0.9rem;"><i class="fas fa-plus-circle"></i> Stock IN (कब और कैसे जुड़ा)</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.82rem;"><span class="item-detail-lbl">Added Date:</span><span class="item-detail-val" id="idmDate">...</span></div>
@@ -532,7 +572,6 @@
             <div style="display:flex; justify-content:space-between;"><span class="item-detail-lbl">Sale Date:</span><span class="item-detail-val" id="idmSaleDate">...</span></div>
         </div>
 
-        <!-- MANUAL REMOVE INFO BOX -->
         <div class="item-detail-row" id="manualRemovedInfoRow" style="display:none; flex-direction:column; background:#fef2f2; padding:12px; border-radius:8px; margin-top:12px; border:1px solid #fecaca;">
             <div style="color:#b91c1c; font-weight:bold; margin-bottom:8px; font-size:0.95rem;"><i class="fas fa-minus-circle"></i> Stock Removed / Out Info</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Reason / Type:</span><span class="item-detail-val" id="idmRemoveReason" style="color:#b91c1c;">...</span></div>
@@ -548,7 +587,7 @@
     </div>
 </div>
 
-<!-- GROUP DETAILS MODAL WITH FILTER PILLS (CLOSING / + ADDED / - SALE-REM / - TAGGED OUT / OPENING) -->
+<!-- GROUP DETAILS MODAL WITH FILTER PILLS -->
 <div id="detailsModal" class="modal">
     <div class="modal-content" style="max-width: 1120px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px;">
@@ -556,7 +595,6 @@
             <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
         </div>
 
-        <!-- Mode Filter Pills -->
         <div id="detailsModePills" class="detail-mode-pills"></div>
 
         <div class="search-box-container" style="margin-bottom: 12px;">
@@ -585,7 +623,7 @@
     </div>
 </div>
 
-<!-- EXTRACT & CREATE TAG MODAL (WITH PHOTO UPLOAD) -->
+<!-- EXTRACT & CREATE TAG MODAL -->
 <div id="tagModal" class="modal">
     <div class="modal-content">
         <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
@@ -640,7 +678,7 @@
     </div>
 </div>
 
-<!-- ADD CUSTOM STOCK MODAL (WITH PHOTO UPLOAD) -->
+<!-- ADD CUSTOM STOCK MODAL -->
 <div id="manualEntryModal" class="modal">
     <div class="modal-content" style="max-width: 700px;">
         <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -838,6 +876,166 @@
         toast.innerText = msg;
         toast.className = 'show ' + type;
         setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+    }
+
+    // =========================================================================
+    // 🏷️ CLEAN BARCODE DISPLAY FOR REMOVED / EXTRACTED ITEMS
+    // =========================================================================
+    function getCleanDisplayBarcode(rawBarcode) {
+        if (!rawBarcode) return '';
+        let b = String(rawBarcode).trim();
+        // Strip internal suffixes like -REM-1234 or -EXT-1234567890
+        b = b.replace(/-REM-[A-Za-z0-9]+$/i, '');
+        b = b.replace(/-EXT-[A-Za-z0-9]+$/i, '');
+        return b;
+    }
+
+    // =========================================================================
+    // 🔍 BARCODE TRACKING MODAL ENGINE
+    // =========================================================================
+    function openBarcodeTrackingModal(prefillCode = '') {
+        const input = document.getElementById('trackBarcodeInput');
+        input.value = prefillCode || '';
+        if (prefillCode) {
+            executeBarcodeTrack();
+        } else {
+            document.getElementById('barcodeTrackResult').innerHTML = `
+                <div style="text-align:center; padding:24px; color:#94a3b8; font-size:0.88rem; background:#f8fafc; border-radius:10px; border:1px dashed #cbd5e1;">
+                    ऊपर Barcode डालकर <strong>Track</strong> दबाएं।
+                </div>
+            `;
+        }
+        openModal('barcodeTrackingModal');
+        setTimeout(() => { input.focus(); input.select(); }, 100);
+    }
+
+    function executeBarcodeTrack() {
+        const term = (document.getElementById('trackBarcodeInput').value || '').toUpperCase().trim();
+        const resBox = document.getElementById('barcodeTrackResult');
+        if (!term) {
+            resBox.innerHTML = `<div style="text-align:center; padding:16px; color:#b91c1c; font-weight:700;">कृपया Barcode नंबर डालें!</div>`;
+            return;
+        }
+
+        // Find matching inventory records (including -REM- / -EXT- records)
+        const matchedItems = allInventory.filter(i => {
+            const rawB = String(i.barcode || '').toUpperCase();
+            const cleanB = getCleanDisplayBarcode(rawB).toUpperCase();
+            return rawB === term || cleanB === term || rawB.includes(term) || cleanB.includes(term);
+        });
+
+        // Find matching sales for this barcode
+        const matchedSales = (allSalesData || []).filter(s => {
+            if (s.status === 'cancelled') return false;
+            return Array.isArray(s.items) && s.items.some(si => {
+                const sb = String(si.barcode || '').toUpperCase();
+                const cleanSb = getCleanDisplayBarcode(sb).toUpperCase();
+                return sb === term || cleanSb === term || sb.includes(term);
+            });
+        });
+
+        if (matchedItems.length === 0 && matchedSales.length === 0) {
+            resBox.innerHTML = `
+                <div style="text-align:center; padding:22px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; color:#991b1b; font-weight:700;">
+                    <i class="fas fa-times-circle"></i> Barcode "<strong>${term}</strong>" का कोई रिकॉर्ड नहीं मिला।
+                </div>
+            `;
+            return;
+        }
+
+        const primaryItem = matchedItems.find(i => !String(i.barcode || '').includes('-REM-') && !String(i.barcode || '').includes('-EXT-')) || matchedItems[0];
+        const displayCode = primaryItem ? getCleanDisplayBarcode(primaryItem.barcode) : term;
+        const photoSrc = primaryItem ? getItemPhotoSrc(primaryItem) : '';
+        const gross = primaryItem ? parseFloat(primaryItem.grossWt || primaryItem.weight || 0).toFixed(3) : '0.000';
+        const net = primaryItem ? parseFloat(primaryItem.netWt || primaryItem.grossWt || primaryItem.weight || 0).toFixed(3) : '0.000';
+        const purity = primaryItem ? (primaryItem.purity || '-') : '-';
+        const category = primaryItem ? (primaryItem.category || '-') : '-';
+
+        let stepsHtml = '';
+
+        // Step 1: Added / Stock IN
+        if (primaryItem) {
+            const inAudit = getItemInAuditInfo(primaryItem);
+            stepsHtml += `
+                <div class="track-step step-in">
+                    <div class="track-step-title" style="color:#15803d;"><i class="fas fa-plus-circle"></i> Stock me Add Hua</div>
+                    <div class="track-step-meta">
+                        <strong>Date & Time:</strong> ${inAudit.dateText}<br>
+                        <strong>Source:</strong> ${inAudit.sourceLabel}<br>
+                        ${primaryItem.docNo ? `<strong>Doc No:</strong> ${primaryItem.docNo}<br>` : ''}
+                        <strong>Weight:</strong> Gross ${gross}g | Net ${net}g | Purity: ${purity}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Step 2: Order Reservation if any
+        if (primaryItem && (primaryItem.status === 'order_reserved' || primaryItem.reservedInvoiceNo || primaryItem.reservedCustName)) {
+            stepsHtml += `
+                <div class="track-step step-order">
+                    <div class="track-step-title" style="color:#0369a1;"><i class="fas fa-lock"></i> Order Box me Book Hua</div>
+                    <div class="track-step-meta">
+                        <strong>Customer:</strong> ${primaryItem.reservedCustName || 'Customer'}<br>
+                        <strong>Order No:</strong> ${primaryItem.reservedInvoiceNo || 'N/A'}<br>
+                        <strong>Date:</strong> ${fmtDateOnly(primaryItem.reservedDate || primaryItem.addedDate)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Step 3: Sold in Sales Bills
+        matchedSales.forEach(s => {
+            const sItem = (s.items || []).find(si => {
+                const sb = String(si.barcode || '').toUpperCase();
+                return sb === term || getCleanDisplayBarcode(sb).toUpperCase() === term || sb.includes(term);
+            });
+            const soldWt = sItem ? parseFloat(sItem.netWt || sItem.weight || sItem.grossWt || 0).toFixed(3) : net;
+            stepsHtml += `
+                <div class="track-step step-out">
+                    <div class="track-step-title" style="color:#b91c1c;"><i class="fas fa-shopping-bag"></i> Customer ko Bika (Sold)</div>
+                    <div class="track-step-meta">
+                        <strong>Customer:</strong> ${s.customerName || s.customerPhone || 'Walk-in'}<br>
+                        <strong>Bill / Invoice No:</strong> ${s.invoiceNo || `INV-${String(s.id).slice(-4).toUpperCase()}`}<br>
+                        <strong>Sale Date & Time:</strong> ${fmtDateTime(s.date)}<br>
+                        <strong>Sold Weight:</strong> ${soldWt}g | <strong>Bill Total:</strong> ₹${Number(s.grandTotal || 0).toLocaleString()}
+                    </div>
+                </div>
+            `;
+        });
+
+        // Step 4: Removed / Extracted Entries
+        matchedItems.forEach(mItem => {
+            if (mItem.status === 'removed' || mItem.status === 'extracted' || String(mItem.barcode || '').includes('-REM-') || String(mItem.barcode || '').includes('-EXT-')) {
+                const outAudit = getItemOutAuditInfo(mItem);
+                const rWt = parseFloat(mItem.grossWt || mItem.weight || 0).toFixed(3);
+                stepsHtml += `
+                    <div class="track-step step-out">
+                        <div class="track-step-title" style="color:#b91c1c;"><i class="fas fa-minus-circle"></i> ${outAudit.title}</div>
+                        <div class="track-step-meta">
+                            <strong>Remove Date & Time:</strong> ${outAudit.dateText}<br>
+                            ${mItem.removeDocNo ? `<strong>Remove Doc No:</strong> ${mItem.removeDocNo}<br>` : ''}
+                            <strong>Weight:</strong> ${rWt}g | <strong>Status:</strong> ${String(mItem.status || '').toUpperCase()}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        // Step 5: Current Status
+        const curStatus = primaryItem ? String(primaryItem.status || 'stock').toUpperCase() : (matchedSales.length > 0 ? 'SOLD' : 'UNKNOWN');
+        resBox.innerHTML = `
+            <div style="background:#f1f5f9; padding:12px 14px; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    ${photoSrc ? `<img src="${photoSrc}" class="item-photo-thumb" style="width:54px; height:54px;" onclick="openPhotoZoom(this.src, '${displayCode}')">` : ''}
+                    <div>
+                        <div style="font-size:1.05rem; font-weight:800; color:#0f172a;">Barcode: ${displayCode}</div>
+                        <div style="font-size:0.8rem; color:#475569;">${category} • ${purity} • Net Wt: <strong>${net}g</strong></div>
+                    </div>
+                </div>
+                <span class="badge ${curStatus === 'STOCK' ? 'badge-22k' : 'badge-pending'}">${curStatus}</span>
+            </div>
+            <div class="track-timeline">${stepsHtml}</div>
+        `;
     }
 
     // =========================================================================
@@ -1380,9 +1578,6 @@
         updateSubCatFilter();
     }
 
-    // =========================================================================
-    // 🔍 HELPER: GET COMPLETE IN (ADDED) & OUT (SOLD / ORDER BOX / REMOVED) AUDIT INFO
-    // =========================================================================
     function getItemInAuditInfo(item) {
         const addedDateStr = item.addedDate || item.purchaseDate || item.date || '';
         const src = String(item.source || '').toLowerCase();
@@ -1607,6 +1802,7 @@
             if (searchTerm) {
                 filtered = filtered.filter(i => 
                     (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                    (getCleanDisplayBarcode(i.barcode).toUpperCase().includes(searchTerm)) ||
                     (i.category && String(i.category).toUpperCase().includes(searchTerm)) || 
                     (i.name && String(i.name).toUpperCase().includes(searchTerm)) ||
                     (i.huid && String(i.huid).toUpperCase().includes(searchTerm)) ||
@@ -1755,7 +1951,6 @@
                                 groupedInventory[key].openingQty += sQty;
                                 groupedInventory[key].openingWt += sNet;
 
-                                // Add synthetic entry so clicking "- Sale/Rem" shows who bought the loose weight
                                 groupedInventory[key].outItems.push({
                                     id: 'loose_sale_' + sale.id + '_' + si.barcode,
                                     _syntheticLooseSale: true,
@@ -1994,7 +2189,7 @@
                     const gp = parseFloat(gi[i].value)||0; const sp = parseFloat(si[i].value)||0;
                     if(gp>0) {
                         const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, metal: metalType, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '', image: photoBase64, imageUrl: photoBase64 };
+                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, metal: metalType, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '', image: photoBase64, imageUrl: photoBase64 };
                         await addItem('inventory', item); newlyAddedItems.push(item);
                     }
                 }
@@ -2023,8 +2218,11 @@
 
     function openItemDetails(id) {
         const item = allInventory.find(i => String(i.id) === String(id)); if(!item) return;
-        let isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
-        document.getElementById('idmBarcode').innerHTML = isLoose ? '<span style="color:#888; font-style:italic;">Loose Stock (No Barcode)</span>' : item.barcode;
+        const cleanBc = getCleanDisplayBarcode(item.barcode);
+        let isLoose = cleanBc && String(cleanBc).startsWith('LOOSE');
+        document.getElementById('idmBarcode').innerHTML = isLoose
+            ? `<span style="color:#475569; font-weight:700;">${cleanBc || 'Loose Stock'}</span>`
+            : `<span style="color:#0284c7; font-weight:800; cursor:pointer; text-decoration:underline;" onclick="closeModal('itemDetailsModal'); openBarcodeTrackingModal('${cleanBc}')">${cleanBc || '-'} <i class="fas fa-search-location"></i></span>`;
         document.getElementById('idmCategory').innerText = item.category;
         let rawSub = item.subFolder || "";
         if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
@@ -2033,7 +2231,6 @@
         
         document.getElementById('idmHuid').innerHTML = item.huid && String(item.huid).trim() !== '' ? item.huid : '<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>';
 
-        // Photo Section in Item Details
         const photoSrc = getItemPhotoSrc(item);
         const photoPrev = document.getElementById('idmPhotoPreview');
         const photoPh = document.getElementById('idmPhotoPlaceholder');
@@ -2060,7 +2257,6 @@
         document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmStatus').innerText = item.status === 'order_reserved' ? 'IN ORDER BOX (RESERVED)' : String(item.status).toUpperCase();
 
-        // Populate Full IN Audit Info
         const inAudit = getItemInAuditInfo(item);
         document.getElementById('idmDate').innerHTML = inAudit.dateText;
         document.getElementById('idmInSource').innerText = inAudit.sourceLabel;
@@ -2139,7 +2335,7 @@
     }
 
     let currentOpenGroupKey = '';
-    let currentOpenGroupMode = 'CLOSING'; // 'CLOSING' | 'ADDED' | 'OUT' | 'TAGGED_OUT' | 'OPENING'
+    let currentOpenGroupMode = 'CLOSING';
 
     function openGroupDetails(key, mode = 'CLOSING') {
         currentOpenGroupKey = key;
@@ -2162,7 +2358,6 @@
     function renderGroupDetailsTable() {
         const group = groupedInventory[currentOpenGroupKey]; if(!group) return;
 
-        // Render Mode Filter Pills at Top of Details Modal
         const pillsWrap = document.getElementById('detailsModePills');
         if (pillsWrap) {
             const modes = [
@@ -2223,7 +2418,9 @@
             filteredItems = filteredItems.filter(i => {
                 const inInfo = getItemInAuditInfo(i);
                 const outInfo = getItemOutAuditInfo(i);
+                const cleanCode = getCleanDisplayBarcode(i.barcode).toUpperCase();
                 return (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                    (cleanCode && cleanCode.includes(searchTerm)) ||
                     (i.huid && String(i.huid).toUpperCase().includes(searchTerm)) ||
                     (i.grossWt && String(i.grossWt).includes(searchTerm)) ||
                     (i.netWt && String(i.netWt).includes(searchTerm)) ||
@@ -2244,30 +2441,31 @@
             const g = parseFloat(item.grossWt||item.weight).toFixed(3);
             const inAudit = getItemInAuditInfo(item);
             const outAudit = getItemOutAuditInfo(item);
+            const cleanBc = getCleanDisplayBarcode(item.barcode);
             
-            let displayBc = item.barcode && String(item.barcode).startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : `<strong>${item.barcode}</strong>`;
+            let displayBc = cleanBc
+                ? `<span style="font-weight:800; color:#0f172a; cursor:pointer; text-decoration:underline;" onclick="closeModal('detailsModal'); openBarcodeTrackingModal('${cleanBc}')" title="Click karke is barcode ki poori history track karein">${cleanBc}</span>`
+                : '<span style="color:#888; font-style:italic;">No Barcode</span>';
+
             let rawSub = item.subFolder || "";
             if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
             if (rawSub) displayBc += `<br><span class="badge badge-silver" style="margin-top:3px;">${rawSub}</span>`;
             if (item.huid && String(item.huid).trim() !== '') displayBc += `<br><span style="font-size:0.72rem; color:#475569;">HUID: ${item.huid}</span>`;
 
-            // Photo Cell
             const photoSrc = getItemPhotoSrc(item);
-            const itemTitleLabel = `${item.barcode || item.category} (${g}g)`;
+            const itemTitleLabel = `${cleanBc || item.category} (${g}g)`;
             const photoCellHtml = item._syntheticLooseSale
                 ? `<span style="color:#aaa; font-size:0.72rem;">Loose</span>`
                 : (photoSrc
                     ? `<img src="${photoSrc}" class="item-photo-thumb" onclick="openPhotoZoom(this.src, '${itemTitleLabel.replace(/'/g, "\\'")}', '${item.id}')" title="Click to Zoom / Change Photo">`
                     : `<div class="item-photo-add-btn" onclick="triggerQuickItemPhotoUpload('${item.id}', event)" title="Is Item ki Photo Lagayein"><i class="fas fa-camera" style="font-size:0.95rem;"></i><span>Add</span></div>`);
 
-            // Added Date & Source Column
             const addedColHtml = item._syntheticLooseSale
                 ? `<span style="color:#888; font-size:0.78rem;">From Loose Stock</span>`
                 : `<div style="font-weight:700; color:#5b21b6; font-size:0.8rem;"><i class="far fa-calendar-plus"></i> ${inAudit.dateText}</div>
                    <div style="font-size:0.75rem; color:#334155; font-weight:600; margin-top:2px;">${inAudit.sourceLabel}</div>
                    ${inAudit.extraDetail ? `<div style="font-size:0.7rem; color:#64748b;">${inAudit.extraDetail}</div>` : ''}`;
 
-            // Out / Status Column
             let outColHtml = outAudit.badgeHtml;
             if (outAudit.type !== 'STOCK') {
                 outColHtml += `
@@ -2296,7 +2494,7 @@
             tbody.innerHTML += `
                 <tr style="${rowStyle}">
                     <td style="text-align:center;">${photoCellHtml}</td>
-                    <td style="cursor:pointer;" onclick="${item._syntheticLooseSale ? '' : `openItemDetails('${item.id}')`}">${displayBc}</td>
+                    <td>${displayBc}</td>
                     <td>${addedColHtml}</td>
                     <td>${outColHtml}</td>
                     <td><span class="badge badge-22k">${item.purity}</span></td>
@@ -2715,7 +2913,7 @@
                 <label class="print-item-row" style="cursor:pointer; display:flex; align-items:center;">
                     <input type="checkbox" class="restore-checkbox" value="${strId}" ${isChecked} onchange="updateRestoreBatchList(this, '${strId}')">
                     <div style="flex:1;">
-                        <div style="font-weight:700; color:#10b981;">${item.barcode}</div>
+                        <div style="font-weight:700; color:#10b981;">${getCleanDisplayBarcode(item.barcode)}</div>
                         <div style="font-size:0.8rem; color:#64748b;">${item.category} | ${displayName} | Total: ${gross}g</div>
                     </div>
                 </label>
@@ -2854,7 +3052,7 @@
         
         currentEditDocItems.forEach((item, index) => {
             const isLoose = item.barcode && String(item.barcode).startsWith('LOOSE');
-            const displayName = isLoose ? item.subFolder || item.name : item.barcode;
+            const displayName = isLoose ? item.subFolder || item.name : getCleanDisplayBarcode(item.barcode);
             
             const isSilv = item.metal ? (String(item.metal).toUpperCase() === 'SILVER') : checkIsSilver(item);
             
@@ -3009,7 +3207,7 @@
         allInventory.forEach(row => {
             let rDate = row.addedDate ? new Date(row.addedDate).toLocaleDateString() : '';
             let metal = row.metal ? row.metal : (checkIsSilver(row) ? 'Silver' : 'Gold');
-            let rowStr = `${row.barcode||''},${row.huid||''},${metal},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${row.reservedInvoiceNo||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
+            let rowStr = `${getCleanDisplayBarcode(row.barcode)||''},${row.huid||''},${metal},${row.category||''},${row.subFolder||''},${row.name||''},${row.purity||''},${row.pieces||1},${row.grossWt||row.weight||0},${row.stoneWt||0},${row.netWt||row.weight||0},${row.fineWt||0},${row.status||''},${row.reservedInvoiceNo||''},${rDate},${row.docNo||''},${row.removeDocNo||''}`;
             csvContent += rowStr + "\n";
         });
         const encodedUri = encodeURI(csvContent);
