@@ -71,6 +71,11 @@
         .inv-table { width: 100%; border-collapse: collapse; min-width: 1300px; }
         .inv-table th { background: #f8f9fa; color: #555; text-align: left; padding: 12px; font-weight: 700; font-size: 0.75rem; border-bottom: 2px solid #e2e8f0; text-transform: uppercase; position: sticky; top: 0; z-index: 10;}
         .inv-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; color: #333; font-size: 0.85rem; vertical-align: middle; }
+
+        /* Clickable Movement Cells */
+        .clickable-stat-cell { cursor: pointer; transition: filter 0.15s, transform 0.1s; position: relative; }
+        .clickable-stat-cell:hover { filter: brightness(0.95); text-decoration: underline; }
+        .cell-tap-hint { font-size: 0.65rem; opacity: 0.7; display: inline-block; margin-left: 4px; }
         
         .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; margin-bottom: 2px;}
         .badge-mix { background: #fbc02d; color: #000; }
@@ -80,6 +85,7 @@
         .badge-18k { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;}
         .badge-24k { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa;}
         .badge-silver { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;}
+        .badge-purple { background: #f3e8ff; color: #6d28d9; border: 1px solid #ddd6fe; }
 
         .btn-sm { padding: 8px 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.75rem; margin-right: 6px; font-weight: 600;}
         .btn-tag { background: #10b981; color: white; }
@@ -87,6 +93,35 @@
         .btn-print { background: #333; color: white; }
         .btn-edit { background: var(--info-blue); color: white; }
         .btn-del { background: var(--active-red); color: white; }
+
+        /* --- 📸 ITEM PHOTO THUMBNAIL & UPLOAD STYLES --- */
+        .item-photo-thumb {
+            width: 44px; height: 44px; border-radius: 8px; object-fit: cover;
+            border: 1.5px solid #C5A059; cursor: pointer; transition: transform 0.15s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: inline-block; vertical-align: middle;
+        }
+        .item-photo-thumb:hover { transform: scale(1.12); }
+        .item-photo-add-btn {
+            width: 44px; height: 44px; border-radius: 8px; border: 1.5px dashed #cbd5e1;
+            background: #f8fafc; color: #64748b; display: inline-flex; flex-direction: column;
+            align-items: center; justify-content: center; cursor: pointer; font-size: 0.65rem;
+            font-weight: 700; transition: 0.15s; gap: 2px; vertical-align: middle;
+        }
+        .item-photo-add-btn:hover { border-color: #C5A059; color: #b45309; background: #fffbeb; }
+        .photo-drop-zone {
+            border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; background: #f8fafc;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;
+            transition: 0.2s;
+        }
+        .photo-drop-zone:hover { border-color: #C5A059; background: #fffdf5; }
+
+        /* Filter Pill Tabs inside Details Modal */
+        .detail-mode-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .detail-pill {
+            padding: 7px 14px; border-radius: 20px; border: 1.5px solid #cbd5e1; background: #f8fafc;
+            font-size: 0.8rem; font-weight: 700; color: #475569; cursor: pointer; transition: 0.15s;
+        }
+        .detail-pill.active { background: #111; color: #C5A059; border-color: #111; }
 
         .fab { position: fixed; bottom: 30px; right: 30px; width: 64px; height: 64px; background: var(--active-red); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4); font-size: 1.5rem; cursor: pointer; z-index: 100; }
 
@@ -200,6 +235,20 @@
             <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
         </ul>
     </aside>
+
+<!-- HIDDEN GLOBAL FILE INPUT FOR QUICK ITEM PHOTO UPLOAD -->
+<input type="file" id="quickItemPhotoInput" accept="image/*" style="display:none;" onchange="handleQuickItemPhotoSelected(event)">
+
+<!-- FULL SCREEN PHOTO ZOOM MODAL -->
+<div id="photoZoomModal" class="modal" style="z-index: 3500;" onclick="closeModal('photoZoomModal')">
+    <div class="modal-content" style="max-width: 520px; text-align: center; padding: 18px;" onclick="event.stopPropagation()">
+        <button class="close-btn" onclick="closeModal('photoZoomModal')">&times;</button>
+        <h4 id="photoZoomTitle" style="margin: 0 0 12px 0; color: #111;">Item Photo</h4>
+        <img id="photoZoomImg" src="" alt="Item Photo" style="max-width: 100%; max-height: 70vh; border-radius: 10px; border: 2px solid #C5A059; object-fit: contain;">
+        <div id="photoZoomActions" style="margin-top: 12px; display: flex; gap: 10px; justify-content: center;"></div>
+    </div>
+</div>
+
 <div class="app-container">
     <div class="header-actions">
         <div class="header-top-row">
@@ -217,7 +266,7 @@
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn-history" style="background: #10b981;" onclick="openRestoreStockModal()"><i class="fas fa-undo"></i> Batch Restore</button>
                 <button class="btn-history" style="background: var(--active-red);" onclick="openQuickRemoveModal()"><i class="fas fa-minus-circle"></i> Quick Remove</button>
-                <button class="btn-history" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
+                <button class="btn-history" style="background: #8e24aa;" onclick="openDocHistoryModal()"><i class="fas fa-history"></i> Doc History</button>
                 <button class="btn-export" style="background: #334155;" onclick="openSelectPrintModal()"><i class="fas fa-barcode"></i> Print Tags</button>
                 <button class="btn-export" onclick="exportInventoryCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
             </div>
@@ -428,10 +477,29 @@
     </div>
 </div>
 
+<!-- ITEM DETAILS MODAL WITH FULL IN/OUT AUDIT TRAIL & PHOTO -->
 <div id="itemDetailsModal" class="modal">
-    <div class="modal-content" style="max-width: 450px;">
+    <div class="modal-content" style="max-width: 480px;">
         <button class="close-btn" onclick="closeModal('itemDetailsModal')">&times;</button>
         <h3 style="margin-top:0; color:var(--header-bg); display:flex; align-items:center; gap:10px;"><i class="fas fa-search"></i> Item Details</h3>
+
+        <!-- Item Photo Preview & Direct Camera Upload Bar -->
+        <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:12px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <img id="idmPhotoPreview" src="" alt="Item Photo" style="width:68px; height:68px; border-radius:8px; object-fit:cover; border:2px solid #C5A059; display:none; cursor:pointer;" onclick="openPhotoZoom(this.src, document.getElementById('idmBarcode').innerText)">
+                <div id="idmPhotoPlaceholder" style="width:68px; height:68px; border-radius:8px; border:1.5px dashed #d97706; background:#fff; color:#b45309; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; text-align:center;">
+                    <i class="fas fa-image" style="font-size:1.2rem; margin-bottom:3px;"></i>No Photo
+                </div>
+                <div>
+                    <div style="font-weight:700; color:#92400e; font-size:0.85rem;">Item Photo</div>
+                    <div id="idmPhotoHint" style="font-size:0.74rem; color:#78350f;">फोटो लगाने के लिए बटन दबाएं</div>
+                </div>
+            </div>
+            <button type="button" id="idmUploadPhotoBtn" style="background:#d97706; color:#fff; border:none; padding:8px 12px; border-radius:8px; font-weight:700; font-size:0.78rem; cursor:pointer; display:flex; align-items:center; gap:5px; white-space:nowrap;">
+                <i class="fas fa-camera"></i> <span id="idmUploadPhotoTxt">Add Photo</span>
+            </button>
+        </div>
+
         <div class="item-detail-row"><span class="item-detail-lbl">Category:</span><span class="item-detail-val" id="idmCategory">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Sub-Category:</span><span class="item-detail-val" id="idmSubCat">...</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Purity:</span><span class="item-detail-val" id="idmPurity">...</span></div>
@@ -441,22 +509,37 @@
         <div class="item-detail-row"><span class="item-detail-lbl">Stone Weight:</span><span class="item-detail-val" id="idmStone">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Net Weight:</span><span class="item-detail-val" id="idmNet">0.000 g</span></div>
         <div class="item-detail-row"><span class="item-detail-lbl">Current Status:</span><span class="item-detail-val" id="idmStatus">...</span></div>
-        <div class="item-detail-row"><span class="item-detail-lbl">Date Added:</span><span class="item-detail-val" id="idmDate">...</span></div>
-        <div class="item-detail-row"><span class="item-detail-lbl">Document No:</span><span class="item-detail-val" id="idmDocNo">...</span></div>
+
+        <!-- IN HISTORY BOX (WHEN & HOW ADDED) -->
+        <div style="background:#f5f3ff; padding:11px 12px; border-radius:8px; margin-top:12px; border:1px solid #ddd6fe;">
+            <div style="color:#6d28d9; font-weight:700; margin-bottom:6px; font-size:0.9rem;"><i class="fas fa-plus-circle"></i> Stock IN (कब और कैसे जुड़ा)</div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.82rem;"><span class="item-detail-lbl">Added Date:</span><span class="item-detail-val" id="idmDate">...</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.82rem;"><span class="item-detail-lbl">Source / Supplier:</span><span class="item-detail-val" id="idmInSource">...</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem;"><span class="item-detail-lbl">Ref / Doc No:</span><span class="item-detail-val" id="idmDocNo">...</span></div>
+        </div>
         
-        <div class="item-detail-row" id="orderReservedInfoRow" style="display:none; flex-direction:column; background:#e0f2fe; padding:12px; border-radius:8px; margin-top:15px; border:1px solid #bae6fd;">
-            <div style="color:#0369a1; font-weight:bold; margin-bottom:8px; font-size:1rem;"><i class="fas fa-lock"></i> Order Box Reservation Info</div>
+        <div class="item-detail-row" id="orderReservedInfoRow" style="display:none; flex-direction:column; background:#e0f2fe; padding:12px; border-radius:8px; margin-top:12px; border:1px solid #bae6fd;">
+            <div style="color:#0369a1; font-weight:bold; margin-bottom:8px; font-size:0.95rem;"><i class="fas fa-lock"></i> Order Box Reservation Info</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Customer:</span><span class="item-detail-val" id="idmOrderCust" style="font-weight:bold; color:#0f172a;">...</span></div>
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Order Ref No:</span><span class="item-detail-val" id="idmOrderNo">...</span></div>
             <div style="display:flex; justify-content:space-between;"><span class="item-detail-lbl">Booked Date:</span><span class="item-detail-val" id="idmOrderDate">...</span></div>
         </div>
 
-        <div class="item-detail-row" id="soldInfoRow" style="display:none; flex-direction:column; background:#fff7ed; padding:12px; border-radius:8px; margin-top:15px; border:1px solid #fed7aa;">
-            <div style="color:#ea580c; font-weight:bold; margin-bottom:8px; font-size:1rem;"><i class="fas fa-file-invoice-dollar"></i> Sale & Customer Info</div>
+        <div class="item-detail-row" id="soldInfoRow" style="display:none; flex-direction:column; background:#fff7ed; padding:12px; border-radius:8px; margin-top:12px; border:1px solid #fed7aa;">
+            <div style="color:#ea580c; font-weight:bold; margin-bottom:8px; font-size:0.95rem;"><i class="fas fa-file-invoice-dollar"></i> Sale & Customer Info</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Customer:</span><span class="item-detail-val" id="idmCustomer" style="font-weight:bold; color:#333;">...</span></div>
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Bill/Invoice No:</span><span class="item-detail-val" id="idmBillNo">...</span></div>
             <div style="display:flex; justify-content:space-between;"><span class="item-detail-lbl">Sale Date:</span><span class="item-detail-val" id="idmSaleDate">...</span></div>
         </div>
+
+        <!-- MANUAL REMOVE INFO BOX -->
+        <div class="item-detail-row" id="manualRemovedInfoRow" style="display:none; flex-direction:column; background:#fef2f2; padding:12px; border-radius:8px; margin-top:12px; border:1px solid #fecaca;">
+            <div style="color:#b91c1c; font-weight:bold; margin-bottom:8px; font-size:0.95rem;"><i class="fas fa-minus-circle"></i> Stock Removed / Out Info</div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Reason / Type:</span><span class="item-detail-val" id="idmRemoveReason" style="color:#b91c1c;">...</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span class="item-detail-lbl">Remove Date:</span><span class="item-detail-val" id="idmRemoveDate">...</span></div>
+            <div style="display:flex; justify-content:space-between;"><span class="item-detail-lbl">Remove Doc No:</span><span class="item-detail-val" id="idmRemoveDocNo">...</span></div>
+        </div>
+
         <div id="idmButtonsGrid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:20px;">
             <button class="btn-block btn-primary" style="margin-top:0;" id="idmEditBtn"><i class="fas fa-pen"></i> Edit Item</button>
             <button class="btn-block btn-secondary" style="margin-top:0;" id="idmPrintBtn"><i class="fas fa-print"></i> Print Tag</button>
@@ -465,29 +548,33 @@
     </div>
 </div>
 
+<!-- GROUP DETAILS MODAL WITH FILTER PILLS (CLOSING / + ADDED / - SALE-REM / - TAGGED OUT / OPENING) -->
 <div id="detailsModal" class="modal">
-    <div class="modal-content" style="max-width: 950px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
-            <h3 style="margin:0; color:var(--header-bg); font-size:1.4rem;" id="detailsModalTitle"><i class="fas fa-layer-group"></i> Category Items List</h3>
+    <div class="modal-content" style="max-width: 1120px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px;">
+            <h3 style="margin:0; color:var(--header-bg); font-size:1.35rem;" id="detailsModalTitle"><i class="fas fa-layer-group"></i> Category Items List</h3>
             <button onclick="closeModal('detailsModal')" style="background:none; border:none; font-size:2rem; cursor:pointer; color:#94a3b8;">&times;</button>
         </div>
 
-        <div class="search-box-container" style="margin-bottom: 15px;">
+        <!-- Mode Filter Pills -->
+        <div id="detailsModePills" class="detail-mode-pills"></div>
+
+        <div class="search-box-container" style="margin-bottom: 12px;">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" id="detailsSearchInput" class="search-box" placeholder="Search Tag No, Weight (e.g. 10.500), HUID..." onkeyup="filterGroupDetailsSearch()">
+            <input type="text" id="detailsSearchInput" class="search-box" placeholder="Search Barcode, Customer Name, Bill No, Weight, Date..." onkeyup="filterGroupDetailsSearch()">
         </div>
-        <div class="table-container" style="max-height:60vh; box-shadow:none; border:1px solid #e2e8f0;">
-            <table class="inv-table">
+        <div class="table-container" style="max-height:58vh; box-shadow:none; border:1px solid #e2e8f0;">
+            <table class="inv-table" style="min-width: 1020px;">
                 <thead id="detailsModalHead">
                     <tr>
-                        <th>Barcode / Date</th>
-                        <th>Sub-Cat</th>
-                        <th>HUID</th>
+                        <th style="width:60px; text-align:center;">Photo</th>
+                        <th>Barcode / Sub-Cat</th>
+                        <th>Added Date & Source (कब जुड़ा)</th>
+                        <th>Status / Out Details (कहाँ गया)</th>
                         <th>Purity</th>
                         <th>Qty</th>
                         <th>Gross Wt</th>
                         <th>Net Wt</th>
-                        <th style="color:#8e24aa;">Stone Wt</th>
                         <th>Fine Wt</th>
                         <th style="text-align:center;">Actions</th>
                     </tr>
@@ -498,6 +585,7 @@
     </div>
 </div>
 
+<!-- EXTRACT & CREATE TAG MODAL (WITH PHOTO UPLOAD) -->
 <div id="tagModal" class="modal">
     <div class="modal-content">
         <button class="close-btn" onclick="closeModal('tagModal')">&times;</button>
@@ -530,7 +618,19 @@
             <label>Enter Weights (g)</label>
             <div id="tagInputsContainer" style="margin-top:10px; max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
         </div>
-        <div style="background:#f8fafc; padding:20px; border-radius:12px; margin-top:20px;">
+        <div class="form-group">
+            <label><i class="fas fa-camera"></i> Tag Item Photo (Optional)</label>
+            <div class="photo-drop-zone" onclick="document.getElementById('tagPhotoFile').click()">
+                <input type="file" id="tagPhotoFile" accept="image/*" style="display:none;" onchange="handleModalPhotoUpload(event, 'tagPhotoPreview', 'tagPhotoBase64')">
+                <input type="hidden" id="tagPhotoBase64">
+                <div>
+                    <div style="font-weight:700; font-size:0.85rem; color:#333;"><i class="fas fa-camera" style="color:#C5A059;"></i> फोटो चुनें या कैमरा खोलें</div>
+                    <div style="font-size:0.72rem; color:#64748b;">यह फोटो बनाए गए टैग के साथ सेव होगी</div>
+                </div>
+                <img id="tagPhotoPreview" src="" style="width:52px; height:52px; border-radius:8px; object-fit:cover; border:2px solid #C5A059; display:none;">
+            </div>
+        </div>
+        <div style="background:#f8fafc; padding:20px; border-radius:12px; margin-top:15px;">
             <div style="display:flex; justify-content:space-between; font-weight:bold;">
                 <span>Total Gross Extracted:</span>
                 <span id="tagTotalWt" style="color:var(--active-red);">0.000 g</span>
@@ -540,6 +640,7 @@
     </div>
 </div>
 
+<!-- ADD CUSTOM STOCK MODAL (WITH PHOTO UPLOAD) -->
 <div id="manualEntryModal" class="modal">
     <div class="modal-content" style="max-width: 700px;">
         <button class="close-btn" onclick="closeModal('manualEntryModal')">&times;</button>
@@ -605,10 +706,23 @@
                 <input type="number" id="manFine" step="0.001" readonly style="background:#eff6ff;">
             </div>
         </div>
+        <div class="form-group">
+            <label><i class="fas fa-camera"></i> Item Photo (Optional)</label>
+            <div class="photo-drop-zone" onclick="document.getElementById('manPhotoFile').click()">
+                <input type="file" id="manPhotoFile" accept="image/*" style="display:none;" onchange="handleModalPhotoUpload(event, 'manPhotoPreview', 'manPhotoBase64')">
+                <input type="hidden" id="manPhotoBase64">
+                <div>
+                    <div style="font-weight:700; font-size:0.85rem; color:#333;"><i class="fas fa-camera" style="color:#C5A059;"></i> आइटम की फोटो लें / अपलोड करें</div>
+                    <div style="font-size:0.72rem; color:#64748b;">Camera या Gallery से फोटो चुनें</div>
+                </div>
+                <img id="manPhotoPreview" src="" style="width:54px; height:54px; border-radius:8px; object-fit:cover; border:2px solid #C5A059; display:none;">
+            </div>
+        </div>
         <button class="btn-block btn-primary" onclick="saveManualEntry()"><i class="fas fa-save"></i> Save to Inventory</button>
     </div>
 </div>
 
+<!-- EDIT ITEM MODAL -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
@@ -637,10 +751,24 @@
             <label>HUID (Hallmark Unique ID)</label>
             <input type="text" id="editHuid" placeholder="Enter HUID here">
         </div>
+
         <div class="form-group">
-            <label>Photo Link (Catalog ke liye)</label>
-            <input type="text" id="editItemImage" placeholder="Paste Imgur / Google Drive Image Link here">
+            <label><i class="fas fa-camera"></i> Item Photo (Camera / Gallery ya Link)</label>
+            <div class="photo-drop-zone" style="margin-bottom:8px;" onclick="document.getElementById('editPhotoFile').click()">
+                <input type="file" id="editPhotoFile" accept="image/*" style="display:none;" onchange="handleModalPhotoUpload(event, 'editPhotoPreview', 'editPhotoBase64')">
+                <input type="hidden" id="editPhotoBase64">
+                <div>
+                    <div style="font-weight:700; font-size:0.85rem; color:#333;"><i class="fas fa-camera" style="color:#C5A059;"></i> फोटो बदलें / अपलोड करें</div>
+                    <div style="font-size:0.72rem; color:#64748b;">Tap karke phone se photo chunein</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <img id="editPhotoPreview" src="" style="width:54px; height:54px; border-radius:8px; object-fit:cover; border:2px solid #C5A059; display:none;">
+                    <button type="button" id="btnRemoveEditPhoto" onclick="event.stopPropagation(); clearEditPhoto();" style="display:none; background:#fee2e2; color:#b91c1c; border:none; padding:5px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer;">Remove</button>
+                </div>
+            </div>
+            <input type="text" id="editItemImage" placeholder="Ya fir Image URL link paste karein (Optional)">
         </div>
+
         <div class="grid-2">
             <div class="form-group">
                 <label>Gross Wt (g)</label>
@@ -710,6 +838,141 @@
         toast.innerText = msg;
         toast.className = 'show ' + type;
         setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+    }
+
+    // =========================================================================
+    // 📸 UNIVERSAL ITEM PHOTO SYSTEM (COMPRESS, UPLOAD, ZOOM, DIRECT UPDATE)
+    // =========================================================================
+    let targetItemIdForPhoto = null;
+
+    function getItemPhotoSrc(item) {
+        if (!item) return '';
+        return item.image || item.imageUrl || item.imageLink || item.photo || '';
+    }
+
+    function compressInventoryPhoto(file, maxWidth = 720, quality = 0.72) {
+        return new Promise((resolve, reject) => {
+            if (!file) return resolve('');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxWidth) {
+                        h = Math.round((h * maxWidth) / w);
+                        w = maxWidth;
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function handleModalPhotoUpload(event, previewImgId, hiddenInputId) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        try {
+            const base64 = await compressInventoryPhoto(file, 720, 0.72);
+            const imgEl = document.getElementById(previewImgId);
+            const hiddenEl = document.getElementById(hiddenInputId);
+            if (imgEl) {
+                imgEl.src = base64;
+                imgEl.style.display = 'block';
+            }
+            if (hiddenEl) {
+                hiddenEl.value = base64;
+            }
+            if (previewImgId === 'editPhotoPreview') {
+                const remBtn = document.getElementById('btnRemoveEditPhoto');
+                if (remBtn) remBtn.style.display = 'inline-block';
+            }
+        } catch (err) {
+            console.error("Photo compression failed:", err);
+            appAlert("Photo load karne me problem aayi, dobara try karein.");
+        }
+    }
+
+    function triggerQuickItemPhotoUpload(itemId, event) {
+        if (event) event.stopPropagation();
+        targetItemIdForPhoto = itemId;
+        const input = document.getElementById('quickItemPhotoInput');
+        input.value = '';
+        input.click();
+    }
+
+    async function handleQuickItemPhotoSelected(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file || !targetItemIdForPhoto) return;
+        try {
+            const base64 = await compressInventoryPhoto(file, 720, 0.72);
+            let dbItem = await getItem('inventory', targetItemIdForPhoto);
+            if (!dbItem) {
+                const localMatch = allInventory.find(x => String(x.id) === String(targetItemIdForPhoto));
+                if (localMatch) dbItem = localMatch;
+            }
+            if (!dbItem) {
+                appAlert("Item database me nahi mila!");
+                return;
+            }
+            dbItem.image = base64;
+            dbItem.imageUrl = base64;
+            await updateItem('inventory', dbItem);
+
+            const idx = allInventory.findIndex(x => String(x.id) === String(targetItemIdForPhoto));
+            if (idx !== -1) {
+                allInventory[idx].image = base64;
+                allInventory[idx].imageUrl = base64;
+            }
+
+            showToast("Item Photo Saved!", "success");
+            applyFilters();
+            if (document.getElementById('detailsModal').style.display === 'flex') {
+                renderGroupDetailsTable();
+            }
+            if (document.getElementById('itemDetailsModal').style.display === 'flex') {
+                openItemDetails(targetItemIdForPhoto);
+            }
+        } catch (err) {
+            console.error("Error saving item photo:", err);
+            appAlert("Photo save karne me error aayi!");
+        } finally {
+            targetItemIdForPhoto = null;
+        }
+    }
+
+    function openPhotoZoom(src, titleText = 'Item Photo', itemId = null) {
+        if (!src) return;
+        document.getElementById('photoZoomTitle').innerText = titleText;
+        document.getElementById('photoZoomImg').src = src;
+        const actionsDiv = document.getElementById('photoZoomActions');
+        if (itemId) {
+            actionsDiv.innerHTML = `
+                <button type="button" class="btn-sm btn-edit" style="padding:9px 16px; font-size:0.85rem;" onclick="closeModal('photoZoomModal'); triggerQuickItemPhotoUpload('${itemId}')">
+                    <i class="fas fa-camera"></i> Change Photo
+                </button>
+            `;
+        } else {
+            actionsDiv.innerHTML = '';
+        }
+        openModal('photoZoomModal');
+    }
+
+    function clearEditPhoto() {
+        document.getElementById('editPhotoBase64').value = '';
+        document.getElementById('editItemImage').value = '';
+        document.getElementById('editPhotoFile').value = '';
+        document.getElementById('editPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveEditPhoto').style.display = 'none';
     }
 
     function triggerPrint() {
@@ -834,7 +1097,7 @@
         if (confirmResolver) { confirmResolver(result); confirmResolver = null; }
     }
 
-    let allInventory = []; let allSalesData = []; let allCustomersData = [];
+    let allInventory = []; let allSalesData = []; let allMerchantsData = []; let allOrdersData = [];
     let goldRates = { rate22k: 0, rate24k: 0, rateSilver: 0, customPurities: [], customSilverPurities: [] };
     let groupedInventory = {}; 
     let savedSubCategories = {};
@@ -875,6 +1138,21 @@
         return d.getDate() === today.getDate() && 
                d.getMonth() === today.getMonth() && 
                d.getFullYear() === today.getFullYear();
+    }
+
+    function fmtDateTime(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return String(dateStr);
+        return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' +
+               d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+    }
+
+    function fmtDateOnly(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return String(dateStr);
+        return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' });
     }
 
     function getCategoryMode(catName) {
@@ -1095,9 +1373,108 @@
     async function loadInventory() {
         allInventory = await getAllItems('inventory');
         allSalesData = await getAllItems('sales').catch(()=>[]);
+        allMerchantsData = await getAllItems('merchants').catch(()=>[]);
+        allOrdersData = await getAllItems('orders').catch(()=>[]);
         allInventory.sort((a,b) => new Date(b.addedDate || 0) - new Date(a.addedDate || 0));
         applyFilters();
         updateSubCatFilter();
+    }
+
+    // =========================================================================
+    // 🔍 HELPER: GET COMPLETE IN (ADDED) & OUT (SOLD / ORDER BOX / REMOVED) AUDIT INFO
+    // =========================================================================
+    function getItemInAuditInfo(item) {
+        const addedDateStr = item.addedDate || item.purchaseDate || item.date || '';
+        const src = String(item.source || '').toLowerCase();
+        let sourceLabel = 'Custom / Manual Add';
+        let extraDetail = '';
+
+        if (src === 'purchase') {
+            const mObj = allMerchantsData.find(m => String(m.id) === String(item.merchantId));
+            sourceLabel = mObj ? `Purchase (${mObj.name})` : 'Purchase (Supplier)';
+        } else if (src === 'extraction' || String(item.docNo || '').startsWith('EXT-')) {
+            sourceLabel = 'Loose se Tag Nikala (Extracted)';
+        } else if (src.startsWith('melt_')) {
+            sourceLabel = 'Refinery Melting Bar';
+        } else if (src.startsWith('order_')) {
+            sourceLabel = 'Custom Order Stock';
+        }
+
+        if (item.docNo) {
+            extraDetail = `Doc: ${item.docNo}`;
+        }
+
+        return {
+            dateText: fmtDateTime(addedDateStr),
+            dateShort: fmtDateOnly(addedDateStr),
+            sourceLabel: sourceLabel,
+            extraDetail: extraDetail
+        };
+    }
+
+    function getItemOutAuditInfo(item) {
+        if (item._syntheticLooseSale) {
+            return {
+                type: 'SOLD',
+                badgeHtml: `<span class="badge badge-pending"><i class="fas fa-shopping-bag"></i> SOLD (LOOSE)</span>`,
+                title: `Customer: ${item.soldCustomer || 'Walk-in'}`,
+                sub: `Bill: ${item.soldInvoiceNo || 'N/A'}`,
+                dateText: fmtDateTime(item.soldDate)
+            };
+        }
+
+        if (item.status === 'order_reserved') {
+            return {
+                type: 'ORDER',
+                badgeHtml: `<span class="badge badge-order"><i class="fas fa-lock"></i> ORDER BOX (BOOKED)</span>`,
+                title: `Customer: ${item.reservedCustName || 'Customer'}`,
+                sub: `Order: ${item.reservedInvoiceNo || 'Order #' + (item.reservedOrderId || '')}`,
+                dateText: fmtDateOnly(item.reservedDate || item.addedDate)
+            };
+        }
+
+        if (item.status === 'sold') {
+            const sale = (allSalesData || []).find(s => s.status !== 'cancelled' && s.items && s.items.some(si => (item.barcode && si.barcode === item.barcode) || String(si.id) === String(item.id)));
+            const custName = sale ? (sale.customerName || sale.customerPhone || 'Walk-in') : (item.soldCustomer || 'Customer');
+            const billNo = sale ? (sale.invoiceNo || `INV-${String(sale.id).slice(-4).toUpperCase()}`) : (item.soldInvoiceNo || 'N/A');
+            const sDate = (sale && sale.date) ? sale.date : (item.soldDate || item.removeDate || '');
+            return {
+                type: 'SOLD',
+                badgeHtml: `<span class="badge badge-pending"><i class="fas fa-shopping-bag"></i> SOLD TO CUSTOMER</span>`,
+                title: `Customer: ${custName}`,
+                sub: `Bill: ${billNo}`,
+                dateText: fmtDateTime(sDate)
+            };
+        }
+
+        if (item.status === 'extracted') {
+            return {
+                type: 'EXTRACTED',
+                badgeHtml: `<span class="badge" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa;"><i class="fas fa-tags"></i> TAGGED OUT</span>`,
+                title: `Loose se New Tag Banaya`,
+                sub: item.removeDocNo ? `Ref: ${item.removeDocNo}` : 'Extracted to Tag',
+                dateText: fmtDateTime(item.removeDate)
+            };
+        }
+
+        if (item.status === 'removed') {
+            const isExtractEmpty = String(item.removeDocNo || '').startsWith('EXT-');
+            return {
+                type: 'REMOVED',
+                badgeHtml: `<span class="badge badge-silver" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;"><i class="fas fa-minus-circle"></i> ${isExtractEmpty ? 'EXTRACTED (EMPTY)' : 'MANUAL REMOVED'}</span>`,
+                title: isExtractEmpty ? 'Poora Loose Stock Tag Hua' : 'Quick Remove / Stock Adjust',
+                sub: item.removeDocNo ? `Doc: ${item.removeDocNo}` : 'Manual Removal',
+                dateText: fmtDateTime(item.removeDate)
+            };
+        }
+
+        return {
+            type: 'STOCK',
+            badgeHtml: `<span class="badge badge-22k"><i class="fas fa-check-circle"></i> IN ACTIVE STOCK</span>`,
+            title: 'Showroom Stock me Hai',
+            sub: '',
+            dateText: '-'
+        };
     }
 
     function setMetalFilter(metalFilter) {
@@ -1199,7 +1576,6 @@
                 const c = String(i.category || '');
                 const p = String(i.purity || '');
 
-                // 🔥 Includes items booked from stock into Order Box (status === 'order_reserved')
                 const isOrder = b.startsWith('ORD-') || s.startsWith('order_') || i.status === 'order_reserved';
                 const isUntagged = c === 'MIX' || b.startsWith('LOOSE');
                 
@@ -1309,7 +1685,12 @@
                     outQty: 0, outWt: 0,
                     taggedOutQty: 0, taggedOutWt: 0,
                     closingQty: 0, closingGross: 0, closingNet: 0, closingFine: 0, 
-                    items: [] 
+                    items: [],
+                    openingItems: [],
+                    addedItems: [],
+                    outItems: [],
+                    taggedOutItems: [],
+                    closingItems: []
                 };
             }
             
@@ -1319,9 +1700,11 @@
             if (addedInRange) {
                 g.addedQty += pcs;
                 g.addedWt += net;
+                g.addedItems.push(item);
             } else {
                 g.openingQty += pcs;
                 g.openingWt += net;
+                g.openingItems.push(item);
             }
 
             if (item.status === 'sold' || item.status === 'removed') {
@@ -1330,12 +1713,14 @@
                     } else {
                         g.outQty += pcs;
                         g.outWt += net;
+                        g.outItems.push(item);
                     }
                 }
             } else if (item.status === 'extracted') {
                 if (removedInRange) {
                     g.taggedOutQty += pcs;
                     g.taggedOutWt += net;
+                    g.taggedOutItems.push(item);
                 }
             } else if (item.status === 'stock' || item.status === 'order_reserved') {
                 g.closingQty += pcs;
@@ -1343,6 +1728,7 @@
                 g.closingNet += net;
                 g.closingFine += fine;
                 g.items.push(item); 
+                g.closingItems.push(item);
             }
 
             if (item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
@@ -1366,9 +1752,26 @@
 
                                 groupedInventory[key].outQty += sQty;
                                 groupedInventory[key].outWt += sNet;
-                                
                                 groupedInventory[key].openingQty += sQty;
                                 groupedInventory[key].openingWt += sNet;
+
+                                // Add synthetic entry so clicking "- Sale/Rem" shows who bought the loose weight
+                                groupedInventory[key].outItems.push({
+                                    id: 'loose_sale_' + sale.id + '_' + si.barcode,
+                                    _syntheticLooseSale: true,
+                                    barcode: si.barcode,
+                                    category: si.category,
+                                    name: si.itemName || si.category,
+                                    purity: si.purity || '',
+                                    pieces: sQty,
+                                    grossWt: sNet,
+                                    netWt: sNet,
+                                    stoneWt: 0,
+                                    status: 'sold',
+                                    soldCustomer: sale.customerName || sale.customerPhone || 'Walk-in',
+                                    soldInvoiceNo: sale.invoiceNo || `INV-${String(sale.id).slice(-4).toUpperCase()}`,
+                                    soldDate: saleDate
+                                });
                             }
                         }
                     });
@@ -1388,30 +1791,35 @@
             tCloseQty += group.closingQty;
             tCloseGross += group.closingGross; tCloseNet += group.closingNet; tCloseFine += group.closingFine;
 
-            let actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}')"><i class="fas fa-list"></i> Details</button>`;
+            const photoCount = group.items.filter(it => getItemPhotoSrc(it)).length;
+            const photoBadgeHtml = photoCount > 0
+                ? `<span style="font-size:0.7rem; background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:2px 6px; border-radius:4px; margin-left:6px; font-weight:700;"><i class="fas fa-camera"></i> ${photoCount}</span>`
+                : '';
+
+            let actionBtn = `<button class="btn-sm btn-view" onclick="openGroupDetails('${group.key}', 'CLOSING')"><i class="fas fa-list"></i> Details</button>`;
             let purityHtml = Array.from(group.purities).map(p => `<span class="badge badge-22k" style="margin-right:4px; font-size:0.7rem;">${p}</span>`).join('');
             
             let tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${group.category}</strong></td>
+                <td><strong>${group.category}</strong>${photoBadgeHtml}</td>
                 <td>${purityHtml}</td>
-                <td style="background:#f0fdf4; border-right: 1px solid #dcfce7;">
+                <td class="clickable-stat-cell" onclick="openGroupDetails('${group.key}', 'OPENING')" title="Click karke Opening items dekhein" style="background:#f0fdf4; border-right: 1px solid #dcfce7;">
                     <div style="font-weight:700; color:#15803d; font-size:1.05rem;">${group.openingQty}</div>
                     <div style="font-size:0.75rem; color:#166534; font-weight:600;">${group.openingWt.toFixed(3)} g</div>
                 </td>
-                <td style="background:#f5f3ff; border-right: 1px solid #ede9fe;">
-                    <div style="font-weight:700; color:#6d28d9; font-size:1.05rem;">+ ${group.addedQty}</div>
+                <td class="clickable-stat-cell" onclick="openGroupDetails('${group.key}', 'ADDED')" title="Click karke naye Add hue items aur unki Date dekhein" style="background:#f5f3ff; border-right: 1px solid #ede9fe;">
+                    <div style="font-weight:700; color:#6d28d9; font-size:1.05rem;">+ ${group.addedQty} ${group.addedQty > 0 ? '<i class="fas fa-external-link-alt cell-tap-hint"></i>' : ''}</div>
                     <div style="font-size:0.75rem; color:#5b21b6; font-weight:600;">${group.addedWt.toFixed(3)} g</div>
                 </td>
-                <td style="background:#fef2f2; border-right: 1px solid #fee2e2;">
-                    <div style="font-weight:700; color:#b91c1c; font-size:1.05rem;">- ${group.outQty}</div>
+                <td class="clickable-stat-cell" onclick="openGroupDetails('${group.key}', 'OUT')" title="Click karke Sale / Manual Remove / Order Box ki detail dekhein" style="background:#fef2f2; border-right: 1px solid #fee2e2;">
+                    <div style="font-weight:700; color:#b91c1c; font-size:1.05rem;">- ${group.outQty} ${group.outQty > 0 ? '<i class="fas fa-external-link-alt cell-tap-hint"></i>' : ''}</div>
                     <div style="font-size:0.75rem; color:#991b1b; font-weight:600;">${group.outWt.toFixed(3)} g</div>
                 </td>
-                <td style="background:#fff7ed; border-right: 1px solid #ffedd5;">
-                    <div style="font-weight:700; color:#ea580c; font-size:1.05rem;">- ${group.taggedOutQty}</div>
+                <td class="clickable-stat-cell" onclick="openGroupDetails('${group.key}', 'TAGGED_OUT')" title="Click karke Tagged Out items dekhein" style="background:#fff7ed; border-right: 1px solid #ffedd5;">
+                    <div style="font-weight:700; color:#ea580c; font-size:1.05rem;">- ${group.taggedOutQty} ${group.taggedOutQty > 0 ? '<i class="fas fa-external-link-alt cell-tap-hint"></i>' : ''}</div>
                     <div style="font-size:0.75rem; color:#c2410c; font-weight:600;">${group.taggedOutWt.toFixed(3)} g</div>
                 </td>
-                <td style="background:#f0f9ff; border-right: 1px solid #bae6fd;">
+                <td class="clickable-stat-cell" onclick="openGroupDetails('${group.key}', 'CLOSING')" title="Click karke bacha hua Closing Stock dekhein" style="background:#f0f9ff; border-right: 1px solid #bae6fd;">
                     <div style="font-weight:700; color:#0369a1; font-size:1.05rem;">= ${group.closingQty}</div>
                     <div style="font-size:0.75rem; color:#075985; font-weight:600;">${group.closingNet.toFixed(3)} g</div>
                 </td>
@@ -1458,6 +1866,9 @@
         handleManualMetalChange();
         document.getElementById('manGross').value = '';
         document.getElementById('manStockMode').disabled = false;
+        document.getElementById('manPhotoFile').value = '';
+        document.getElementById('manPhotoBase64').value = '';
+        document.getElementById('manPhotoPreview').style.display = 'none';
     }
     function handleManualMetalChange() { populateCategoryDropdowns(document.getElementById('manMetal').value); populatePurityDropdowns(document.getElementById('manMetal').value, 'manPurity'); handleManCategoryChange(); }
     function handleManCategoryChange() { 
@@ -1539,6 +1950,7 @@
         if(!name) name = isBulk ? "General Loose" : cat;
         const purity = document.getElementById('manPurity').value; const pieces = parseInt(document.getElementById('manPieces').value) || 1;
         const g = parseFloat(document.getElementById('manGross').value) || 0; const s = parseFloat(document.getElementById('manStone').value) || 0;
+        const photoBase64 = document.getElementById('manPhotoBase64').value || '';
         if(!g || g<=0) return appAlert("Enter Valid Weight");
         let newlyAddedItems = [];
         const n = Math.max(0, g - s); const f = n * getPurityFactor(purity);
@@ -1560,9 +1972,13 @@
                 existingItem.pieces = parseInt(existingItem.pieces || 0) + pieces;
                 existingItem.subFolder = finalFolderName;
                 existingItem.metal = metalType;
+                if (photoBase64) {
+                    existingItem.image = photoBase64;
+                    existingItem.imageUrl = photoBase64;
+                }
                 await updateItem('inventory', existingItem);
             } else {
-                const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
+                const item = { barcode, category: cat, name: useFolder ? finalFolderName : `Loose ${cat} ${purity}`, subFolder: finalFolderName, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '', image: photoBase64, imageUrl: photoBase64 };
                 await addItem('inventory', item); 
                 allInventory.push(item);
             }
@@ -1570,7 +1986,7 @@
             const isSilv = (metalType === 'Silver');
             if(pieces <= 1) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}` : generateSafeBarcode(cat);
-                const item = { barcode, category: cat, name, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
+                const item = { barcode, category: cat, name, purity, metal: metalType, grossWt: g, stoneWt: s, netWt: n, fineWt: f, pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '', image: photoBase64, imageUrl: photoBase64 };
                 await addItem('inventory', item); newlyAddedItems.push(item);
             } else {
                 const gi = document.querySelectorAll('.man-piece-gross'); const si = document.querySelectorAll('.man-piece-stone');
@@ -1578,7 +1994,7 @@
                     const gp = parseFloat(gi[i].value)||0; const sp = parseFloat(si[i].value)||0;
                     if(gp>0) {
                         const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, metal: metalType, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '' };
+                        const item = { barcode, category: cat, name: `${name} ${i+1}`, purity, metal: metalType, grossWt: gp, stoneWt: sp, netWt: gp-sp, fineWt: (gp-sp)*getPurityFactor(purity), pieces: 1, status: 'stock', source: 'manual', addedDate: new Date().toISOString(), docNo: currentDocNo, huid: '', image: photoBase64, imageUrl: photoBase64 };
                         await addItem('inventory', item); newlyAddedItems.push(item);
                     }
                 }
@@ -1616,36 +2032,67 @@
         document.getElementById('idmPurity').innerText = item.purity;
         
         document.getElementById('idmHuid').innerHTML = item.huid && String(item.huid).trim() !== '' ? item.huid : '<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>';
+
+        // Photo Section in Item Details
+        const photoSrc = getItemPhotoSrc(item);
+        const photoPrev = document.getElementById('idmPhotoPreview');
+        const photoPh = document.getElementById('idmPhotoPlaceholder');
+        const photoHint = document.getElementById('idmPhotoHint');
+        const photoBtnTxt = document.getElementById('idmUploadPhotoTxt');
+        const photoUploadBtn = document.getElementById('idmUploadPhotoBtn');
+
+        if (photoSrc) {
+            photoPrev.src = photoSrc;
+            photoPrev.style.display = 'block';
+            photoPh.style.display = 'none';
+            photoHint.innerText = 'बड़ा देखने के लिए फोटो पर क्लिक करें';
+            photoBtnTxt.innerText = 'Change Photo';
+        } else {
+            photoPrev.style.display = 'none';
+            photoPh.style.display = 'flex';
+            photoHint.innerText = 'फोटो लगाने के लिए बटन दबाएं';
+            photoBtnTxt.innerText = 'Add Photo';
+        }
+        photoUploadBtn.onclick = () => triggerQuickItemPhotoUpload(item.id);
         
         document.getElementById('idmGross').innerText = parseFloat(item.grossWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmStone').innerText = parseFloat(item.stoneWt||0).toFixed(3) + "g";
         document.getElementById('idmNet').innerText = parseFloat(item.netWt||item.weight).toFixed(3) + "g";
         document.getElementById('idmStatus').innerText = item.status === 'order_reserved' ? 'IN ORDER BOX (RESERVED)' : String(item.status).toUpperCase();
-        document.getElementById('idmDate').innerHTML = item.addedDate ? new Date(item.addedDate).toLocaleString() : '-';
+
+        // Populate Full IN Audit Info
+        const inAudit = getItemInAuditInfo(item);
+        document.getElementById('idmDate').innerHTML = inAudit.dateText;
+        document.getElementById('idmInSource').innerText = inAudit.sourceLabel;
         document.getElementById('idmDocNo').innerHTML = item.docNo ? `<span class="badge badge-order">${item.docNo}</span>` : '-';
 
-        // 🔥 Show Order Box Info if reserved for a Custom Order
         const orderInfoRow = document.getElementById('orderReservedInfoRow');
         if (orderInfoRow) {
             if (item.status === 'order_reserved') {
                 orderInfoRow.style.display = 'flex';
                 document.getElementById('idmOrderCust').innerText = item.reservedCustName || 'Customer';
                 document.getElementById('idmOrderNo').innerHTML = `<span class="badge badge-order">${item.reservedInvoiceNo || 'Order #' + (item.reservedOrderId || '')}</span>`;
-                document.getElementById('idmOrderDate').innerText = item.reservedDate ? new Date(item.reservedDate).toLocaleDateString('en-GB') : '-';
+                document.getElementById('idmOrderDate').innerText = fmtDateOnly(item.reservedDate || item.addedDate);
             } else {
                 orderInfoRow.style.display = 'none';
             }
         }
 
         document.getElementById('soldInfoRow').style.display = 'none';
-        if ((item.status === 'sold' || item.status === 'removed') && allSalesData) {
-            const sale = allSalesData.find(s => s.items && s.items.some(si => si.barcode === item.barcode || String(si.id) === String(item.id)));
-            if(sale) {
-                document.getElementById('soldInfoRow').style.display = 'flex';
-                document.getElementById('idmCustomer').innerText = sale.customerName || sale.customerPhone || 'Walk-in / Unknown';
-                document.getElementById('idmBillNo').innerHTML = `<span class="badge badge-order">${sale.invoiceNo || 'N/A'}</span>`;
-                document.getElementById('idmSaleDate').innerText = sale.date ? new Date(sale.date).toLocaleString('en-GB') : '-';
-            }
+        document.getElementById('manualRemovedInfoRow').style.display = 'none';
+
+        if (item.status === 'sold') {
+            const outAudit = getItemOutAuditInfo(item);
+            document.getElementById('soldInfoRow').style.display = 'flex';
+            document.getElementById('idmCustomer').innerText = outAudit.title.replace('Customer: ', '');
+            document.getElementById('idmBillNo').innerHTML = `<span class="badge badge-order">${outAudit.sub.replace('Bill: ', '')}</span>`;
+            document.getElementById('idmSaleDate').innerText = outAudit.dateText;
+        } else if (item.status === 'removed' || item.status === 'extracted') {
+            const outAudit = getItemOutAuditInfo(item);
+            document.getElementById('manualRemovedInfoRow').style.display = 'flex';
+            document.getElementById('idmRemoveReason').innerText = outAudit.title;
+            document.getElementById('idmRemoveDate').innerText = outAudit.dateText;
+            document.getElementById('idmRemoveDocNo').innerHTML = item.removeDocNo ? `<span class="badge badge-pending">${item.removeDocNo}</span>` : '-';
         }
 
         if (isLoose || item.category === 'MIX') {
@@ -1692,13 +2139,20 @@
     }
 
     let currentOpenGroupKey = '';
+    let currentOpenGroupMode = 'CLOSING'; // 'CLOSING' | 'ADDED' | 'OUT' | 'TAGGED_OUT' | 'OPENING'
 
-    function openGroupDetails(key) {
+    function openGroupDetails(key, mode = 'CLOSING') {
         currentOpenGroupKey = key;
+        currentOpenGroupMode = mode;
         const searchInput = document.getElementById('detailsSearchInput');
         if(searchInput) searchInput.value = ''; 
         renderGroupDetailsTable();
         openModal('detailsModal');
+    }
+
+    function switchGroupDetailsMode(mode) {
+        currentOpenGroupMode = mode;
+        renderGroupDetailsTable();
     }
 
     function filterGroupDetailsSearch() {
@@ -1706,63 +2160,153 @@
     }
 
     function renderGroupDetailsTable() {
-        document.getElementById('detailsModalTitle').innerHTML = `<i class="fas fa-layer-group"></i> Category Items List`;
-        const thead = document.getElementById('detailsModalHead');
-        thead.innerHTML = `<tr><th>Barcode / Date</th><th>Sub-Cat</th><th>HUID</th><th>Purity</th><th>Qty</th><th>Gross Wt</th><th>Net Wt</th><th style="color:#8e24aa;">Stone Wt</th><th>Fine Wt</th><th style="text-align:center;">Actions</th></tr>`;
-        
         const group = groupedInventory[currentOpenGroupKey]; if(!group) return;
+
+        // Render Mode Filter Pills at Top of Details Modal
+        const pillsWrap = document.getElementById('detailsModePills');
+        if (pillsWrap) {
+            const modes = [
+                { id: 'CLOSING', label: `= Close Stock (${group.closingQty})`, color: '#0369a1' },
+                { id: 'ADDED', label: `+ Added (${group.addedQty})`, color: '#6d28d9' },
+                { id: 'OUT', label: `- Sale / Removed (${group.outQty})`, color: '#b91c1c' },
+                { id: 'TAGGED_OUT', label: `- Tagged Out (${group.taggedOutQty})`, color: '#ea580c' },
+                { id: 'OPENING', label: `Open (${group.openingQty})`, color: '#15803d' }
+            ];
+            pillsWrap.innerHTML = modes.map(m => `
+                <button type="button" class="detail-pill ${currentOpenGroupMode === m.id ? 'active' : ''}" onclick="switchGroupDetailsMode('${m.id}')">
+                    ${m.label}
+                </button>
+            `).join('');
+        }
+
+        const modeTitles = {
+            'CLOSING': `${group.category} - Active Closing Stock (${group.closingQty} Pcs | ${group.closingNet.toFixed(3)}g)`,
+            'ADDED': `${group.category} - + Added Stock Details (${group.addedQty} Pcs | +${group.addedWt.toFixed(3)}g)`,
+            'OUT': `${group.category} - - Sale / Removed / Order Out Details (${group.outQty} Pcs | -${group.outWt.toFixed(3)}g)`,
+            'TAGGED_OUT': `${group.category} - - Tagged Out Details (${group.taggedOutQty} Pcs | -${group.taggedOutWt.toFixed(3)}g)`,
+            'OPENING': `${group.category} - Opening Stock (${group.openingQty} Pcs | ${group.openingWt.toFixed(3)}g)`
+        };
+        document.getElementById('detailsModalTitle').innerHTML = `<i class="fas fa-layer-group"></i> ${modeTitles[currentOpenGroupMode] || group.category}`;
+
+        const thead = document.getElementById('detailsModalHead');
+        thead.innerHTML = `
+            <tr>
+                <th style="width:60px; text-align:center;">Photo</th>
+                <th>Barcode / Sub-Cat</th>
+                <th>Added Date & Source (कब जुड़ा)</th>
+                <th>Status / Where Used (कहाँ गया)</th>
+                <th>Purity</th>
+                <th>Qty</th>
+                <th>Gross Wt</th>
+                <th>Net Wt</th>
+                <th>Fine Wt</th>
+                <th style="text-align:center;">Actions</th>
+            </tr>
+        `;
+        
+        let sourceList = group.closingItems;
+        if (currentOpenGroupMode === 'ADDED') sourceList = group.addedItems;
+        else if (currentOpenGroupMode === 'OUT') sourceList = group.outItems;
+        else if (currentOpenGroupMode === 'TAGGED_OUT') sourceList = group.taggedOutItems;
+        else if (currentOpenGroupMode === 'OPENING') sourceList = group.openingItems;
+
         const tbody = document.getElementById('groupDetailsList'); tbody.innerHTML = '';
         
         const searchTerm = document.getElementById('detailsSearchInput').value.toUpperCase().trim();
-        let filteredItems = [...group.items].sort((a, b) => {
-            let nameA = a.subFolder || a.name || a.barcode || '';
-            let nameB = b.subFolder || b.name || b.barcode || '';
-            return String(nameA).localeCompare(String(nameB), undefined, { numeric: true, sensitivity: 'base' });
+        let filteredItems = [...sourceList].sort((a, b) => {
+            const dA = new Date(a.removeDate || a.soldDate || a.addedDate || 0).getTime();
+            const dB = new Date(b.removeDate || b.soldDate || b.addedDate || 0).getTime();
+            return dB - dA;
         });
 
         if(searchTerm) {
-            filteredItems = filteredItems.filter(i => 
-                (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
-                (i.huid && String(i.huid).toUpperCase().includes(searchTerm)) ||
-                (i.grossWt && String(i.grossWt).includes(searchTerm)) ||
-                (i.netWt && String(i.netWt).includes(searchTerm)) ||
-                (i.reservedCustName && String(i.reservedCustName).toUpperCase().includes(searchTerm)) ||
-                (i.reservedInvoiceNo && String(i.reservedInvoiceNo).toUpperCase().includes(searchTerm))
-            );
+            filteredItems = filteredItems.filter(i => {
+                const inInfo = getItemInAuditInfo(i);
+                const outInfo = getItemOutAuditInfo(i);
+                return (i.barcode && String(i.barcode).toUpperCase().includes(searchTerm)) || 
+                    (i.huid && String(i.huid).toUpperCase().includes(searchTerm)) ||
+                    (i.grossWt && String(i.grossWt).includes(searchTerm)) ||
+                    (i.netWt && String(i.netWt).includes(searchTerm)) ||
+                    (inInfo.dateText && inInfo.dateText.toUpperCase().includes(searchTerm)) ||
+                    (inInfo.sourceLabel && inInfo.sourceLabel.toUpperCase().includes(searchTerm)) ||
+                    (outInfo.title && outInfo.title.toUpperCase().includes(searchTerm)) ||
+                    (outInfo.sub && outInfo.sub.toUpperCase().includes(searchTerm)) ||
+                    (outInfo.dateText && outInfo.dateText.toUpperCase().includes(searchTerm));
+            });
+        }
+
+        if (filteredItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:25px; color:#888;">Is category me "${currentOpenGroupMode}" ke liye koi entry nahi mili.</td></tr>`;
+            return;
         }
         
         filteredItems.forEach(item => {
             const g = parseFloat(item.grossWt||item.weight).toFixed(3);
-            let statusBadge = '';
-            if(item.status === 'order_reserved') {
-                statusBadge = `<br><span class="badge badge-order"><i class="fas fa-lock"></i> ORDER BOX (${item.reservedInvoiceNo || 'Booked'}) ${item.reservedCustName ? '- ' + item.reservedCustName : ''}</span>`;
-            }
-            if(item.status === 'sold') statusBadge = '<br><span class="badge badge-pending">SOLD OUT</span>';
-            if(item.status === 'removed' || item.status === 'extracted') statusBadge = '<br><span class="badge badge-silver">REMOVED</span>';
+            const inAudit = getItemInAuditInfo(item);
+            const outAudit = getItemOutAuditInfo(item);
             
-            let displayBc = item.barcode && String(item.barcode).startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : item.barcode;
-            let dateHtml = item.addedDate ? `<br><span style="font-size:0.75rem; color:#888;"><i class="fas fa-calendar-alt"></i> ${new Date(item.addedDate).toLocaleDateString('en-GB')}</span>` : '';
-            displayBc += dateHtml + statusBadge;
+            let displayBc = item.barcode && String(item.barcode).startsWith('LOOSE') ? '<span style="color:#888; font-style:italic;">Loose Stock</span>' : `<strong>${item.barcode}</strong>`;
+            let rawSub = item.subFolder || "";
+            if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
+            if (rawSub) displayBc += `<br><span class="badge badge-silver" style="margin-top:3px;">${rawSub}</span>`;
+            if (item.huid && String(item.huid).trim() !== '') displayBc += `<br><span style="font-size:0.72rem; color:#475569;">HUID: ${item.huid}</span>`;
+
+            // Photo Cell
+            const photoSrc = getItemPhotoSrc(item);
+            const itemTitleLabel = `${item.barcode || item.category} (${g}g)`;
+            const photoCellHtml = item._syntheticLooseSale
+                ? `<span style="color:#aaa; font-size:0.72rem;">Loose</span>`
+                : (photoSrc
+                    ? `<img src="${photoSrc}" class="item-photo-thumb" onclick="openPhotoZoom(this.src, '${itemTitleLabel.replace(/'/g, "\\'")}', '${item.id}')" title="Click to Zoom / Change Photo">`
+                    : `<div class="item-photo-add-btn" onclick="triggerQuickItemPhotoUpload('${item.id}', event)" title="Is Item ki Photo Lagayein"><i class="fas fa-camera" style="font-size:0.95rem;"></i><span>Add</span></div>`);
+
+            // Added Date & Source Column
+            const addedColHtml = item._syntheticLooseSale
+                ? `<span style="color:#888; font-size:0.78rem;">From Loose Stock</span>`
+                : `<div style="font-weight:700; color:#5b21b6; font-size:0.8rem;"><i class="far fa-calendar-plus"></i> ${inAudit.dateText}</div>
+                   <div style="font-size:0.75rem; color:#334155; font-weight:600; margin-top:2px;">${inAudit.sourceLabel}</div>
+                   ${inAudit.extraDetail ? `<div style="font-size:0.7rem; color:#64748b;">${inAudit.extraDetail}</div>` : ''}`;
+
+            // Out / Status Column
+            let outColHtml = outAudit.badgeHtml;
+            if (outAudit.type !== 'STOCK') {
+                outColHtml += `
+                    <div style="font-weight:700; color:#1e293b; font-size:0.78rem; margin-top:2px;">${outAudit.title}</div>
+                    ${outAudit.sub ? `<div style="font-size:0.73rem; color:#475569; font-weight:600;">${outAudit.sub}</div>` : ''}
+                    <div style="font-size:0.72rem; color:#b91c1c; font-weight:600;"><i class="far fa-clock"></i> ${outAudit.dateText}</div>
+                `;
+            }
             
             let actionBtnHTML = '';
-            if(item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
+            if (item._syntheticLooseSale) {
+                actionBtnHTML = `<span style="font-size:0.75rem; color:#64748b;">POS Sale</span>`;
+            } else if(item.status === 'sold' || item.status === 'removed' || item.status === 'extracted') {
                 actionBtnHTML = `<button class="btn-sm btn-view" onclick="openItemDetails('${item.id}')" style="background:#ea580c; color:white; border:none; margin-bottom:4px;"><i class="fas fa-info-circle"></i> Info</button>`;
                 actionBtnHTML += `<br><button class="btn-sm" onclick="restoreItem('${item.id}')" style="background:#10b981; color:white; border:none; padding:4px 10px;"><i class="fas fa-undo"></i> Restore</button>`;
             } else if(item.barcode && String(item.barcode).startsWith('LOOSE') || item.category === 'MIX') {
                  actionBtnHTML = `<button class="btn-sm btn-tag" onclick="closeModal('detailsModal'); openTagModal('${item.id}')"><i class="fas fa-tags"></i> Tag</button>`;
+                 actionBtnHTML += `<button class="btn-sm btn-edit" onclick="closeModal('detailsModal'); editItem('${item.id}')" title="Edit"><i class="fas fa-pen"></i></button>`;
             } else {
-                 actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])"><i class="fas fa-barcode"></i></button>`;
+                 actionBtnHTML = `<button class="btn-sm btn-print" onclick="autoPrint([{barcode:'${item.barcode}', grossWt:${g}, netWt:${item.netWt||g}, purity:'${item.purity}', category:'${item.category}'}])" title="Print"><i class="fas fa-barcode"></i></button>`;
+                 actionBtnHTML += `<button class="btn-sm btn-edit" onclick="closeModal('detailsModal'); editItem('${item.id}')" title="Edit"><i class="fas fa-pen"></i></button>`;
             }
-            
-            let rawSub = item.subFolder || "";
-            if (!rawSub && item.name && String(item.name).trim() !== '' && item.name !== item.category && !String(item.name).toLowerCase().includes('loose') && !String(item.name).toLowerCase().includes('mix')) rawSub = String(item.name).replace(/\s+\d+$/, '').trim();
-            let subHtml = rawSub ? `<span class="badge badge-silver">${rawSub}</span>` : '-';
-            
-            let huidHtml = item.huid && String(item.huid).trim() !== '' ? `<span style="font-weight:700; color:#333;">${item.huid}</span>` : `<span style="color:#d32f2f; font-weight:bold; font-size:0.8rem;">No HUID</span>`;
 
-            let rowStyle = (item.status !== 'stock' && item.status !== 'order_reserved') ? 'background-color:#f8fafc; opacity:0.8;' : (item.status === 'order_reserved' ? 'background-color:#f0f9ff;' : '');
+            let rowStyle = (item.status !== 'stock' && item.status !== 'order_reserved') ? 'background-color:#fff9f9;' : (item.status === 'order_reserved' ? 'background-color:#f0f9ff;' : '');
 
-            tbody.innerHTML += `<tr style="${rowStyle}"><td style="cursor:pointer;" onclick="openItemDetails('${item.id}')"><div>${displayBc}</div></td><td>${subHtml}</td><td>${huidHtml}</td><td><span class="badge badge-22k">${item.purity}</span></td><td>${item.pieces||1}</td><td>${g}g</td><td>${parseFloat(item.netWt||g).toFixed(3)}g</td><td>${parseFloat(item.stoneWt||0).toFixed(3)}g</td><td>${calculateFineWeight(item).toFixed(3)}g</td><td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td></tr>`;
+            tbody.innerHTML += `
+                <tr style="${rowStyle}">
+                    <td style="text-align:center;">${photoCellHtml}</td>
+                    <td style="cursor:pointer;" onclick="${item._syntheticLooseSale ? '' : `openItemDetails('${item.id}')`}">${displayBc}</td>
+                    <td>${addedColHtml}</td>
+                    <td>${outColHtml}</td>
+                    <td><span class="badge badge-22k">${item.purity}</span></td>
+                    <td>${item.pieces||1}</td>
+                    <td>${g}g</td>
+                    <td>${parseFloat(item.netWt||g).toFixed(3)}g</td>
+                    <td>${calculateFineWeight(item).toFixed(3)}g</td>
+                    <td style="text-align:center; white-space:nowrap;">${actionBtnHTML}</td>
+                </tr>
+            `;
         });
     }
 
@@ -1772,6 +2316,10 @@
         document.getElementById('tagSourceMaxWt').value = item.grossWt||item.weight;
         document.getElementById('tagPurity').value = item.purity; 
         document.getElementById('tagPieces').value = 1;
+        document.getElementById('tagPhotoFile').value = '';
+        document.getElementById('tagPhotoBase64').value = '';
+        document.getElementById('tagPhotoPreview').style.display = 'none';
+
         const isSilv = checkIsSilver(item);
         const catsToUse = isSilv ? silverCategories : goldCategories;
         const catDrop = document.getElementById('tagCategory');
@@ -1841,6 +2389,7 @@
         const cat = document.getElementById('tagCategory').value; 
         const purity = item.purity;
         const count = parseInt(document.getElementById('tagPieces').value)||1;
+        const tagPhoto = document.getElementById('tagPhotoBase64').value || getItemPhotoSrc(item) || '';
         let subCat = "";
         const tagSubCatVal = document.getElementById('tagSubCatSelect').value;
         if (tagSubCatVal && tagSubCatVal !== 'NEW') subCat = tagSubCatVal;
@@ -1857,7 +2406,7 @@
             const g = parseFloat(inputs[i].value) || 0;
             if (g > 0) {
                 const barcode = isSilv ? `SIL-${prefix}-${Date.now().toString().slice(-4)}${i}` : generateSafeBarcode(cat);
-                const newItem = { barcode, category: cat, name: `${finalName}`, purity, metal: metalType, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', addedDate: new Date().toISOString(), docNo: extractDocNo };
+                const newItem = { barcode, category: cat, name: `${finalName}`, purity, metal: metalType, grossWt: g, netWt: g, fineWt: g * getPurityFactor(purity), pieces: 1, status: 'stock', source: 'extraction', addedDate: new Date().toISOString(), docNo: extractDocNo, image: tagPhoto, imageUrl: tagPhoto };
                 await addItem('inventory', newItem); 
                 newlyAddedItems.push(newItem);
                 allInventory.push(newItem);
@@ -2397,7 +2946,22 @@
         
         document.getElementById('editItemName').value = item.name || item.subFolder || ''; 
         document.getElementById('editHuid').value = item.huid || '';
-        document.getElementById('editItemImage').value = item.imageUrl || item.imageLink || ''; 
+
+        const existingPhoto = getItemPhotoSrc(item);
+        document.getElementById('editPhotoFile').value = '';
+        document.getElementById('editPhotoBase64').value = existingPhoto;
+        document.getElementById('editItemImage').value = (existingPhoto && !existingPhoto.startsWith('data:')) ? existingPhoto : '';
+        const prevImg = document.getElementById('editPhotoPreview');
+        const remBtn = document.getElementById('btnRemoveEditPhoto');
+        if (existingPhoto) {
+            prevImg.src = existingPhoto;
+            prevImg.style.display = 'block';
+            remBtn.style.display = 'inline-block';
+        } else {
+            prevImg.style.display = 'none';
+            remBtn.style.display = 'none';
+        }
+
         document.getElementById('editGross').value = item.grossWt || item.weight || 0; 
         document.getElementById('editStone').value = item.stoneWt || 0; 
         openModal('editModal'); 
@@ -2419,7 +2983,11 @@
             }
 
             item.huid = document.getElementById('editHuid').value.trim();
-            item.imageUrl = document.getElementById('editItemImage').value.trim();
+            const uploadedBase64 = document.getElementById('editPhotoBase64').value.trim();
+            const pastedUrl = document.getElementById('editItemImage').value.trim();
+            const finalPhoto = pastedUrl || uploadedBase64 || '';
+            item.image = finalPhoto;
+            item.imageUrl = finalPhoto;
 
             item.grossWt = parseFloat(document.getElementById('editGross').value) || 0; 
             item.stoneWt = parseFloat(document.getElementById('editStone').value) || 0; 
