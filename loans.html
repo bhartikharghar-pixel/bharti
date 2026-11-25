@@ -106,7 +106,7 @@
         .btn-primary { width: 100%; padding: 14px; background: #D32F2F; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;}
         .btn-primary:hover { background: #b71c1c; }
 
-        /* --- 📸 PHOTO UPLOAD & PREVIEW BOXES --- */
+        /* --- PHOTO UPLOAD & PREVIEW BOXES --- */
         .photo-upload-card {
             border: 2px dashed #cbd5e1; border-radius: 10px; padding: 12px; text-align: center;
             background: #f8fafc; cursor: pointer; transition: 0.2s; position: relative;
@@ -299,17 +299,17 @@
         </div>
     </div>
 
-    <!-- NEW GOLD LOAN MODAL (WITH INLINE NEW CUSTOMER + CUSTOMER PHOTO + KYC PHOTO + GOLD ITEM PHOTO) -->
+    <!-- NEW GOLD LOAN MODAL (WITH 2-STEP AUTO-SELECT NEW CUSTOMER CREATION) -->
     <div id="createModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('createModal')">&times;</button>
             <h3>New Gold Loan</h3>
 
-            <!-- 1. CUSTOMER SELECT OR CREATE NEW INLINE -->
+            <!-- 1. CUSTOMER SELECT OR CREATE NEW & AUTO-SELECT -->
             <div class="form-group">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
                     <label style="margin:0;">Select Customer *</label>
-                    <button type="button" id="btnToggleNewCust" class="btn-inline-new-cust" style="margin:0;" onclick="toggleInlineNewCustomer()">
+                    <button type="button" id="btnToggleNewCust" class="btn-inline-new-cust" style="margin:0;" onclick="toggleInlineNewCustomer(true)">
                         <i class="fas fa-user-plus"></i> + नया कस्टमर जोड़ें
                     </button>
                 </div>
@@ -319,13 +319,13 @@
                     <input type="text" id="customerSearchInput" placeholder="Type Name or Mobile to Search..." onkeyup="filterSelectableCustomers()" autocomplete="off">
                     <input type="hidden" id="selectedCustomerId">
                     <div id="customerSearchResults" class="search-results"></div>
-                    <div id="selectedCustDisplay" style="display:none; margin-top:8px; background:#e3f2fd; padding:8px 12px; border-radius:8px; border:1px solid #90caf9; align-items:center; justify-content:space-between;"></div>
+                    <div id="selectedCustDisplay" style="display:none; margin-top:8px; background:#e8f5e9; padding:10px 12px; border-radius:8px; border:1.5px solid #66bb6a; align-items:center; justify-content:space-between;"></div>
                 </div>
 
-                <!-- Inline New Customer Creation Form (Links directly to global Customers DB) -->
+                <!-- Inline New Customer Creation Form -->
                 <div id="inlineNewCustomerBox" class="new-cust-inline-panel" style="display:none;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed #90caf9; padding-bottom:6px;">
-                        <strong style="color:#0d47a1; font-size:0.9rem;"><i class="fas fa-user-plus"></i> नया कस्टमर बनाएं (सभी जगह सेव होगा)</strong>
+                        <strong style="color:#0d47a1; font-size:0.9rem;"><i class="fas fa-user-plus"></i> Step 1: नया कस्टमर बनाएं</strong>
                         <button type="button" onclick="toggleInlineNewCustomer(false)" style="background:none; border:none; color:#c62828; font-weight:700; cursor:pointer; font-size:0.8rem;">Cancel</button>
                     </div>
 
@@ -372,6 +372,11 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- SAVE CUSTOMER & AUTO-SELECT BUTTON -->
+                    <button type="button" id="btnSaveAndSelectCust" onclick="saveNewCustomerAndSelect()" style="width:100%; margin-top:12px; padding:11px; background:#1565c0; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 3px 8px rgba(21,101,192,0.25);">
+                        <i class="fas fa-user-check"></i> Customer Save Karein & Auto-Select Karein
+                    </button>
                 </div>
             </div>
 
@@ -386,7 +391,7 @@
                 </div>
             </div>
 
-            <!-- 📸 GOLD ITEM PHOTO UPLOAD FOR NEW LOAN -->
+            <!-- GOLD ITEM PHOTO UPLOAD FOR NEW LOAN -->
             <div class="form-group">
                 <label style="color:#b45309; font-weight:700;"><i class="fas fa-ring"></i> Gold Item Photo (गहने की फोटो)</label>
                 <div class="photo-upload-card" style="display:flex; align-items:center; justify-content:space-between; text-align:left; padding:10px 14px;" onclick="document.getElementById('newLoanItemPhotoInput').click()">
@@ -479,7 +484,7 @@
                 </div>
             </div>
 
-            <!-- 📸 GOLD ITEM PHOTO STRIP IN LEDGER (FOR NEW & OLD LOANS) -->
+            <!-- GOLD ITEM PHOTO STRIP IN LEDGER (FOR NEW & OLD LOANS) -->
             <div id="ledgerItemPhotoBar" style="display:flex; justify-content:space-between; align-items:center; background:#fffbeb; border:1px solid #fde68a; padding:8px 12px; border-radius:8px; margin-bottom:14px; gap:10px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <img id="vLoanItemPhotoImg" src="" class="photo-preview-thumb" style="width:52px; height:52px; display:none;" onclick="zoomImage(this.src, 'Gold Loan Item Photo')">
@@ -606,7 +611,7 @@
             return new Date(today.getTime() + istOffset).toISOString().split('T')[0];
         }
 
-        // --- 📸 IMAGE COMPRESSION & ZOOM HELPERS ---
+        // --- IMAGE COMPRESSION & ZOOM HELPERS ---
         function compressImageFile(file, maxWidth = 700, quality = 0.72) {
             return new Promise((resolve, reject) => {
                 if (!file) return resolve('');
@@ -662,7 +667,7 @@
             document.getElementById('imageZoomModal').style.display = 'flex';
         }
 
-        // --- 📸 UPLOAD / UPDATE GOLD ITEM PHOTO FOR EXISTING / OLD LOANS ---
+        // --- UPLOAD / UPDATE GOLD ITEM PHOTO FOR EXISTING / OLD LOANS ---
         function triggerExistingLoanPhotoUpload(loanId, event) {
             if (event) event.stopPropagation();
             if (!loanId) return;
@@ -688,7 +693,6 @@
                 dbLoan.photo = compressedBase64;
                 await updateItem('loans', dbLoan);
 
-                // Update memory cache
                 const memLoan = allLoans.find(x => String(x.id) === String(targetLoanIdForPhotoUpload));
                 if (memLoan) {
                     memLoan.itemPhoto = compressedBase64;
@@ -711,7 +715,7 @@
             }
         }
 
-        // --- 👤 TOGGLE INLINE NEW CUSTOMER CREATION ---
+        // --- TOGGLE INLINE NEW CUSTOMER CREATION ---
         function toggleInlineNewCustomer(forceState = null) {
             isCreatingInlineCustomer = (forceState !== null) ? forceState : !isCreatingInlineCustomer;
             const existingWrap = document.getElementById('existingCustSearchWrap');
@@ -719,10 +723,11 @@
             const toggleBtn = document.getElementById('btnToggleNewCust');
 
             if (isCreatingInlineCustomer) {
+                // Purana koi bhi selected customer turant clear karein
+                clearSelectedCust();
                 existingWrap.style.display = 'none';
                 inlineBox.style.display = 'block';
                 toggleBtn.style.display = 'none';
-                document.getElementById('selectedCustomerId').value = '';
                 document.getElementById('newCustName').focus();
             } else {
                 existingWrap.style.display = 'block';
@@ -736,6 +741,113 @@
                 document.getElementById('newCustKycData').value = '';
                 document.getElementById('newCustPhotoPreview').style.display = 'none';
                 document.getElementById('newCustKycPreview').style.display = 'none';
+            }
+        }
+
+        // --- STEP 1: SAVE NEW CUSTOMER & AUTO-SELECT INTO LOAN FORM ---
+        async function saveNewCustomerAndSelect() {
+            const newName = (document.getElementById('newCustName').value || '').trim();
+            const newMobile = (document.getElementById('newCustMobile').value || '').trim();
+            const newCity = (document.getElementById('newCustCity').value || '').trim();
+            const newKycNo = (document.getElementById('newCustKycNo').value || '').trim();
+            const newCustPhoto = document.getElementById('newCustPhotoData').value || '';
+            const newKycPhoto = document.getElementById('newCustKycData').value || '';
+
+            if (!newName) {
+                alert("नए कस्टमर का नाम (Customer Name) डालना ज़रूरी है!");
+                document.getElementById('newCustName').focus();
+                return null;
+            }
+            if (!newMobile) {
+                alert("नए कस्टमर का मोबाइल नंबर (Mobile Number) डालना ज़रूरी है!");
+                document.getElementById('newCustMobile').focus();
+                return null;
+            }
+
+            const btn = document.getElementById('btnSaveAndSelectCust');
+            const oldHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Customer Save Ho Raha Hai...';
+                btn.disabled = true;
+            }
+
+            try {
+                await loadCustomers();
+
+                // Check if mobile number already exists
+                let existingByMob = allCustomers.find(c => String(c.mobile || '').trim() === newMobile);
+                let targetCustomer = null;
+
+                if (existingByMob) {
+                    if (newCustPhoto) { existingByMob.photo = newCustPhoto; existingByMob.customerPhoto = newCustPhoto; }
+                    if (newKycPhoto) { existingByMob.kycPhoto = newKycPhoto; existingByMob.idPhoto = newKycPhoto; }
+                    if (newKycNo) { existingByMob.kycNo = newKycNo; existingByMob.aadhaar = newKycNo; }
+                    if (newCity && !existingByMob.city) { existingByMob.city = newCity; existingByMob.address = newCity; }
+                    await updateItem('customers', existingByMob);
+                    await loadCustomers();
+                    targetCustomer = allCustomers.find(c => String(c.id) === String(existingByMob.id)) || existingByMob;
+                } else {
+                    const uniqueCreatedAt = new Date().toISOString();
+                    const newCustomerObj = {
+                        name: newName,
+                        mobile: newMobile,
+                        city: newCity,
+                        address: newCity,
+                        kycNo: newKycNo,
+                        aadhaar: newKycNo,
+                        photo: newCustPhoto,
+                        customerPhoto: newCustPhoto,
+                        kycPhoto: newKycPhoto,
+                        idPhoto: newKycPhoto,
+                        bcBalance: 0,
+                        createdAt: uniqueCreatedAt
+                    };
+
+                    const addResult = await addItem('customers', newCustomerObj);
+                    let returnedId = '';
+                    if (typeof addResult === 'string' || typeof addResult === 'number') {
+                        returnedId = String(addResult);
+                    } else if (addResult && addResult.id) {
+                        returnedId = String(addResult.id);
+                    }
+
+                    // Reload fresh customers list from DB so we get exact Firestore document ID
+                    await loadCustomers();
+
+                    if (returnedId) {
+                        targetCustomer = allCustomers.find(c => String(c.id) === returnedId);
+                    }
+                    if (!targetCustomer) {
+                        targetCustomer = allCustomers.find(c => c.createdAt === uniqueCreatedAt);
+                    }
+                    if (!targetCustomer) {
+                        const matches = allCustomers.filter(c =>
+                            String(c.name || '').trim().toLowerCase() === newName.toLowerCase() &&
+                            String(c.mobile || '').trim() === newMobile
+                        );
+                        if (matches.length > 0) targetCustomer = matches[matches.length - 1];
+                    }
+                }
+
+                if (!targetCustomer || !targetCustomer.id) {
+                    alert("Customer save hone ke baad ID fetch nahi ho payi. Dobara try karein.");
+                    return null;
+                }
+
+                // Close inline form & automatically select the newly saved customer
+                toggleInlineNewCustomer(false);
+                selectCustomer(targetCustomer);
+
+                return targetCustomer;
+            } catch (err) {
+                console.error("Save New Customer Error:", err);
+                alert("Naya customer save karne me error aayi. Network check karein.");
+                return null;
+            } finally {
+                if (btn) {
+                    btn.innerHTML = oldHtml;
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -1444,7 +1556,6 @@
             const tabLabel = currentTab === 'active' ? 'Active Loans' : 'Closed Loans (History)';
             document.getElementById('custListTitle').innerText = `${foundCust.name} - ${tabLabel}`;
 
-            // Show Customer Photo & KYC Link in Header
             const cPhotoEl = document.getElementById('custModalPhoto');
             const cKycBadge = document.getElementById('custModalKycBadge');
             const cPhotoUrl = foundCust.photo || foundCust.customerPhoto || '';
@@ -1637,7 +1748,8 @@
         }
 
         function selectCustomer(c) {
-            document.getElementById('selectedCustomerId').value = c.id;
+            if (!c || !c.id) return;
+            document.getElementById('selectedCustomerId').value = String(c.id);
             document.getElementById('customerSearchInput').value = c.name;
             document.getElementById('customerSearchResults').style.display = 'none';
             const disp = document.getElementById('selectedCustDisplay');
@@ -1646,16 +1758,20 @@
             const cKyc = c.kycPhoto || c.idPhoto || '';
             disp.innerHTML = `
                 <div style="display:flex; align-items:center; gap:8px;">
-                    ${cPhoto ? `<img src="${cPhoto}" style="width:32px; height:32px; border-radius:50%; object-fit:cover;">` : `<i class="fas fa-check-circle" style="color:#1565c0;"></i>`}
-                    <span style="font-weight:700; color:#0d47a1; font-size:0.88rem;">${c.name} (${c.mobile || 'N/A'}) ${cKyc ? '• KYC Attached ✓' : ''}</span>
+                    ${cPhoto ? `<img src="${cPhoto}" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:1.5px solid #2e7d32;">` : `<i class="fas fa-check-circle" style="color:#2e7d32; font-size:1.2rem;"></i>`}
+                    <div>
+                        <div style="font-weight:700; color:#1b5e20; font-size:0.9rem;">✓ Selected: ${c.name}</div>
+                        <div style="font-size:0.75rem; color:#2e7d32;">Mob: ${c.mobile || 'N/A'} ${cKyc ? '• KYC Attached ✓' : ''}</div>
+                    </div>
                 </div>
-                <i class="fas fa-times-circle" style="color:#c62828; cursor:pointer;" onclick="clearSelectedCust()"></i>
+                <i class="fas fa-times-circle" style="color:#c62828; cursor:pointer; font-size:1.1rem;" onclick="clearSelectedCust()" title="Change Customer"></i>
             `;
         }
 
         function clearSelectedCust() {
             document.getElementById('selectedCustomerId').value = '';
             document.getElementById('customerSearchInput').value = '';
+            document.getElementById('customerSearchResults').style.display = 'none';
             document.getElementById('selectedCustDisplay').style.display = 'none';
         }
 
@@ -1706,7 +1822,19 @@
         }
 
         async function saveLoan() {
-            let custId = document.getElementById('selectedCustomerId').value;
+            // Agar user ne naya customer form khola hua hai aur pehle Save button nahi dabaya, to pehle customer save & select karein
+            if (isCreatingInlineCustomer) {
+                const createdCust = await saveNewCustomerAndSelect();
+                if (!createdCust) return;
+            }
+
+            const custId = String(document.getElementById('selectedCustomerId').value || '').trim();
+            const verifiedCust = allCustomers.find(c => String(c.id) === custId);
+
+            if (!custId || !verifiedCust) {
+                return alert("Please select a customer or add & save a new customer first!");
+            }
+
             const cashAmt = parseFloat(document.getElementById('loanCash').value) || 0;
             const bankAmt = parseFloat(document.getElementById('loanBank').value) || 0;
             const amount = cashAmt + bankAmt; 
@@ -1721,58 +1849,10 @@
 
             const saveBtn = document.getElementById('btnSaveNewLoan');
             const oldBtnHtml = saveBtn.innerHTML;
-            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Loan...';
             saveBtn.disabled = true;
 
             try {
-                // यदि नया कस्टमर फॉर्म खुला है तो पहले कस्टमर को मुख्य 'customers' डेटाबेस में सेव करें
-                if (isCreatingInlineCustomer) {
-                    const newName = (document.getElementById('newCustName').value || '').trim();
-                    const newMobile = (document.getElementById('newCustMobile').value || '').trim();
-                    const newCity = (document.getElementById('newCustCity').value || '').trim();
-                    const newKycNo = (document.getElementById('newCustKycNo').value || '').trim();
-                    const newCustPhoto = document.getElementById('newCustPhotoData').value || '';
-                    const newKycPhoto = document.getElementById('newCustKycData').value || '';
-
-                    if (!newName) {
-                        saveBtn.innerHTML = oldBtnHtml; saveBtn.disabled = false;
-                        return alert("नए कस्टमर का नाम (Customer Name) डालना ज़रूरी है!");
-                    }
-
-                    // Check if same mobile already exists to prevent duplicate customer
-                    let existingByMob = newMobile ? allCustomers.find(c => String(c.mobile || '').trim() === newMobile) : null;
-                    if (existingByMob) {
-                        custId = existingByMob.id;
-                        if (newCustPhoto) existingByMob.photo = newCustPhoto;
-                        if (newKycPhoto) existingByMob.kycPhoto = newKycPhoto;
-                        if (newKycNo) existingByMob.kycNo = newKycNo;
-                        if (newCity && !existingByMob.city) existingByMob.city = newCity;
-                        await updateItem('customers', existingByMob);
-                    } else {
-                        const newCustomerObj = {
-                            name: newName,
-                            mobile: newMobile,
-                            city: newCity,
-                            address: newCity,
-                            kycNo: newKycNo,
-                            aadhaar: newKycNo,
-                            photo: newCustPhoto,
-                            customerPhoto: newCustPhoto,
-                            kycPhoto: newKycPhoto,
-                            idPhoto: newKycPhoto,
-                            bcBalance: 0,
-                            createdAt: new Date().toISOString()
-                        };
-                        custId = await addItem('customers', newCustomerObj);
-                        allCustomers.push({ id: custId, ...newCustomerObj });
-                    }
-                }
-
-                if(!custId) {
-                    saveBtn.innerHTML = oldBtnHtml; saveBtn.disabled = false;
-                    return alert("Please select a customer or add a new customer!");
-                }
-
                 const startDate = new Date(startDateVal);
                 let dueDate = new Date(startDate);
                 dueDate.setMonth(dueDate.getMonth() + durVal);
@@ -1798,7 +1878,7 @@
 
                 const loan = {
                     loanNo: nextLoanNo,
-                    customerId: custId,
+                    customerId: verifiedCust.id,
                     description: document.getElementById('loanDesc').value || 'Gold Item',
                     weight: parseFloat(document.getElementById('loanWeight').value) || 0,
                     purity: document.getElementById('loanPurity').value,
@@ -1817,24 +1897,24 @@
                 };
 
                 syncLoanLedger(loan);
-                const loanId = await addItem('loans', loan);
+                await addItem('loans', loan);
                 
                 if (cashAmt > 0) {
                     await addItem('cashflow', {
                         date: startDate.toISOString(), type: 'OUT', mode: 'Cash',
-                        category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${nextLoanNo}`,
-                        customerId: custId
+                        category: 'New Gold Loan', amount: cashAmt, note: `Principal disbursed (Cash) for Loan #${nextLoanNo} (${verifiedCust.name})`,
+                        customerId: verifiedCust.id
                     });
                 }
                 if (bankAmt > 0) {
                     await addItem('cashflow', {
                         date: startDate.toISOString(), type: 'OUT', mode: 'Bank',
-                        category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${nextLoanNo}`,
-                        customerId: custId
+                        category: 'New Gold Loan', amount: bankAmt, note: `Principal disbursed (Bank/UPI) for Loan #${nextLoanNo} (${verifiedCust.name})`,
+                        customerId: verifiedCust.id
                     });
                 }
 
-                alert("✅ Loan Created Successfully!");
+                alert(`✅ Loan Created Successfully for ${verifiedCust.name}!`);
                 closeModal('createModal');
                 await loadCustomers();
                 await loadCashBalance(); 
@@ -1869,7 +1949,6 @@
                 document.getElementById('vItemWeight').innerText = l.weight ? l.weight + "g" : "N/A";
                 document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
 
-                // Customer Photo & KYC Doc in Ledger Header
                 const vCustPhotoEl = document.getElementById('vCustPhotoThumb');
                 const vCustKycEl = document.getElementById('vCustKycLink');
                 const cPhoto = c ? (c.photo || c.customerPhoto || '') : '';
@@ -1889,7 +1968,6 @@
                     vCustKycEl.style.display = 'none';
                 }
 
-                // Gold Item Photo Bar in Ledger
                 const itemPhotoUrl = l.itemPhoto || l.photo || '';
                 const itemPhotoImg = document.getElementById('vLoanItemPhotoImg');
                 const itemPhotoStatus = document.getElementById('vLoanItemPhotoStatus');
@@ -2269,7 +2347,7 @@
             }
         }
 
-        // Bulk Entry UI Functions (With Optional Item Photo per Row)
+        // Bulk Entry UI Functions
         let bulkRowIndex = 0;
 
         function openBulkModal() {
