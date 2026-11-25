@@ -119,15 +119,12 @@
         .cust-avatar-sm {
             width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #C5A059; flex-shrink: 0; cursor: pointer;
         }
-        .new-cust-inline-panel {
-            background: #f0f7ff; border: 1.5px solid #90caf9; border-radius: 10px; padding: 14px; margin-top: 10px;
-        }
         .btn-inline-new-cust {
-            background: #e3f2fd; color: #1565c0; border: 1px dashed #1976d2; padding: 8px 12px;
+            background: #1565c0; color: #fff; border: none; padding: 8px 14px;
             border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex;
-            align-items: center; gap: 6px; margin-top: 6px;
+            align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(21,101,192,0.25);
         }
-        .btn-inline-new-cust:hover { background: #bbdefb; }
+        .btn-inline-new-cust:hover { background: #0d47a1; }
 
         /* --- T-LEDGER STYLES (JAMA / UDHAR) --- */
         .t-ledger-container { display: flex; width: 100%; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
@@ -200,6 +197,67 @@
         </div>
     </div>
 
+    <!-- DEDICATED NEW CUSTOMER POPUP MODAL (MATCHES customers.html) -->
+    <div id="newCustPopupModal" class="modal" style="z-index: 2500;">
+        <div class="modal-content" style="max-width: 520px;">
+            <button class="close-btn" onclick="closeModal('newCustPopupModal')">&times;</button>
+            <h3 style="color:#1565c0; margin-bottom:4px;"><i class="fas fa-user-plus"></i> नया कस्टमर जोड़ें</h3>
+            <p style="font-size:0.78rem; color:#666; margin-top:0; margin-bottom:14px;">कस्टमर सेव होते ही Gold Loan फॉर्म में अपने आप (Auto-Select) हो जाएगा।</p>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="ncName" placeholder="e.g. Rahul Sharma" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Mobile Number *</label>
+                    <input type="tel" id="ncMobile" placeholder="e.g. 9876543210" maxlength="15" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>City / Address</label>
+                    <input type="text" id="ncCity" placeholder="e.g. Panvel / Mumbai" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Aadhar Number (Optional)</label>
+                    <input type="text" id="ncAadhar" placeholder="12-digit Aadhar" maxlength="12" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>PAN Card (Optional)</label>
+                <input type="text" id="ncPan" placeholder="e.g. ABCDE1234F" maxlength="10" style="text-transform: uppercase;" autocomplete="off">
+            </div>
+
+            <div class="form-grid" style="margin-bottom: 12px;">
+                <div>
+                    <label style="font-size:0.78rem; color:#0d47a1; font-weight:700;"><i class="fas fa-user-circle"></i> Customer Photo</label>
+                    <div class="photo-upload-card" onclick="document.getElementById('ncPhotoInput').click()">
+                        <input type="file" id="ncPhotoInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'ncPhotoPreview', 'ncPhotoData')">
+                        <input type="hidden" id="ncPhotoData">
+                        <img id="ncPhotoPreview" src="" class="photo-preview-thumb" style="display:none; margin:0 auto 5px auto;">
+                        <div style="font-size:0.75rem; color:#475569; font-weight:600;"><i class="fas fa-camera"></i> Tap to Add Photo</div>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:0.78rem; color:#0d47a1; font-weight:700;"><i class="fas fa-id-card"></i> KYC Doc Photo (ID)</label>
+                    <div class="photo-upload-card" onclick="document.getElementById('ncKycInput').click()">
+                        <input type="file" id="ncKycInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'ncKycPreview', 'ncKycData')">
+                        <input type="hidden" id="ncKycData">
+                        <img id="ncKycPreview" src="" class="photo-preview-thumb" style="display:none; margin:0 auto 5px auto;">
+                        <div style="font-size:0.75rem; color:#475569; font-weight:600;"><i class="fas fa-file-image"></i> Tap to Add KYC</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="btnPopupSaveCust" class="btn-primary" style="background:#1565c0;" onclick="saveNewCustomerFromPopup()">
+                <i class="fas fa-user-check"></i> Save Customer & Auto-Select
+            </button>
+        </div>
+    </div>
+
     <!-- HIDDEN FILE INPUT FOR UPDATING EXISTING / OLD LOAN GOLD ITEM PHOTO -->
     <input type="file" id="existingLoanItemPhotoInput" accept="image/*" style="display:none;" onchange="handleExistingLoanPhotoSelected(event)">
 
@@ -251,7 +309,7 @@
         <div class="fab" onclick="openCreateModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- CUSTOMER LOANS MODAL WITH ITEM PHOTO, AUDIT TICK, DELETE & GRAND TOTAL -->
+    <!-- CUSTOMER LOANS MODAL -->
     <div id="customerLoansModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('customerLoansModal')">&times;</button>
@@ -266,7 +324,6 @@
                 <i class="fas fa-info-circle" style="color:#2e7d32;"></i> Paper diary se milane ke baad <strong>Right (✓)</strong> tick lagayein, ya <strong><i class="fas fa-camera"></i> Photo</strong> par click karke गहने की फोटो लगाएं/देखें।
             </p>
             <div id="customerLoansContainer" style="margin-top:10px; display:grid; gap:10px; max-height: 52vh; overflow-y: auto; padding-right: 5px;"></div>
-            <!-- Grand Total Summary Bar -->
             <div id="customerLoansTotalSummary" style="margin-top: 15px; padding: 12px 15px; background: #fff8e1; border-radius: 10px; border: 2px solid #C5A059;"></div>
         </div>
     </div>
@@ -299,85 +356,25 @@
         </div>
     </div>
 
-    <!-- NEW GOLD LOAN MODAL (WITH 2-STEP AUTO-SELECT NEW CUSTOMER CREATION) -->
+    <!-- NEW GOLD LOAN MODAL -->
     <div id="createModal" class="modal" style="z-index: 2150;">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('createModal')">&times;</button>
             <h3>New Gold Loan</h3>
 
-            <!-- 1. CUSTOMER SELECT OR CREATE NEW & AUTO-SELECT -->
+            <!-- 1. CUSTOMER SELECT OR OPEN NEW CUSTOMER POPUP -->
             <div class="form-group">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                     <label style="margin:0;">Select Customer *</label>
-                    <button type="button" id="btnToggleNewCust" class="btn-inline-new-cust" style="margin:0;" onclick="toggleInlineNewCustomer(true)">
+                    <button type="button" class="btn-inline-new-cust" onclick="openNewCustPopup()">
                         <i class="fas fa-user-plus"></i> + नया कस्टमर जोड़ें
                     </button>
                 </div>
 
-                <!-- Existing Customer Search Box -->
-                <div id="existingCustSearchWrap">
-                    <input type="text" id="customerSearchInput" placeholder="Type Name or Mobile to Search..." onkeyup="filterSelectableCustomers()" autocomplete="off">
-                    <input type="hidden" id="selectedCustomerId">
-                    <div id="customerSearchResults" class="search-results"></div>
-                    <div id="selectedCustDisplay" style="display:none; margin-top:8px; background:#e8f5e9; padding:10px 12px; border-radius:8px; border:1.5px solid #66bb6a; align-items:center; justify-content:space-between;"></div>
-                </div>
-
-                <!-- Inline New Customer Creation Form -->
-                <div id="inlineNewCustomerBox" class="new-cust-inline-panel" style="display:none;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px dashed #90caf9; padding-bottom:6px;">
-                        <strong style="color:#0d47a1; font-size:0.9rem;"><i class="fas fa-user-plus"></i> Step 1: नया कस्टमर बनाएं</strong>
-                        <button type="button" onclick="toggleInlineNewCustomer(false)" style="background:none; border:none; color:#c62828; font-weight:700; cursor:pointer; font-size:0.8rem;">Cancel</button>
-                    </div>
-
-                    <div class="form-grid">
-                        <div class="form-group" style="margin-bottom:8px;">
-                            <label style="font-size:0.78rem;">Customer Name *</label>
-                            <input type="text" id="newCustName" placeholder="Full Name" style="padding:9px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom:8px;">
-                            <label style="font-size:0.78rem;">Mobile Number *</label>
-                            <input type="tel" id="newCustMobile" placeholder="10-digit Mobile" maxlength="15" style="padding:9px;">
-                        </div>
-                    </div>
-
-                    <div class="form-grid">
-                        <div class="form-group" style="margin-bottom:8px;">
-                            <label style="font-size:0.78rem;">City / Address</label>
-                            <input type="text" id="newCustCity" placeholder="e.g. Kharghar / Village" style="padding:9px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom:8px;">
-                            <label style="font-size:0.78rem;">Aadhaar / PAN / KYC No.</label>
-                            <input type="text" id="newCustKycNo" placeholder="Optional ID Number" style="padding:9px;">
-                        </div>
-                    </div>
-
-                    <!-- Customer Photo & KYC Document Photo -->
-                    <div class="form-grid" style="margin-top:4px;">
-                        <div>
-                            <label style="font-size:0.78rem; color:#0d47a1; font-weight:700;"><i class="fas fa-user-circle"></i> Customer Photo</label>
-                            <div class="photo-upload-card" onclick="document.getElementById('newCustPhotoInput').click()">
-                                <input type="file" id="newCustPhotoInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'newCustPhotoPreview', 'newCustPhotoData')">
-                                <input type="hidden" id="newCustPhotoData">
-                                <img id="newCustPhotoPreview" src="" class="photo-preview-thumb" style="display:none; margin:0 auto 5px auto;">
-                                <div style="font-size:0.75rem; color:#475569; font-weight:600;"><i class="fas fa-camera"></i> Tap to Add Photo</div>
-                            </div>
-                        </div>
-                        <div>
-                            <label style="font-size:0.78rem; color:#0d47a1; font-weight:700;"><i class="fas fa-id-card"></i> KYC Doc Photo (Aadhaar/ID)</label>
-                            <div class="photo-upload-card" onclick="document.getElementById('newCustKycPhotoInput').click()">
-                                <input type="file" id="newCustKycPhotoInput" accept="image/*" style="display:none;" onchange="handlePreviewImage(event, 'newCustKycPreview', 'newCustKycData')">
-                                <input type="hidden" id="newCustKycData">
-                                <img id="newCustKycPreview" src="" class="photo-preview-thumb" style="display:none; margin:0 auto 5px auto;">
-                                <div style="font-size:0.75rem; color:#475569; font-weight:600;"><i class="fas fa-file-image"></i> Tap to Add KYC</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- SAVE CUSTOMER & AUTO-SELECT BUTTON -->
-                    <button type="button" id="btnSaveAndSelectCust" onclick="saveNewCustomerAndSelect()" style="width:100%; margin-top:12px; padding:11px; background:#1565c0; color:#fff; border:none; border-radius:8px; font-weight:700; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 3px 8px rgba(21,101,192,0.25);">
-                        <i class="fas fa-user-check"></i> Customer Save Karein & Auto-Select Karein
-                    </button>
-                </div>
+                <input type="text" id="customerSearchInput" placeholder="Purana Customer search karein (Name / Mobile)..." onkeyup="filterSelectableCustomers()" autocomplete="off">
+                <input type="hidden" id="selectedCustomerId">
+                <div id="customerSearchResults" class="search-results"></div>
+                <div id="selectedCustDisplay" style="display:none; margin-top:8px; background:#e8f5e9; padding:10px 12px; border-radius:8px; border:1.5px solid #2e7d32; align-items:center; justify-content:space-between;"></div>
             </div>
 
             <div class="form-grid">
@@ -387,7 +384,7 @@
                 </div>
                 <div class="form-group">
                     <label>Item Description *</label>
-                    <input type="text" id="loanDesc" placeholder="e.g. 2 Gold Bangles">
+                    <input type="text" id="loanDesc" placeholder="e.g. 2 Gold Bangles" autocomplete="off">
                 </div>
             </div>
 
@@ -454,7 +451,7 @@
         </div>
     </div>
 
-    <!-- VIEW T-LEDGER MODAL (WITH GOLD ITEM PHOTO VIEW & UPLOAD/CHANGE) -->
+    <!-- VIEW T-LEDGER MODAL -->
     <div id="viewModal" class="modal" style="z-index: 2200;">
         <div class="modal-content" style="max-width: 700px;">
             <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
@@ -484,7 +481,7 @@
                 </div>
             </div>
 
-            <!-- GOLD ITEM PHOTO STRIP IN LEDGER (FOR NEW & OLD LOANS) -->
+            <!-- GOLD ITEM PHOTO STRIP IN LEDGER -->
             <div id="ledgerItemPhotoBar" style="display:flex; justify-content:space-between; align-items:center; background:#fffbeb; border:1px solid #fde68a; padding:8px 12px; border-radius:8px; margin-bottom:14px; gap:10px;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <img id="vLoanItemPhotoImg" src="" class="photo-preview-thumb" style="width:52px; height:52px; display:none;" onclick="zoomImage(this.src, 'Gold Loan Item Photo')">
@@ -602,7 +599,7 @@
         let currentTab = 'active';
         let goldRates = { rate22k: 0 };
         let currentCustomerViewId = null;
-        let isCreatingInlineCustomer = false;
+        let selectedCustomerObj = null;
         let targetLoanIdForPhotoUpload = null;
 
         function getTodayISTDateStr() {
@@ -715,139 +712,138 @@
             }
         }
 
-        // --- TOGGLE INLINE NEW CUSTOMER CREATION ---
-        function toggleInlineNewCustomer(forceState = null) {
-            isCreatingInlineCustomer = (forceState !== null) ? forceState : !isCreatingInlineCustomer;
-            const existingWrap = document.getElementById('existingCustSearchWrap');
-            const inlineBox = document.getElementById('inlineNewCustomerBox');
-            const toggleBtn = document.getElementById('btnToggleNewCust');
-
-            if (isCreatingInlineCustomer) {
-                // Purana koi bhi selected customer turant clear karein
-                clearSelectedCust();
-                existingWrap.style.display = 'none';
-                inlineBox.style.display = 'block';
-                toggleBtn.style.display = 'none';
-                document.getElementById('newCustName').focus();
-            } else {
-                existingWrap.style.display = 'block';
-                inlineBox.style.display = 'none';
-                toggleBtn.style.display = 'inline-flex';
-                document.getElementById('newCustName').value = '';
-                document.getElementById('newCustMobile').value = '';
-                document.getElementById('newCustCity').value = '';
-                document.getElementById('newCustKycNo').value = '';
-                document.getElementById('newCustPhotoData').value = '';
-                document.getElementById('newCustKycData').value = '';
-                document.getElementById('newCustPhotoPreview').style.display = 'none';
-                document.getElementById('newCustKycPreview').style.display = 'none';
-            }
+        // --- NEW CUSTOMER POPUP (EXACTLY LIKE customers.html + GUARANTEED AUTO-SELECT) ---
+        function openNewCustPopup() {
+            clearSelectedCust();
+            document.getElementById('ncName').value = '';
+            document.getElementById('ncMobile').value = '';
+            document.getElementById('ncCity').value = '';
+            document.getElementById('ncAadhar').value = '';
+            document.getElementById('ncPan').value = '';
+            document.getElementById('ncPhotoData').value = '';
+            document.getElementById('ncKycData').value = '';
+            document.getElementById('ncPhotoInput').value = '';
+            document.getElementById('ncKycInput').value = '';
+            document.getElementById('ncPhotoPreview').style.display = 'none';
+            document.getElementById('ncKycPreview').style.display = 'none';
+            document.getElementById('newCustPopupModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('ncName').focus(), 100);
         }
 
-        // --- STEP 1: SAVE NEW CUSTOMER & AUTO-SELECT INTO LOAN FORM ---
-        async function saveNewCustomerAndSelect() {
-            const newName = (document.getElementById('newCustName').value || '').trim();
-            const newMobile = (document.getElementById('newCustMobile').value || '').trim();
-            const newCity = (document.getElementById('newCustCity').value || '').trim();
-            const newKycNo = (document.getElementById('newCustKycNo').value || '').trim();
-            const newCustPhoto = document.getElementById('newCustPhotoData').value || '';
-            const newKycPhoto = document.getElementById('newCustKycData').value || '';
+        async function saveNewCustomerFromPopup() {
+            const name = (document.getElementById('ncName').value || '').trim();
+            const mobile = (document.getElementById('ncMobile').value || '').trim();
+            const city = (document.getElementById('ncCity').value || '').trim();
+            const aadhar = (document.getElementById('ncAadhar').value || '').trim();
+            const pan = (document.getElementById('ncPan').value || '').trim().toUpperCase();
+            const photo = document.getElementById('ncPhotoData').value || '';
+            const kycPhoto = document.getElementById('ncKycData').value || '';
 
-            if (!newName) {
-                alert("नए कस्टमर का नाम (Customer Name) डालना ज़रूरी है!");
-                document.getElementById('newCustName').focus();
-                return null;
+            if (!name || !mobile) {
+                return alert("Name aur Mobile Number zaroori hai!");
             }
-            if (!newMobile) {
-                alert("नए कस्टमर का मोबाइल नंबर (Mobile Number) डालना ज़रूरी है!");
-                document.getElementById('newCustMobile').focus();
-                return null;
+            if (aadhar && (aadhar.length !== 12 || isNaN(aadhar))) {
+                return alert("Aadhar Number 12 digit ka hona chahiye ya khali chhod dein.");
             }
 
-            const btn = document.getElementById('btnSaveAndSelectCust');
-            const oldHtml = btn ? btn.innerHTML : '';
-            if (btn) {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Customer Save Ho Raha Hai...';
-                btn.disabled = true;
-            }
+            const btn = document.getElementById('btnPopupSaveCust');
+            const oldHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Customer...';
+            btn.disabled = true;
 
             try {
                 await loadCustomers();
 
-                // Check if mobile number already exists
-                let existingByMob = allCustomers.find(c => String(c.mobile || '').trim() === newMobile);
-                let targetCustomer = null;
-
-                if (existingByMob) {
-                    if (newCustPhoto) { existingByMob.photo = newCustPhoto; existingByMob.customerPhoto = newCustPhoto; }
-                    if (newKycPhoto) { existingByMob.kycPhoto = newKycPhoto; existingByMob.idPhoto = newKycPhoto; }
-                    if (newKycNo) { existingByMob.kycNo = newKycNo; existingByMob.aadhaar = newKycNo; }
-                    if (newCity && !existingByMob.city) { existingByMob.city = newCity; existingByMob.address = newCity; }
-                    await updateItem('customers', existingByMob);
-                    await loadCustomers();
-                    targetCustomer = allCustomers.find(c => String(c.id) === String(existingByMob.id)) || existingByMob;
-                } else {
-                    const uniqueCreatedAt = new Date().toISOString();
-                    const newCustomerObj = {
-                        name: newName,
-                        mobile: newMobile,
-                        city: newCity,
-                        address: newCity,
-                        kycNo: newKycNo,
-                        aadhaar: newKycNo,
-                        photo: newCustPhoto,
-                        customerPhoto: newCustPhoto,
-                        kycPhoto: newKycPhoto,
-                        idPhoto: newKycPhoto,
-                        bcBalance: 0,
-                        createdAt: uniqueCreatedAt
-                    };
-
-                    const addResult = await addItem('customers', newCustomerObj);
-                    let returnedId = '';
-                    if (typeof addResult === 'string' || typeof addResult === 'number') {
-                        returnedId = String(addResult);
-                    } else if (addResult && addResult.id) {
-                        returnedId = String(addResult.id);
-                    }
-
-                    // Reload fresh customers list from DB so we get exact Firestore document ID
-                    await loadCustomers();
-
-                    if (returnedId) {
-                        targetCustomer = allCustomers.find(c => String(c.id) === returnedId);
-                    }
-                    if (!targetCustomer) {
-                        targetCustomer = allCustomers.find(c => c.createdAt === uniqueCreatedAt);
-                    }
-                    if (!targetCustomer) {
-                        const matches = allCustomers.filter(c =>
-                            String(c.name || '').trim().toLowerCase() === newName.toLowerCase() &&
-                            String(c.mobile || '').trim() === newMobile
-                        );
-                        if (matches.length > 0) targetCustomer = matches[matches.length - 1];
-                    }
+                // Exact same duplicate rule as customers.html
+                const existingExact = allCustomers.find(c =>
+                    String(c.name || '').trim().toLowerCase() === name.toLowerCase() &&
+                    String(c.mobile || '').trim() === mobile
+                );
+                if (existingExact) {
+                    closeModal('newCustPopupModal');
+                    selectCustomer(existingExact);
+                    alert(`ℹ️ "${existingExact.name}" pehle se list mein hain, unhe select kar diya gaya hai.`);
+                    return;
                 }
 
-                if (!targetCustomer || !targetCustomer.id) {
-                    alert("Customer save hone ke baad ID fetch nahi ho payi. Dobara try karein.");
-                    return null;
+                if (aadhar && allCustomers.some(c => c.aadhar && String(c.aadhar).trim() === aadhar)) {
+                    return alert("⚠️ Ye Aadhar Number pehle se kisi aur customer ke paas hai!");
+                }
+                if (pan && allCustomers.some(c => c.pan && String(c.pan).trim().toUpperCase() === pan)) {
+                    return alert("⚠️ Ye PAN Card pehle se kisi aur customer ke paas hai!");
                 }
 
-                // Close inline form & automatically select the newly saved customer
-                toggleInlineNewCustomer(false);
-                selectCustomer(targetCustomer);
+                // Snapshot ALL existing IDs BEFORE adding
+                const idsBefore = new Set(allCustomers.map(c => String(c.id)));
+                const joinedTime = new Date().toISOString();
 
-                return targetCustomer;
+                // Exact same customer schema as customers.html
+                const custPayload = {
+                    name,
+                    mobile,
+                    aadhar,
+                    pan,
+                    city,
+                    photo,
+                    kycPhoto,
+                    tags: [],
+                    redeemedCoins: 0,
+                    joined: joinedTime,
+                    inquiries: []
+                };
+
+                const returnedVal = await addItem('customers', custPayload);
+
+                // Reload fresh list from DB
+                await loadCustomers();
+
+                // 1st priority: Find the BRAND NEW record (ID not in idsBefore) whose NAME matches
+                let createdCust = allCustomers.find(c =>
+                    !idsBefore.has(String(c.id)) &&
+                    String(c.name || '').trim().toLowerCase() === name.toLowerCase()
+                );
+
+                // 2nd priority: Exact joined timestamp + matching name
+                if (!createdCust) {
+                    createdCust = allCustomers.find(c =>
+                        c.joined === joinedTime &&
+                        String(c.name || '').trim().toLowerCase() === name.toLowerCase()
+                    );
+                }
+
+                // 3rd priority: Returned ID ONLY IF name matches! (Prevents picking wrong customer)
+                if (!createdCust && returnedVal) {
+                    const rid = (typeof returnedVal === 'object' && returnedVal.id) ? String(returnedVal.id) : String(returnedVal);
+                    createdCust = allCustomers.find(c =>
+                        String(c.id) === rid &&
+                        String(c.name || '').trim().toLowerCase() === name.toLowerCase()
+                    );
+                }
+
+                // 4th priority: Latest customer matching exact name + mobile
+                if (!createdCust) {
+                    const matches = allCustomers.filter(c =>
+                        String(c.name || '').trim().toLowerCase() === name.toLowerCase() &&
+                        String(c.mobile || '').trim() === mobile
+                    );
+                    if (matches.length > 0) createdCust = matches[matches.length - 1];
+                }
+
+                if (!createdCust || !createdCust.id) {
+                    alert("⚠️ Customer save hua par auto-select nahi ho paya. Kripya search box me naam type karke select karein.");
+                    closeModal('newCustPopupModal');
+                    return;
+                }
+
+                closeModal('newCustPopupModal');
+                selectCustomer(createdCust);
+                alert(`✅ Naya Customer "${createdCust.name}" save aur select ho gaya hai!\nAb Gold Loan ki details bharein.`);
             } catch (err) {
                 console.error("Save New Customer Error:", err);
                 alert("Naya customer save karne me error aayi. Network check karein.");
-                return null;
             } finally {
-                if (btn) {
-                    btn.innerHTML = oldHtml;
-                    btn.disabled = false;
-                }
+                btn.innerHTML = oldHtml;
+                btn.disabled = false;
             }
         }
 
@@ -1073,7 +1069,7 @@
             return false;
         }
 
-        // --- CHRONOLOGICAL LEDGER RECALCULATION (SUPPORTS BACKDATED PAYMENTS) ---
+        // --- CHRONOLOGICAL LEDGER RECALCULATION ---
         function recalculateLoanLedger(l) {
             const now = new Date();
             const startDate = new Date(l.date);
@@ -1237,7 +1233,7 @@
             checkAndMarkClosed(l);
         }
 
-        // --- DATE TO DATE INTEREST LOGIC (INCLUDING TOP-UPS) ---
+        // --- DATE TO DATE INTEREST LOGIC ---
         function syncLoanLedger(l) {
             if (l.status === 'active' && checkAndMarkClosed(l)) {
                 return true;
@@ -1364,8 +1360,8 @@
 
                     return { 
                         ...l, 
-                        custName: c ? c.name : 'Unknown', 
-                        custMobile: c ? c.mobile : '',
+                        custName: c ? c.name : (l.custName || 'Unknown'), 
+                        custMobile: c ? c.mobile : (l.custMobile || ''),
                         custPhoto: c ? (c.photo || c.customerPhoto || '') : '',
                         currentPrincipal: currentPrin 
                     };
@@ -1570,7 +1566,8 @@
 
             let kycParts = [];
             if (foundCust.mobile) kycParts.push(`Mob: ${foundCust.mobile}`);
-            if (foundCust.kycNo || foundCust.aadhaar) kycParts.push(`ID: ${foundCust.kycNo || foundCust.aadhaar}`);
+            if (foundCust.aadhar || foundCust.kycNo) kycParts.push(`Aadhar: ${foundCust.aadhar || foundCust.kycNo}`);
+            if (foundCust.pan) kycParts.push(`PAN: ${foundCust.pan}`);
             if (cKycUrl) {
                 kycParts.push(`<span style="cursor:pointer; text-decoration:underline; color:#0d47a1;" onclick="zoomImage('${cKycUrl}', 'Customer KYC Document')"><i class="fas fa-id-card"></i> View KYC Doc</span>`);
             }
@@ -1656,7 +1653,6 @@
                             <span class="l-badge ${isLoanOverLimit ? 'badge-overdue' : bClass}">${isLoanOverLimit ? '⚠️ High Risk' : bText}</span>
                         </div>
 
-                        <!-- 4-Box Breakdown Grid: Main Prin, Current Prin, Pending Int, Total Due -->
                         <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; background:#fff; padding:10px 8px; border-radius:6px; border:1px solid #ddd; text-align:center; margin-top:8px;">
                             <div style="border-right:1px solid #eee; padding-right:4px;">
                                 <div style="font-size:0.68rem; color:#777;">Main Prin.</div>
@@ -1749,6 +1745,7 @@
 
         function selectCustomer(c) {
             if (!c || !c.id) return;
+            selectedCustomerObj = c;
             document.getElementById('selectedCustomerId').value = String(c.id);
             document.getElementById('customerSearchInput').value = c.name;
             document.getElementById('customerSearchResults').style.display = 'none';
@@ -1760,24 +1757,28 @@
                 <div style="display:flex; align-items:center; gap:8px;">
                     ${cPhoto ? `<img src="${cPhoto}" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:1.5px solid #2e7d32;">` : `<i class="fas fa-check-circle" style="color:#2e7d32; font-size:1.2rem;"></i>`}
                     <div>
-                        <div style="font-weight:700; color:#1b5e20; font-size:0.9rem;">✓ Selected: ${c.name}</div>
+                        <div style="font-weight:700; color:#1b5e20; font-size:0.92rem;">✓ Selected: ${c.name}</div>
                         <div style="font-size:0.75rem; color:#2e7d32;">Mob: ${c.mobile || 'N/A'} ${cKyc ? '• KYC Attached ✓' : ''}</div>
                     </div>
                 </div>
                 <i class="fas fa-times-circle" style="color:#c62828; cursor:pointer; font-size:1.1rem;" onclick="clearSelectedCust()" title="Change Customer"></i>
             `;
+            const saveBtn = document.getElementById('btnSaveNewLoan');
+            if (saveBtn) saveBtn.innerHTML = `<i class="fas fa-check-circle"></i> Create Loan for ${c.name}`;
         }
 
         function clearSelectedCust() {
+            selectedCustomerObj = null;
             document.getElementById('selectedCustomerId').value = '';
             document.getElementById('customerSearchInput').value = '';
             document.getElementById('customerSearchResults').style.display = 'none';
             document.getElementById('selectedCustDisplay').style.display = 'none';
+            const saveBtn = document.getElementById('btnSaveNewLoan');
+            if (saveBtn) saveBtn.innerHTML = 'Create Loan Account';
         }
 
         function openCreateModal() { 
             document.getElementById('createModal').style.display = 'flex'; 
-            toggleInlineNewCustomer(false);
             clearSelectedCust();
 
             document.getElementById('loanDesc').value = '';
@@ -1822,17 +1823,13 @@
         }
 
         async function saveLoan() {
-            // Agar user ne naya customer form khola hua hai aur pehle Save button nahi dabaya, to pehle customer save & select karein
-            if (isCreatingInlineCustomer) {
-                const createdCust = await saveNewCustomerAndSelect();
-                if (!createdCust) return;
-            }
-
             const custId = String(document.getElementById('selectedCustomerId').value || '').trim();
-            const verifiedCust = allCustomers.find(c => String(c.id) === custId);
+            const verifiedCust = (selectedCustomerObj && String(selectedCustomerObj.id) === custId)
+                ? selectedCustomerObj
+                : allCustomers.find(c => String(c.id) === custId);
 
             if (!custId || !verifiedCust) {
-                return alert("Please select a customer or add & save a new customer first!");
+                return alert("Pehle koi Customer select karein ya '+ नया कस्टमर जोड़ें' button se naya customer banayein!");
             }
 
             const cashAmt = parseFloat(document.getElementById('loanCash').value) || 0;
@@ -1879,6 +1876,8 @@
                 const loan = {
                     loanNo: nextLoanNo,
                     customerId: verifiedCust.id,
+                    custName: verifiedCust.name,
+                    custMobile: verifiedCust.mobile || '',
                     description: document.getElementById('loanDesc').value || 'Gold Item',
                     weight: parseFloat(document.getElementById('loanWeight').value) || 0,
                     purity: document.getElementById('loanPurity').value,
@@ -1943,8 +1942,8 @@
                 
                 document.getElementById('vLoanIdHeader').innerText = l.loanNo || l.id;
                 document.getElementById('viewLoanId').value = l.id;
-                document.getElementById('vCustNameDetail').innerText = c ? c.name : 'Unknown Customer';
-                document.getElementById('vCustPhoneDetail').innerText = c ? (c.mobile || 'No Number') : 'No Number';
+                document.getElementById('vCustNameDetail').innerText = c ? c.name : (l.custName || 'Unknown Customer');
+                document.getElementById('vCustPhoneDetail').innerText = c ? (c.mobile || 'No Number') : (l.custMobile || 'No Number');
                 document.getElementById('vItemDesc').innerText = l.description || 'Gold Item';
                 document.getElementById('vItemWeight').innerText = l.weight ? l.weight + "g" : "N/A";
                 document.getElementById('vInterestRate').innerText = l.ratePercent + "% / mo";
