@@ -629,6 +629,7 @@
 
                 <button type="button" class="btn-primary" style="background:var(--merchant-orange); margin-top:0; grid-column: span 2;" id="btnForwardMerchant" onclick="openAssignModal()"><i class="fas fa-truck-loading"></i> Assign to Karigar</button>
                 <button type="button" class="btn-primary btn-outline" style="margin-top:0; grid-column: span 2; border-color:var(--merchant-orange); color:var(--merchant-orange);" id="btnPrintKarigarSlip" onclick="printKarigarSlip()"><i class="fas fa-file-invoice"></i> Print Karigar Slip</button>
+                <button type="button" class="btn-primary" style="background:#25D366; color:#fff; margin-top:0; grid-column: span 2;" id="btnWhatsAppKarigar" onclick="sendKarigarWhatsApp()"><i class="fab fa-whatsapp"></i> Send Order & Photo to Karigar</button>
 
                 <button type="button" class="btn-primary" style="background:var(--receive-green); margin-top:0; grid-column: span 2;" id="btnReceiveMerchant" onclick="openReceiveModal()"><i class="fas fa-box-open"></i> Receive from Karigar</button>
 
@@ -1115,7 +1116,6 @@
 
             const filtered = allOrders.filter(o => {
                 let matchTab = false;
-                // "All Orders" shows ONLY Active orders (Pending + With Karigar + Ready), NOT Billed/Delivered or Cancelled/Deleted
                 if (currentTab === 'all') matchTab = isActiveOrderStatus(o);
                 else if (currentTab === 'pending') matchTab = (o.status === 'pending' && !o.isDeleted);
                 else if (currentTab === 'karigar') matchTab = ((o.status === 'in_progress' || o.status === 'with_karigar') && !o.isDeleted);
@@ -1903,16 +1903,27 @@
             toggleDisplay('btnDeleteDirect', (o.status === 'cancelled' || o.status === 'deleted' || o.isDeleted || o.status === 'billed' || o.status === 'delivered') ? 'none' : 'flex');
 
             if (isDone) {
-                toggleDisplay('btnForwardMerchant', 'none'); toggleDisplay('btnPrintKarigarSlip', 'none'); toggleDisplay('btnReceiveMerchant', 'none');
+                toggleDisplay('btnForwardMerchant', 'none'); 
+                toggleDisplay('btnPrintKarigarSlip', 'none'); 
+                toggleDisplay('btnWhatsAppKarigar', 'none');
+                toggleDisplay('btnReceiveMerchant', 'none');
                 toggleDisplay('btnGoToSales', (o.status === 'completed' || o.status === 'ready') ? 'flex' : 'none');
             } else {
                 toggleDisplay('btnGoToSales', 'none');
                 if(o.status === 'in_progress' || o.status === 'with_karigar') {
-                    toggleDisplay('btnForwardMerchant', 'block'); document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-exchange-alt"></i> Change Karigar'; document.getElementById('btnForwardMerchant').style.background = '#8e24aa'; 
-                    toggleDisplay('btnPrintKarigarSlip', 'block'); toggleDisplay('btnReceiveMerchant', 'block');
+                    toggleDisplay('btnForwardMerchant', 'block'); 
+                    document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-exchange-alt"></i> Change Karigar'; 
+                    document.getElementById('btnForwardMerchant').style.background = '#8e24aa'; 
+                    toggleDisplay('btnPrintKarigarSlip', 'block'); 
+                    toggleDisplay('btnWhatsAppKarigar', 'flex');
+                    toggleDisplay('btnReceiveMerchant', 'block');
                 } else {
-                    toggleDisplay('btnForwardMerchant', 'block'); document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-truck-loading"></i> Assign to Karigar'; document.getElementById('btnForwardMerchant').style.background = 'var(--merchant-orange)';
-                    toggleDisplay('btnPrintKarigarSlip', 'none'); toggleDisplay('btnReceiveMerchant', 'none');
+                    toggleDisplay('btnForwardMerchant', 'block'); 
+                    document.getElementById('btnForwardMerchant').innerHTML = '<i class="fas fa-truck-loading"></i> Assign to Karigar'; 
+                    document.getElementById('btnForwardMerchant').style.background = 'var(--merchant-orange)';
+                    toggleDisplay('btnPrintKarigarSlip', 'none'); 
+                    toggleDisplay('btnWhatsAppKarigar', 'none');
+                    toggleDisplay('btnReceiveMerchant', 'none');
                 }
             }
 
@@ -2031,8 +2042,13 @@
             showToast("Assigned to Karigar!", "success"); closeModal('assignModal'); await loadOrders(); 
 
             setTimeout(() => {
-                if(confirm("Order assigned to Karigar successfully!\n\nDo you want to Print/PDF the Karigar Details Slip?")) { printKarigarSlip(); } 
-                else if(confirm("Do you want to send a WhatsApp update to the Customer that processing has started?")) { autoWhatsApp(activeJobData, 'karigar'); }
+                if(confirm("Order assigned to Karigar successfully!\n\nDo you want to send Order Details & Photo to Karigar on WhatsApp?")) {
+                    sendKarigarWhatsApp();
+                } else if(confirm("Do you want to Print/PDF the Karigar Details Slip?")) {
+                    printKarigarSlip();
+                } else if(confirm("Do you want to send a WhatsApp update to the Customer that processing has started?")) {
+                    autoWhatsApp(activeJobData, 'karigar');
+                }
             }, 300);
         }
 
@@ -2601,15 +2617,14 @@
         }
 
         // ==================== PRINT & WHATSAPP ====================
+        function triggerAppPrint() {
+            if (window.AndroidInterface && typeof window.AndroidInterface.printPage === 'function') {
+                window.AndroidInterface.printPage();
+            } else {
+                window.print();
+            }
+        }
 
-      
-function triggerAppPrint() {
-    if (window.AndroidInterface && typeof window.AndroidInterface.printPage === 'function') {
-        window.AndroidInterface.printPage();
-    } else {
-        window.print();
-    }
-}
         function printReceiptEngine(targetId = null) {
             const o = targetId ? allOrders.find(x => x.id == targetId) : activeJobData;
             if(!o) return;
@@ -2650,7 +2665,7 @@ function triggerAppPrint() {
 
             document.getElementById('challan-area').innerHTML = ''; 
             document.getElementById('invoice-area').innerHTML = html;
-           triggerAppPrint(html, 'Receipt_' + invoiceNo);
+            triggerAppPrint(html, 'Receipt_' + invoiceNo);
         }
 
         function printKarigarSlip() {
@@ -2702,7 +2717,78 @@ function triggerAppPrint() {
             document.getElementById('challan-area').innerHTML = html;
             triggerAppPrint(html, 'KarigarSlip_' + invoiceNo);
         }
-        
+
+        async function sendKarigarWhatsApp() {
+            const o = activeJobData;
+            if (!o) return;
+
+            const m = allMerchants.find(x => String(x.id) === String(o.merchantId));
+            if (!m) return showToast("Karigar not found!", "error");
+
+            const rawMobile = m.mobile || m.phone || m.contact || '';
+            if (!rawMobile) return showToast(`Karigar (${m.name}) ka mobile number saved nahi hai!`, "error");
+
+            let phone = rawMobile.toString().replace(/\D/g, '');
+            if (phone.length === 10) phone = '+91' + phone;
+            else if (!phone.startsWith('+')) phone = '+' + phone;
+
+            const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
+            const dueStr = o.dueDate ? new Date(o.dueDate).toLocaleDateString('en-IN') : 'N/A';
+
+            let itemLines = '';
+            let items = o.orderItems || [];
+            let count = 1;
+            items.forEach(i => {
+                if (!i.fromStock && !i.stockId) {
+                    itemLines += `${count}. *${i.category}* - ${i.description}\n   Purity: ${i.purity} | Est. Wt: *${i.grossWt}g*\n`;
+                    count++;
+                }
+            });
+
+            if (!itemLines) itemLines = "No custom items to build.\n";
+
+            let metalInfo = (o.issuedGrossWt && o.issuedGrossWt > 0)
+                ? `Issued Gold: *${o.issuedGrossWt.toFixed(3)}g* (${o.issuedPurity}) | Fine: *${(o.issuedFineWt || 0).toFixed(3)}g*`
+                : `Metal: *Pure Labor / No Gold Issued*`;
+
+            let msg = `*BHARTI JEWELLERS - KARIGAR ORDER*\n` +
+                      `Order Ref: *${invoiceNo}*\n` +
+                      `Karigar: ${m.name}\n` +
+                      `Delivery Due: *${dueStr}*\n\n` +
+                      `*Items to Make:*\n${itemLines}\n` +
+                      `${metalInfo}\n\n` +
+                      `Please confirm receipt.`;
+
+            if (o.designPhoto && o.designPhoto.startsWith('data:image')) {
+                try {
+                    const res = await fetch(o.designPhoto);
+                    const blob = await res.blob();
+                    const file = new File([blob], `${invoiceNo}_Design.jpg`, { type: 'image/jpeg' });
+
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: `Order ${invoiceNo}`,
+                            text: msg
+                        });
+                        return;
+                    }
+                } catch (err) {
+                    console.warn("Direct file share cancelled or unsupported, falling back to WhatsApp link:", err);
+                }
+
+                // Fallback: Auto-download design photo so user can attach it easily in WhatsApp
+                const a = document.createElement('a');
+                a.href = o.designPhoto;
+                a.download = `${invoiceNo}_Design.jpg`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showToast("Design photo downloaded! WhatsApp chat mein attach kar dein.", "success");
+            }
+
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
 
         function autoWhatsApp(orderData, stage) {
             if (!orderData.custMobile) return showToast("No mobile number found for this customer.", "error");
