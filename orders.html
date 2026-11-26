@@ -152,8 +152,14 @@
 
         .breakdown-box { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
         .breakdown-title { font-weight: 700; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 8px; color:#333; }
-        .breakdown-row { display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px; }
+        .breakdown-row { display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px; align-items:center; }
         .breakdown-total { display:flex; justify-content:space-between; font-size:0.95rem; font-weight:bold; border-top:1px dashed #ccc; padding-top:6px; margin-top:4px; }
+
+        /* Editable Billing Item & Old Gold Cards */
+        .bill-edit-card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+        .bill-edit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+        .bill-edit-grid label { font-size: 0.7rem; color: #666; margin-bottom: 2px; }
+        .bill-edit-grid input, .bill-edit-grid select { padding: 6px; font-size: 0.85rem; background: #f8f9fa; }
 
         #invoice-area, #challan-area { display: none; background: white; padding: 30px; font-family: 'Times New Roman', serif; color: #000; }
         @media print {
@@ -241,7 +247,7 @@
         <div class="fab" onclick="openNewJobModal()"><i class="fas fa-plus"></i></div>
     </div>
 
-    <!-- NEW ORDER MODAL (WITH DESIGN PHOTO UPLOAD + STOCK BARCODE + MULTIPLE ITEMS) -->
+    <!-- NEW ORDER MODAL -->
     <div id="newJobModal" class="modal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal('newJobModal')">&times;</button>
@@ -460,13 +466,13 @@
                 </div>
             </div>
 
-            <!-- OVERALL COSTING (WITH ROUND OFF & MAKING ADJ) -->
+            <!-- OVERALL COSTING -->
             <div class="form-section" style="border-left: 4px solid #fbc02d; background: #fffde7;">
                 <div class="form-section-title" style="color: #f57f17; border-color: #ffe0b2;">Total Costing & Advance</div>
 
                 <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9;">
                     <input type="checkbox" id="oApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcOrderGrandTotal()">
-                    <label for="oApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Total</label>
+                    <label for="oApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Pure Order Total</label>
                 </div>
                 <input type="hidden" id="oGstAmountVal" value="0">
 
@@ -480,7 +486,7 @@
                         <input type="number" id="oMakingAdj" style="width:70px; padding:2px; text-align:right; font-size:0.85rem; color:#000; font-weight:bold;" placeholder="0" oninput="calcOrderGrandTotal()">
                     </div>
                     <div class="summary-row" id="oGSTSummaryRow" style="display:none; color:#64b5f6;">
-                        <span>GST (3%):</span>
+                        <span>GST (3% on Pure Total):</span>
                         <span class="summary-val" id="oGSTTotalDisplay">+₹0</span>
                     </div>
                     <div class="summary-row" style="border-top:1px dashed #555; padding-top:5px; margin-top:5px;">
@@ -715,7 +721,7 @@
 
                 <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9; margin-top:10px;">
                     <input type="checkbox" id="rApplyGST" style="width:20px; height:20px; accent-color:#1976d2;" onchange="calcReceiveTotals()">
-                    <label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Total</label>
+                    <label for="rApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Pure Final Total</label>
                 </div>
                 <input type="hidden" id="rGstAmountVal" value="0">
             </div>
@@ -732,9 +738,9 @@
         </div>
     </div>
 
-    <!-- BILLING MODAL -->
+    <!-- BILLING MODAL (FULLY EDITABLE: ITEMS, MAKING, OLD GOLD, GST ON PURE AMOUNT) -->
     <div id="billingModal" class="modal">
-        <div class="modal-content" style="max-width: 650px;">
+        <div class="modal-content" style="max-width: 720px;">
             <button class="close-btn" onclick="closeModal('billingModal')">&times;</button>
             <h3 style="margin-top:0; color:#1976d2;"><i class="fas fa-file-invoice-dollar"></i> Finalize & Bill Order</h3>
             <input type="hidden" id="billOrderId">
@@ -746,56 +752,98 @@
                 <span class="badge" style="background:#1565c0; color:white;" id="billInvoiceBadge">Billed to Order</span>
             </div>
 
+            <!-- EDITABLE ORDER ITEMS (WEIGHT, RATE, MAKING) -->
+            <div class="form-section" style="border-left: 4px solid #1976d2; background: #f8fbff;">
+                <div class="form-section-title" style="color:#1565c0; border-color:#bbdefb;">
+                    <i class="fas fa-edit"></i> Edit Order Items (Weight, Rate & Making)
+                </div>
+                <div id="bMainItemsList"></div>
+            </div>
+
+            <!-- EXTRA READY STOCK ITEMS -->
             <div class="form-section" style="border-left: 4px solid #4caf50; background: #e8f5e9; overflow: visible;">
                 <div class="form-section-title" style="color: #2e7d32; border-color: #a5d6a7;">Add Extra Items (Optional)</div>
                 <div id="billExtraSearchMode" style="position:relative;">
                     <div style="display:flex; gap:10px;">
-                        <input type="text" id="billExtraSearchInput" placeholder="Search Barcode, Category or Name..." style="flex:1; padding:10px; border:1px solid #a5d6a7; border-radius:6px;" autocomplete="off" onkeyup="searchInventoryForBill()">
+                        <input type="text" id="billExtraSearchInput" placeholder="Search Barcode, Category or Name..." style="flex:1; padding:10px; border:1px solid #a5d6a7; border-radius:6px; background:#fff;" autocomplete="off" onkeyup="searchInventoryForBill()">
                         <button type="button" class="btn-primary" style="width:auto; margin:0; background:#2e7d32; padding: 0 20px;" onclick="addExtraItemFromSearch()"><i class="fas fa-plus"></i> Add</button>
                     </div>
                     <input type="hidden" id="selectedBillExtraInvId">
                     <div id="billExtraSearchResults" class="search-results" style="top: 100%;"></div>
                 </div>
-                <div id="billExtraItemsList" style="margin-top:15px; display:flex; flex-direction:column; gap:5px;"></div>
+                <div id="billExtraItemsList" style="margin-top:12px; display:flex; flex-direction:column; gap:5px;"></div>
             </div>
 
+            <!-- EDITABLE OLD GOLD SECTION -->
+            <div class="form-section" style="border-left: 4px solid var(--old-gold); background: #fdf7ff;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e1bee7; padding-bottom:6px; margin-bottom:10px;">
+                    <div class="form-section-title" style="margin:0; border:none; padding:0; color:var(--old-gold);">
+                        <i class="fas fa-sync-alt"></i> Edit / Add Old Gold Exchanged
+                    </div>
+                    <button type="button" class="photo-action-btn" style="background:var(--old-gold); color:#fff; padding:4px 10px; font-size:0.75rem;" onclick="addBillingOldGoldItem()">
+                        <i class="fas fa-plus"></i> Add Old Gold
+                    </button>
+                </div>
+                <div id="billOldGoldItemsList"></div>
+            </div>
+
+            <!-- FINAL BILL BREAKDOWN (GST ON PURE AMOUNT BEFORE OLD GOLD) -->
             <div class="breakdown-box">
                 <div class="breakdown-title">Final Bill Breakdown</div>
 
-                <div id="bMainItemsList"></div>
-
-                <div class="breakdown-row" style="color:var(--receive-green); margin-top:8px;" id="bExtraRow"><span>Extra Items (Total):</span> <strong id="bExtraTotal">+₹0</strong></div>
-                <div class="breakdown-row" style="color:#8e24aa;">
-                    <span style="display:flex; align-items:center;">Making Adj (±₹):</span> 
-                    <input type="number" id="billMakingAdj" style="width:80px; padding:4px; text-align:right;" placeholder="0" oninput="calcBillingAdjustment()">
+                <div class="breakdown-row"><span>Order Items Subtotal:</span> <strong id="bMainItemsSubtotal">₹0</strong></div>
+                <div class="breakdown-row" style="color:var(--receive-green);" id="bExtraRow"><span>Extra Items Subtotal:</span> <strong id="bExtraTotal">+₹0</strong></div>
+                
+                <div class="breakdown-row" style="color:#8e24aa; margin-top:6px;">
+                    <span>Making Adj (±₹):</span> 
+                    <input type="number" id="billMakingAdj" style="width:90px; padding:4px; text-align:right;" placeholder="0" oninput="calcBillingAdjustment()">
                 </div>
-                <div class="breakdown-row" style="margin-top:8px;">
-                    <span style="display:flex; align-items:center;">Other Charges:</span> 
-                    <input type="number" id="billOtherCharge" style="width:80px; padding:4px; text-align:right;" oninput="calcBillingAdjustment()">
+                <div class="breakdown-row">
+                    <span>Other Charges (+₹):</span> 
+                    <input type="number" id="billOtherCharge" style="width:90px; padding:4px; text-align:right;" placeholder="0" oninput="calcBillingAdjustment()">
                 </div>
                 <div class="breakdown-row" style="color:#d84315;">
-                    <span style="display:flex; align-items:center;">Discount:</span> 
-                    <input type="number" id="billDiscount" style="width:80px; padding:4px; text-align:right;" placeholder="0" oninput="calcBillingAdjustment()">
+                    <span>Discount (-₹):</span> 
+                    <input type="number" id="billDiscount" style="width:90px; padding:4px; text-align:right;" placeholder="0" oninput="calcBillingAdjustment()">
                 </div>
 
-                <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:10px; padding: 5px 0;">
-                    <input type="checkbox" id="billApplyGST" style="width:16px; height:16px; accent-color:#1976d2;" onchange="calcBillingAdjustment()">
-                    <label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">Apply 3% GST on Final Bill</label>
-                </div>
-                <div class="breakdown-row" style="color:#1976d2;"><span>Total GST:</span> <strong id="bOrdGST">₹0</strong></div>
-
-                <div class="breakdown-total"><span>Gross Bill Total:</span> <strong id="bOrdGross" style="color:var(--accent-gold);">₹0</strong></div>
-
-                <div class="breakdown-row" style="margin-top:8px; color:var(--old-gold);"><span>Less Old Gold:</span> <strong id="bOrdOld">-₹0</strong></div>
-                <div class="breakdown-row" style="color:var(--receive-green);"><span>Less Advance Paid:</span> <strong id="bOrdAdv">-₹0</strong></div>
-                
-                <div class="breakdown-row" style="margin-top:8px; border-top:1px solid #ddd; padding-top:8px;">
-                    <span style="display:flex; align-items:center; font-weight:bold;">Round Off (±₹):</span> 
-                    <input type="number" id="billRoundOff" style="width:80px; padding:4px; text-align:right; font-weight:bold;" placeholder="0" oninput="calcBillingAdjustment()">
+                <div class="breakdown-row" style="border-top:1px dashed #ccc; padding-top:6px; margin-top:6px; font-weight:700; color:#222;">
+                    <span>Pure Taxable Amount (Before Old Gold):</span>
+                    <strong id="bPureTaxableDisplay">₹0</strong>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; font-size:1.3rem;">
-                    <span>Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong>
+                <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; margin:8px 0; padding:8px 10px; background:#e3f2fd; border-radius:6px; border:1px solid #90caf9;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="billApplyGST" style="width:18px; height:18px; accent-color:#1976d2;" onchange="toggleBillGSTManual()">
+                        <label for="billApplyGST" style="margin:0; font-weight:bold; color:#1565c0; cursor:pointer;">GST (3% on Pure Amount)</label>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:0.8rem; color:#1565c0; font-weight:bold;">₹</span>
+                        <input type="number" id="billManualGST" style="width:90px; padding:4px; text-align:right; font-weight:bold; color:#1565c0; background:#fff;" oninput="onManualGSTInput()">
+                    </div>
+                </div>
+
+                <div class="breakdown-row">
+                    <span>Round Off (±₹):</span> 
+                    <input type="number" id="billRoundOff" style="width:90px; padding:4px; text-align:right;" placeholder="0" oninput="calcBillingAdjustment()">
+                </div>
+
+                <div class="breakdown-total" style="font-size:1.05rem;">
+                    <span>Gross Bill Total (Inc. GST):</span> 
+                    <strong id="bOrdGross" style="color:var(--accent-gold);">₹0</strong>
+                </div>
+
+                <div class="breakdown-row" style="margin-top:8px; color:var(--old-gold); font-weight:600;">
+                    <span>Less Old Gold (Deducted After GST):</span> 
+                    <strong id="bOrdOld">-₹0</strong>
+                </div>
+                <div class="breakdown-row" style="color:var(--receive-green); font-weight:600;">
+                    <span>Less Advance Paid:</span> 
+                    <strong id="bOrdAdv">-₹0</strong>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:2px solid #ccc; font-size:1.3rem;">
+                    <span id="bOrdNetLabel">Net Due Now:</span> <strong id="bOrdNet" style="color:var(--active-red);">₹0</strong>
                 </div>
             </div>
 
@@ -893,7 +941,13 @@
             return 1.0;
         }
 
-        // Helper to identify Active Orders (Pending, With Karigar, Ready) - excludes Billed/Delivered/Cancelled/Deleted
+        function buildPurityOptionsHTML(selectedPurity = '22K') {
+            const base = ['24K', '22K', '18K'];
+            const customs = (goldRates.customPurities || []).map(cp => cp.name);
+            const allPurities = [...new Set([...base, ...customs, selectedPurity].filter(Boolean))];
+            return allPurities.map(p => `<option value="${p}" ${p === selectedPurity ? 'selected' : ''}>${p}</option>`).join('');
+        }
+
         function isActiveOrderStatus(o) {
             if (!o || o.isDeleted) return false;
             return ['pending', 'in_progress', 'with_karigar', 'completed', 'ready'].includes(o.status);
@@ -910,6 +964,9 @@
 
         let billingPayments = []; 
         let extraBillingItems = []; 
+        let billEditOrderItems = [];
+        let billEditOldGoldItems = [];
+        let isGSTManuallyEdited = false;
         let activeJobData = null;
 
         // ==================== PHOTO HANDLERS ====================
@@ -1136,7 +1193,6 @@
                 return;
             }
 
-            // Always sort Latest Date First (Descending by orderDate, then by ID)
             filtered.sort((a, b) => {
                 const dateDiff = new Date(b.orderDate || 0) - new Date(a.orderDate || 0);
                 if (dateDiff !== 0) return dateDiff;
@@ -1399,7 +1455,6 @@
             calcOrderGrandTotal();
         }
 
-        // --- Multi Order Items Logic ---
         function autoFillOIRate() {
             const purity = document.getElementById('oiPurity').value;
             let rate = 0;
@@ -1507,7 +1562,6 @@
             });
         }
 
-        // --- Multi Old Gold Logic ---
         function autoFillOGRate() {
             const purity = document.getElementById('ogPurity').value;
             document.getElementById('ogRate').value = Math.round((goldRates.rate24k / 10) * getPurityFactor(purity));
@@ -1584,7 +1638,6 @@
             });
         }
 
-        // --- Total Calculations ---
         function calcOrderGrandTotal() {
             let totalBase = 0;
             newOrderItems.forEach(i => totalBase += i.baseTotal);
@@ -1596,9 +1649,9 @@
             const roundOff = parseFloat(document.getElementById('oRoundOff').value) || 0;
 
             const adjustedBase = totalBase + mkAdj;
-
             document.getElementById('oBaseTotalDisplay').innerText = `₹${Math.round(adjustedBase).toLocaleString()}`;
 
+            // GST calculated on Pure Order Total BEFORE Old Gold deduction
             const applyGST = document.getElementById('oApplyGST').checked;
             let gst = applyGST ? Math.round(adjustedBase * 0.03) : 0;
             document.getElementById('oGstAmountVal').value = gst;
@@ -1631,7 +1684,6 @@
             }
         }
 
-        // --- Save Job (With Design Photo + Stock Box ➔ Order Box Transfer) ---
         async function saveJob() {
             if(newOrderItems.length === 0) return showToast("Please add at least one Order Item", "error");
 
@@ -1776,9 +1828,9 @@
             }
             if(!o.oldGoldItems && o.oldGoldValue > 0) {
                 o.oldGoldItems = [{
-                    description: 'Old Gold', purity: o.oldGoldPurity, rate: o.oldGoldRate,
-                    grossWt: o.oldGoldGross, stoneWt: o.oldGoldStone, netWt: o.oldGoldNet,
-                    fineWt: o.oldGoldFine, exchangePct: o.oldGoldPct, value: o.oldGoldValue
+                    description: 'Old Gold', purity: o.oldGoldPurity || '22K', rate: o.oldGoldRate || 0,
+                    grossWt: o.oldGoldGross || 0, stoneWt: o.oldGoldStone || 0, netWt: o.oldGoldNet || 0,
+                    fineWt: o.oldGoldFine || 0, exchangePct: o.oldGoldPct || 100, value: o.oldGoldValue
                 }];
             }
 
@@ -1838,14 +1890,14 @@
             let orderItemsHtml = '';
             o.orderItems.forEach(i => {
                 let w = isFinalized ? (i.finalNet || i.netWt) : i.netWt;
-                let m = isFinalized ? (i.finalMaking || i.makingTotal) : i.makingTotal;
+                let m = isFinalized ? (i.finalMaking !== undefined ? i.finalMaking : i.makingTotal) : i.makingTotal;
                 let b = isFinalized ? (w * i.rate + m) : i.baseTotal;
                 let stockBadge = (i.fromStock || i.stockId) ? `<span class="stock-tag" style="margin-left:6px;"><i class="fas fa-barcode"></i> Order Box: ${i.barcode}</span>` : '';
                 orderItemsHtml += `
                     <div style="background:#fff; border:1px solid #ddd; padding:8px; border-radius:6px; margin-bottom:5px; font-size:0.85rem;">
                         <strong style="color:#1976d2;">${i.category}</strong> - ${i.description} ${stockBadge}<br>
                         <div style="display:flex; justify-content:space-between; margin-top:4px;">
-                            <span>${w}g (${i.purity}) @ ₹${i.rate}/g</span>
+                            <span>${w}g (${i.purity}) @ ₹${i.rate}/g + Mk ₹${Math.round(m || 0)}</span>
                             <strong>₹${Math.round(b).toLocaleString()}</strong>
                         </div>
                     </div>
@@ -1858,7 +1910,7 @@
             const adv = o.advancePaid || 0;
 
             let tBase = 0;
-            o.orderItems.forEach(i => tBase += isFinalized ? ((i.finalNet || i.netWt) * i.rate + (i.finalMaking || i.makingTotal)) : i.baseTotal);
+            o.orderItems.forEach(i => tBase += isFinalized ? ((i.finalNet || i.netWt) * i.rate + (i.finalMaking !== undefined ? i.finalMaking : i.makingTotal)) : i.baseTotal);
             if(o.otherCharge) tBase += o.otherCharge;
 
             setText('vGoldValueBrk', `₹${Math.round(tBase).toLocaleString()}`);
@@ -2182,6 +2234,8 @@
                 item.finalGross = fGross;
                 item.finalStone = fStone;
                 item.finalNet = fNet;
+                item.makingVal = mkInp;
+                item.makingType = mkTyp;
                 item.finalMaking = actualMk;
 
                 totalGross += fGross;
@@ -2238,7 +2292,7 @@
             }
         }
 
-        // ==================== BILLING ====================
+        // ==================== BILLING (EDITABLE ITEMS, MAKING, OLD GOLD & GST ON PURE AMOUNT) ====================
         function openBillingModal() {
             const o = activeJobData;
             document.getElementById('billOrderId').value = o.id;
@@ -2251,31 +2305,82 @@
             document.getElementById('billCustDisplay').style.display = 'flex';
             document.getElementById('billCustSearch').style.display = 'none';
 
+            // Deep copy order items for editing during billing
+            billEditOrderItems = (o.orderItems || []).map((item, idx) => {
+                const netWt = parseFloat(item.finalNet !== undefined ? item.finalNet : item.netWt) || 0;
+                const rate = parseFloat(item.rate) || 0;
+                const goldVal = netWt * rate;
+                let mkType = item.makingType || 'pct';
+                let mkVal = parseFloat(item.makingVal);
+                const existingMk = parseFloat(item.finalMaking !== undefined ? item.finalMaking : item.makingTotal);
+
+                if (!isNaN(existingMk) && isNaN(mkVal)) {
+                    mkType = 'per_gram';
+                    mkVal = netWt > 0 ? +(existingMk / netWt).toFixed(2) : 0;
+                } else if (isNaN(mkVal)) {
+                    mkVal = 0;
+                }
+
+                const mkAmt = !isNaN(existingMk)
+                    ? existingMk
+                    : (mkType === 'pct' ? goldVal * (mkVal / 100) : netWt * mkVal);
+
+                return {
+                    ...item,
+                    _idx: idx,
+                    editNetWt: netWt,
+                    editRate: rate,
+                    editMkType: mkType,
+                    editMkVal: mkVal,
+                    editMkAmt: Math.round(mkAmt)
+                };
+            });
+
+            // Deep copy old gold items for editing during billing
+            if (o.oldGoldItems && o.oldGoldItems.length > 0) {
+                billEditOldGoldItems = o.oldGoldItems.map(og => ({
+                    description: og.description || 'Old Gold',
+                    purity: og.purity || '22K',
+                    rate: parseFloat(og.rate) || Math.round((goldRates.rate24k / 10) * getPurityFactor(og.purity || '22K')),
+                    grossWt: parseFloat(og.grossWt || og.netWt) || 0,
+                    stoneWt: parseFloat(og.stoneWt) || 0,
+                    netWt: parseFloat(og.netWt) || 0,
+                    fineWt: parseFloat(og.fineWt) || 0,
+                    exchangePct: parseFloat(og.exchangePct) || 100,
+                    value: parseFloat(og.value) || 0
+                }));
+            } else if ((o.oldGoldValue || 0) > 0) {
+                const pur = o.oldGoldPurity || '22K';
+                const net = parseFloat(o.oldGoldNet) || 0;
+                const rt = parseFloat(o.oldGoldRate) || Math.round((goldRates.rate24k / 10) * getPurityFactor(pur));
+                billEditOldGoldItems = [{
+                    description: 'Old Gold',
+                    purity: pur,
+                    rate: rt,
+                    grossWt: parseFloat(o.oldGoldGross) || net,
+                    stoneWt: parseFloat(o.oldGoldStone) || 0,
+                    netWt: net,
+                    fineWt: parseFloat(o.oldGoldFine) || (net * getPurityFactor(pur)),
+                    exchangePct: parseFloat(o.oldGoldPct) || 100,
+                    value: parseFloat(o.oldGoldValue) || 0
+                }];
+            } else {
+                billEditOldGoldItems = [];
+            }
+
+            renderBillEditableOrderItems();
+            renderBillEditableOldGoldItems();
+
             document.getElementById('billMakingAdj').value = 0;
             document.getElementById('billRoundOff').value = o.roundOff || 0;
             document.getElementById('billOtherCharge').value = o.otherCharge || 0;
             document.getElementById('billDiscount').value = o.discount || 0; 
+
+            isGSTManuallyEdited = false;
             document.getElementById('billApplyGST').checked = (o.gstAmount > 0);
+            document.getElementById('billManualGST').value = o.gstAmount || 0;
 
             document.getElementById('bOrdAdv').innerText = "-₹" + (o.advancePaid || 0).toLocaleString();
-
-            let itemsHtml = '';
-            let items = o.orderItems || [];
-            items.forEach(i => {
-                let w = i.finalNet || i.netWt;
-                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
-                let val = w * i.rate + mk;
-                let bcTag = i.barcode ? `[${i.barcode}] ` : '';
-                itemsHtml += `
-                <div class="breakdown-row" style="color:#555; padding-left:10px;">
-                    <span>- ${bcTag}${i.category} (${w}g) @ ₹${i.rate}/g + Mk:</span>
-                    <strong>₹${Math.round(val).toLocaleString()}</strong>
-                </div>`;
-            });
-            document.getElementById('bMainItemsList').innerHTML = itemsHtml;
-
-            let totalOldGold = o.oldGoldValue || 0;
-            document.getElementById('bOrdOld').innerText = "-₹" + totalOldGold.toLocaleString();
 
             let advanceHtml = '';
             if(o.payments && o.payments.length > 0) {
@@ -2292,6 +2397,176 @@
 
             renderExtraItems();
             closeModal('viewJobModal'); openModal('billingModal');
+            calcBillingAdjustment();
+        }
+
+        function renderBillEditableOrderItems() {
+            const container = document.getElementById('bMainItemsList');
+            container.innerHTML = '';
+
+            billEditOrderItems.forEach((item, idx) => {
+                const bcTag = item.barcode ? `<span class="stock-tag" style="margin-left:5px;">${item.barcode}</span>` : '';
+                const itemTotal = Math.round(item.editNetWt * item.editRate + item.editMkAmt);
+
+                container.innerHTML += `
+                    <div class="bill-edit-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <strong style="color:#1565c0; font-size:0.9rem;">${item.category}</strong>
+                                <span style="font-size:0.8rem; color:#555;"> - ${item.description} (${item.purity})</span>
+                                ${bcTag}
+                            </div>
+                            <strong id="bItemRowTot_${idx}" style="color:#111; font-size:0.95rem;">₹${itemTotal.toLocaleString()}</strong>
+                        </div>
+                        <div class="bill-edit-grid">
+                            <div>
+                                <label>Net Wt (g)</label>
+                                <input type="number" step="0.001" value="${item.editNetWt}" oninput="updateBillOrderItem(${idx}, 'wt', this.value)">
+                            </div>
+                            <div>
+                                <label>Rate (₹/g)</label>
+                                <input type="number" step="1" value="${item.editRate}" oninput="updateBillOrderItem(${idx}, 'rate', this.value)">
+                            </div>
+                            <div>
+                                <label>Making (${item.editMkType === 'pct' ? '%' : '₹/g'})</label>
+                                <div class="input-group" style="border-radius:6px;">
+                                    <input type="number" step="0.01" value="${item.editMkVal}" style="padding:6px; font-size:0.85rem;" oninput="updateBillOrderItem(${idx}, 'mkVal', this.value)">
+                                    <select style="width:58px; padding:4px; font-size:0.8rem;" onchange="updateBillOrderItem(${idx}, 'mkType', this.value)">
+                                        <option value="pct" ${item.editMkType === 'pct' ? 'selected' : ''}>%</option>
+                                        <option value="per_gram" ${item.editMkType === 'per_gram' ? 'selected' : ''}>₹/g</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#666; margin-top:5px;">
+                            <span id="bItemGoldSub_${idx}">Gold: ₹${Math.round(item.editNetWt * item.editRate).toLocaleString()}</span>
+                            <span id="bItemMkSub_${idx}" style="color:#8e24aa; font-weight:600;">Making: ₹${Math.round(item.editMkAmt).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateBillOrderItem(idx, field, val) {
+            const item = billEditOrderItems[idx];
+            if (!item) return;
+
+            if (field === 'wt') item.editNetWt = parseFloat(val) || 0;
+            else if (field === 'rate') item.editRate = parseFloat(val) || 0;
+            else if (field === 'mkVal') item.editMkVal = parseFloat(val) || 0;
+            else if (field === 'mkType') item.editMkType = val;
+
+            const goldVal = item.editNetWt * item.editRate;
+            const mkAmt = item.editMkType === 'pct'
+                ? goldVal * (item.editMkVal / 100)
+                : item.editNetWt * item.editMkVal;
+
+            item.editMkAmt = Math.round(mkAmt);
+            const rowTotal = Math.round(goldVal + item.editMkAmt);
+
+            const goldEl = document.getElementById(`bItemGoldSub_${idx}`);
+            const mkEl = document.getElementById(`bItemMkSub_${idx}`);
+            const totEl = document.getElementById(`bItemRowTot_${idx}`);
+            if (goldEl) goldEl.innerText = `Gold: ₹${Math.round(goldVal).toLocaleString()}`;
+            if (mkEl) mkEl.innerText = `Making: ₹${item.editMkAmt.toLocaleString()}`;
+            if (totEl) totEl.innerText = `₹${rowTotal.toLocaleString()}`;
+
+            if (field === 'mkType') renderBillEditableOrderItems();
+            calcBillingAdjustment();
+        }
+
+        // --- Editable Old Gold in Billing Modal ---
+        function addBillingOldGoldItem() {
+            const defRate = Math.round((goldRates.rate24k / 10) * getPurityFactor('22K'));
+            billEditOldGoldItems.push({
+                description: 'Old Gold',
+                purity: '22K',
+                rate: defRate,
+                grossWt: 0,
+                stoneWt: 0,
+                netWt: 0,
+                fineWt: 0,
+                exchangePct: 100,
+                value: 0
+            });
+            renderBillEditableOldGoldItems();
+            calcBillingAdjustment();
+        }
+
+        function removeBillingOldGoldItem(idx) {
+            billEditOldGoldItems.splice(idx, 1);
+            renderBillEditableOldGoldItems();
+            calcBillingAdjustment();
+        }
+
+        function renderBillEditableOldGoldItems() {
+            const container = document.getElementById('billOldGoldItemsList');
+            container.innerHTML = '';
+
+            if (billEditOldGoldItems.length === 0) {
+                container.innerHTML = `<div style="font-size:0.8rem; color:#888; text-align:center; padding:6px;">No Old Gold attached. Click "+ Add Old Gold" if customer is exchanging old gold.</div>`;
+                return;
+            }
+
+            billEditOldGoldItems.forEach((og, idx) => {
+                container.innerHTML += `
+                    <div class="bill-edit-card" style="border-color:#ce93d8; background:#fff;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                            <input type="text" value="${og.description}" placeholder="Old Gold Desc" style="padding:5px 8px; font-size:0.82rem; font-weight:600; flex:1;" oninput="updateBillingOldGoldItem(${idx}, 'desc', this.value)">
+                            <strong id="bOgVal_${idx}" style="color:var(--old-gold); font-size:0.95rem;">₹${Math.round(og.value).toLocaleString()}</strong>
+                            <button type="button" class="remove-btn" onclick="removeBillingOldGoldItem(${idx})" title="Remove Old Gold"><i class="fas fa-times-circle"></i></button>
+                        </div>
+                        <div class="bill-edit-grid" style="grid-template-columns: repeat(4, 1fr);">
+                            <div>
+                                <label>Purity</label>
+                                <select onchange="updateBillingOldGoldItem(${idx}, 'purity', this.value)">
+                                    ${buildPurityOptionsHTML(og.purity)}
+                                </select>
+                            </div>
+                            <div>
+                                <label>Net Wt (g)</label>
+                                <input type="number" step="0.001" value="${og.netWt}" oninput="updateBillingOldGoldItem(${idx}, 'netWt', this.value)">
+                            </div>
+                            <div>
+                                <label>24K Rate (₹/g)</label>
+                                <input type="number" step="1" value="${og.rate}" oninput="updateBillingOldGoldItem(${idx}, 'rate', this.value)">
+                            </div>
+                            <div>
+                                <label>Exch %</label>
+                                <input type="number" step="0.1" value="${og.exchangePct}" oninput="updateBillingOldGoldItem(${idx}, 'pct', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateBillingOldGoldItem(idx, field, val) {
+            const og = billEditOldGoldItems[idx];
+            if (!og) return;
+
+            if (field === 'desc') og.description = val;
+            else if (field === 'purity') {
+                og.purity = val;
+                og.rate = Math.round((goldRates.rate24k / 10) * getPurityFactor(val));
+            }
+            else if (field === 'netWt') {
+                og.netWt = parseFloat(val) || 0;
+                og.grossWt = og.netWt + (parseFloat(og.stoneWt) || 0);
+            }
+            else if (field === 'rate') og.rate = parseFloat(val) || 0;
+            else if (field === 'pct') og.exchangePct = parseFloat(val) || 0;
+
+            og.fineWt = og.netWt * getPurityFactor(og.purity);
+            og.value = Math.round(og.fineWt * og.rate * (og.exchangePct / 100));
+
+            if (field === 'purity') {
+                renderBillEditableOldGoldItems();
+            } else {
+                const valEl = document.getElementById(`bOgVal_${idx}`);
+                if (valEl) valEl.innerText = `₹${og.value.toLocaleString()}`;
+            }
+
             calcBillingAdjustment();
         }
 
@@ -2372,44 +2647,82 @@
             });
         }
 
+        function toggleBillGSTManual() {
+            isGSTManuallyEdited = false;
+            calcBillingAdjustment();
+        }
+
+        function onManualGSTInput() {
+            isGSTManuallyEdited = true;
+            const manualVal = parseFloat(document.getElementById('billManualGST').value) || 0;
+            document.getElementById('billApplyGST').checked = (manualVal > 0);
+            calcBillingAdjustment();
+        }
+
         function calcBillingAdjustment() {
             const o = activeJobData;
 
+            // 1. Sum of Editable Order Items
             let mainBase = 0;
-            let items = o.orderItems || [];
-            items.forEach(i => { 
-                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
-                mainBase += Math.round((i.finalNet || i.netWt) * i.rate + mk); 
+            billEditOrderItems.forEach(i => {
+                mainBase += Math.round((i.editNetWt * i.editRate) + i.editMkAmt);
             });
 
+            // 2. Sum of Extra Stock Items
             let extraTotal = 0;
             extraBillingItems.forEach(item => {
                 let rate = (goldRates.rate24k/10) * getPurityFactor(item.purity);
                 extraTotal += Math.round((item.weight * rate) + parseFloat(item.makingCharge || 0));
             });
 
+            // 3. Adjustments & Discount (Pure Taxable Amount BEFORE Old Gold)
             const makingAdj = parseFloat(document.getElementById('billMakingAdj').value) || 0;
             const newOtherCharge = parseFloat(document.getElementById('billOtherCharge').value) || 0;
-            const newBaseTotal = mainBase + extraTotal + newOtherCharge + makingAdj;
-
-            const applyGST = document.getElementById('billApplyGST').checked;
-            const newGSTAmount = applyGST ? Math.round(newBaseTotal * 0.03) : 0;
-
             const newDiscount = parseFloat(document.getElementById('billDiscount').value) || 0;
             const roundOffVal = parseFloat(document.getElementById('billRoundOff').value) || 0;
 
-            const newGrandTotal = newBaseTotal + newGSTAmount - newDiscount + roundOffVal;
+            const pureTaxableAmount = Math.max(0, mainBase + extraTotal + makingAdj + newOtherCharge - newDiscount);
 
+            // 4. GST strictly on Pure Taxable Amount (Old Gold is NOT deducted before GST)
+            const applyGST = document.getElementById('billApplyGST').checked;
+            let newGSTAmount = 0;
+            if (applyGST) {
+                if (isGSTManuallyEdited) {
+                    newGSTAmount = parseFloat(document.getElementById('billManualGST').value) || 0;
+                } else {
+                    newGSTAmount = Math.round(pureTaxableAmount * 0.03);
+                    document.getElementById('billManualGST').value = newGSTAmount;
+                }
+            } else {
+                document.getElementById('billManualGST').value = 0;
+            }
+
+            // 5. Gross Bill Total (Pure Amount + GST + RoundOff)
+            const newGrandTotal = pureTaxableAmount + newGSTAmount + roundOffVal;
             document.getElementById('billUpdatedGrandTotal').value = newGrandTotal;
 
+            // 6. Deduct Old Gold & Advance AFTER GST
+            const totalOldGold = billEditOldGoldItems.reduce((sum, og) => sum + (parseFloat(og.value) || 0), 0);
             const adv = o.advancePaid || 0;
-            const oldVal = o.oldGoldValue || 0;
-            const netDue = newGrandTotal - oldVal - adv;
+            const netDue = newGrandTotal - totalOldGold - adv;
 
+            document.getElementById('bMainItemsSubtotal').innerText = "₹" + mainBase.toLocaleString();
             document.getElementById('bExtraTotal').innerText = "+₹" + extraTotal.toLocaleString();
-            document.getElementById('bOrdGST').innerText = "₹" + Math.round(newGSTAmount).toLocaleString();
+            document.getElementById('bPureTaxableDisplay').innerText = "₹" + pureTaxableAmount.toLocaleString();
             document.getElementById('bOrdGross').innerText = "₹" + newGrandTotal.toLocaleString();
-            document.getElementById('bOrdNet').innerText = "₹" + Math.max(0, netDue).toLocaleString();
+            document.getElementById('bOrdOld').innerText = "-₹" + totalOldGold.toLocaleString();
+
+            const netEl = document.getElementById('bOrdNet');
+            const netLbl = document.getElementById('bOrdNetLabel');
+            if (netDue < 0) {
+                netLbl.innerText = "Refund Payable:";
+                netEl.innerText = "₹" + Math.abs(netDue).toLocaleString();
+                netEl.style.color = "var(--old-gold)";
+            } else {
+                netLbl.innerText = "Net Due Now:";
+                netEl.innerText = "₹" + Math.round(netDue).toLocaleString();
+                netEl.style.color = "var(--active-red)";
+            }
 
             renderBillPayments();
         }
@@ -2435,7 +2748,8 @@
             });
             const o = activeJobData;
             const adjustedGrandTotal = parseFloat(document.getElementById('billUpdatedGrandTotal').value) || 0;
-            let netDue = adjustedGrandTotal - (o.oldGoldValue || 0) - (o.advancePaid||0);
+            const totalOldGold = billEditOldGoldItems.reduce((sum, og) => sum + (parseFloat(og.value) || 0), 0);
+            let netDue = adjustedGrandTotal - totalOldGold - (o.advancePaid || 0);
             document.getElementById('billRemainingDue').innerText = "₹" + Math.max(0, netDue - paidNow).toLocaleString();
         }
 
@@ -2447,38 +2761,99 @@
             o.otherCharge = parseFloat(document.getElementById('billOtherCharge').value) || 0;
             o.discount = parseFloat(document.getElementById('billDiscount').value) || 0; 
             o.roundOff = parseFloat(document.getElementById('billRoundOff').value) || 0;
-
-            let items = o.orderItems || [];
             let makingAdj = parseFloat(document.getElementById('billMakingAdj').value) || 0;
 
-            if (items.length > 0 && makingAdj !== 0) {
-                let currentMk = items[0].finalMaking !== undefined ? items[0].finalMaking : (items[0].makingTotal || 0);
-                items[0].finalMaking = currentMk + makingAdj;
-            }
+            // Sync edited order items back
+            let updatedItems = billEditOrderItems.map((item, idx) => {
+                let finalMk = item.editMkAmt;
+                if (idx === 0 && makingAdj !== 0) {
+                    finalMk += makingAdj;
+                }
+                const stoneWt = parseFloat(item.finalStone !== undefined ? item.finalStone : item.stoneWt) || 0;
+                const finalGross = item.editNetWt + stoneWt;
+                const baseTot = Math.round((item.editNetWt * item.editRate) + finalMk);
+
+                return {
+                    ...item,
+                    netWt: item.editNetWt,
+                    grossWt: finalGross,
+                    finalNet: item.editNetWt,
+                    finalGross: finalGross,
+                    rate: item.editRate,
+                    makingType: item.editMkType,
+                    makingVal: item.editMkVal,
+                    makingTotal: finalMk,
+                    finalMaking: finalMk,
+                    baseTotal: baseTot
+                };
+            });
+
+            // Remove temp UI helper properties before saving
+            updatedItems.forEach(u => {
+                delete u._idx; delete u.editNetWt; delete u.editRate;
+                delete u.editMkType; delete u.editMkVal; delete u.editMkAmt;
+            });
+
+            o.orderItems = updatedItems;
+
+            // Sync edited old gold items back
+            let ogGross = 0, ogStone = 0, ogNet = 0, ogFine = 0, ogVal = 0;
+            billEditOldGoldItems.forEach(og => {
+                ogGross += parseFloat(og.grossWt || og.netWt) || 0;
+                ogStone += parseFloat(og.stoneWt) || 0;
+                ogNet += parseFloat(og.netWt) || 0;
+                ogFine += parseFloat(og.fineWt) || 0;
+                ogVal += parseFloat(og.value) || 0;
+            });
+
+            o.oldGoldItems = billEditOldGoldItems;
+            o.oldGoldGross = ogGross;
+            o.oldGoldStone = ogStone;
+            o.oldGoldNet = ogNet;
+            o.oldGoldFine = ogFine;
+            o.oldGoldValue = ogVal;
+            o.oldGoldPurity = billEditOldGoldItems.length > 0 ? billEditOldGoldItems[0].purity : '22K';
 
             let mainBase = 0;
-            items.forEach(i => { 
-                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
-                mainBase += Math.round((i.finalNet || i.netWt) * i.rate + mk); 
+            let tGross = 0, tNet = 0, tFine = 0, tMk = 0;
+            updatedItems.forEach(i => { 
+                mainBase += i.baseTotal;
+                tGross += i.finalGross;
+                tNet += i.finalNet;
+                tFine += i.finalNet * getPurityFactor(i.purity);
+                tMk += i.finalMaking;
             });
-            let extraTotal = 0;
-            extraBillingItems.forEach(item => { let rate = (goldRates.rate24k/10) * getPurityFactor(item.purity); extraTotal += Math.round((item.weight * rate) + parseFloat(item.makingCharge || 0)); });
 
+            o.finalGross = tGross;
+            o.finalNet = tNet;
+            o.finalFineWt = tFine;
+            o.makingCharge = tMk;
+
+            let extraTotal = 0;
+            extraBillingItems.forEach(item => { 
+                let rate = (goldRates.rate24k/10) * getPurityFactor(item.purity); 
+                extraTotal += Math.round((item.weight * rate) + parseFloat(item.makingCharge || 0)); 
+            });
+
+            const pureTaxableAmount = Math.max(0, mainBase + extraTotal + o.otherCharge - o.discount);
             o.baseAmount = mainBase + extraTotal + o.otherCharge;
-            
+
             const applyGST = document.getElementById('billApplyGST').checked;
-            o.gstAmount = applyGST ? Math.round(o.baseAmount * 0.03) : 0;
-            o.grandTotal = o.baseAmount + o.gstAmount - o.discount + o.roundOff;
+            const manualGSTVal = parseFloat(document.getElementById('billManualGST').value) || 0;
+            o.gstAmount = applyGST ? (isGSTManuallyEdited ? manualGSTVal : Math.round(pureTaxableAmount * 0.03)) : 0;
+
+            // Gross Total = Pure Taxable Amount + GST + RoundOff (Old Gold deducted after)
+            o.grandTotal = pureTaxableAmount + o.gstAmount + o.roundOff;
 
             const newlyPaid = billingPayments.reduce((a,b)=>a+b.amount,0);
             const totalCashReceived = (o.advancePaid || 0) + newlyPaid;
-            const remainingDue = Math.max(0, o.grandTotal - (o.oldGoldValue || 0) - totalCashReceived);
+            const remainingDue = Math.max(0, o.grandTotal - o.oldGoldValue - totalCashReceived);
             const invoiceNo = o.invoiceNo || 'ORD-INV' + String(o.id).padStart(3, '0');
 
             let salesItems = [];
-            for (let i of items) {
-                let w = i.finalNet || i.netWt;
-                let mk = i.finalMaking !== undefined ? i.finalMaking : (i.makingTotal || 0);
+            for (let i of updatedItems) {
+                let w = i.finalNet;
+                let mk = i.finalMaking;
                 let itemBc = i.barcode || o.barcode || 'NO-BC';
 
                 salesItems.push({
@@ -2535,7 +2910,7 @@
                 for(let og of o.oldGoldItems) {
                     await addItem('old_gold', {
                         date: new Date().toISOString(), customerId: finalCustId, orderId: o.id, category: og.description, purity: og.purity,
-                        grossWt: og.grossWt, stoneWt: og.stoneWt, netWt: og.netWt, fineWt: og.fineWt, amount: og.value, status: 'received_in_bill'
+                        grossWt: og.grossWt || og.netWt, stoneWt: og.stoneWt || 0, netWt: og.netWt, fineWt: og.fineWt, amount: og.value, status: 'received_in_bill'
                     });
                 }
             }
@@ -2652,16 +3027,17 @@
             });
             html += `</table><hr>`;
 
-            if(o.gstAmount > 0) html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
+            if(o.otherCharge > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Other Charges:</span><span>+₹${o.otherCharge}</span></div>`;
             if(o.discount > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Discount:</span><span>-₹${o.discount}</span></div>`;
-            if(o.oldGoldValue > 0) html += `<div style="display:flex; justify-content:space-between;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            if(o.gstAmount > 0) html += `<div style="display:flex; justify-content:space-between;"><span>GST (3%):</span><span>+₹${o.gstAmount}</span></div>`;
             if(o.roundOff) {
                 const sign = o.roundOff > 0 ? '+' : '';
                 html += `<div style="display:flex; justify-content:space-between;"><span>Round Off:</span><span>${sign}₹${o.roundOff}</span></div>`;
             }
 
-            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:10px; border-top:2px solid #000; padding-top:5px;"><b>Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
-            html += `<div style="margin-top:10px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
+            html += `<div style="display:flex; justify-content:space-between; font-size:16px; margin-top:8px; border-top:2px solid #000; padding-top:5px;"><b>Gross Total:</b><b>₹${o.grandTotal || o.estAmount}</b></div>`;
+            if(o.oldGoldValue > 0) html += `<div style="display:flex; justify-content:space-between; margin-top:4px;"><span>Less Old Gold:</span><span>-₹${o.oldGoldValue}</span></div>`;
+            html += `<div style="margin-top:6px;">Advance Paid: ₹${o.advancePaid||0}</div></div>`;
 
             document.getElementById('challan-area').innerHTML = ''; 
             document.getElementById('invoice-area').innerHTML = html;
@@ -2777,7 +3153,6 @@
                     console.warn("Direct file share cancelled or unsupported, falling back to WhatsApp link:", err);
                 }
 
-                // Fallback: Auto-download design photo so user can attach it easily in WhatsApp
                 const a = document.createElement('a');
                 a.href = o.designPhoto;
                 a.download = `${invoiceNo}_Design.jpg`;
